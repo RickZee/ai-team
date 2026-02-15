@@ -19,10 +19,13 @@ dependencies = [
     { name = "crewai-tools" },
     { name = "gradio" },
     { name = "langchain-ollama" },
+    { name = "litellm" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "structlog" },
 ]
 
@@ -42,15 +45,18 @@ requires-dist = [
     { name = "crewai-tools" },
     { name = "gradio" },
     { name = "langchain-ollama" },
+    { name = "litellm" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pydantic", specifier = ">=2.0" },
+    { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-mock", marker = "extra == 'dev'" },
     { name = "pytest-timeout", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "structlog" },
 ]
@@ -1561,6 +1567,28 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/64/ff/2bec6b0296b9d0402aa6ec8540aa19ebcb875d669c37800cb43d10d9c3a3/librt-0.8.0-cp313-cp313-win32.whl", hash = "sha256:e79dbc8f57de360f0ed987dc7de7be814b4803ef0e8fc6d3ff86e16798c99935", size = 54966, upload-time = "2026-02-12T14:53:02.042Z" },
     { url = "https://files.pythonhosted.org/packages/08/8d/bf44633b0182996b2c7ea69a03a5c529683fa1f6b8e45c03fe874ff40d56/librt-0.8.0-cp313-cp313-win_amd64.whl", hash = "sha256:25b3e667cbfc9000c4740b282df599ebd91dbdcc1aa6785050e4c1d6be5329ab", size = 62000, upload-time = "2026-02-12T14:53:03.822Z" },
     { url = "https://files.pythonhosted.org/packages/5c/fd/c6472b8e0eac0925001f75e366cf5500bcb975357a65ef1f6b5749389d3a/librt-0.8.0-cp313-cp313-win_arm64.whl", hash = "sha256:e9a3a38eb4134ad33122a6d575e6324831f930a771d951a15ce232e0237412c2", size = 52496, upload-time = "2026-02-12T14:53:04.889Z" },
+]
+
+[[package]]
+name = "litellm"
+version = "1.75.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "click" },
+    { name = "httpx" },
+    { name = "importlib-metadata" },
+    { name = "jinja2" },
+    { name = "jsonschema" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "tiktoken" },
+    { name = "tokenizers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/09/98/ea40c48fda5121af00e44c9c6d01a0cd8cb9987bb0ce91c6add917d9db9d/litellm-1.75.3.tar.gz", hash = "sha256:a6a0f33884f35a9391a9a4363043114d7f2513ab2e5c2e1fa54c56d695663764", size = 10104437, upload-time = "2025-08-08T14:58:09.423Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/1e/8ef7e7ac7d33f900ae44e9e3a33d668783034e414aa4d7191ae3e4068ec5/litellm-1.75.3-py3-none-any.whl", hash = "sha256:0ff3752b1f1c07f8a4b9a364b1595e2147ae640f1e77cd8312e6f6a5ca0f34ec", size = 8870578, upload-time = "2025-08-08T14:58:06.766Z" },
 ]
 
 [[package]]

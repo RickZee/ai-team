@@ -2,6 +2,8 @@
 
 These prompts are for Cursor AI or similar assistants. Each file contains a single prompt.
 
+**→ [Prompt tracking (status of each prompt)](PROMPT_TRACKING.md)** — source: PROJECT_PLAN_OPUS_4_5.md, Section 6.
+
 ## Phase 0: Preparation & Research
 
 | Prompt | Description | File |
