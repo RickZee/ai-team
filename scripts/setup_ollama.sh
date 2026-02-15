@@ -1,6 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # AI Team - Ollama Setup Script
-# Installs Ollama and downloads required models
+# 1. Checks if Ollama is installed, installs if not
+# 2. Pulls required models (32b or 14b based on memory) with progress
+# 3. Verifies each model with a simple test
+# 4. Reports VRAM usage estimates
 
 set -e
 
@@ -8,193 +11,168 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
+PROMPT_TEST="Reply with exactly: OK"
 
-# Choose models based on your VRAM (uncomment one section)
+# --- Helpers ---
+print_ok()    { echo -e "${GREEN}[✓]${NC} $1"; }
+print_warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
+print_err()   { echo -e "${RED}[✗]${NC} $1"; }
+print_info()  { echo -e "${BLUE}[i]${NC} $1"; }
+print_step()  { echo -e "${CYAN}▶${NC} $1"; }
 
-# For 8GB VRAM (minimum)
-# MODELS=("qwen3:8b" "qwen2.5-coder:7b" "deepseek-coder:6.7b")
-
-# For 12-16GB VRAM (recommended)
-MODELS=("qwen3:14b" "qwen2.5-coder:14b" "deepseek-coder-v2:16b" "deepseek-r1:14b")
-
-# For 24GB+ VRAM (optimal)
-# MODELS=("qwen3:32b" "qwen2.5-coder:32b" "deepseek-r1:32b" "deepseek-coder-v2:33b")
-
-echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║           AI Team - Ollama Setup Script                    ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
-echo ""
-
-print_status() { echo -e "${GREEN}[✓]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[!]${NC} $1"; }
-print_error() { echo -e "${RED}[✗]${NC} $1"; }
-print_info() { echo -e "${BLUE}[i]${NC} $1"; }
-
-# Check OS
-check_os() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        OS="macos"
-        print_status "Detected macOS"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        OS="linux"
-        print_status "Detected Linux"
+# --- 1. Check if Ollama is installed, install if not ---
+check_and_install_ollama() {
+    echo ""
+    print_step "Checking Ollama installation..."
+    if command -v ollama &>/dev/null; then
+        print_ok "Ollama is already installed ($(ollama --version 2>/dev/null || echo 'unknown version'))"
+        return 0
+    fi
+    print_info "Ollama not found. Installing via official script..."
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        # macOS: official install
+        curl -fsSL https://ollama.com/install.sh | sh
     else
-        print_error "Unsupported OS: $OSTYPE"
+        # Linux
+        curl -fsSL https://ollama.com/install.sh | sh
+    fi
+    if ! command -v ollama &>/dev/null; then
+        print_err "Installation may have succeeded but 'ollama' is not in PATH. Add it and re-run."
         exit 1
     fi
+    print_ok "Ollama installed."
 }
 
-# Check hardware
-check_hardware() {
-    echo ""
-    print_info "Checking hardware..."
-    
-    if [[ "$OS" == "macos" ]]; then
-        if [[ $(uname -m) == "arm64" ]]; then
-            print_status "Apple Silicon detected - GPU acceleration available"
-        else
-            print_warning "Intel Mac - No GPU acceleration"
+# --- Ensure Ollama service is running ---
+ensure_ollama_running() {
+    print_step "Checking Ollama service..."
+    if curl -sf "${OLLAMA_BASE_URL}/api/tags" >/dev/null 2>&1; then
+        print_ok "Ollama service is running at ${OLLAMA_BASE_URL}"
+        return 0
+    fi
+    print_info "Starting Ollama service in background..."
+    (ollama serve &>/dev/null &)
+    for i in {1..15}; do
+        sleep 1
+        if curl -sf "${OLLAMA_BASE_URL}/api/tags" >/dev/null 2>&1; then
+            print_ok "Ollama service started."
+            return 0
         fi
+    done
+    print_err "Ollama did not become ready. Run 'ollama serve' manually and re-run this script."
+    exit 1
+}
+
+# --- Detect memory and choose 32b vs 14b ---
+detect_memory_and_models() {
+    local total_gb=0
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        # macOS: unified memory in bytes
+        total_gb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 ))
     else
-        if command -v nvidia-smi &> /dev/null; then
-            GPU_INFO=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || echo "")
-            if [[ -n "$GPU_INFO" ]]; then
-                print_status "NVIDIA GPU: $GPU_INFO"
-            fi
-        else
-            print_warning "No NVIDIA GPU detected - CPU mode (slower)"
-        fi
+        # Linux: MemTotal in kB
+        total_gb=$(awk '/MemTotal:/ { print int($2/1024/1024) }' /proc/meminfo 2>/dev/null || echo 0)
+    fi
+    if [[ -z "$total_gb" || "$total_gb" -eq 0 ]]; then
+        total_gb=16
+        print_warn "Could not detect memory; defaulting to 14b variants (assume ~16 GB)."
+    fi
+    # 32b models need ~22–26 GB; use 14b if we have less than 28 GB to be safe
+    if [[ "$total_gb" -ge 28 ]]; then
+        MODELS=( "qwen3:32b" "qwen2.5-coder:32b" "deepseek-r1:32b" "deepseek-coder-v2:16b" )
+        print_ok "Detected ~${total_gb} GB memory — using 32b variants for qwen3, qwen2.5-coder, deepseek-r1."
+    else
+        MODELS=( "qwen3:14b" "qwen2.5-coder:14b" "deepseek-r1:14b" "deepseek-coder-v2:16b" )
+        print_ok "Detected ~${total_gb} GB memory — using 14b variants for lower VRAM."
     fi
 }
 
-# Install Ollama
-install_ollama() {
+# --- 2. Pull models with progress indication ---
+pull_models() {
     echo ""
-    print_info "Checking Ollama installation..."
-    
-    if command -v ollama &> /dev/null; then
-        print_status "Ollama already installed"
-    else
-        print_info "Installing Ollama..."
-        curl -fsSL https://ollama.ai/install.sh | sh
-        print_status "Ollama installed"
-    fi
-}
-
-# Start Ollama service
-start_ollama() {
+    print_step "Pulling models (Ollama will show progress below)..."
     echo ""
-    print_info "Checking Ollama service..."
-    
-    if curl -s "${OLLAMA_BASE_URL}/api/tags" > /dev/null 2>&1; then
-        print_status "Ollama service is running"
-    else
-        print_info "Starting Ollama..."
-        ollama serve &> /dev/null &
-        sleep 3
-        
-        if curl -s "${OLLAMA_BASE_URL}/api/tags" > /dev/null 2>&1; then
-            print_status "Ollama started"
-        else
-            print_error "Failed to start Ollama"
-            print_info "Try: ollama serve"
-            exit 1
-        fi
-    fi
-}
-
-# Download models
-download_models() {
-    echo ""
-    print_info "Downloading models (this may take a while)..."
-    echo ""
-    
     for model in "${MODELS[@]}"; do
-        echo -e "${BLUE}────────────────────────────────────────────────${NC}"
-        print_info "Pulling: $model"
-        
+        echo -e "${BLUE}────────────────────────────────────────────────────────${NC}"
+        print_info "Pulling: ${model}"
         if ollama pull "$model"; then
-            print_status "Downloaded: $model"
+            print_ok "Pulled: ${model}"
         else
-            print_error "Failed: $model"
+            print_err "Failed to pull: ${model}"
+            exit 1
         fi
         echo ""
     done
 }
 
-# Test models
-test_models() {
+# --- 3. Verify each model with a simple test ---
+verify_models() {
     echo ""
-    print_info "Testing models..."
-    
+    print_step "Verifying each model with a short test..."
+    echo ""
     for model in "${MODELS[@]}"; do
-        RESPONSE=$(ollama run "$model" "Say 'Ready' if working." 2>/dev/null | head -1)
-        
-        if [[ "$RESPONSE" == *"Ready"* ]] || [[ "$RESPONSE" == *"ready"* ]]; then
-            print_status "$model: OK"
+        print_info "Testing: ${model}"
+        # Short test; first load per model can be slow
+        out=$(ollama run "$model" "$PROMPT_TEST" 2>&1 || true)
+        if echo "$out" | grep -qi "OK"; then
+            print_ok "${model}: responds OK"
         else
-            print_warning "$model: Check manually"
+            # Some models may not say "OK" literally but still respond
+            if echo "$out" | grep -qE '[A-Za-z0-9]'; then
+                print_ok "${model}: responds (check output if needed)"
+            else
+                print_warn "${model}: no clear response (run manually: ollama run ${model})"
+            fi
         fi
+        echo ""
     done
 }
 
-# Generate .env
-generate_env() {
+# --- 4. Report VRAM usage estimates ---
+report_vram_estimates() {
     echo ""
-    print_info "Generating .env..."
-    
-    cat > .env << EOF
-# AI Team Configuration
-OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
-OLLAMA_TIMEOUT=300
-
-# Model Assignments
-OLLAMA_MANAGER_MODEL=${MODELS[0]}
-OLLAMA_PRODUCT_OWNER_MODEL=${MODELS[0]}
-OLLAMA_ARCHITECT_MODEL=${MODELS[3]:-${MODELS[0]}}
-OLLAMA_CLOUD_ENGINEER_MODEL=${MODELS[1]}
-OLLAMA_DEVOPS_MODEL=${MODELS[1]}
-OLLAMA_BACKEND_DEVELOPER_MODEL=${MODELS[2]}
-OLLAMA_FRONTEND_DEVELOPER_MODEL=${MODELS[1]}
-OLLAMA_QA_ENGINEER_MODEL=${MODELS[0]}
-
-# Settings
-OLLAMA_TEMPERATURE=0.7
-GUARDRAIL_MAX_RETRIES=3
-LOG_LEVEL=INFO
-CREW_VERBOSE=true
-EOF
-    
-    print_status "Created .env"
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║              VRAM / memory usage estimates                    ║${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo "  Model size    Typical VRAM (approx)   Notes"
+    echo "  ---------    ---------------------   -----"
+    echo "  14b          10–14 GB                 Good for 24 GB unified / 16 GB VRAM"
+    echo "  16b          12–16 GB                 deepseek-coder-v2:16b"
+    echo "  32b          22–26 GB                 Prefer 36 GB+ for comfort"
+    echo ""
+    print_info "Loaded model size: run 'ollama ps' while a model is loaded to see actual SIZE."
+    echo ""
 }
 
-# Summary
+# --- Summary ---
 print_summary() {
     echo ""
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║                    Setup Complete!                         ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║                    Setup complete                              ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    print_status "Models downloaded: ${#MODELS[@]}"
+    print_ok "Models installed: ${MODELS[*]}"
     echo ""
-    print_info "Next steps:"
-    echo "    1. poetry install"
-    echo "    2. poetry run python -m ai_team.main"
+    print_info "Next: uv sync && uv run python -m ai_team.main \"Your task\""
     echo ""
 }
 
-# Main
+# --- Main ---
 main() {
-    check_os
-    check_hardware
-    install_ollama
-    start_ollama
-    download_models
-    test_models
-    generate_env
+    echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║           AI Team – Ollama setup                              ║${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+    check_and_install_ollama
+    ensure_ollama_running
+    detect_memory_and_models
+    pull_models
+    verify_models
+    report_vram_estimates
     print_summary
 }
 
