@@ -1,9 +1,7 @@
 # Guardrails
 
-*Stub. Behavioral, security, and quality guardrails: configuration and usage.*
+*(Stub: Behavioral, security, and quality guardrails.)*
 
-## Categories
-
-- **Behavioral** — role adherence, scope control, reasoning
-- **Security** — code safety, PII redaction, secrets, prompt injection
-- **Quality** — word count, JSON/syntax validation, no placeholders
+- Behavioral: role adherence, scope control, reasoning
+- Security: code safety, PII, secrets, prompt injection
+- Quality: word count, JSON, syntax, placeholders

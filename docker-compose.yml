@@ -1,0 +1,41 @@
+services:
+  app:
+    build: .
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./output:/app/output
+    env_file:
+      - .env
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+    networks:
+      - aiteam
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    env_file:
+      - .env
+    networks:
+      - aiteam
+    # GPU support (comment out deploy block if no NVIDIA GPU)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  aiteam:
+    driver: bridge
+
+volumes:
+  ollama_models:

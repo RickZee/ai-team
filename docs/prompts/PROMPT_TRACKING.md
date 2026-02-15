@@ -47,11 +47,11 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 1.1  | Generate project scaffold | [phase-1-1-project-scaffold.md](phase-1-1-project-scaffold.md) | **Done** | Full `src/ai_team/`, tests (unit/integration/e2e), docs stubs, scripts placeholders, ui structure. |
-| 1.2  | Generate settings module | [phase-1-2-settings-module.md](phase-1-2-settings-module.md) | Pending | |
-| 1.3  | Generate Dockerfile and docker-compose | [phase-1-3-dockerfile-and-docker-compose.md](phase-1-3-dockerfile-and-docker-compose.md) | **Done** | Multi-stage Dockerfile, `.dockerignore`, docker-compose. |
-| 1.4  | Generate CI/CD pipeline | [phase-1-4-cicd-pipeline.md](phase-1-4-cicd-pipeline.md) | Pending | |
-| 1.5  | Generate initial documentation | [phase-1-5-initial-documentation.md](phase-1-5-initial-documentation.md) | Pending | |
+| 1.1  | Generate project scaffold | [phase-1-1-project-scaffold.md](phase-1-1-project-scaffold.md) | **Done** | Full `src/ai_team/` (config, agents, crews, flows, tools, guardrails, memory, utils) with `__init__.py` + docstrings; tests (unit/integration/e2e) with conftest.py; docs ARCHITECTURE, AGENTS, GUARDRAILS, FLOWS, TOOLS, MEMORY; scripts (setup_ollama.sh, test_models.py, run_demo.py); ui app.py + components/ + pages/; demos 01_hello_world, 02_todo_app (input.json, expected_output.json); .env.example, py.typed; .gitignore includes Docker. |
+| 1.2  | Generate settings module | [phase-1-2-settings-module.md](phase-1-2-settings-module.md) | **Done** | Pydantic Settings in `src/ai_team/config/settings.py`: OllamaSettings (base_url, per-role models, default_model, request_timeout, max_retries, check_health()), GuardrailSettings (max_retries per type, thresholds, dangerous_patterns, pii_patterns, enable flags), MemorySettings (chromadb_path, sqlite_path, embedding_model, collection_name, memory_enabled), LoggingSettings (log_level, log_format, log_file), ProjectSettings (output_dir, workspace_dir, max_iterations, default_timeout). Loads from .env; Settings.from_yaml(path) for YAML; validate_ollama_connection() on root. |
+| 1.3  | Generate Dockerfile and docker-compose | [phase-1-3-dockerfile-and-docker-compose.md](phase-1-3-dockerfile-and-docker-compose.md) | **Done** | Multi-stage Dockerfile (Python 3.11-slim, Poetry, non-root user `aiteam`, port 7860, healthcheck, entrypoint `poetry run ai-team-ui`), `.dockerignore`, docker-compose (app + ollama, shared network, .env, ./output and ollama_models volumes; GPU block optional for non-NVIDIA hosts). |
+| 1.4  | Generate CI/CD pipeline | [phase-1-4-cicd-pipeline.md](phase-1-4-cicd-pipeline.md) | **Done** | `.github/workflows/ci.yml`: triggers on push to main/develop and PRs; matrix Python 3.11/3.12; jobs lint (ruff, mypy), test (pytest unit + coverage artifact), integration-test (main only), security (bandit, pip-audit); Poetry cache; test result artifacts; badge and branch-protection comments. `.github/workflows/release.yml`: on tag v*; build/push image to GHCR; GitHub Release with generated changelog. |
+| 1.5  | Generate initial documentation | [phase-1-5-initial-documentation.md](phase-1-5-initial-documentation.md) | **Done** | README.md (badges, features, architecture ASCII, quick start, config, demos, testing, structure, contributing, license). CONTRIBUTING.md (dev setup, black/ruff/mypy, PR process, commit convention, adding agents/tools/guardrails). docs/GETTING_STARTED.md (prerequisites, installation, first run, troubleshooting: Ollama, model not found, VRAM). |
 
 ---
 
@@ -145,12 +145,12 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | Phase | Done | Pending | Total |
 |-------|------|--------|-------|
 | 0     | 5 | 0 | 5 |
-| 1     | 2 | 3 | 5 |
+| 1     | 3 | 2 | 5 |
 | 2     | 0 | 14 | 14 |
 | 3     | 0 | 13 | 13 |
 | 4     | 0 | 7 | 7 |
 | 5     | 0 | 9 | 9 |
 | 6     | 0 | 8 | 8 |
-| **Total** | **7** | **53** | **60** |
+| **Total** | **8** | **52** | **60** |
 
 *Phase 4 combines tasks 4.1–4.3 into one prompt by design (60 prompts total). Update the Status and Notes columns as prompts are run.*

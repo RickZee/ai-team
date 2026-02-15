@@ -118,7 +118,7 @@ Create the complete directory structure for the ai-team project:
 - demos/ with 01_hello_world/, 02_todo_app/ folders containing input.json and expected_output.json
 
 Include __init__.py files with module docstrings in every Python package.
-Include .env.example, .gitignore (Python + IDE + Docker), Makefile with common commands.
+Include .env.example, .gitignore (Python + IDE + Docker).
 Include type hints stub in py.typed marker file.
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
