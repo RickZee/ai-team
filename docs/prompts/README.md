@@ -1,6 +1,6 @@
 # Cursor AI Prompts — ai-team Project
 
-These prompts were extracted from **PROJECT_PLAN_OPUS_4_5.md** (in `.archive/`) for use with Cursor AI or similar assistants. Each file contains a single prompt; the original document is unchanged.
+These prompts are for Cursor AI or similar assistants. Each file contains a single prompt.
 
 ## Phase 0: Preparation & Research
 
@@ -56,7 +56,3 @@ These prompts were extracted from **PROJECT_PLAN_OPUS_4_5.md** (in `.archive/`) 
 |--------|-------------|------|
 | 6.1 | Generate Gradio UI | [phase-6-1-gradio-ui.md](phase-6-1-gradio-ui.md) |
 | 6.6 | Generate comprehensive README | [phase-6-6-readme.md](phase-6-6-readme.md) |
-
----
-
-**Source:** `.archive/PROJECT_PLAN_OPUS_4_5.md` (full project plan, unchanged)
