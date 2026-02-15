@@ -32,7 +32,7 @@ Also there is way to run multiple agents in Cursor in parallel.
 
 Sunday 6 PM (had to do a short Costco run): Phase 0, 1 and 2 prompts are all completed. It's great Monday is a federal holiday in the US, should be able to finish all prompts for the 6 phases Opus generated for us. Can't wait to actually start testing. Are we really going to be able to run this team using just the local models in Ollama??
 
-Generated so far:
+Generated so far, within approximately 6 working hours:
 
 ```text
 -------------------------------------------------------------------------------
