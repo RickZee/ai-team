@@ -132,6 +132,17 @@ ai-team/
 └── scripts/             # setup_ollama.sh, test_models.py, run_demo.py
 ```
 
+## Code stats
+
+Count lines of code (requires [cloc](https://github.com/AlDanial/cloc)):
+
+```bash
+cloc \
+  src tests docker scripts docs demos .github \
+  --exclude-dir=__pycache__,node_modules,target,dist,build,cdk.out,.git,.venv,.pytest_cache,.archive,.ruff_cache,.mypy_cache,htmlcov,.tox,.eggs,.pdm-build,.pixi \
+  --vcs=git
+```
+
 ## Contributing
 
 We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
