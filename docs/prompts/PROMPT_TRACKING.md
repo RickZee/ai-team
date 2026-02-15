@@ -1,8 +1,33 @@
 # Prompt tracking
 
-**Source:** [CURSOR_PROMPTS_COMPLETE.md](CURSOR_PROMPTS_COMPLETE.md) — Complete Cursor AI Prompts Reference
+**Source:** [PROMPTS.md](PROMPTS.md) — Complete Cursor AI Prompts Reference
 
 Status key: **Done** = completed; **Pending** = not yet done.
+
+### Run in parallel
+
+Prompts in the same parallel group have no dependency on each other and can be executed concurrently (e.g. in separate Cursor sessions or agents). Order between groups matters: run earlier groups first.
+
+| Phase | Parallel group | IDs | Notes |
+|-------|----------------|-----|--------|
+| 0 | 1 | 0.1, 0.2, 0.3, 0.4, 0.5 | All prep/research prompts are independent. |
+| 1 | 1 | 1.1 | Run first (creates scaffold). |
+| 1 | 2 | 1.2, 1.3, 1.4, 1.5 | After 1.1; independent files/modules. |
+| 2 | 1 | 2.1 | Run first (Base Agent; others extend it). |
+| 2 | 2 | 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10, 2.11, 2.12, 2.13, 2.14 | After 2.1; agents, tools, and guardrails are independent. |
+| 3 | 1 | 3.1, 3.2, 3.3, 3.4 | Task definitions; independent. |
+| 3 | 2 | 3.5, 3.6, 3.7, 3.8, 3.9 | After 3.1–3.4; crews and state models. |
+| 3 | 3 | 3.10 | Main flow (depends on crews + state). |
+| 3 | 4 | 3.11, 3.12, 3.13 | After 3.10; routing, HiL, error handling. |
+| 4 | 1 | 4.1–4.3 | Memory config first. |
+| 4 | 2 | 4.4, 4.5, 4.6, 4.7 | After 4.1–4.3; knowledge, reasoning, models, callbacks. |
+| 4 | 3 | 4.8 | After 4.4–4.7; integration tests. |
+| 5 | 1 | 5.1, 5.2, 5.3, 5.4, 5.5 | Test suites; independent. |
+| 5 | 2 | 5.6, 5.7, 5.8 | Demo projects; independent. |
+| 5 | 3 | 5.9 | After 5.6–5.8 optional; iteration script. |
+| 6 | 1 | 6.2, 6.3, 6.4 | UI components; independent. |
+| 6 | 2 | 6.1 | Main Streamlit app (uses 6.2–6.4). |
+| 6 | 3 | 6.5, 6.6, 6.7, 6.8 | After 6.1; recording, docs, polish, social. |
 
 ---
 
