@@ -20,6 +20,8 @@ Include development dependencies for testing and linting (black, ruff, mypy, pyt
 Use Poetry as the build system. Set Python requirement to >=3.11.
 Include project metadata: name, version, description, authors, license.
 Add script entry points for: ai-team (main CLI), ai-team-ui (Streamlit launcher).
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 0.2: Generate Ollama setup script
@@ -38,6 +40,8 @@ Create a bash script scripts/setup_ollama.sh that:
 7. Supports --small flag to pull :14b variants instead of :32b
 
 Include error handling, colored output, and a summary table at the end.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 0.3: Generate model benchmark script
@@ -54,6 +58,8 @@ Score each on a 1-10 scale per category.
 Output results as both JSON and a formatted table.
 Include a recommendation mapping: which model is best for which agent role.
 Use langchain-ollama for model interaction.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 0.4: Generate CrewAI reference document
@@ -69,6 +75,8 @@ Create docs/CREWAI_REFERENCE.md — a concise reference guide covering:
 8. Callbacks — task callbacks, step callbacks, crew callbacks
 
 Include code snippets for each concept. Format as a quick-reference cheat sheet.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 0.5: Generate architecture design document
@@ -91,6 +99,8 @@ Create docs/ARCHITECTURE.md with:
    - ADR-001: Why CrewAI Flows over LangGraph
    - ADR-002: Why Ollama over cloud APIs
    - ADR-003: Why hierarchical process for planning/dev crews
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
@@ -110,6 +120,8 @@ Create the complete directory structure for the ai-team project:
 Include __init__.py files with module docstrings in every Python package.
 Include .env.example, .gitignore (Python + IDE + Docker), Makefile with common commands.
 Include type hints stub in py.typed marker file.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 1.2: Generate settings module
@@ -141,6 +153,8 @@ Create src/ai_team/config/settings.py — a Pydantic Settings class that:
 8. Class method to create from YAML file as alternative
 
 Include docstrings, field descriptions, and validators.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 1.3: Generate Dockerfile and docker-compose
@@ -163,6 +177,8 @@ Create two files:
    - Volume for Ollama model cache persistence
 
 Include .dockerignore file.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 1.4: Generate CI/CD pipeline
@@ -184,6 +200,8 @@ Also create .github/workflows/release.yml:
 1. Trigger on tag push (v*)
 2. Build and push Docker image to GitHub Container Registry
 3. Create GitHub Release with changelog
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 1.5: Generate initial documentation
@@ -216,6 +234,8 @@ Create these documentation files:
    - Troubleshooting common issues (Ollama not running, model not found, VRAM errors)
 
 Use professional language suitable for a portfolio project.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
@@ -237,6 +257,8 @@ Create src/ai_team/agents/base.py with a BaseAgent class that extends CrewAI's A
 10. Health check method to verify the agent's assigned model is available
 
 Include type hints, docstrings, and a simple unit test.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.2: Generate Manager Agent
@@ -255,6 +277,8 @@ Create the Manager agent for ai-team with:
 3. Use CrewAI's hierarchical process support — this agent serves as manager_agent
 
 Include integration with the ProjectState model for status updates.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.3: Generate Product Owner Agent
@@ -277,6 +301,8 @@ Create the Product Owner agent with:
 3. Templates for common project types (API, web app, CLI tool, data pipeline)
 
 Include guardrail: reject requirements that are too vague or contain contradictions.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.4: Generate Architect Agent
@@ -302,6 +328,8 @@ Create the Architect agent with:
 4. allow_delegation: true (can consult with DevOps/Cloud agents)
 
 Include guardrail: architecture must address all functional and non-functional requirements.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.5: Generate Developer Agents (Backend, Frontend, Fullstack)
@@ -331,6 +359,8 @@ Create three developer agents that share a common developer base:
    - Used for simple projects that don't need separate frontend/backend agents
 
 Include guardrail integration for code quality checks on all generated code.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.6: Generate DevOps and Cloud Agents
@@ -357,6 +387,8 @@ Create two infrastructure agents:
 
 Both agents share allow_delegation: false and max_iter: 10.
 Include validation that generated IaC follows security best practices.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.7: Generate QA Agent
@@ -383,6 +415,8 @@ Create the QA Engineer agent:
 3. Retry logic: if tests fail, provides feedback to developer agents for fixes
 
 Include guardrail: all generated code must have >80% test coverage.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.8: Generate secure file tools
@@ -404,6 +438,8 @@ Security features on every operation:
 
 Include both @tool decorator versions (for agent use) and raw function versions (for testing).
 Create comprehensive test cases including adversarial path inputs.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.9: Generate code execution sandbox tools
@@ -433,6 +469,8 @@ Security features:
 - Execution audit logging
 
 Include ExecutionResult and LintResult Pydantic models.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.10: Generate Git tools
@@ -455,6 +493,8 @@ All operations:
 - Return Pydantic models (CommitInfo, GitStatus)
 
 Include safety checks: no force push, no main branch commits, branch naming convention.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.11: Generate test runner tools
@@ -481,6 +521,8 @@ Create src/ai_team/tools/test_tools.py with testing tools:
 
 Pydantic models: TestRunResult, TestResult, CoverageReport, LintReport, TestQualityReport.
 Include retry logic for flaky tests (run 2x on failure).
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.12: Generate behavioral guardrails module
@@ -506,6 +548,8 @@ Create src/ai_team/guardrails/behavioral.py with behavioral guardrails:
 GuardrailResult Pydantic model: status (pass/fail/warn), message, details, retry_allowed.
 All guardrails integrate with CrewAI's task guardrail parameter.
 Include unit tests with mock agent outputs.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.13: Generate security guardrails module
@@ -534,6 +578,8 @@ Create src/ai_team/guardrails/security.py with security guardrails:
 
 Integration with CrewAI task guardrails for automatic enforcement.
 Include comprehensive unit tests with adversarial test cases.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 2.14: Generate quality guardrails module
@@ -560,6 +606,8 @@ Create src/ai_team/guardrails/quality.py with quality guardrails:
 
 All return GuardrailResult with actionable fix suggestions.
 Include unit tests with examples of passing and failing code.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
@@ -590,6 +638,8 @@ Python implementation:
 - Context passing: architecture task receives requirements as input
 - Guardrail functions for each task
 - Timeout configuration per task
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.2: Generate Development Tasks
@@ -622,6 +672,8 @@ Each task:
 - Has a guardrail validation function
 - Supports retry with feedback on failure
 - Logs task start, progress, and completion
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.3: Generate Testing Tasks
@@ -651,6 +703,8 @@ Create src/ai_team/tasks/testing_tasks.py with:
 
 Include retry logic: if tests fail, return feedback to development tasks for fixes.
 Maximum 3 retry cycles before escalating to human.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.4: Generate Deployment Tasks
@@ -679,6 +733,8 @@ Create src/ai_team/tasks/deployment_tasks.py with:
    - guardrail: documentation must cover installation, usage, API reference
 
 Include dependency chain: infra depends on arch + devops, packaging depends on infra + tests.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.5: Generate Planning Crew
@@ -701,6 +757,8 @@ Configuration:
 
 Include kickoff() method that accepts project_description string and returns crew output.
 Include test with mock LLM responses.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.6: Generate Development Crew
@@ -722,6 +780,8 @@ Configuration:
 
 Include kickoff() that accepts planning crew output and returns code files.
 Handle the case where only backend OR frontend is needed (based on architecture).
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.7: Generate Testing Crew
@@ -743,6 +803,8 @@ Configuration:
 Include kickoff() that accepts code files and returns test results.
 Include get_feedback() method that formats test failures as actionable feedback
 for the Development Crew to fix.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.8: Generate Deployment Crew
@@ -762,6 +824,8 @@ Configuration:
 
 Include kickoff() that accepts code files, architecture, and test results.
 Include package_output() that creates a clean output directory structure.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.9: Generate State Models
@@ -799,6 +863,8 @@ Create src/ai_team/flows/state.py with Pydantic models for flow state:
    - to_summary() → str (human-readable status)
 
 Include validators: phase transitions must be valid (no skipping), retry limits enforced.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.10: Generate Main Flow
@@ -837,6 +903,8 @@ Create src/ai_team/flows/main_flow.py — the main AITeamFlow orchestration:
 
 Include: error handling at every step, state persistence, guardrail integration,
 flow visualization with plot() method, comprehensive logging.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.11: Generate conditional routing
@@ -870,6 +938,8 @@ Each router:
 - Includes confidence scoring where applicable
 
 Include routing diagram as docstring comment.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.12: Generate Human-in-the-Loop
@@ -902,6 +972,8 @@ Create src/ai_team/flows/human_feedback.py with human interaction support:
 5. UI mode: Streamlit callback for web interface
 
 Include mock feedback handler for automated testing.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 3.13: Generate Error Handling
@@ -940,6 +1012,8 @@ Create src/ai_team/flows/error_handling.py with flow error recovery:
    - Metrics: error rate per phase, retry count distribution
 
 Include unit tests for each error scenario.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
@@ -979,6 +1053,8 @@ Create src/ai_team/memory/memory_config.py with unified memory setup:
 
 Include initialization in src/ai_team/memory/__init__.py.
 Include memory sharing configuration between crews.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 4.4: Generate Knowledge Base
@@ -1013,6 +1089,8 @@ Create src/ai_team/memory/knowledge_base.py with reference knowledge:
    - search_knowledge(query: str) → List[KnowledgeItem]
 
 Store as structured YAML/JSON files in src/ai_team/memory/knowledge/.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 4.5: Generate Reasoning Enhancement
@@ -1046,6 +1124,8 @@ Create src/ai_team/utils/reasoning.py with chain-of-thought prompting templates:
    - parse_confidence(response: str) → float
 
 Include integration with agent backstory prompts.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 4.6: Generate structured output models
@@ -1089,6 +1169,8 @@ Create src/ai_team/models/outputs.py with Pydantic models for all task outputs:
    - summary: str, duration: timedelta, agent_metrics: Dict
 
 Include JSON schema export, from_llm_response() class methods, validation error messages.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 4.7: Generate callback system
@@ -1123,6 +1205,8 @@ Create src/ai_team/utils/callbacks.py with an event callback system:
 
 Support both sync and async callbacks.
 Include MetricsReport model with to_dict() and to_table() methods.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 4.8: Generate Integration Testing
@@ -1162,6 +1246,8 @@ Create tests/integration/test_full_flow.py with end-to-end integration tests:
 
 Use pytest fixtures for: mock_ollama, sample_project_description, mock_crew_outputs.
 Include conftest.py with shared fixtures and mock helpers.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
@@ -1205,6 +1291,8 @@ Create tests/unit/ with comprehensive unit tests:
 
 Use pytest fixtures, parametrize for edge cases, mock for external deps.
 Target: 90%+ unit test coverage.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.2: Generate Integration Tests
@@ -1239,6 +1327,8 @@ Create tests/integration/ with integration tests:
 
 Use MockOllamaServer fixture that returns predefined responses.
 Include response fixtures in tests/fixtures/ as JSON files.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.3: Generate guardrail test suite
@@ -1272,6 +1362,8 @@ Each test should:
 - Assert actionable error messages
 
 Use pytest fixtures for guardrail instances with test configuration.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.4: Generate E2E Tests
@@ -1308,6 +1400,8 @@ Create tests/e2e/test_end_to_end.py with full end-to-end tests:
    - Assert: Dockerfile builds successfully (if Docker available)
 
 Include performance assertions: flow completes within reasonable time (with mocks).
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.5: Generate Performance Tests
@@ -1342,6 +1436,8 @@ Create tests/performance/test_benchmarks.py with performance benchmarks:
 
 Use pytest-benchmark or manual timing with time.perf_counter().
 Output results as JSON for tracking across commits.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.6: Generate Demo Project 1 — Hello World Flask API
@@ -1378,6 +1474,8 @@ Create demos/01_hello_world/:
    - Reports pass/fail with details
 
 Include validation script that can be run independently.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.7: Generate Demo Project 2 — TODO App (Full-Stack)
@@ -1414,6 +1512,8 @@ Create demos/02_todo_app/:
    - Tests: minimum 10 test cases, 85% coverage
 
 Include expected output structure diagram.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.8: Generate Demo Project 3 — Data Pipeline
@@ -1451,6 +1551,8 @@ Create demos/03_data_pipeline/:
    - Tests: minimum 12 test cases
 
 Include sample CSV data with intentional quality issues for testing.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 5.9: Generate Iteration and Fix Script
@@ -1483,6 +1585,8 @@ Create scripts/run_all_demos.py — a script that runs all demos and reports res
 
 Also create scripts/validate_demo.py that validates a single demo's output
 against its criteria without re-running the flow.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
@@ -1523,6 +1627,8 @@ Create ui/app.py — the main Streamlit application:
    - Retry button with modified parameters
 
 Import from ui/components/ and ui/pages/ for modularity.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.2: Generate Project Input Component
@@ -1552,6 +1658,8 @@ Create ui/components/project_input.py with a structured input form:
    - to_prompt() method that formats as natural language for the flow
 
 Include form state persistence using st.session_state.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.3: Generate Progress Display Component
@@ -1587,6 +1695,8 @@ Create ui/components/progress_display.py with real-time progress tracking:
    - Red banner on error with phase and message
    - "Details" expander with full error context
    - "Retry" and "Skip" buttons for recovery
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.4: Generate Output Display Component
@@ -1624,6 +1734,8 @@ Create ui/components/output_display.py with generated project display:
    - Copy project structure to clipboard
 
 Include tab layout: Files | Tests | Architecture | Download
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.5: Generate demo recording scripts
@@ -1654,6 +1766,8 @@ Also create scripts/screenshot_gallery.py:
    - Take screenshots of key UI states
    - Save to docs/screenshots/ with descriptive names
    - Generate markdown image gallery for README
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.6: Generate comprehensive documentation
@@ -1696,6 +1810,8 @@ Create/update all documentation files:
    - Configuration file format reference
 
 Use professional language suitable for a senior engineering portfolio.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.7: Generate GitHub polish
@@ -1732,6 +1848,8 @@ Create scripts/polish_repo.py and associated files for GitHub showcase quality:
 5. Social preview:
    - Generate social preview image (1280x640) for GitHub repo card
    - Include project name, key stats, architecture diagram thumbnail
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.8: Generate LinkedIn/social announcement
@@ -1765,6 +1883,8 @@ Create docs/ANNOUNCEMENT.md with social media content:
 
 Tone: professional but enthusiastic, technical depth without jargon overload.
 Focus on: practical value, engineering quality, portfolio-worthy demonstration.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ---
