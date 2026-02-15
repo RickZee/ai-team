@@ -1,1 +1,0 @@
-"""AI Team test suite."""
