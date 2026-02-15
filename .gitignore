@@ -208,3 +208,6 @@ __marimo__/
 
 # Archive folder
 .archive/
+
+# Mac
+.DS_Store
