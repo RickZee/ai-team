@@ -10,9 +10,37 @@ import re
 import json
 import os
 
+# Behavioral guardrails (GuardrailResult + 5 guardrails + CrewAI helpers)
+from ai_team.guardrails.behavioral import (
+    GuardrailResult,
+    delegation_guardrail,
+    guardrail_to_crewai_callable,
+    iteration_limit_guardrail,
+    make_output_format_guardrail,
+    make_role_adherence_guardrail,
+    make_scope_control_guardrail,
+    output_format_guardrail,
+    role_adherence_guardrail,
+    scope_control_guardrail,
+)
+
+# Security guardrails (GuardrailResult API + CrewAI task adapters)
+from ai_team.guardrails.security import (
+    code_safety_guardrail,
+    crewai_code_safety_guardrail,
+    crewai_pii_guardrail,
+    crewai_path_security_guardrail,
+    crewai_prompt_injection_guardrail,
+    crewai_secret_detection_guardrail,
+    pii_redaction_guardrail,
+    path_security_guardrail,
+    prompt_injection_guardrail,
+    secret_detection_guardrail,
+    SECURITY_TASK_GUARDRAILS,
+)
 
 # =============================================================================
-# BEHAVIORAL GUARDRAILS
+# BEHAVIORAL GUARDRAILS (legacy class-based API)
 # =============================================================================
 
 class BehavioralGuardrails:
@@ -212,6 +240,64 @@ class SecurityGuardrails:
         
         return (True, normalized)
 
+    @classmethod
+    def validate_iac_security(cls, content: str, iac_type: str = "auto") -> Tuple[bool, str]:
+        """
+        Validate Infrastructure as Code follows security best practices.
+        iac_type: 'dockerfile' | 'docker_compose' | 'k8s' | 'terraform' | 'cloudformation' | 'iam' | 'auto'
+        """
+        content_lower = content.lower()
+        violations = []
+
+        # Always check: no hardcoded secrets (reuse secret patterns)
+        valid, msg = cls.validate_no_secrets(content)
+        if not valid:
+            return (False, msg)
+
+        detected = iac_type
+        if iac_type == "auto":
+            if "from " in content_lower and "run " in content_lower and ("copy " in content_lower or "add " in content_lower):
+                detected = "dockerfile"
+            elif "version:" in content_lower and ("services:" in content_lower or "volumes:" in content_lower):
+                detected = "docker_compose"
+            elif "apiVersion:" in content_lower and ("kind:" in content_lower):
+                detected = "k8s"
+            elif "resource " in content_lower and ("provider " in content_lower or "terraform " in content_lower):
+                detected = "terraform"
+            elif "awstemplateformatversion" in content_lower or "resources:" in content_lower:
+                detected = "cloudformation"
+            else:
+                return (True, content)
+
+        if detected == "dockerfile":
+            if "user " not in content_lower and "user=" not in content_lower:
+                violations.append("Dockerfile should use non-root user (USER directive)")
+            if "healthcheck" not in content_lower:
+                violations.append("Dockerfile should include HEALTHCHECK for production")
+        elif detected == "docker_compose":
+            if "user:" not in content_lower and "user=" not in content_lower:
+                violations.append("docker-compose should specify non-root user where possible")
+        elif detected == "k8s":
+            if "resources:" not in content_lower and "limits:" not in content_lower:
+                violations.append("K8s manifests should set resource limits")
+            if "runasnonroot" not in content_lower:
+                violations.append("K8s should enforce runAsNonRoot for security")
+        elif detected == "terraform":
+            if "version " in content_lower and "required_version" not in content_lower:
+                pass  # optional
+            if "sensitive" not in content_lower and "variable " in content_lower:
+                violations.append("Terraform: consider marking sensitive variables with sensitive = true")
+        elif detected == "cloudformation":
+            if "condition" in content_lower or "parameter" in content_lower:
+                pass  # good practice
+        elif detected == "iam":
+            if re.search(r"effect\s*:\s*allow", content_lower) and '"*"' in content and "Action" in content:
+                violations.append("IAM: avoid wildcard actions where least privilege is possible")
+
+        if violations:
+            return (False, "IaC security: " + "; ".join(violations))
+        return (True, content)
+
 
 # =============================================================================
 # QUALITY GUARDRAILS
@@ -369,3 +455,13 @@ Review code as senior engineer:
 5. Best practices
 Reject if significant issues exist.
 """
+
+# Quality guardrails (GuardrailResult-based) from quality module
+from ai_team.guardrails.quality import (
+    GuardrailResult,
+    code_quality_guardrail,
+    test_coverage_guardrail,
+    documentation_guardrail,
+    architecture_compliance_guardrail,
+    dependency_guardrail,
+)
