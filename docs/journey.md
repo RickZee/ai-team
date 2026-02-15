@@ -25,3 +25,5 @@ The problem was - I started running them in cursor only to realize that Claude d
 ![See missing prompts screenshot](feb-14-missing-prompts.png)
 
 So now I have gaps in implementation and need to start from scratch.
+
+Also there is way to run multiple agents in Cursor in parallel.

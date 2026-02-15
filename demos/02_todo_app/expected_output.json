@@ -1,0 +1,5 @@
+{
+  "status": "success",
+  "artifacts": ["backend/", "frontend/", "requirements.txt", "README.md", "docker-compose.yml"],
+  "summary": "Full-stack TODO app generated with backend and frontend."
+}

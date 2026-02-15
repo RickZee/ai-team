@@ -2,193 +2,208 @@
 AI Team Settings Configuration
 
 This module provides centralized configuration management using Pydantic settings.
-All configuration is loaded from environment variables with sensible defaults.
+Configuration is loaded from .env by default; alternative YAML loading is supported.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
-from enum import Enum
+from typing import Any, List, Optional
 
+import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class ModelSize(str, Enum):
-    """Available model size configurations."""
-    SMALL = "small"      # 7-8B models, ~8GB VRAM
-    MEDIUM = "medium"    # 14-16B models, ~12GB VRAM
-    LARGE = "large"      # 32B models, ~24GB VRAM
-    XLARGE = "xlarge"    # 70B+ models, ~48GB+ VRAM
+class OllamaSettings(BaseSettings):
+    """
+    Ollama API and per-role model configuration.
 
+    Supports base URL, timeouts, retries, and optional model assignment
+    per agent role with a default model fallback.
+    """
 
-class OllamaModelConfig(BaseSettings):
-    """Configuration for Ollama model selection per role."""
-    
-    model_config = SettingsConfigDict(env_prefix="OLLAMA_")
-    
-    # Model assignments by role - customize based on your VRAM
+    model_config = SettingsConfigDict(env_prefix="OLLAMA_", extra="ignore")
+
+    base_url: str = Field(
+        default="http://localhost:11434",
+        description="Ollama API base URL",
+    )
+    default_model: str = Field(
+        default="qwen3:14b",
+        description="Default model used when a role has no specific assignment",
+    )
     manager_model: str = Field(default="qwen3:14b", description="Model for Manager agent")
     product_owner_model: str = Field(default="qwen3:14b", description="Model for Product Owner")
     architect_model: str = Field(default="deepseek-r1:14b", description="Model for Architect")
-    cloud_engineer_model: str = Field(default="qwen2.5-coder:14b", description="Model for Cloud Engineer")
-    devops_model: str = Field(default="qwen2.5-coder:14b", description="Model for DevOps Engineer")
-    backend_developer_model: str = Field(default="deepseek-coder-v2:16b", description="Model for Backend Dev")
-    frontend_developer_model: str = Field(default="qwen2.5-coder:14b", description="Model for Frontend Dev")
-    qa_engineer_model: str = Field(default="qwen3:14b", description="Model for QA Engineer")
-    
-    # Ollama connection settings
-    base_url: str = Field(default="http://localhost:11434", description="Ollama API base URL")
-    timeout: int = Field(default=300, description="Request timeout in seconds")
-    
-    # Model parameters
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
-    top_p: float = Field(default=0.9, ge=0.0, le=1.0)
-    num_ctx: int = Field(default=8192, description="Context window size")
-    
+    backend_dev_model: str = Field(default="deepseek-coder-v2:16b", description="Model for Backend Developer")
+    frontend_dev_model: str = Field(default="qwen2.5-coder:14b", description="Model for Frontend Developer")
+    devops_model: str = Field(default="qwen2.5-coder:14b", description="Model for DevOps")
+    cloud_model: str = Field(default="qwen2.5-coder:14b", description="Model for Cloud Engineer")
+    qa_model: str = Field(default="qwen3:14b", description="Model for QA Agent")
+
+    request_timeout: int = Field(default=300, ge=1, le=3600, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, ge=0, le=10, description="Max retries for Ollama requests")
+
     def get_model_for_role(self, role: str) -> str:
-        """Get the configured model for a specific agent role."""
+        """Return the configured model for the given agent role."""
         role_map = {
             "manager": self.manager_model,
             "product_owner": self.product_owner_model,
             "architect": self.architect_model,
-            "cloud_engineer": self.cloud_engineer_model,
+            "backend_dev": self.backend_dev_model,
+            "frontend_dev": self.frontend_dev_model,
             "devops": self.devops_model,
-            "backend_developer": self.backend_developer_model,
-            "frontend_developer": self.frontend_developer_model,
-            "qa_engineer": self.qa_engineer_model,
+            "cloud": self.cloud_model,
+            "qa": self.qa_model,
         }
-        return role_map.get(role.lower(), self.manager_model)
+        return role_map.get(role.lower(), self.default_model)
 
-
-class GuardrailConfig(BaseSettings):
-    """Configuration for guardrail behavior."""
-    
-    model_config = SettingsConfigDict(env_prefix="GUARDRAIL_")
-    
-    # Retry settings
-    max_retries: int = Field(default=3, ge=1, le=10, description="Max retry attempts on guardrail failure")
-    retry_delay: float = Field(default=1.0, ge=0.0, description="Delay between retries in seconds")
-    
-    # Behavioral guardrails
-    enforce_role_adherence: bool = Field(default=True)
-    enforce_scope_control: bool = Field(default=True)
-    require_reasoning: bool = Field(default=True)
-    max_scope_expansion: float = Field(default=0.3, ge=0.0, le=1.0)
-    
-    # Security guardrails
-    enable_code_safety_check: bool = Field(default=True)
-    enable_pii_redaction: bool = Field(default=True)
-    enable_secret_detection: bool = Field(default=True)
-    enable_prompt_injection_detection: bool = Field(default=True)
-    
-    # Quality guardrails
-    min_output_words: int = Field(default=20)
-    max_output_words: int = Field(default=10000)
-    require_syntax_validation: bool = Field(default=True)
-    require_complete_implementation: bool = Field(default=True)
-    min_code_quality_score: float = Field(default=7.0, ge=0.0, le=10.0)
-    
-    # Allowed directories for file operations
-    allowed_directories: List[str] = Field(
-        default=["/workspace", "/tmp/ai-team", "./output"],
-        description="Directories where file operations are allowed"
-    )
-
-
-class MemoryConfig(BaseSettings):
-    """Configuration for memory systems."""
-    
-    model_config = SettingsConfigDict(env_prefix="MEMORY_")
-    
-    # Short-term memory (ChromaDB)
-    enable_short_term: bool = Field(default=True)
-    chroma_persist_dir: str = Field(default="./data/chroma")
-    
-    # Long-term memory (SQLite)
-    enable_long_term: bool = Field(default=True)
-    sqlite_path: str = Field(default="./data/memory.db")
-    
-    # Entity memory
-    enable_entity_memory: bool = Field(default=True)
-    
-    # Memory limits
-    max_short_term_items: int = Field(default=100)
-    max_context_length: int = Field(default=4000)
-
-
-class LoggingConfig(BaseSettings):
-    """Configuration for logging and observability."""
-    
-    model_config = SettingsConfigDict(env_prefix="LOG_")
-    
-    level: str = Field(default="INFO")
-    format: str = Field(default="json")  # json or console
-    log_file: Optional[str] = Field(default="./logs/ai-team.log")
-    
-    # Metrics collection
-    enable_metrics: bool = Field(default=True)
-    metrics_file: str = Field(default="./logs/metrics.json")
-    
-    # Event callbacks
-    enable_webhooks: bool = Field(default=False)
-    webhook_url: Optional[str] = Field(default=None)
-
-
-class Settings(BaseSettings):
-    """Main settings class aggregating all configuration."""
-    
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore"
-    )
-    
-    # Project settings
-    project_name: str = Field(default="ai-team")
-    debug: bool = Field(default=False)
-    workspace_dir: Path = Field(default=Path("./workspace"))
-    output_dir: Path = Field(default=Path("./output"))
-    
-    # Sub-configurations
-    ollama: OllamaModelConfig = Field(default_factory=OllamaModelConfig)
-    guardrails: GuardrailConfig = Field(default_factory=GuardrailConfig)
-    memory: MemoryConfig = Field(default_factory=MemoryConfig)
-    logging: LoggingConfig = Field(default_factory=LoggingConfig)
-    
-    # CrewAI settings
-    crew_verbose: bool = Field(default=True)
-    crew_memory: bool = Field(default=True)
-    crew_max_rpm: int = Field(default=10, description="Max requests per minute")
-    
-    @field_validator("workspace_dir", "output_dir", mode="before")
-    @classmethod
-    def create_directories(cls, v):
-        """Ensure directories exist."""
-        path = Path(v)
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    
-    def validate_ollama_connection(self) -> bool:
-        """Validate that Ollama is accessible."""
-        import httpx
+    def check_health(self) -> bool:
+        """Validate that the Ollama server is reachable. Returns True if healthy."""
         try:
-            response = httpx.get(f"{self.ollama.base_url}/api/tags", timeout=5)
+            import httpx
+            response = httpx.get(f"{self.base_url.rstrip('/')}/api/tags", timeout=5)
             return response.status_code == 200
         except Exception:
             return False
-    
-    def get_available_models(self) -> List[str]:
-        """Get list of available Ollama models."""
-        import httpx
-        try:
-            response = httpx.get(f"{self.ollama.base_url}/api/tags", timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return [m["name"] for m in data.get("models", [])]
-        except Exception:
-            pass
-        return []
+
+
+class GuardrailSettings(BaseSettings):
+    """
+    Guardrail configuration: retries per type, thresholds, pattern lists,
+    and enable/disable flags per category.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="GUARDRAIL_", extra="ignore")
+
+    # Max retries per guardrail type
+    behavioral_max_retries: int = Field(default=3, ge=0, le=10, description="Max retries for behavioral guardrails")
+    security_max_retries: int = Field(default=3, ge=0, le=10, description="Max retries for security guardrails")
+    quality_max_retries: int = Field(default=3, ge=0, le=10, description="Max retries for quality guardrails")
+
+    # Thresholds
+    code_quality_min_score: float = Field(default=0.7, ge=0.0, le=1.0, description="Minimum code quality score (0–1)")
+    test_coverage_min: float = Field(default=0.6, ge=0.0, le=1.0, description="Minimum test coverage ratio (0–1)")
+    max_file_size_kb: int = Field(default=500, ge=1, description="Max allowed file size in KB")
+
+    # Pattern lists (regex or substring patterns)
+    dangerous_patterns: List[str] = Field(
+        default_factory=lambda: ["eval(", "exec(", "__import__", "os.system", "subprocess.call"],
+        description="Patterns that trigger security/behavioral guardrails",
+    )
+    pii_patterns: List[str] = Field(
+        default_factory=lambda: [r"\b\d{3}-\d{2}-\d{4}\b", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"],
+        description="Regex patterns for PII detection",
+    )
+
+    # Enable/disable per category
+    behavioral_enabled: bool = Field(default=True, description="Enable behavioral guardrails")
+    security_enabled: bool = Field(default=True, description="Enable security guardrails")
+    quality_enabled: bool = Field(default=True, description="Enable quality guardrails")
+
+
+class MemorySettings(BaseSettings):
+    """
+    Memory backend configuration: ChromaDB path, SQLite path,
+    embedding model, collection name, and master enable flag.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="MEMORY_", extra="ignore")
+
+    chromadb_path: str = Field(default="./data/chroma", description="ChromaDB persistence directory")
+    sqlite_path: str = Field(default="./data/memory.db", description="SQLite database path for long-term memory")
+    embedding_model: str = Field(default="nomic-embed-text", description="Model used for embeddings")
+    collection_name: str = Field(default="ai_team_memory", description="ChromaDB collection name")
+    memory_enabled: bool = Field(default=True, description="Master switch to enable/disable memory")
+
+
+class LoggingSettings(BaseSettings):
+    """Logging configuration: level, format (json/console), and log file path."""
+
+    model_config = SettingsConfigDict(env_prefix="LOG_", extra="ignore")
+
+    log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR)")
+    log_format: str = Field(default="json", description="Format: 'json' or 'console'")
+    log_file: Optional[str] = Field(default="./logs/ai-team.log", description="Optional log file path")
+
+    @field_validator("log_format")
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        allowed = ("json", "console")
+        if v.lower() not in allowed:
+            raise ValueError(f"log_format must be one of {allowed}")
+        return v.lower()
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        allowed = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+        u = v.upper()
+        if u not in allowed:
+            raise ValueError(f"log_level must be one of {allowed}")
+        return u
+
+
+class ProjectSettings(BaseSettings):
+    """Project execution settings: output/workspace dirs, iterations, and timeout."""
+
+    model_config = SettingsConfigDict(env_prefix="PROJECT_", extra="ignore")
+
+    output_dir: str = Field(default="./output", description="Default output directory for artifacts")
+    workspace_dir: str = Field(default="./workspace", description="Workspace root for file operations")
+    max_iterations: int = Field(default=10, ge=1, le=100, description="Max iterations per run")
+    default_timeout: int = Field(default=3600, ge=1, description="Default timeout in seconds for runs")
+
+
+class Settings(BaseSettings):
+    """
+    Root settings class. Loads from .env by default; supports creation from YAML.
+
+    Nested models: ollama, guardrails, memory, logging, project.
+    Use validate_ollama_connection() to check Ollama on startup.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    ollama: OllamaSettings = Field(default_factory=OllamaSettings, description="Ollama API and model config")
+    guardrails: GuardrailSettings = Field(default_factory=GuardrailSettings, description="Guardrail config")
+    memory: MemorySettings = Field(default_factory=MemorySettings, description="Memory backend config")
+    logging: LoggingSettings = Field(default_factory=LoggingSettings, description="Logging config")
+    project: ProjectSettings = Field(default_factory=ProjectSettings, description="Project execution config")
+
+    def validate_ollama_connection(self) -> bool:
+        """Validate that the Ollama server is reachable. Returns True if healthy."""
+        return self.ollama.check_health()
+
+    @classmethod
+    def from_yaml(cls, path: str | Path) -> "Settings":
+        """
+        Create Settings from a YAML file. Top-level keys should match
+        nested model names (ollama, guardrails, memory, logging, project).
+        Environment variables still override when present.
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Config file not found: {path}")
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        # Build kwargs for nested models; leave missing as default
+        kwargs: dict[str, Any] = {}
+        for name, model_class in [
+            ("ollama", OllamaSettings),
+            ("guardrails", GuardrailSettings),
+            ("memory", MemorySettings),
+            ("logging", LoggingSettings),
+            ("project", ProjectSettings),
+        ]:
+            if name in data and isinstance(data[name], dict):
+                kwargs[name] = model_class.model_validate(data[name])
+        return cls(**kwargs)
 
 
 # Global settings instance
@@ -196,7 +211,7 @@ _settings: Optional[Settings] = None
 
 
 def get_settings() -> Settings:
-    """Get or create the global settings instance."""
+    """Get or create the global settings instance (loads from .env)."""
     global _settings
     if _settings is None:
         _settings = Settings()

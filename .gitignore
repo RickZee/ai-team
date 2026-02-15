@@ -209,5 +209,9 @@ __marimo__/
 # Archive folder
 .archive/
 
+# Docker
+docker-compose.override.yml
+.docker/
+
 # Mac
 .DS_Store

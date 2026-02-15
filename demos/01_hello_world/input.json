@@ -1,0 +1,5 @@
+{
+  "project_name": "hello_world",
+  "description": "A minimal Hello World Flask API",
+  "requirements": ["Flask", "pytest"]
+}

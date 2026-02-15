@@ -1,0 +1,5 @@
+{
+  "project_name": "todo_app",
+  "description": "Full-stack TODO application with backend API and frontend",
+  "stack": ["Flask", "SQLite", "HTML/JS"]
+}

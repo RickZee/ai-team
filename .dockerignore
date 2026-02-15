@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+.eggs
+*.egg
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+venv
+.venv
+env
+
+# IDE and editor
+.idea
+.vscode
+.cursor
+*.swp
+*.swo
+
+# Docs and dev (not needed in image)
+docs
+*.md
+!README.md
+
+# Tests (not needed in runtime image)
+tests
+
+# Demos and scripts (optional; include if app needs them)
+# demos
+# scripts
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Build and Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Output (mounted at runtime)
+output
+
+# OS
+.DS_Store
+Thumbs.db
