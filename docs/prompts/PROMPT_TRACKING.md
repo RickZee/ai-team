@@ -26,7 +26,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 5 | 2 | 5.6, 5.7, 5.8 | Demo projects; independent. |
 | 5 | 3 | 5.9 | After 5.6–5.8 optional; iteration script. |
 | 6 | 1 | 6.2, 6.3, 6.4 | UI components; independent. |
-| 6 | 2 | 6.1 | Main Streamlit app (uses 6.2–6.4). |
+| 6 | 2 | 6.1 | Main Gradio app (uses 6.2–6.4). |
 | 6 | 3 | 6.5, 6.6, 6.7, 6.8 | After 6.1; recording, docs, polish, social. |
 
 ---
@@ -35,11 +35,11 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 0.1  | Generate pyproject.toml | [phase-0-1-pyproject-toml.md](phase-0-1-pyproject-toml.md) | Pending | |
-| 0.2  | Generate Ollama setup script | [phase-0-2-ollama-setup-script.md](phase-0-2-ollama-setup-script.md) | Pending | |
-| 0.3  | Generate model benchmark script | [phase-0-3-model-benchmark-script.md](phase-0-3-model-benchmark-script.md) | Pending | |
-| 0.4  | Generate CrewAI reference document | [phase-0-4-crewai-reference-document.md](phase-0-4-crewai-reference-document.md) | Pending | |
-| 0.5  | Generate architecture design document | [phase-0-5-architecture-design-document.md](phase-0-5-architecture-design-document.md) | Pending | |
+| 0.1  | Generate pyproject.toml | [phase-0-1-pyproject-toml.md](phase-0-1-pyproject-toml.md) | **Done** | Poetry pyproject.toml with requested deps, dev deps (black, ruff, mypy, pytest-cov), scripts `ai-team` and `ai-team-ui`. Added `ai_team.ui` stub and Gradio launcher. |
+| 0.2  | Generate Ollama setup script | [phase-0-2-ollama-setup-script.md](phase-0-2-ollama-setup-script.md) | **Done** | `scripts/setup_ollama.sh`: install/start Ollama, pull qwen3, qwen2.5-coder, deepseek-r1, deepseek-coder-v2; `--small` for :14b; VRAM estimates, verify test, .env with role assignments, summary table. Bash 3.2–compatible (no associative arrays). |
+| 0.3  | Generate model benchmark script | [phase-0-3-model-benchmark-script.md](phase-0-3-model-benchmark-script.md) | **Done** | `scripts/test_models.py` benchmarks code gen, reasoning, instruction-following, latency, throughput; outputs JSON + Rich table; recommendation mapping by agent role. Uses langchain-ollama. |
+| 0.4  | Generate CrewAI reference document | [phase-0-4-crewai-reference-document.md](phase-0-4-crewai-reference-document.md) | **Done** | Created docs/CREWAI_REFERENCE.md; covers agents, tasks, crews, flows, memory, guardrails, tools, callbacks/hooks with code snippets. Memory section notes unified API (LanceDB default); legacy ChromaDB/SQLite refs noted. |
+| 0.5  | Generate architecture design document | [phase-0-5-architecture-design-document.md](phase-0-5-architecture-design-document.md) | **Done** | docs/ARCHITECTURE.md created with overview diagram, component layers, data flow, state machine, tech stack, directory mapping, integration guide, ADRs 001–003. |
 
 ---
 
@@ -129,7 +129,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 6.1  | Generate Streamlit UI | [phase-6-1-streamlit-ui.md](phase-6-1-streamlit-ui.md) | Pending | |
+| 6.1  | Generate Gradio UI | [phase-6-1-gradio-ui.md](phase-6-1-gradio-ui.md) | Pending | |
 | 6.2  | Generate Project Input Component | [phase-6-2-project-input-component.md](phase-6-2-project-input-component.md) | Pending | |
 | 6.3  | Generate Progress Display Component | [phase-6-3-progress-display-component.md](phase-6-3-progress-display-component.md) | Pending | |
 | 6.4  | Generate Output Display Component | [phase-6-4-output-display-component.md](phase-6-4-output-display-component.md) | Pending | |
@@ -144,13 +144,13 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | Phase | Done | Pending | Total |
 |-------|------|--------|-------|
-| 0     | 0 | 5 | 5 |
+| 0     | 5 | 0 | 5 |
 | 1     | 2 | 3 | 5 |
 | 2     | 0 | 14 | 14 |
 | 3     | 0 | 13 | 13 |
 | 4     | 0 | 7 | 7 |
 | 5     | 0 | 9 | 9 |
 | 6     | 0 | 8 | 8 |
-| **Total** | **2** | **58** | **60** |
+| **Total** | **7** | **53** | **60** |
 
 *Phase 4 combines tasks 4.1–4.3 into one prompt by design (60 prompts total). Update the Status and Notes columns as prompts are run.*
