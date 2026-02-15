@@ -9,7 +9,7 @@ Create a pyproject.toml for a CrewAI multi-agent project called "ai-team" with t
 - crewai-tools
 - langchain-ollama
 - pydantic>=2.0
-- streamlit
+- gradio
 - python-dotenv
 - structlog
 - chromadb
@@ -19,7 +19,7 @@ Create a pyproject.toml for a CrewAI multi-agent project called "ai-team" with t
 Include development dependencies for testing and linting (black, ruff, mypy, pytest-cov).
 Use Poetry as the build system. Set Python requirement to >=3.11.
 Include project metadata: name, version, description, authors, license.
-Add script entry points for: ai-team (main CLI), ai-team-ui (Streamlit launcher).
+Add script entry points for: ai-team (main CLI), ai-team-ui (Gradio launcher).
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
@@ -92,7 +92,7 @@ Create docs/ARCHITECTURE.md with:
    - Memory Layer: Short-term, Long-term, Entity memory
 3. Data flow diagram showing how a project request flows through the system
 4. State machine diagram for ProjectState transitions
-5. Technology stack table (CrewAI, Ollama, Pydantic, ChromaDB, SQLite, Streamlit)
+5. Technology stack table (CrewAI, Ollama, Pydantic, ChromaDB, SQLite, Gradio)
 6. Directory structure mapping to components
 7. Integration points and extension guide
 8. Architecture Decision Records (ADRs) for key decisions:
@@ -114,7 +114,7 @@ Create the complete directory structure for the ai-team project:
 - tests/ with unit/, integration/, e2e/ folders, each with __init__.py and conftest.py
 - docs/ with stub markdown files: ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md
 - scripts/ with placeholder scripts: setup_ollama.sh, test_models.py, run_demo.py
-- ui/ with Streamlit app structure: app.py, components/, pages/
+- ui/ with Gradio app structure: app.py, components/, pages/
 - demos/ with 01_hello_world/, 02_todo_app/ folders containing input.json and expected_output.json
 
 Include __init__.py files with module docstrings in every Python package.
@@ -165,12 +165,12 @@ Create two files:
    - Stage 1 (builder): Python 3.11-slim, install Poetry, copy pyproject.toml, install deps
    - Stage 2 (runtime): Python 3.11-slim, copy from builder, create non-root user "aiteam"
    - Install system deps: git, build-essential, curl
-   - Expose port 8501 for Streamlit
+   - Expose port 7860 for Gradio
    - Health check endpoint
-   - Entrypoint: poetry run streamlit run ui/app.py
+   - Entrypoint: poetry run ai-team-ui
 
 2. docker-compose.yml:
-   - Service "app": builds from Dockerfile, maps port 8501, mounts ./output volume
+   - Service "app": builds from Dockerfile, maps port 7860, mounts ./output volume
    - Service "ollama": uses ollama/ollama image, maps port 11434, GPU support with deploy.resources
    - Shared network between services
    - Environment variables from .env file
@@ -948,7 +948,7 @@ Create src/ai_team/flows/human_feedback.py with human interaction support:
 
 1. HumanFeedbackHandler class:
    - request_feedback(question: str, context: Dict, options: List[str]) → str
-     - Present question to user via Streamlit UI or CLI prompt
+     - Present question to user via Gradio UI or CLI prompt
      - Include relevant context (what failed, what agents produced)
      - Offer structured options + free-text input
      - Timeout with default action after configurable wait
@@ -969,7 +969,7 @@ Create src/ai_team/flows/human_feedback.py with human interaction support:
    - Log all human interactions for audit trail
 
 4. CLI mode: input() prompts for non-UI usage
-5. UI mode: Streamlit callback for web interface
+5. UI mode: Gradio callback for web interface
 
 Include mock feedback handler for automated testing.
 
@@ -1593,9 +1593,9 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ## Phase 6: UI, Deployment & Showcase (Days 36-42)
 
-### Prompt 6.1: Generate Streamlit UI
+### Prompt 6.1: Generate Gradio UI
 ```
-Create ui/app.py — the main Streamlit application:
+Create ui/app.py — the main Gradio application:
 
 1. Sidebar:
    - Configuration panel: select Ollama models per role (dropdowns)
@@ -1635,7 +1635,7 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 ```
 Create ui/components/project_input.py with a structured input form:
 
-1. ProjectInputForm Streamlit component:
+1. ProjectInputForm Gradio component:
    - Project name (text input, required)
    - Project description (large text area, required, min 50 chars)
    - Project type selector (API, Web App, CLI Tool, Data Pipeline, Library)
@@ -1650,14 +1650,14 @@ Create ui/components/project_input.py with a structured input form:
    - Custom templates can be saved to JSON
 
 3. Input validation:
-   - Real-time validation with st.warning messages
+   - Real-time validation with Gradio warning/alert messages
    - Minimum description length check
    - Conflicting options detection (e.g., Go + Django)
 
 4. Output: ProjectRequest Pydantic model with all form fields
    - to_prompt() method that formats as natural language for the flow
 
-Include form state persistence using st.session_state.
+Include form state persistence using Gradio state (gr.State) or session.
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
@@ -1687,7 +1687,7 @@ Create ui/components/progress_display.py with real-time progress tracking:
    - Token usage estimate
 
 4. Integration:
-   - Uses Streamlit's st.status and st.empty for real-time updates
+   - Uses Gradio's progress/state and dynamic updates for real-time updates
    - Polls flow state via callback or session state
    - Supports both synchronous and streaming updates
 
@@ -1710,7 +1710,7 @@ Create ui/components/output_display.py with generated project display:
    - Click to view file contents
 
 2. CodeViewer component:
-   - Syntax-highlighted code display (using streamlit-code-editor or st.code)
+   - Syntax-highlighted code display (using Gradio Code component or gr.HighlightedCode)
    - Tab interface for multiple files
    - Line numbers
    - Search within file
@@ -1743,7 +1743,7 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 Create scripts/record_demo.py — automated demo recording:
 
 1. DemoRecorder class:
-   - Uses Streamlit's testing utilities or Selenium/Playwright
+   - Uses Gradio's testing utilities or Selenium/Playwright
    - Records screen during demo execution
    - Captures: input, progress, output, download
 
