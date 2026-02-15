@@ -24,7 +24,7 @@ The team must accept natural-language project ideas and autonomously deliver wor
   - **Security guardrails**: Tool sandboxing, prevention of harmful/dangerous code/commands, PII redaction, prompt injection detection, rate limiting, secret protection, risk-based tool approval (read-only vs. write actions).
   - **Quality guardrails**: Hallucination detection, structured output validation, code quality checks (linting, test enforcement), factual consistency, output formatting/length/tone, self-correction loops.
   Provide a comprehensive list of guardrail types and concrete implementation strategies in CrewAI (function-based and LLM-based task guardrails, chaining, Flows orchestration, callbacks, observability).
-- Make the capstone highly demonstrable: include a Streamlit/FastAPI UI for input, demo videos/scripts, multiple example projects (simple → complex).
+- Make the capstone highly demonstrable: include a Gradio UI for input, demo videos/scripts, multiple example projects (simple → complex).
 - Optimize the plan for rapid implementation using **Cursor AI** — provide highly detailed, modular, copy-paste-ready code structures, prompts, and architectures.
 - Position the project as evidence of forward-thinking AI-era technical leadership.
 
