@@ -18,6 +18,8 @@ I am using a combination of AI tools:
 
 ### Fab 15
 
+Raining Sunday morning, 11 AM, coffee and the original ideation :)
+
 Created the initial plans and prompts. Opus 4.5 created very nicely designed build plan and initial prompts.
 
 The problem was - I started running them in cursor only to realize that Claude didn't really do a good job:
@@ -27,3 +29,5 @@ The problem was - I started running them in cursor only to realize that Claude d
 So now I have gaps in implementation and need to start from scratch.
 
 Also there is way to run multiple agents in Cursor in parallel.
+
+Sunday 6 PM (had to do a short Costco run): Phase 0, 1 and 2 prompts are all completed. It's great Monday is a federal holiday in the US, should be able to finish all prompts for the 6 phases Opus generated for us. Can't wait to actually start testing. Are we really going to be able to run this team using just the local models in Ollama??

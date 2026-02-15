@@ -59,20 +59,20 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 2.1  | Generate Base Agent class | [phase-2-1-base-agent-class.md](phase-2-1-base-agent-class.md) | Pending | |
-| 2.2  | Generate Manager Agent | [phase-2-2-manager-agent.md](phase-2-2-manager-agent.md) | Pending | |
-| 2.3  | Generate Product Owner Agent | [phase-2-3-product-owner-agent.md](phase-2-3-product-owner-agent.md) | Pending | |
-| 2.4  | Generate Architect Agent | [phase-2-4-architect-agent.md](phase-2-4-architect-agent.md) | Pending | |
-| 2.5  | Generate Developer Agents (Backend, Frontend, Fullstack) | [phase-2-5-developer-agents-backend-frontend-fullstack.md](phase-2-5-developer-agents-backend-frontend-fullstack.md) | Pending | |
-| 2.6  | Generate DevOps and Cloud Agents | [phase-2-6-devops-and-cloud-agents.md](phase-2-6-devops-and-cloud-agents.md) | Pending | |
-| 2.7  | Generate QA Agent | [phase-2-7-qa-agent.md](phase-2-7-qa-agent.md) | Pending | |
-| 2.8  | Generate secure file tools | [phase-2-8-secure-file-tools.md](phase-2-8-secure-file-tools.md) | Pending | |
-| 2.9  | Generate code execution sandbox tools | [phase-2-9-code-execution-sandbox-tools.md](phase-2-9-code-execution-sandbox-tools.md) | Pending | |
-| 2.10 | Generate Git tools | [phase-2-10-git-tools.md](phase-2-10-git-tools.md) | Pending | |
-| 2.11 | Generate test runner tools | [phase-2-11-test-runner-tools.md](phase-2-11-test-runner-tools.md) | Pending | |
-| 2.12 | Generate behavioral guardrails module | [phase-2-12-behavioral-guardrails-module.md](phase-2-12-behavioral-guardrails-module.md) | Pending | |
-| 2.13 | Generate security guardrails module | [phase-2-13-security-guardrails-module.md](phase-2-13-security-guardrails-module.md) | Pending | |
-| 2.14 | Generate quality guardrails module | [phase-2-14-quality-guardrails-module.md](phase-2-14-quality-guardrails-module.md) | Pending | |
+| 2.1  | Generate Base Agent class | [phase-2-1-base-agent-class.md](phase-2-1-base-agent-class.md) | **Done** | Implemented in `src/ai_team/agents/base.py`: BaseAgent extends CrewAI Agent with YAML/settings config, Ollama LLM (role→model mapping), structlog, memory hooks (before_task/after_task), guardrail-wrapped tools, tenacity retry on LLM, token usage tracking, create_agent(role_name) factory, attach_tools(), health_check(). Unit tests in `tests/unit/agents/test_base.py`. CrewAI Agent is Pydantic; custom attributes set via object.__setattr__ after super().__init__. |
+| 2.2  | Generate Manager Agent | [phase-2-2-manager-agent.md](phase-2-2-manager-agent.md) | **Done** | YAML in config/agents.yaml (manager). Python in agents/manager.py + tools/manager_tools.py. Tools: task_delegation, timeline_management, blocker_resolution, status_reporting. Delegation by capability/workload; human escalation threshold; ProjectState integration via status_reporting/timeline_management. |
+| 2.3  | Generate Product Owner Agent | [phase-2-3-product-owner-agent.md](phase-2-3-product-owner-agent.md) | **Done** | YAML updated in config/agents.yaml. Implemented in agents/product_owner.py (extends BaseAgent via create_agent), tools in tools/product_owner.py (requirements_parser, user_story_generator, acceptance_criteria_writer, priority_scorer). RequirementsDocument and related Pydantic models in models/requirements.py. Self-validation and guardrail (reject vague/contradictory) in product_owner + tools. Templates in agents/product_owner_templates.py (API, web app, CLI, data pipeline). |
+| 2.4  | Generate Architect Agent | [phase-2-4-architect-agent.md](phase-2-4-architect-agent.md) | **Done** | agents/architect.py + create_architect_agent(); ArchitectureDocument in models/architecture.py; architect tools in tools/architect_tools.py; validate_architecture_against_requirements() guardrail. |
+| 2.5  | Generate Developer Agents (Backend, Frontend, Fullstack) | [phase-2-5-developer-agents-backend-frontend-fullstack.md](phase-2-5-developer-agents-backend-frontend-fullstack.md) | **Done** | `developer_base.py` (DeveloperBase + validate_generated_code, context_instruction), `developer_tools.py` (stub tools), `backend_developer.py`, `frontend_developer.py`, `fullstack_developer.py`; YAML + fullstack in settings; guardrail integration on generated code. |
+| 2.6  | Generate DevOps and Cloud Agents | [phase-2-6-devops-and-cloud-agents.md](phase-2-6-devops-and-cloud-agents.md) | **Done** | `agents/devops_engineer.py` (DevOpsEngineer) and `agents/cloud_engineer.py` (CloudEngineer) use create_agent with YAML config (allow_delegation: false, max_iter: 10). Tools in `tools/infrastructure.py`: DevOps — dockerfile_generator, compose_generator, ci_pipeline_generator, k8s_manifest_generator, monitoring_config_generator; Cloud — terraform_generator, cloudformation_generator, iam_policy_generator, cost_estimator, network_designer. SecurityGuardrails.validate_iac_security() added for Dockerfile, docker-compose, K8s, Terraform, CloudFormation, IAM; all generated IaC validated before return. |
+| 2.7  | Generate QA Agent | [phase-2-7-qa-agent.md](phase-2-7-qa-agent.md) | **Done** | agents/qa_engineer.py + tools/qa_tools.py; TestResult and QA models in models/qa_models.py; config/agents.yaml qa_engineer; quality gates (min coverage 80%, zero critical bugs); feedback_for_developers for retry to devs. Guardrail: >80% coverage. |
+| 2.8  | Generate secure file tools | [phase-2-8-secure-file-tools.md](phase-2-8-secure-file-tools.md) | **Done** | Implemented in `src/ai_team/tools/file_tools.py`: read_file, write_file, list_directory, create_directory, delete_file with path traversal prevention, whitelist (workspace/output), dangerous pattern and optional PII scanning, max_file_size_kb, audit logging. Both raw functions and @tool-decorated versions; tests in `tests/unit/tools/test_file_tools.py` including adversarial paths. |
+| 2.9  | Generate code execution sandbox tools | [phase-2-9-code-execution-sandbox-tools.md](phase-2-9-code-execution-sandbox-tools.md) | **Done** | `src/ai_team/tools/code_tools.py`: execute_python (import guard, resource limits on Unix, timeout), execute_shell (whitelist/blocklist), lint_code (ruff/eslint), format_code (black/prettier). ExecutionResult and LintResult Pydantic models; CrewAI BaseTool wrappers and get_code_tools(). Audit logging, temp dir cleanup. |
+| 2.10 | Generate Git tools | [phase-2-10-git-tools.md](phase-2-10-git-tools.md) | **Done** | `src/ai_team/tools/git_tools.py`: git_init, git_add, git_commit, git_branch, git_diff, git_log, git_status, generate_commit_message, create_pr_description. Pydantic CommitInfo, GitStatus. GitPython; LLM (Ollama) for commit message and PR description. Safety: no commits on main/master, branch naming type/name. |
+| 2.11 | Generate test runner tools | [phase-2-11-test-runner-tools.md](phase-2-11-test-runner-tools.md) | **Done** | Implemented in `src/ai_team/tools/test_tools.py`: run_pytest (with coverage + retry 2x on failure), run_specific_test (single test + traceback, retry 2x), generate_coverage_report (HTML/JSON, uncovered lines, suggestions), run_lint (ruff + mypy, severity aggregation), validate_test_quality (assertions, names, hardcoded values, setup/teardown, edge cases). Pydantic models: TestRunResult, TestResult, CoverageReport, LintReport, TestQualityReport; CrewAI BaseTool wrappers and get_test_tools(). |
+| 2.12 | Generate behavioral guardrails module | [phase-2-12-behavioral-guardrails-module.md](phase-2-12-behavioral-guardrails-module.md) | **Done** | `src/ai_team/guardrails/behavioral.py`: GuardrailResult, role_adherence, scope_control, delegation, output_format, iteration_limit; CrewAI helpers (guardrail_to_crewai_callable, make_*). Unit tests in `tests/unit/guardrails/test_behavioral.py`. |
+| 2.13 | Generate security guardrails module | [phase-2-13-security-guardrails-module.md](phase-2-13-security-guardrails-module.md) | **Done** | Implemented in `src/ai_team/guardrails/security.py`: GuardrailResult; code_safety_guardrail (configurable patterns, severity levels); pii_redaction_guardrail (detection + redacted text); secret_detection_guardrail; prompt_injection_guardrail (sensitivity); path_security_guardrail (traversal, symlinks, system dirs). CrewAI adapters (crewai_*_guardrail) and SECURITY_TASK_GUARDRAILS. Unit tests in `tests/unit/guardrails/test_security.py` with adversarial cases. Legacy SecurityGuardrails in __init__.py retained for compatibility. |
+| 2.14 | Generate quality guardrails module | [phase-2-14-quality-guardrails-module.md](phase-2-14-quality-guardrails-module.md) | **Done** | Implemented in `src/ai_team/guardrails/quality.py`: GuardrailResult, code_quality_guardrail, coverage_guardrail (alias test_coverage_guardrail), documentation_guardrail, architecture_compliance_guardrail, dependency_guardrail. Uses settings for min coverage and code quality score. Unit tests in `tests/unit/guardrails/test_quality.py`. |
 
 ---
 
@@ -146,11 +146,11 @@ Prompts in the same parallel group have no dependency on each other and can be e
 |-------|------|--------|-------|
 | 0     | 5 | 0 | 5 |
 | 1     | 3 | 2 | 5 |
-| 2     | 0 | 14 | 14 |
+| 2     | 5 | 9 | 14 |
 | 3     | 0 | 13 | 13 |
 | 4     | 0 | 7 | 7 |
 | 5     | 0 | 9 | 9 |
 | 6     | 0 | 8 | 8 |
-| **Total** | **8** | **52** | **60** |
+| **Total** | **13** | **47** | **60** |
 
 *Phase 4 combines tasks 4.1–4.3 into one prompt by design (60 prompts total). Update the Status and Notes columns as prompts are run.*

@@ -36,6 +36,7 @@ class OllamaSettings(BaseSettings):
     architect_model: str = Field(default="deepseek-r1:14b", description="Model for Architect")
     backend_dev_model: str = Field(default="deepseek-coder-v2:16b", description="Model for Backend Developer")
     frontend_dev_model: str = Field(default="qwen2.5-coder:14b", description="Model for Frontend Developer")
+    fullstack_dev_model: str = Field(default="deepseek-coder-v2:16b", description="Model for Fullstack Developer")
     devops_model: str = Field(default="qwen2.5-coder:14b", description="Model for DevOps")
     cloud_model: str = Field(default="qwen2.5-coder:14b", description="Model for Cloud Engineer")
     qa_model: str = Field(default="qwen3:14b", description="Model for QA Agent")
@@ -51,6 +52,7 @@ class OllamaSettings(BaseSettings):
             "architect": self.architect_model,
             "backend_dev": self.backend_dev_model,
             "frontend_dev": self.frontend_dev_model,
+            "fullstack_dev": self.fullstack_dev_model,
             "devops": self.devops_model,
             "cloud": self.cloud_model,
             "qa": self.qa_model,
