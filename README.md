@@ -107,6 +107,8 @@ poetry run pytest tests/integration
 poetry run pytest tests/e2e
 ```
 
+Integration full-flow tests use a manual flow driver (no `flow.kickoff()`), so they run with the rest of the suite and do not hang or spike memory.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 
 ## Project structure

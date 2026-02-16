@@ -2,6 +2,10 @@
 
 Shared fixtures and mock helpers for crew and full-flow integration tests.
 All LLM calls are mocked; no real Ollama or network usage.
+
+Full-flow tests (marked with @pytest.mark.full_flow) use a manual flow driver
+(_run_flow_manually) and do not call flow.kickoff(), so they run synchronously
+and do not hang or spike memory.
 """
 
 from __future__ import annotations
@@ -26,6 +30,14 @@ from ai_team.models.requirements import (
     UserStory,
 )
 from ai_team.tools.test_tools import TestRunResult
+
+
+def pytest_configure(config: Any) -> None:
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers",
+        "full_flow: full AITeamFlow tests driven by manual runner (no kickoff).",
+    )
 
 
 # -----------------------------------------------------------------------------
