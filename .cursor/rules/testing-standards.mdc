@@ -1,0 +1,40 @@
+---
+description: Testing standards and structure for ai-team
+globs: "tests/**/*.py"
+alwaysApply: false
+---
+
+# Test Requirements
+
+- **Unit coverage**: ≥90% for `src/ai_team/`
+- **Integration**: all crew handoffs and tool chains
+- **Guardrails**: adversarial tests with known-bad inputs
+- **Pydantic models**: validation, serialization, edge cases
+
+# File Naming
+
+- Unit: `tests/unit/test_{module}.py`
+- Integration: `tests/integration/test_{feature}_integration.py`
+- E2E: `tests/e2e/test_end_to_end.py`
+- Performance: `tests/performance/test_benchmarks.py`
+
+# Fixtures
+
+Use `tests/conftest.py`: `mock_ollama`, `sample_project_description`, `sample_requirements_doc`, `sample_code_files`.
+
+# Test Structure
+
+Use class-based tests and parametrize for variants:
+
+```python
+class TestSecurityGuardrails:
+    def test_detects_eval_in_code(self, security_guardrail):
+        result = security_guardrail.code_safety_guardrail("x = eval(user_input)")
+        assert result.status == "fail"
+        assert "eval" in result.message
+
+    @pytest.mark.parametrize("dangerous_code", ["eval('1+1')", "__builtins__['eval']('1+1')"])
+    def test_detects_eval_variants(self, security_guardrail, dangerous_code):
+        result = security_guardrail.code_safety_guardrail(dangerous_code)
+        assert result.status == "fail"
+```

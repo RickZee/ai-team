@@ -1,0 +1,31 @@
+---
+description: Agent roles and flow routing reference
+globs: ["src/ai_team/crews/**/*.py", "src/ai_team/flows/**/*.py"]
+alwaysApply: false
+---
+
+# Agent Role Reference
+
+| Agent | Role | Model | Process Role | Key Tools |
+|-------|------|-------|--------------|-----------|
+| Manager | Engineering Manager / Coordinator | qwen3 | manager_agent (hierarchical) | task_delegation, status_reporting |
+| Product Owner | Requirements Analyst | qwen3 | PlanningCrew member | requirements_parser, user_story_generator |
+| Architect | Solutions Architect / Tech Lead | deepseek-r1 | PlanningCrew + DevelopmentCrew manager | architecture_designer, technology_selector |
+| Backend Dev | Backend Developer | deepseek-coder-v2 | DevelopmentCrew member | code_generation, api_implementation |
+| Frontend Dev | Frontend Developer | qwen2.5-coder | DevelopmentCrew member | component_generator, api_client_generator |
+| DevOps | DevOps / SRE Engineer | qwen2.5-coder | DevelopmentCrew + DeploymentCrew | dockerfile_generator, ci_pipeline_generator |
+| Cloud Engineer | Cloud Infrastructure Engineer | qwen2.5-coder | DeploymentCrew member | terraform_generator, iam_policy_generator |
+| QA Engineer | QA / Test Automation | qwen3 | TestingCrew member | test_generator, test_runner, coverage_analyzer |
+
+# Flow Routing
+
+INTAKE → PLANNING → DEVELOPMENT → TESTING → DEPLOYMENT → COMPLETE, with HUMAN_FEEDBACK, RETRY_DEVELOPMENT (max 3x), HUMAN_ESCALATION.
+
+- **Planning → Development**: requirements AND architecture both complete
+- **Planning → Human Feedback**: requirements ambiguous (e.g. confidence < 0.7)
+- **Development → Testing**: code files generated successfully
+- **Testing → Deployment**: all tests pass, coverage ≥ threshold
+- **Testing → Retry Development**: tests failed, retries remaining (with feedback)
+- **Testing → Human Escalation**: retries exhausted or critical failures
+- **Deployment → Complete**: packaging successful
+- **Any phase → Error**: unrecoverable error with state preservation
