@@ -1,7 +1,8 @@
 """Pytest configuration and fixtures for integration tests.
 
 Shared fixtures and mock helpers for crew and full-flow integration tests.
-All LLM calls are mocked; no real Ollama or network usage.
+By default all LLM calls are mocked. Set AI_TEAM_USE_REAL_LLM=1 to run
+crew-level integration tests against real Ollama (full-flow tests stay mock-only).
 
 Full-flow tests (marked with @pytest.mark.full_flow) use a manual flow driver
 (_run_flow_manually) and do not call flow.kickoff(), so they run synchronously
@@ -10,6 +11,7 @@ and do not hang or spike memory.
 
 from __future__ import annotations
 
+import os
 import json
 from types import SimpleNamespace
 from typing import Any, List
@@ -38,6 +40,16 @@ def pytest_configure(config: Any) -> None:
         "markers",
         "full_flow: full AITeamFlow tests driven by manual runner (no kickoff).",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_llm: integration tests that use real Ollama when AI_TEAM_USE_REAL_LLM=1.",
+    )
+
+
+@pytest.fixture
+def use_real_llm() -> bool:
+    """Whether to use real Ollama in crew-level integration tests (default: False)."""
+    return os.environ.get("AI_TEAM_USE_REAL_LLM", "").lower() in ("1", "true", "yes")
 
 
 # -----------------------------------------------------------------------------

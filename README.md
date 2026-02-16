@@ -25,9 +25,9 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           FLOW LAYER (Orchestration)                             │
-│  AITeamFlow: intake → planning → development → testing → deployment → finalize   │
-│  ProjectState (Pydantic); @start, @listen, @router                               │
+│                           FLOW LAYER (Orchestration)                            │
+│  AITeamFlow: intake → planning → development → testing → deployment → finalize  │
+│  ProjectState (Pydantic); @start, @listen, @router                              │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                         │
         ┌───────────────────────────────┼───────────────────────────────┐
@@ -35,7 +35,7 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 ┌───────────────┐             ┌───────────────┐             ┌───────────────┐
 │ PlanningCrew  │             │DevelopmentCrew│             │ TestingCrew   │
 │ DeploymentCrew│             │ (Manager +    │             │ (QA + tools)  │
-│ (Manager, PO,  │             │  Dev agents) │             │               │
+│ (Manager, PO, │             │   Dev agents) │             │               │
 │  Architect)   │             │               │             │               │
 └───────┬───────┘             └───────┬───────┘             └───────┬───────┘
         │                             │                             │
@@ -44,10 +44,11 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │  TOOL LAYER: file (read/write/list) · code (gen/review/sandbox) · git · test    │
 └─────────────────────────────────────────────────────────────────────────────────┘
-        │
-┌───────┴───────────────────────────────────────────────────────────────────────┐
-│  GUARDRAILS (behavioral, security, quality)  │  MEMORY (session + long-term)   │
-└──────────────────────────────────────────────┴─────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  GUARDRAILS (behavioral, security, quality)  │  MEMORY (session + long-term)    │
+└──────────────────────────────────────────────┴──────────────────────────────────┘
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
@@ -67,12 +68,17 @@ For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/G
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OLLAMA_BASE_URL` | Ollama API base URL | `http://localhost:11434` |
-| `*_MODEL` (e.g. `MANAGER_MODEL`) | Per-role Ollama model name | Role default from settings |
+| `OLLAMA_MEMORY_PRESET` | `default` or `32gb` (7B/8B models, ~8–10 GB peak) | `default` |
+| `*_MODEL` (e.g. `OLLAMA_MANAGER_MODEL`) | Per-role Ollama model name | Role default from settings |
 | `GUARDRAIL_MAX_RETRIES` | Max guardrail retries | `3` |
 | `CODE_QUALITY_MIN_SCORE` | Min quality score (0–1) | `0.7` |
 | `TEST_COVERAGE_MIN` | Min test coverage (0–1) | `0.6` |
 | `MAX_FILE_SIZE_KB` | Max file size for tools (KB) | `500` |
 | `GRADIO_SERVER_PORT` | Gradio UI port | `7860` |
+
+### Model configuration and 32 GB RAM
+
+Default models (14b/16b) load **one at a time** (planning → development → testing → deployment). Peak usage is ~16–18 GB for the largest model plus embedding and overhead, so a **32 GB** system is sufficient. Set `OLLAMA_MEMORY_PRESET=32gb` to use 7B/8B variants (qwen3:8b, deepseek-r1:8b, qwen2.5-coder:7b, etc.) for a **~8–10 GB peak** on constrained or shared machines; per-role env vars override the preset when set. Pull the preset models with `ollama pull qwen3:8b` and similar before using the 32gb preset.
 
 Copy `.env.example` to `.env` and adjust. Agent→model mapping and guardrail behavior are documented in [docs/AGENTS.md](docs/AGENTS.md) and [docs/GUARDRAILS.md](docs/GUARDRAILS.md).
 
@@ -108,6 +114,12 @@ poetry run pytest tests/e2e
 ```
 
 Integration full-flow tests use a manual flow driver (no `flow.kickoff()`), so they run with the rest of the suite and do not hang or spike memory.
+
+To run **crew-level** integration tests (planning, development, testing) against **real Ollama** instead of mocks, set `AI_TEAM_USE_REAL_LLM=1`. Tests will skip if Ollama is unreachable and assert on structure only. Full-flow tests remain mock-only by design.
+
+```bash
+AI_TEAM_USE_REAL_LLM=1 poetry run pytest tests/integration -m real_llm -v
+```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 

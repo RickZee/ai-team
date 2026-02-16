@@ -5,20 +5,49 @@ This module provides centralized configuration management using Pydantic setting
 Configuration is loaded from .env by default; alternative YAML loading is supported.
 """
 
+import os
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# 32GB preset: 7B/8B models so peak RAM stays ~8-10 GB (one model loaded at a time).
+# Role-specific env vars (e.g. OLLAMA_MANAGER_MODEL) override the preset when set.
+_MODEL_32GB: dict[str, str] = {
+    "manager": "qwen3:8b",
+    "product_owner": "qwen3:8b",
+    "architect": "deepseek-r1:8b",
+    "backend_dev": "qwen2.5-coder:7b",
+    "frontend_dev": "qwen2.5-coder:7b",
+    "fullstack_dev": "qwen2.5-coder:7b",
+    "devops": "qwen2.5-coder:7b",
+    "cloud": "qwen2.5-coder:7b",
+    "qa": "qwen3:8b",
+}
+
+_ROLE_TO_ENV_KEY: dict[str, str] = {
+    "manager": "OLLAMA_MANAGER_MODEL",
+    "product_owner": "OLLAMA_PRODUCT_OWNER_MODEL",
+    "architect": "OLLAMA_ARCHITECT_MODEL",
+    "backend_dev": "OLLAMA_BACKEND_DEV_MODEL",
+    "frontend_dev": "OLLAMA_FRONTEND_DEV_MODEL",
+    "fullstack_dev": "OLLAMA_FULLSTACK_DEV_MODEL",
+    "devops": "OLLAMA_DEVOPS_MODEL",
+    "cloud": "OLLAMA_CLOUD_MODEL",
+    "qa": "OLLAMA_QA_MODEL",
+}
+
+
 class OllamaSettings(BaseSettings):
     """
     Ollama API and per-role model configuration.
 
-    Supports base URL, timeouts, retries, and optional model assignment
-    per agent role with a default model fallback.
+    Supports base URL, timeouts, retries, optional model assignment per agent role,
+    and memory_preset. When memory_preset is "32gb", get_model_for_role returns
+    7B/8B model names (~8-10 GB peak) unless a role-specific env var is set.
     """
 
     model_config = SettingsConfigDict(env_prefix="OLLAMA_", extra="ignore")
@@ -26,6 +55,10 @@ class OllamaSettings(BaseSettings):
     base_url: str = Field(
         default="http://localhost:11434",
         description="Ollama API base URL",
+    )
+    memory_preset: Literal["default", "32gb"] = Field(
+        default="default",
+        description="Use '32gb' for 7B/8B models (peak ~8-10 GB); role env vars override.",
     )
     default_model: str = Field(
         default="qwen3:14b",
@@ -46,6 +79,24 @@ class OllamaSettings(BaseSettings):
 
     def get_model_for_role(self, role: str) -> str:
         """Return the configured model for the given agent role."""
+        role_lower = role.lower()
+        if self.memory_preset == "32gb":
+            env_key = _ROLE_TO_ENV_KEY.get(role_lower)
+            if env_key is not None and os.environ.get(env_key) is not None:
+                    # User set this role explicitly; use it
+                    role_map = {
+                        "manager": self.manager_model,
+                        "product_owner": self.product_owner_model,
+                        "architect": self.architect_model,
+                        "backend_dev": self.backend_dev_model,
+                        "frontend_dev": self.frontend_dev_model,
+                        "fullstack_dev": self.fullstack_dev_model,
+                        "devops": self.devops_model,
+                        "cloud": self.cloud_model,
+                        "qa": self.qa_model,
+                    }
+                    return role_map.get(role_lower, self.default_model)
+            return _MODEL_32GB.get(role_lower, "qwen3:8b")
         role_map = {
             "manager": self.manager_model,
             "product_owner": self.product_owner_model,
@@ -57,7 +108,7 @@ class OllamaSettings(BaseSettings):
             "cloud": self.cloud_model,
             "qa": self.qa_model,
         }
-        return role_map.get(role.lower(), self.default_model)
+        return role_map.get(role_lower, self.default_model)
 
     def check_health(self) -> bool:
         """Validate that the Ollama server is reachable. Returns True if healthy."""

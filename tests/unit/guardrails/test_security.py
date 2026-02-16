@@ -152,6 +152,9 @@ def test_pii_redact_returns_both_detection_and_redacted():
 # =============================================================================
 # secret_detection_guardrail
 # =============================================================================
+# Test strings below are intentional fixtures that match secret *patterns* (so the
+# guardrail correctly fails). They use obviously fake values (zeros, "fake", "test")
+# to avoid triggering external secret scanners and to satisfy "no secrets in code".
 
 
 def test_secret_pass_clean():
@@ -160,39 +163,39 @@ def test_secret_pass_clean():
 
 
 def test_secret_fail_hardcoded_password():
-    r = secret_detection_guardrail('password = "super_secret_123"')
+    r = secret_detection_guardrail('password = "fake_test_value"')
     assert r.status == "fail"
     assert "password" in r.message.lower() or "secret" in r.message.lower()
 
 
 def test_secret_fail_api_key():
-    r = secret_detection_guardrail('api_key = "sk-abcdef123456789012345678901234567890123456789012"')
+    r = secret_detection_guardrail('api_key = "sk-' + "0" * 48 + '"')
     assert r.status == "fail"
 
 
 def test_secret_fail_github_token():
-    r = secret_detection_guardrail("token = 'ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'")
+    r = secret_detection_guardrail("token = 'ghp_" + "0" * 36 + "'")
     assert r.status == "fail"
 
 
 def test_secret_fail_jwt():
-    r = secret_detection_guardrail("Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U")
+    r = secret_detection_guardrail("Authorization: Bearer a.bbbbbbbbbb.cccccccccc")
     assert r.status == "fail"
 
 
 def test_secret_fail_aws_keys():
-    r = secret_detection_guardrail("aws_access_key_id = 'AKIAIOSFODNN7EXAMPLE'")
+    r = secret_detection_guardrail("aws_access_key_id = 'AKIA00000000000000000'")
     assert r.status == "fail"
 
 
 def test_secret_fail_connection_string():
-    r = secret_detection_guardrail("mongodb://user:pass@host/db")
+    r = secret_detection_guardrail("mongodb://test:test@localhost/db")
     assert r.status == "fail"
 
 
 def test_secret_adversarial_quotes():
     """Adversarial: different quote styles."""
-    r = secret_detection_guardrail("""api_key = 'sk-123456789012345678901234567890123456789012345678'""")
+    r = secret_detection_guardrail("api_key = 'sk-" + "0" * 48 + "'")
     assert r.status == "fail"
 
 
@@ -338,7 +341,7 @@ def test_crewai_pii_redacts():
 
 
 def test_crewai_secret_fail():
-    out = FakeTaskOutput('api_key = "sk-123456789012345678901234567890123456789012345678"')
+    out = FakeTaskOutput('api_key = "sk-' + "0" * 48 + '"')
     ok, msg = crewai_secret_detection_guardrail(out)
     assert ok is False
     assert "secret" in msg.lower() or "environment" in msg.lower()
