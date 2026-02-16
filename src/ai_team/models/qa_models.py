@@ -92,3 +92,33 @@ class TestResult(BaseModel):
         "",
         description="Actionable feedback for developer agents when tests fail or gates fail",
     )
+
+
+class CodeReviewFinding(BaseModel):
+    """A single code review finding with severity and location."""
+
+    title: str = Field(..., description="Short finding title")
+    severity: str = Field(
+        ...,
+        description="Severity: critical, high, medium, low",
+    )
+    file_path: str = Field("", description="Relevant file path if applicable")
+    line_number: int = Field(0, description="Line number if applicable")
+    description: str = Field(..., description="Detailed description of the finding")
+    recommendation: str = Field("", description="Suggested fix or improvement")
+
+
+class CodeReviewReport(BaseModel):
+    """Structured code review output: findings with severity for quality and security."""
+
+    summary: str = Field("", description="Overall review summary")
+    findings: List[CodeReviewFinding] = Field(
+        default_factory=list,
+        description="List of findings with severity",
+    )
+    critical_count: int = Field(0, description="Number of critical findings")
+    high_count: int = Field(0, description="Number of high-severity findings")
+    passed: bool = Field(
+        False,
+        description="True if no critical or high-severity findings",
+    )

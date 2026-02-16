@@ -1,0 +1,34 @@
+{
+  "project_id": "h4",
+  "project_description": "",
+  "current_phase": "deployment",
+  "requirements": null,
+  "architecture": null,
+  "generated_files": [],
+  "test_results": null,
+  "deployment_config": null,
+  "phase_history": [],
+  "errors": [
+    {
+      "phase": "deployment",
+      "error_type": "deployment_error",
+      "message": "Invalid output format",
+      "timestamp": "2026-02-16T17:38:04.310886",
+      "recoverable": true
+    }
+  ],
+  "retry_counts": {},
+  "max_retries": 3,
+  "started_at": "2026-02-16T17:38:04.310870",
+  "completed_at": null,
+  "metadata": {
+    "consecutive_failures_deployment": 1,
+    "last_error": {
+      "phase": "deployment",
+      "error": "Invalid output format",
+      "category": "recoverable"
+    }
+  },
+  "awaiting_human_input": false,
+  "human_feedback": null
+}

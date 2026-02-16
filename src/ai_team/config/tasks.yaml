@@ -1,0 +1,22 @@
+# AI Team Task Definitions
+# Tasks are loaded by task factory functions in src/ai_team/tasks/.
+# Agent names refer to config/agents.yaml; output_pydantic to models in ai_team.models.
+
+planning:
+  requirements_gathering:
+    description: "Analyze the following project idea and create comprehensive requirements.\n\nProject idea: {project_description}"
+    agent: product_owner
+    expected_output: "RequirementsDocument with user stories, acceptance criteria, priorities"
+    output_pydantic: RequirementsDocument
+    guardrail: "requirements must have at least 3 user stories with acceptance criteria"
+    context: []
+    timeout_seconds: 600
+
+  architecture_design:
+    description: "Design system architecture based on requirements"
+    agent: architect
+    expected_output: "ArchitectureDocument with components, interfaces, tech stack"
+    output_pydantic: ArchitectureDocument
+    guardrail: "architecture must address all requirements"
+    context: [requirements_gathering]
+    timeout_seconds: 600
