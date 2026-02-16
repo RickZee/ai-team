@@ -16,7 +16,7 @@ I am using a combination of AI tools:
 
 ## Journey
 
-### Fab 15
+### Feb 15
 
 Raining Sunday morning, 11 AM, coffee and the original ideation :)
 
@@ -47,3 +47,9 @@ JSON                             4              0              0             20
 SUM:                            87           2450           1792           9486
 -------------------------------------------------------------------------------
 ```
+
+### Feb 16
+
+This is very cool! After 2 hours of work, we are into running integration tests, at the end of Phase 4.
+
+Knowing how it usually is, I expect to be stuck at this phase for several days. We'll see.
