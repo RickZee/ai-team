@@ -80,19 +80,19 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 3.1  | Generate Planning Tasks | [phase-3-1-planning-tasks.md](phase-3-1-planning-tasks.md) | Pending | |
-| 3.2  | Generate Development Tasks | [phase-3-2-development-tasks.md](phase-3-2-development-tasks.md) | Pending | |
-| 3.3  | Generate Testing Tasks | [phase-3-3-testing-tasks.md](phase-3-3-testing-tasks.md) | Pending | |
-| 3.4  | Generate Deployment Tasks | [phase-3-4-deployment-tasks.md](phase-3-4-deployment-tasks.md) | Pending | |
-| 3.5  | Generate Planning Crew | [phase-3-5-planning-crew.md](phase-3-5-planning-crew.md) | Pending | |
-| 3.6  | Generate Development Crew | [phase-3-6-development-crew.md](phase-3-6-development-crew.md) | Pending | |
-| 3.7  | Generate Testing Crew | [phase-3-7-testing-crew.md](phase-3-7-testing-crew.md) | Pending | |
-| 3.8  | Generate Deployment Crew | [phase-3-8-deployment-crew.md](phase-3-8-deployment-crew.md) | Pending | |
-| 3.9  | Generate State Models | [phase-3-9-state-models.md](phase-3-9-state-models.md) | Pending | |
-| 3.10 | Generate Main Flow | [phase-3-10-main-flow.md](phase-3-10-main-flow.md) | Pending | |
-| 3.11 | Generate conditional routing | [phase-3-11-conditional-routing.md](phase-3-11-conditional-routing.md) | Pending | |
-| 3.12 | Generate Human-in-the-Loop | [phase-3-12-human-in-the-loop.md](phase-3-12-human-in-the-loop.md) | Pending | |
-| 3.13 | Generate Error Handling | [phase-3-13-error-handling.md](phase-3-13-error-handling.md) | Pending | |
+| 3.1  | Generate Planning Tasks | [phase-3-1-planning-tasks.md](phase-3-1-planning-tasks.md) | **Done** | `config/tasks.yaml` defines planning.requirements_gathering and planning.architecture_design (agent, expected_output, output_pydantic, guardrail, context, timeout_seconds). `tasks/planning_tasks.py`: task factory `create_planning_tasks(agents)` reads YAML, builds CrewAI Task with context passing (architecture_design receives requirements_gathering), guardrails (requirements: ≥3 user stories with acceptance criteria; architecture: validate_architecture_against_requirements for structural completeness), and returns (tasks, timeouts dict). Timeout config per task for use by crew runner (CrewAI Task has no built-in timeout). |
+| 3.2  | Generate Development Tasks | [phase-3-2-development-tasks.md](phase-3-2-development-tasks.md) | **Done** | `src/ai_team/tasks/development_tasks.py`: backend_implementation, frontend_implementation, devops_configuration with context, guardrails (quality/security), output_pydantic CodeFileList/DeploymentConfig. CodeFile and DeploymentConfig moved to `models/development.py` for reuse. |
+| 3.3  | Generate Testing Tasks | [phase-3-3-testing-tasks.md](phase-3-3-testing-tasks.md) | **Done** | `src/ai_team/tasks/testing_tasks.py`: test_generation, test_execution, code_review with qa_engineer; guardrails for assertions/edge cases, 80% coverage and zero critical failures, no critical/high findings; retry max 3 cycles (MAX_TEST_RETRY_CYCLES). CodeReviewReport in qa_models.py. |
+| 3.4  | Generate Deployment Tasks | [phase-3-4-deployment-tasks.md](phase-3-4-deployment-tasks.md) | **Done** | `src/ai_team/tasks/deployment_tasks.py`: infrastructure_design (cloud_engineer, context: architecture_design + devops_configuration, IaC guardrail), deployment_packaging (devops_engineer, context: infrastructure_design + test_execution, health checks + rollback guardrail), documentation_generation (product_owner, context: all previous, docs guardrail). Factory functions take agent + context tasks. Added crewai_iac_security_guardrail in guardrails/__init__.py. |
+| 3.5  | Generate Planning Crew | [phase-3-5-planning-crew.md](phase-3-5-planning-crew.md) | **Done** | `crews/planning_crew.py`: hierarchical Crew with Manager, Product Owner, Architect; requirements_gathering → architecture_design; memory, planning, verbose/max_rpm from settings; task_callback for logging; kickoff(project_description). Integration test mocks crew kickoff. |
+| 3.6  | Generate Development Crew | [phase-3-6-development-crew.md](phase-3-6-development-crew.md) | **Done** | `src/ai_team/crews/development_crew.py`: hierarchical process, Architect as manager_agent; backend/frontend/devops tasks with context and guardrails; `kickoff(requirements, architecture)` returns `(List[CodeFile], Optional[DeploymentConfig])`. Backend-only or frontend-only inferred from architecture. List import fixed in development_tasks.py. |
+| 3.7  | Generate Testing Crew | [phase-3-7-testing-crew.md](phase-3-7-testing-crew.md) | **Done** | `src/ai_team/crews/testing_crew.py`: sequential process, QA Engineer only; tasks test_generation (with code_files_summary input) → test_execution → code_review. kickoff(code_files) returns TestingCrewOutput (TestRunResult + CodeReviewReport); get_feedback() returns actionable feedback dict for Development Crew retry. Quality/coverage thresholds from GuardrailSettings. |
+| 3.8  | Generate Deployment Crew | [phase-3-8-deployment-crew.md](phase-3-8-deployment-crew.md) | **Done** | `src/ai_team/crews/deployment_crew.py`: DeploymentCrew (sequential, Cloud + DevOps), kickoff(code_files, architecture, test_results, product_owner_doc_context=…), package_output(crew_result, output_dir) with path validation; README at root, infrastructure/deployment/docs subdirs. |
+| 3.9  | Generate State Models | [phase-3-9-state-models.md](phase-3-9-state-models.md) | **Done** | `src/ai_team/flows/state.py`: ProjectState, ProjectPhase, PhaseTransition, ProjectError; imports RequirementsDocument, ArchitectureDocument, CodeFile, DeploymentConfig, TestRunResult from models/tools; add_phase_transition/add_error/increment_retry, can_retry, get_duration, to_summary; validators for no-skip phase transitions and retry limits. main_flow.py refactored to use state module. |
+| 3.10 | Generate Main Flow | [phase-3-10-main-flow.md](phase-3-10-main-flow.md) | **Done** | AITeamFlow in `src/ai_team/flows/main_flow.py`: @start intake_request (validate length, prompt-injection guardrail), @listen/@router for planning → development → testing → deployment → finalize_project. Real crews wired (planning_crew_kickoff, development_crew_kickoff, testing_crew_kickoff, DeploymentCrew). Routing: request_human_feedback, handle_planning_error, escalate_to_human, retry_development. State persistence (_persist_state to output_dir), plot() for flow visualization, error handling and logging at every step. |
+| 3.11 | Generate conditional routing | [phase-3-11-conditional-routing.md](phase-3-11-conditional-routing.md) | **Done** | `src/ai_team/flows/routing.py`: route_after_planning, route_after_development, route_after_testing, route_after_deployment with confidence (planning), retry limits (testing), phase transitions (AWAITING_HUMAN, PLANNING), logging; main_flow delegates to routing; retry_planning listener added. |
+| 3.12 | Generate Human-in-the-Loop | [phase-3-12-human-in-the-loop.md](phase-3-12-human-in-the-loop.md) | **Done** | `src/ai_team/flows/human_feedback.py`: HumanFeedbackHandler (request_feedback with question/context/options), CLI (input + optional timeout), Gradio via set_gradio_callback; FeedbackType (clarification, approval, escalation, override); parse_feedback_response → HumanFeedbackResult; MockHumanFeedbackHandler for tests. HumanFeedbackSettings in config (timeout_seconds, default_response). main_flow: request_human_feedback and escalate_to_human use handler, metadata from routers; route_after_human_feedback and route_after_escalate resume flow. Unit tests in tests/unit/flows/test_human_feedback.py. |
+| 3.13 | Generate Error Handling | [phase-3-13-error-handling.md](phase-3-13-error-handling.md) | **Done** | `src/ai_team/flows/error_handling.py`: ErrorCategory (Retryable/Recoverable/Fatal), classify_error, circuit breaker (3 consecutive → escalate), persist_state_on_error, load_state_from_file, rollback_last_phase, StructuredErrorLog, build_error_summary_report, get_error_metrics, handle_*_error entry points with exponential backoff. main_flow integrates handlers and route_after_*_error routers. Unit tests in tests/unit/flows/test_error_handling.py (34 tests). |
 
 ---
 
@@ -147,10 +147,10 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 0     | 5 | 0 | 5 |
 | 1     | 3 | 2 | 5 |
 | 2     | 5 | 9 | 14 |
-| 3     | 0 | 13 | 13 |
+| 3     | 4 | 9 | 13 |
 | 4     | 0 | 7 | 7 |
 | 5     | 0 | 9 | 9 |
 | 6     | 0 | 8 | 8 |
-| **Total** | **13** | **47** | **60** |
+| **Total** | **17** | **43** | **60** |
 
 *Phase 4 combines tasks 4.1–4.3 into one prompt by design (60 prompts total). Update the Status and Notes columns as prompts are run.*

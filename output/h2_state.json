@@ -1,0 +1,34 @@
+{
+  "project_id": "h2",
+  "project_description": "",
+  "current_phase": "development",
+  "requirements": null,
+  "architecture": null,
+  "generated_files": [],
+  "test_results": null,
+  "deployment_config": null,
+  "phase_history": [],
+  "errors": [
+    {
+      "phase": "development",
+      "error_type": "development_error",
+      "message": "model not found",
+      "timestamp": "2026-02-16T17:38:02.307836",
+      "recoverable": true
+    }
+  ],
+  "retry_counts": {},
+  "max_retries": 3,
+  "started_at": "2026-02-16T17:38:02.307824",
+  "completed_at": null,
+  "metadata": {
+    "consecutive_failures_development": 1,
+    "last_error": {
+      "phase": "development",
+      "error": "model not found",
+      "category": "fatal"
+    }
+  },
+  "awaiting_human_input": false,
+  "human_feedback": null
+}

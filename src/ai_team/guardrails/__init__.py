@@ -465,3 +465,21 @@ from ai_team.guardrails.quality import (
     architecture_compliance_guardrail,
     dependency_guardrail,
 )
+
+
+def _task_output_text(result: Any) -> str:
+    """Extract raw text from CrewAI TaskOutput or similar."""
+    if hasattr(result, "raw"):
+        return getattr(result, "raw") or ""
+    if isinstance(result, str):
+        return result
+    return str(result)
+
+
+def crewai_iac_security_guardrail(result: Any) -> Tuple[bool, Any]:
+    """CrewAI task guardrail: IaC must follow security best practices, least privilege."""
+    text = _task_output_text(result)
+    valid, msg = SecurityGuardrails.validate_iac_security(text, iac_type="auto")
+    if not valid:
+        return (False, msg)
+    return (True, result)
