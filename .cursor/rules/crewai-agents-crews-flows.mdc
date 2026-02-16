@@ -1,0 +1,53 @@
+---
+description: CrewAI agent, crew, and flow patterns
+globs: ["src/ai_team/agents/**/*.py", "src/ai_team/crews/**/*.py", "src/ai_team/flows/**/*.py"]
+alwaysApply: false
+---
+
+# Agent Definition
+
+Agents: YAML config (agents.yaml) + Python class extending BaseAgent. Use `role_name` (maps to YAML key), `create()` → `load_yaml_config()`, `get_ollama_llm()`, return `Agent(...)`.
+
+```python
+from ai_team.agents.base import BaseAgent
+
+class ArchitectAgent(BaseAgent):
+    """Solutions Architect agent for system design."""
+    role_name: str = "architect"
+
+    def create(self) -> Agent:
+        config = self.load_yaml_config()
+        llm = self.get_ollama_llm()
+        return Agent(
+            role=config["role"], goal=config["goal"], backstory=config["backstory"],
+            tools=self.get_tools(), llm=llm, verbose=config.get("verbose", True),
+            memory=config.get("memory", True), allow_delegation=config.get("allow_delegation", False),
+            max_iter=config.get("max_iter", 10),
+        )
+```
+
+# Crew Composition
+
+```python
+crew = Crew(
+    agents=[...], tasks=[...], process=Process.hierarchical,
+    manager_agent=self.manager, memory=True, verbose=True, planning=True,
+)
+return crew.kickoff(inputs=inputs)
+```
+
+# Flow Orchestration
+
+`AITeamFlow(Flow[ProjectState])`: use `@start()`, `@listen(previous)`, `@router(previous)` for branching.
+
+```python
+@router(run_planning_crew)
+def route_after_planning(self):
+    if self.state.requirements and self.state.architecture:
+        return "run_development"
+    return "request_human_feedback"
+```
+
+# Task with Guardrail
+
+`Task(description=..., expected_output=..., output_pydantic=..., guardrail=fn)`. Guardrail receives `TaskOutput`, returns it or raises `GuardrailFailure` to trigger retry.

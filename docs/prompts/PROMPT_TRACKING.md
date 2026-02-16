@@ -31,7 +31,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 0: Preparation & Research (Days 1–3)
+## Phase 0: Preparation & Research
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
@@ -43,7 +43,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 1: Repository Setup & Environment (Days 4–6)
+## Phase 1: Repository Setup & Environment
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
@@ -55,7 +55,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 2: Agent Definition, Tools & Guardrails (Days 7–14)
+## Phase 2: Agent Definition, Tools & Guardrails
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
@@ -76,7 +76,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 3: Task & Flow Design (Days 15–21)
+## Phase 3: Task & Flow Design
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
@@ -96,7 +96,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 4: Memory, Reasoning & Integration (Days 22–28)
+## Phase 4: Memory, Reasoning & Integration
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
@@ -109,7 +109,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 5: Testing, Iteration & Guardrail Validation (Days 29–35)
+## Phase 5: Testing, Iteration & Guardrail Validation
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
@@ -125,7 +125,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
-## Phase 6: UI, Deployment & Showcase (Days 36–42)
+## Phase 6: UI, Deployment & Showcase
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
