@@ -52,4 +52,8 @@ SUM:                            87           2450           1792           9486
 
 This is very cool! After 2 hours of work, we are into running integration tests, at the end of Phase 4.
 
-Knowing how it usually is, I expect to be stuck at this phase for several days. We'll see.
+Knowing how it usually is, I expect to be stuck at this phase for several days. We'll see...
+
+And we crushed! The integration tests successfully created the team and started executing a full flow tests. My my Mac with 36GB of unified memory got completely unresponsive. Even the resource monitor wasn't showing anything useful except that Cursor was consuming 92GB of memory. Out of available 36. And after several short minutes the computer rebooted.
+
+Alright, we are now back to the very typical back and forth with Cursor. It runs some tests, while skipping or disabling others. When it doesn't like a failed test, it just reports a success and asks you to move on.
