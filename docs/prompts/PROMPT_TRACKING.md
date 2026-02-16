@@ -100,12 +100,12 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 4.1–4.3 | Generate unified memory configuration | [phase-4-1-4-3-unified-memory-configuration.md](phase-4-1-4-3-unified-memory-configuration.md) | Pending | |
-| 4.4  | Generate Knowledge Base | [phase-4-4-knowledge-base.md](phase-4-4-knowledge-base.md) | Pending | |
-| 4.5  | Generate Reasoning Enhancement | [phase-4-5-reasoning-enhancement.md](phase-4-5-reasoning-enhancement.md) | Pending | |
-| 4.6  | Generate structured output models | [phase-4-6-structured-output-models.md](phase-4-6-structured-output-models.md) | Pending | |
-| 4.7  | Generate callback system | [phase-4-7-callback-system.md](phase-4-7-callback-system.md) | Pending | |
-| 4.8  | Generate Integration Testing | [phase-4-8-integration-testing.md](phase-4-8-integration-testing.md) | Pending | |
+| 4.1–4.3 | Generate unified memory configuration | [phase-4-1-4-3-unified-memory-configuration.md](phase-4-1-4-3-unified-memory-configuration.md) | **Done** | `memory_config.py`: ShortTermStore (ChromaDB, collection per project_id, Ollama embeddings), LongTermStore (SQLite: conversations, performance_metrics, learned_patterns, retention_days), EntityStore (entities + relationships); MemoryManager (initialize, store, retrieve, get_entity, cleanup, export). MemorySettings extended with max_results, retention_days, share_between_crews, ollama_base_url. memory/__init__.py exports and get_memory_manager(). |
+| 4.4  | Generate Knowledge Base | [phase-4-4-knowledge-base.md](phase-4-4-knowledge-base.md) | **Done** | `memory/knowledge_base.py`: KnowledgeBase, KnowledgeItem; get_best_practices(topic), get_template(template_type), search_knowledge(query); get_knowledge_source_content(scope), get_crewai_knowledge_source(role/scope). Knowledge in memory/knowledge/: best_practices.yaml (python, api, database, testing, devops, security), templates.yaml (flask_fastapi_api, react_component, pytest, dockerfile, docker_compose, github_actions, readme). DEFAULT_KNOWLEDGE_SCOPES per role; CrewAI StringKnowledgeSource integration. |
+| 4.5  | Generate Reasoning Enhancement | [phase-4-5-reasoning-enhancement.md](phase-4-5-reasoning-enhancement.md) | **Done** | `src/ai_team/utils/reasoning.py`: REASONING_TEMPLATES (requirements/architecture/code/test), OUTPUT_FORMAT_INSTRUCTIONS, JSON_SCHEMA_TEMPLATES, SELF_REFLECTION_PROMPT; ReasoningEnhancer (enhance_prompt, add_self_reflection, parse_confidence); enhance_backstory_with_reasoning; extract_json_from_response, get_reasoning_template, get_output_format_instruction. Exported from utils/__init__.py. |
+| 4.6  | Generate structured output models | [phase-4-6-structured-output-models.md](phase-4-6-structured-output-models.md) | **Done** | `src/ai_team/models/outputs.py`: RequirementsDocument (≥3 user stories, all with acceptance_criteria), ArchitectureDocument (Component, TechChoice, Interface/Endpoint, Entity, ADR), CodeFile (path/content/language/file_type/dependencies/size_bytes + validators), TestResult (TestFailure), DeploymentConfig, ProjectReport (timedelta, agent_metrics). JSON schema via get_outputs_json_schema(); from_llm_response() on each document model; validation error messages in validators. |
+| 4.7  | Generate callback system | [phase-4-7-callback-system.md](phase-4-7-callback-system.md) | **Done** | `src/ai_team/utils/callbacks.py`: AITeamCallback (on_task_start/complete/error, on_agent_action, on_crew_start/complete, on_guardrail_trigger), structlog with context (project_id, phase, agent_role, task_name), MetricsReport (durations, token estimate, retries, guardrail triggers, tool counts) with to_dict()/to_table(), optional webhook (CallbackSettings), sync and async variants; get_task_callback() for CrewAI task_callback. |
+| 4.8  | Generate Integration Testing | [phase-4-8-integration-testing.md](phase-4-8-integration-testing.md) | **Done** | `tests/integration/conftest.py`: shared fixtures (sample_project_description, sample_requirements_document, sample_architecture_document, sample_code_files, sample_test_run_result_*), mock_crew_outputs, helpers (mock_planning_crew_output, mock_development_crew_output, mock_testing_crew_output). `tests/integration/test_full_flow.py`: (1) test_planning_crew_integration with mocked crew, valid RequirementsDocument/ArchitectureDocument and task order; (2) test_development_crew_integration with pre-built planning outputs, mocked kickoff, valid CodeFile list and structure; (3) test_testing_crew_integration with pre-built CodeFile list, mocked crew, TestRunResult with coverage; (4) test_full_flow_happy_path with all crews mocked, phase transitions INTAKE→…→COMPLETE; (5) test_flow_retry_on_test_failure (first fail, second pass); (6) test_flow_escalation_on_repeated_failure. Flow tests use 60s timeout; crew-level tests pass without LLM. |
 
 ---
 
@@ -148,9 +148,9 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 1     | 3 | 2 | 5 |
 | 2     | 5 | 9 | 14 |
 | 3     | 4 | 9 | 13 |
-| 4     | 0 | 7 | 7 |
+| 4     | 3 | 4 | 7 |
 | 5     | 0 | 9 | 9 |
 | 6     | 0 | 8 | 8 |
-| **Total** | **17** | **43** | **60** |
+| **Total** | **20** | **40** | **60** |
 
 *Phase 4 combines tasks 4.1–4.3 into one prompt by design (60 prompts total). Update the Status and Notes columns as prompts are run.*

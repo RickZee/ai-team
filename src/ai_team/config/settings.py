@@ -106,7 +106,8 @@ class GuardrailSettings(BaseSettings):
 class MemorySettings(BaseSettings):
     """
     Memory backend configuration: ChromaDB path, SQLite path,
-    embedding model, collection name, and master enable flag.
+    embedding model, collection name, retention, and master enable flag.
+    Short-term (ChromaDB): collection per project; long-term (SQLite): cross-project.
     """
 
     model_config = SettingsConfigDict(env_prefix="MEMORY_", extra="ignore")
@@ -114,8 +115,18 @@ class MemorySettings(BaseSettings):
     chromadb_path: str = Field(default="./data/chroma", description="ChromaDB persistence directory")
     sqlite_path: str = Field(default="./data/memory.db", description="SQLite database path for long-term memory")
     embedding_model: str = Field(default="nomic-embed-text", description="Model used for embeddings")
-    collection_name: str = Field(default="ai_team_memory", description="ChromaDB collection name")
+    collection_name: str = Field(default="ai_team_memory", description="ChromaDB collection name prefix (project_id appended)")
     memory_enabled: bool = Field(default=True, description="Master switch to enable/disable memory")
+    max_results: int = Field(default=10, ge=1, le=100, description="Max results for RAG/semantic retrieval (top_k)")
+    retention_days: int = Field(default=90, ge=1, le=3650, description="Days to retain long-term memory entries before cleanup")
+    share_between_crews: bool = Field(
+        default=True,
+        description="When True, short-term memory is shared across crews within the same project",
+    )
+    ollama_base_url: str = Field(
+        default="http://localhost:11434",
+        description="Ollama API base URL for embedding model (used by short-term memory)",
+    )
 
 
 class LoggingSettings(BaseSettings):
@@ -143,6 +154,15 @@ class LoggingSettings(BaseSettings):
         if u not in allowed:
             raise ValueError(f"log_level must be one of {allowed}")
         return u
+
+
+class CallbackSettings(BaseSettings):
+    """Callback system: optional webhook for phase transitions."""
+
+    model_config = SettingsConfigDict(env_prefix="CALLBACK_", extra="ignore")
+
+    webhook_url: Optional[str] = Field(default=None, description="URL for POST on phase transitions (crew start/complete)")
+    webhook_enabled: bool = Field(default=False, description="Enable webhook notifications when webhook_url is set")
 
 
 class HumanFeedbackSettings(BaseSettings):
@@ -188,6 +208,7 @@ class Settings(BaseSettings):
     memory: MemorySettings = Field(default_factory=MemorySettings, description="Memory backend config")
     logging: LoggingSettings = Field(default_factory=LoggingSettings, description="Logging config")
     project: ProjectSettings = Field(default_factory=ProjectSettings, description="Project execution config")
+    callback: CallbackSettings = Field(default_factory=CallbackSettings, description="Callback/webhook config")
     human_feedback: HumanFeedbackSettings = Field(
         default_factory=HumanFeedbackSettings, description="Human-in-the-loop feedback config"
     )
@@ -216,6 +237,7 @@ class Settings(BaseSettings):
             ("memory", MemorySettings),
             ("logging", LoggingSettings),
             ("project", ProjectSettings),
+            ("callback", CallbackSettings),
             ("human_feedback", HumanFeedbackSettings),
         ]:
             if name in data and isinstance(data[name], dict):
