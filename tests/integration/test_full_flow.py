@@ -24,6 +24,7 @@ from ai_team.flows.routing import (
     route_after_planning,
     route_after_testing,
 )
+from ai_team.config.settings import get_settings
 from ai_team.crews.development_crew import kickoff as development_crew_kickoff
 from ai_team.crews.planning_crew import kickoff as planning_crew_kickoff
 from ai_team.crews.testing_crew import kickoff as run_testing_crew
@@ -113,6 +114,7 @@ def _run_flow_manually(
 # -----------------------------------------------------------------------------
 
 
+@pytest.mark.real_llm
 class TestPlanningCrewIntegration:
     """Planning crew returns valid RequirementsDocument and ArchitectureDocument."""
 
@@ -120,8 +122,22 @@ class TestPlanningCrewIntegration:
         self,
         sample_project_description: str,
         mock_crew_outputs: dict,
+        use_real_llm: bool,
     ) -> None:
-        """Input: simple project description; mock Ollama; assert valid docs and task order."""
+        """With mock: assert exact fixture output. With real LLM: assert structure only."""
+        if use_real_llm:
+            if not get_settings().validate_ollama_connection():
+                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+            result = planning_crew_kickoff(sample_project_description)
+            requirements, architecture, needs_clarification = _parse_planning_output(result)
+            assert requirements is not None
+            assert architecture is not None
+            assert len(requirements.user_stories) >= 1
+            for story in requirements.user_stories:
+                assert story.acceptance_criteria
+            assert architecture.system_overview
+            return
+
         mock_output = mock_crew_outputs["planning"]
         with patch(
             "ai_team.crews.planning_crew.create_planning_crew",
@@ -154,8 +170,11 @@ class TestPlanningCrewIntegration:
         self,
         sample_project_description: str,
         mock_crew_outputs: dict,
+        use_real_llm: bool,
     ) -> None:
-        """Kickoff is called once with project_description (task order is crew-internal)."""
+        """With mock: kickoff called once with project_description. With real: skip (crew-internal)."""
+        if use_real_llm:
+            pytest.skip("Task order is crew-internal; covered by structure test with real LLM")
         mock_output = mock_crew_outputs["planning"]
         with patch(
             "ai_team.crews.planning_crew.create_planning_crew",
@@ -176,17 +195,34 @@ class TestPlanningCrewIntegration:
 # -----------------------------------------------------------------------------
 
 
+@pytest.mark.real_llm
 class TestDevelopmentCrewIntegration:
     """Development crew returns valid CodeFile list from planning outputs."""
 
     def test_development_crew_returns_valid_code_files(
         self,
         mock_crew_outputs: dict,
+        use_real_llm: bool,
     ) -> None:
-        """Input: pre-built RequirementsDocument + ArchitectureDocument; assert valid CodeFile list."""
+        """With mock: assert fixture output. With real LLM: assert structure only."""
         requirements = mock_crew_outputs["requirements"]
         architecture = mock_crew_outputs["architecture"]
         expected_files = mock_crew_outputs["code_files"]
+
+        if use_real_llm:
+            if not get_settings().validate_ollama_connection():
+                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+            from ai_team.crews.development_crew import kickoff as _dev_kickoff
+
+            code_files, deployment_config = _dev_kickoff(requirements, architecture)
+            assert isinstance(code_files, list)
+            assert len(code_files) >= 1
+            assert deployment_config is None or hasattr(deployment_config, "dockerfile")
+            for cf in code_files:
+                assert cf.path
+                assert cf.content
+                assert cf.language
+            return
 
         with patch(
             "ai_team.crews.development_crew.kickoff",
@@ -212,8 +248,11 @@ class TestDevelopmentCrewIntegration:
     def test_development_crew_code_files_contain_required_structure(
         self,
         mock_crew_outputs: dict,
+        use_real_llm: bool,
     ) -> None:
-        """Assert code files contain required imports, functions, or classes."""
+        """With mock: assert fixture structure. With real: skip (covered by valid code_files test)."""
+        if use_real_llm:
+            pytest.skip("Structure covered by test_development_crew_returns_valid_code_files")
         code_files = mock_crew_outputs["code_files"]
         assert any("import" in cf.content or "from " in cf.content for cf in code_files)
         assert any("def " in cf.content or "class " in cf.content for cf in code_files)
@@ -224,16 +263,31 @@ class TestDevelopmentCrewIntegration:
 # -----------------------------------------------------------------------------
 
 
+@pytest.mark.real_llm
 class TestTestingCrewIntegration:
     """Testing crew returns TestRunResult with coverage data."""
 
     def test_testing_crew_returns_test_run_result_with_coverage(
         self,
         mock_crew_outputs: dict,
+        use_real_llm: bool,
     ) -> None:
-        """Input: pre-built CodeFile list; mock pytest; assert TestRunResult with coverage."""
+        """With mock: assert fixture output. With real LLM: assert structure only."""
         code_files = mock_crew_outputs["code_files"]
         passed_result = mock_crew_outputs["test_result_passed"]
+
+        if use_real_llm:
+            if not get_settings().validate_ollama_connection():
+                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+            output = run_testing_crew(code_files)
+            assert output.test_run_result is not None
+            assert isinstance(output.test_run_result.total, int)
+            assert isinstance(output.test_run_result.passed, int)
+            assert output.test_run_result.line_coverage_pct is None or isinstance(
+                output.test_run_result.line_coverage_pct, (int, float)
+            )
+            assert isinstance(output.quality_gate_passed, bool)
+            return
 
         with patch(
             "ai_team.crews.testing_crew.create_testing_crew",

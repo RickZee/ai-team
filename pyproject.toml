@@ -68,6 +68,7 @@ asyncio_mode = "auto"
 addopts = "-v --tb=short"
 markers = [
     "full_flow: full AITeamFlow tests driven by manual runner (no kickoff).",
+    "real_llm: integration tests that use real Ollama when AI_TEAM_USE_REAL_LLM=1.",
     "timeout: per-test timeout (pytest-timeout).",
 ]
 

@@ -1,8 +1,8 @@
-"""Integration tests for the Planning Crew (with mocked LLM / kickoff).
+"""Integration tests for the Planning Crew (mock or real LLM).
 
 Crew structure (hierarchical process, manager, task dependencies) is covered by
-unit tests in tests/unit/tasks/test_planning_tasks.py. Here we test kickoff()
-with mocked crew execution to avoid real LLM calls.
+unit tests in tests/unit/tasks/test_planning_tasks.py. Here we test kickoff().
+Set AI_TEAM_USE_REAL_LLM=1 to run against real Ollama; default is mocked.
 """
 
 from unittest.mock import MagicMock, patch
@@ -10,11 +10,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from crewai.crew import CrewOutput
 
+from ai_team.config.settings import get_settings
 from ai_team.crews.planning_crew import kickoff
 
 
+@pytest.mark.real_llm
 class TestPlanningCrewKickoff:
-    """Test kickoff with mocked crew execution (no real LLM)."""
+    """Test kickoff with mocked or real crew execution."""
 
     @pytest.fixture
     def mock_crew_output(self) -> CrewOutput:
@@ -25,9 +27,20 @@ class TestPlanningCrewKickoff:
         )
 
     def test_kickoff_with_mocked_crew_kickoff_returns_mock_output(
-        self, mock_crew_output: CrewOutput
+        self,
+        mock_crew_output: CrewOutput,
+        use_real_llm: bool,
     ) -> None:
-        """When crew.kickoff is patched, kickoff() returns the mock CrewOutput."""
+        """With mock: returns mock CrewOutput. With real LLM: returns valid result."""
+        if use_real_llm:
+            if not get_settings().validate_ollama_connection():
+                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+            result = kickoff("A simple CLI tool.", verbose=False)
+            assert result is not None
+            assert hasattr(result, "raw")
+            assert hasattr(result, "tasks_output")
+            return
+
         with patch(
             "ai_team.crews.planning_crew.create_planning_crew",
         ) as mock_create:
