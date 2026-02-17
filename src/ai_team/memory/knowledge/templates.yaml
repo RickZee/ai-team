@@ -1,0 +1,150 @@
+# Template library for KnowledgeBase.
+# Keys: flask_fastapi_api, react_component, pytest, dockerfile, docker_compose, github_actions, readme
+
+flask_fastapi_api: |
+  # Flask/FastAPI API template
+  # - Use a single app instance; register blueprints (Flask) or APIRouter (FastAPI).
+  # - Health endpoint: GET /health returning 200 and optional version.
+  # - OpenAPI at /docs (FastAPI) or via flasgger/spec; document request/response models.
+  # - Middleware: CORS, request ID, error handler returning JSON.
+  # - Config from environment; Pydantic Settings for FastAPI.
+  # - Structured logging (structlog); no secrets in logs.
+  # Example FastAPI skeleton:
+  # from fastapi import FastAPI
+  # app = FastAPI(title="...", version="1.0.0")
+  # @app.get("/health") def health(): return {"status": "ok"}
+  # @app.get("/v1/resources") def list_resources(): ...
+
+react_component: |
+  # React component template
+  # - Functional components with hooks; TypeScript for props/state.
+  # - One component per file; co-locate styles or use CSS modules.
+  # - Props interface: export interface ComponentNameProps { ... }
+  # - Use meaningful names; avoid inline objects for repeated props.
+  # - Accessibility: semantic HTML, aria-* where needed, keyboard support.
+  # - Prefer composition over inheritance; extract reusable hooks.
+  # Example skeleton:
+  # import React from 'react';
+  # export interface ButtonProps { label: string; onClick: () => void; disabled?: boolean; }
+  # export function Button({ label, onClick, disabled }: ButtonProps) {
+  #   return <button onClick={onClick} disabled={disabled}>{label}</button>;
+  # }
+
+pytest: |
+  # Pytest test file template
+  # - Module: test_<module>.py; prefix test_ for functions and classes.
+  # - Use fixtures for setup: @pytest.fixture def client(): ...
+  # - Parametrize for multiple inputs: @pytest.mark.parametrize("a,b,expected", [...])
+  # - Assert with clear messages: assert result == expected, f"got {result}"
+  # - Mock external calls: with patch("module.func") as m: ...
+  # - One logical test per test function; avoid interdependency.
+  # Example skeleton:
+  # import pytest
+  # from myapp import app
+  # @pytest.fixture
+  # def client():
+  #     app.config["TESTING"] = True
+  #     with app.test_client() as c:
+  #         yield c
+  # def test_health_returns_200(client):
+  #     r = client.get("/health")
+  #     assert r.status_code == 200
+
+dockerfile: |
+  # Dockerfile template
+  # - Multi-stage: builder stage for build deps, final stage minimal (e.g. python:3.11-slim).
+  # - Use non-root user: RUN useradd -m appuser && USER appuser.
+  # - Pin base image: FROM python:3.11.9-slim-bookworm.
+  # - COPY only what's needed; .dockerignore to exclude tests, .git, __pycache__.
+  # - Single CMD/ENTRYPOINT; prefer exec form: CMD ["python", "-m", "app.main"].
+  # - Set WORKDIR; ENV for non-secret config; ARG for build-time only.
+  # - HEALTHCHECK if the image runs a long-lived process.
+  # Example skeleton:
+  # FROM python:3.11-slim AS builder
+  # WORKDIR /app
+  # COPY pyproject.toml poetry.lock ./
+  # RUN pip install --no-cache-dir poetry && poetry export -f requirements.txt -o requirements.txt
+  # FROM python:3.11-slim
+  # WORKDIR /app
+  # COPY --from=builder /app/requirements.txt .
+  # RUN pip install --no-cache-dir -r requirements.txt && useradd -m appuser && chown -R appuser /app
+  # USER appuser
+  # COPY --chown=appuser . .
+  # CMD ["python", "-m", "app.main"]
+
+docker_compose: |
+  # docker-compose template
+  # - One service per process; use build.context and Dockerfile path.
+  # - Environment: env_file for .env; avoid hardcoding secrets; use secrets for sensitive data.
+  # - Networks: default network or named; expose only needed ports.
+  # - Healthcheck per service: test, interval, timeout, retries, start_period.
+  # - Restart policy: restart: unless-stopped for long-lived services.
+  # - Volumes for persistence; use named volumes for data.
+  # Example skeleton:
+  # version: "3.8"
+  # services:
+  #   app:
+  #     build: { context: ., dockerfile: Dockerfile }
+  #     env_file: .env
+  #     ports: ["8000:8000"]
+  #     healthcheck: { test: ["CMD", "curl", "-f", "http://localhost:8000/health"], interval: 30s, timeout: 10s, retries: 3 }
+  #     restart: unless-stopped
+  #   ollama:
+  #     image: ollama/ollama:latest
+  #     volumes: [ollama_models:/root/.ollama]
+  # volumes:
+  #   ollama_models:
+
+github_actions: |
+  # GitHub Actions workflow template
+  # - Trigger: on push to main/develop; on pull_request to main/develop.
+  # - Jobs: lint (ruff, mypy), test (pytest with coverage), optional integration.
+  # - Use actions/checkout; set up Python with actions/setup-python and cache (poetry or pip).
+  # - Run lint then test; upload coverage artifact (e.g. codecov) if desired.
+  # - Fail fast; use matrix for multiple Python versions if needed.
+  # Example skeleton:
+  # name: CI
+  # on: { push: { branches: [main, develop] }, pull_request: { branches: [main, develop] } }
+  # jobs:
+  #   lint:
+  #     runs-on: ubuntu-latest
+  #     steps:
+  #       - uses: actions/checkout@v4
+  #       - uses: actions/setup-python@v5
+  #         with: { python-version: "3.11" }
+  #       - run: pip install poetry && poetry install
+  #       - run: poetry run ruff check . && poetry run mypy .
+  #   test:
+  #     runs-on: ubuntu-latest
+  #     steps:
+  #       - uses: actions/checkout@v4
+  #       - uses: actions/setup-python@v5
+  #         with: { python-version: "3.11" }
+  #       - run: pip install poetry && poetry install
+  #       - run: poetry run pytest --cov=src --cov-report=xml
+  #       - uses: actions/upload-artifact@v4
+  #         with: { name: coverage, path: coverage.xml }
+
+readme: |
+  # README template
+  # - Title and one-line description at the top.
+  # - Badges: build status, coverage, version if applicable.
+  # - Table of contents for long READMEs.
+  # - Installation: prerequisites, pip/poetry install, optional .env setup.
+  # - Quick start: minimal commands to run (e.g. docker-compose up, or poetry run app).
+  # - Configuration: env vars or config file; link to .env.example.
+  # - Usage: main commands or API overview; link to full docs if needed.
+  # - Testing: how to run tests (pytest, npm test).
+  # - Contributing: link to CONTRIBUTING.md; commit/PR conventions.
+  # - License: SPDX identifier.
+  # Example skeleton:
+  # # Project Name
+  # One-line description.
+  # [![CI](https://github.com/org/repo/actions/workflows/ci.yml/badge.svg)](...)
+  # ## Installation
+  # ... ## Quick start
+  # ... ## Configuration
+  # ... ## Usage
+  # ... ## Testing
+  # ... ## License
+  # MIT
