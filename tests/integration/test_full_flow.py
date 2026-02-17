@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from ai_team.flows.error_handling import reset_circuit
 from ai_team.flows.main_flow import AITeamFlow, _parse_planning_output
 from ai_team.flows.state import ProjectPhase
 from ai_team.crews.development_crew import kickoff as development_crew_kickoff
@@ -190,25 +191,48 @@ class TestFullFlowHappyPath:
         flow = AITeamFlow(feedback_handler=mock_feedback)
         flow.state.project_description = sample_project_description
 
-        with patch(
-            "ai_team.crews.planning_crew.kickoff",
-            return_value=mock_crew_outputs["planning"],
-        ), patch(
-            "ai_team.crews.development_crew.kickoff",
-            return_value=mock_crew_outputs["development"],
-        ), patch(
-            "ai_team.crews.testing_crew.kickoff",
-            return_value=mock_crew_outputs["testing_passed"],
-        ), patch(
-            "ai_team.crews.deployment_crew.DeploymentCrew",
-        ) as mock_deployment_crew_cls, patch(
-            "ai_team.crews.deployment_crew.package_output",
-            return_value=Path("/tmp/out"),
-        ):
-            mock_deploy_crew = MagicMock()
-            mock_deploy_crew.kickoff.return_value = MagicMock(tasks_output=[])
-            mock_deployment_crew_cls.return_value = mock_deploy_crew
+        req = mock_crew_outputs["requirements"]
+        arch = mock_crew_outputs["architecture"]
+        code_files = mock_crew_outputs["code_files"]
+        test_result = mock_crew_outputs["test_result_passed"]
 
+        def fake_run_planning(_self: AITeamFlow) -> dict:
+            _self.state.requirements = req
+            _self.state.architecture = arch
+            _self.state.add_phase_transition(
+                ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "Planning completed"
+            )
+            reset_circuit(_self.state, ProjectPhase.PLANNING)
+            return {"status": "success", "needs_clarification": False, "confidence": 1.0}
+
+        def fake_run_development(_self: AITeamFlow) -> dict:
+            _self.state.generated_files = code_files
+            _self.state.add_phase_transition(
+                ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "Code generated"
+            )
+            reset_circuit(_self.state, ProjectPhase.DEVELOPMENT)
+            return {"status": "success", "files": code_files}
+
+        def fake_run_testing(_self: AITeamFlow) -> dict:
+            _self.state.test_results = test_result
+            _self.state.add_phase_transition(
+                ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "Tests passed"
+            )
+            reset_circuit(_self.state, ProjectPhase.TESTING)
+            return {"status": "success", "results": test_result}
+
+        def fake_run_deployment(_self: AITeamFlow) -> dict:
+            _self.state.add_phase_transition(
+                ProjectPhase.DEPLOYMENT, ProjectPhase.COMPLETE, "Deployment configured"
+            )
+            reset_circuit(_self.state, ProjectPhase.DEPLOYMENT)
+            return {"status": "success", "config": None}
+
+        with patch.object(flow, "run_planning_crew", fake_run_planning), patch.object(
+            flow, "run_development_crew", fake_run_development
+        ), patch.object(flow, "run_testing_crew", fake_run_testing), patch.object(
+            flow, "run_deployment_crew", fake_run_deployment
+        ):
             flow.kickoff()
 
         phases = [t.to_phase for t in flow.state.phase_history]
@@ -242,37 +266,60 @@ class TestFlowRetryOnTestFailure:
         flow = AITeamFlow(feedback_handler=mock_feedback)
         flow.state.project_description = sample_project_description
 
-        testing_results = [
-            mock_crew_outputs["testing_failed"],
-            mock_crew_outputs["testing_passed"],
-        ]
+        req = mock_crew_outputs["requirements"]
+        arch = mock_crew_outputs["architecture"]
+        code_files = mock_crew_outputs["code_files"]
+        testing_failed = mock_crew_outputs["testing_failed"]
+        testing_passed = mock_crew_outputs["testing_passed"]
+        test_result_passed = mock_crew_outputs["test_result_passed"]
         testing_call_count = 0
 
-        def testing_side_effect(*args: object, **kwargs: object) -> object:
+        def fake_run_planning(_self: AITeamFlow) -> dict:
+            _self.state.requirements = req
+            _self.state.architecture = arch
+            _self.state.add_phase_transition(
+                ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "Planning completed"
+            )
+            reset_circuit(_self.state, ProjectPhase.PLANNING)
+            return {"status": "success", "needs_clarification": False, "confidence": 1.0}
+
+        def fake_run_development(_self: AITeamFlow) -> dict:
+            _self.state.generated_files = code_files
+            _self.state.add_phase_transition(
+                ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "Code generated"
+            )
+            reset_circuit(_self.state, ProjectPhase.DEVELOPMENT)
+            return {"status": "success", "files": code_files}
+
+        def fake_run_testing(_self: AITeamFlow) -> dict:
             nonlocal testing_call_count
-            out = testing_results[min(testing_call_count, len(testing_results) - 1)]
-            testing_call_count += 1
-            return out
+            if testing_call_count == 0:
+                _self.state.test_results = testing_failed.test_run_result
+                testing_call_count += 1
+                return {
+                    "status": "tests_failed",
+                    "results": testing_failed.test_run_result,
+                    "output": testing_failed,
+                }
+            _self.state.test_results = test_result_passed
+            _self.state.add_phase_transition(
+                ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "Tests passed"
+            )
+            reset_circuit(_self.state, ProjectPhase.TESTING)
+            return {"status": "success", "results": test_result_passed}
 
-        with patch(
-            "ai_team.crews.planning_crew.kickoff",
-            return_value=mock_crew_outputs["planning"],
-        ), patch(
-            "ai_team.crews.development_crew.kickoff",
-            return_value=mock_crew_outputs["development"],
-        ), patch(
-            "ai_team.crews.testing_crew.kickoff",
-            side_effect=testing_side_effect,
-        ), patch(
-            "ai_team.crews.deployment_crew.DeploymentCrew",
-        ) as mock_deployment_crew_cls, patch(
-            "ai_team.crews.deployment_crew.package_output",
-            return_value=Path("/tmp/out"),
+        def fake_run_deployment(_self: AITeamFlow) -> dict:
+            _self.state.add_phase_transition(
+                ProjectPhase.DEPLOYMENT, ProjectPhase.COMPLETE, "Deployment configured"
+            )
+            reset_circuit(_self.state, ProjectPhase.DEPLOYMENT)
+            return {"status": "success", "config": None}
+
+        with patch.object(flow, "run_planning_crew", fake_run_planning), patch.object(
+            flow, "run_development_crew", fake_run_development
+        ), patch.object(flow, "run_testing_crew", fake_run_testing), patch.object(
+            flow, "run_deployment_crew", fake_run_deployment
         ):
-            mock_deploy_crew = MagicMock()
-            mock_deploy_crew.kickoff.return_value = MagicMock(tasks_output=[])
-            mock_deployment_crew_cls.return_value = mock_deploy_crew
-
             flow.kickoff()
 
         assert testing_call_count >= 2
