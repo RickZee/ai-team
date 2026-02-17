@@ -145,6 +145,15 @@ class LoggingSettings(BaseSettings):
         return u
 
 
+class HumanFeedbackSettings(BaseSettings):
+    """Human-in-the-loop feedback: timeout and default when no response."""
+
+    model_config = SettingsConfigDict(env_prefix="FEEDBACK_", extra="ignore")
+
+    timeout_seconds: int = Field(default=300, ge=0, le=86400, description="Wait for user input (0 = no timeout)")
+    default_response: str = Field(default="", description="Default response when timeout or no input")
+
+
 class ProjectSettings(BaseSettings):
     """Project execution settings: output/workspace dirs, iterations, and timeout."""
 
@@ -154,6 +163,8 @@ class ProjectSettings(BaseSettings):
     workspace_dir: str = Field(default="./workspace", description="Workspace root for file operations")
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max iterations per run")
     default_timeout: int = Field(default=3600, ge=1, description="Default timeout in seconds for runs")
+    crew_verbose: bool = Field(default=True, description="Verbose crew execution (e.g. for development)")
+    crew_max_rpm: Optional[int] = Field(default=None, ge=1, description="Max requests per minute for crew (Ollama rate limiting)")
 
 
 class Settings(BaseSettings):
@@ -177,6 +188,9 @@ class Settings(BaseSettings):
     memory: MemorySettings = Field(default_factory=MemorySettings, description="Memory backend config")
     logging: LoggingSettings = Field(default_factory=LoggingSettings, description="Logging config")
     project: ProjectSettings = Field(default_factory=ProjectSettings, description="Project execution config")
+    human_feedback: HumanFeedbackSettings = Field(
+        default_factory=HumanFeedbackSettings, description="Human-in-the-loop feedback config"
+    )
 
     def validate_ollama_connection(self) -> bool:
         """Validate that the Ollama server is reachable. Returns True if healthy."""
@@ -202,6 +216,7 @@ class Settings(BaseSettings):
             ("memory", MemorySettings),
             ("logging", LoggingSettings),
             ("project", ProjectSettings),
+            ("human_feedback", HumanFeedbackSettings),
         ]:
             if name in data and isinstance(data[name], dict):
                 kwargs[name] = model_class.model_validate(data[name])

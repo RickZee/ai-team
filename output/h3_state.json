@@ -1,0 +1,34 @@
+{
+  "project_id": "h3",
+  "project_description": "",
+  "current_phase": "testing",
+  "requirements": null,
+  "architecture": null,
+  "generated_files": [],
+  "test_results": null,
+  "deployment_config": null,
+  "phase_history": [],
+  "errors": [
+    {
+      "phase": "testing",
+      "error_type": "testing_error",
+      "message": "Request timed out",
+      "timestamp": "2026-02-16T17:38:02.308617",
+      "recoverable": true
+    }
+  ],
+  "retry_counts": {},
+  "max_retries": 3,
+  "started_at": "2026-02-16T17:38:02.308613",
+  "completed_at": null,
+  "metadata": {
+    "consecutive_failures_testing": 1,
+    "last_error": {
+      "phase": "testing",
+      "error": "Request timed out",
+      "category": "retryable"
+    }
+  },
+  "awaiting_human_input": false,
+  "human_feedback": null
+}
