@@ -20,6 +20,7 @@ from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.backend_developer import create_backend_developer
 from ai_team.agents.frontend_developer import create_frontend_developer
 from ai_team.agents.devops_engineer import create_devops_engineer
+from ai_team.memory import get_crew_embedder_config
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
@@ -191,7 +192,8 @@ def create_development_crew(
     Call kickoff(inputs={...}) with requirements_doc and architecture_doc; optionally
     use _implementation_tasks_from_architecture to build a crew with only needed tasks.
     """
-    architect = create_architect_agent()
+    # Manager agent must have no tools (CrewAI hierarchical requirement).
+    architect = create_architect_agent(tools=[])
     backend_agent = create_backend_developer()
     frontend_agent = create_frontend_developer()
     devops_agent = create_devops_engineer()
@@ -221,12 +223,13 @@ def create_development_crew(
 
     manager_llm = getattr(architect, "llm", None)
     crew = Crew(
-        agents=[architect, backend_agent, frontend_agent, devops_agent],
+        agents=[backend_agent, frontend_agent, devops_agent],
         tasks=tasks,
         process=Process.hierarchical,
         manager_agent=architect,
         manager_llm=manager_llm,
         memory=memory,
+        embedder=get_crew_embedder_config() if memory else None,
         verbose=verbose,
     )
     return crew
@@ -251,7 +254,8 @@ def kickoff(
         architecture
     )
 
-    architect = create_architect_agent()
+    # Manager agent must have no tools (CrewAI hierarchical requirement).
+    architect = create_architect_agent(tools=[])
     backend_agent = create_backend_developer()
     frontend_agent = create_frontend_developer()
     devops_agent = create_devops_engineer()
@@ -268,12 +272,13 @@ def kickoff(
 
     manager_llm = getattr(architect, "llm", None)
     crew = Crew(
-        agents=[architect, backend_agent, frontend_agent, devops_agent],
+        agents=[backend_agent, frontend_agent, devops_agent],
         tasks=tasks,
         process=Process.hierarchical,
         manager_agent=architect,
         manager_llm=manager_llm,
         memory=memory,
+        embedder=get_crew_embedder_config() if memory else None,
         verbose=verbose,
     )
 

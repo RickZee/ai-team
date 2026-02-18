@@ -30,44 +30,55 @@ MIN_COVERAGE_THRESHOLD = 0.8
 
 
 # -----------------------------------------------------------------------------
-# Guardrail callables (task_output: str) -> bool for CrewAI Task
+# Guardrail callables (task_output: str | TaskOutput) -> (bool, Any) for CrewAI Task
 # -----------------------------------------------------------------------------
 
 
-def _test_generation_guardrail(task_output: str) -> bool:
+def _task_output_to_str(task_output: Any) -> str:
+    """Normalize CrewAI TaskOutput or string to str for guardrail logic."""
+    if isinstance(task_output, str):
+        return task_output
+    raw = getattr(task_output, "raw", None)
+    return str(raw) if raw is not None else str(task_output)
+
+
+def _test_generation_guardrail(task_output: Any):
     """
     Guardrail: tests must have meaningful assertions and cover edge cases.
     Uses validate_test_quality on extracted test code; passes if assertions
     and edge-case hints are present.
     """
-    if not task_output or not task_output.strip():
-        return False
+    s = _task_output_to_str(task_output)
+    if not s or not s.strip():
+        return (False, task_output)
     # Use first substantial code block or full output as test code sample.
-    code_match = re.search(r"```(?:\w+)?\s*\n(.*?)```", task_output, re.DOTALL)
-    test_code = (code_match.group(1) if code_match else task_output).strip()
+    code_match = re.search(r"```(?:\w+)?\s*\n(.*?)```", s, re.DOTALL)
+    test_code = (code_match.group(1) if code_match else s).strip()
     if len(test_code) < 50:
         # No real code; check for at least assert and edge-case keywords in raw output.
-        has_assert = "assert " in task_output or "assert_" in task_output or "assertEqual" in task_output
+        has_assert = "assert " in s or "assert_" in s or "assertEqual" in s
         has_edge = any(
-            x in task_output.lower()
+            x in s.lower()
             for x in ["empty", "none", "zero", "null", "edge", "boundary", "invalid", "exception", "raise"]
         )
-        return has_assert and has_edge
+        return (has_assert and has_edge, task_output)
     report = validate_test_quality(test_code)
-    return report.has_assertions and (report.edge_cases_mentioned or report.passed)
+    passed = report.has_assertions and (report.edge_cases_mentioned or report.passed)
+    return (passed, task_output)
 
 
-def _test_execution_guardrail(task_output: str) -> bool:
+def _test_execution_guardrail(task_output: Any):
     """
     Guardrail: minimum 80% coverage, zero critical failures.
     Parses JSON or summary from task output and runs coverage_guardrail.
     """
-    if not task_output or not task_output.strip():
-        return False
+    s = _task_output_to_str(task_output)
+    if not s or not s.strip():
+        return (False, task_output)
     # Try to parse as TestRunResult-like JSON.
     try:
         # May be wrapped in markdown code block.
-        raw = task_output.strip()
+        raw = s.strip()
         json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if json_match:
             raw = json_match.group(1)
@@ -79,11 +90,11 @@ def _test_execution_guardrail(task_output: str) -> bool:
         failed = int(data.get("failed", 0))
         errors = int(data.get("errors", 0))
         if failed > 0 or errors > 0:
-            return False
+            return (False, task_output)
         line_pct = data.get("line_coverage_pct")
         if line_pct is not None:
             cov_ratio = line_pct / 100.0 if line_pct > 1 else line_pct
-            return cov_ratio >= MIN_COVERAGE_THRESHOLD
+            return (cov_ratio >= MIN_COVERAGE_THRESHOLD, task_output)
         # Build dict for coverage_guardrail.
         total_coverage = data.get("line_coverage_pct")
         if total_coverage is not None:
@@ -92,25 +103,26 @@ def _test_execution_guardrail(task_output: str) -> bool:
     else:
         # Heuristic: look for "X% coverage" and "passed" / "failed".
         coverage_report = {"total_coverage": 0.0}
-        pct_match = re.search(r"(\d+(?:\.\d+)?)\s*%\s*coverage", task_output, re.IGNORECASE)
+        pct_match = re.search(r"(\d+(?:\.\d+)?)\s*%\s*coverage", s, re.IGNORECASE)
         if pct_match:
             coverage_report["total_coverage"] = float(pct_match.group(1)) / 100.0
-        if re.search(r"\d+\s+failed|\d+\s+error", task_output, re.IGNORECASE):
-            return False
+        if re.search(r"\d+\s+failed|\d+\s+error", s, re.IGNORECASE):
+            return (False, task_output)
 
     result = coverage_guardrail(coverage_report, min_coverage_threshold=MIN_COVERAGE_THRESHOLD)
-    return result.passed
+    return (result.passed, task_output)
 
 
-def _code_review_guardrail(task_output: str) -> bool:
+def _code_review_guardrail(task_output: Any):
     """
     Guardrail: no critical or high-severity findings.
     Parses CodeReviewReport-like output or scans for severity keywords.
     """
-    if not task_output or not task_output.strip():
-        return True  # No output treated as no findings.
+    s = _task_output_to_str(task_output)
+    if not s or not s.strip():
+        return (True, task_output)  # No output treated as no findings.
     try:
-        raw = task_output.strip()
+        raw = s.strip()
         json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
         if json_match:
             raw = json_match.group(1)
@@ -119,22 +131,22 @@ def _code_review_guardrail(task_output: str) -> bool:
             critical = int(data.get("critical_count", 0))
             high = int(data.get("high_count", 0))
             if critical > 0 or high > 0:
-                return False
+                return (False, task_output)
             findings = data.get("findings", [])
             for f in findings:
                 sev = (f.get("severity") or "").lower()
                 if sev in ("critical", "high"):
-                    return False
-            return True
+                    return (False, task_output)
+            return (True, task_output)
     except json.JSONDecodeError:
         pass
     # Text fallback: fail if explicit critical/high finding mentioned.
-    lower = task_output.lower()
+    lower = s.lower()
     if re.search(r"severity\s*:\s*(critical|high)", lower) or re.search(
         r"(critical|high)\s*severity", lower
     ):
-        return False
-    return True
+        return (False, task_output)
+    return (True, task_output)
 
 
 # -----------------------------------------------------------------------------

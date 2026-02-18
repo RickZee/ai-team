@@ -42,6 +42,21 @@ class OllamaChromaEmbeddingFunction:
         self.model = model
         self.base_url = base_url.rstrip("/")
 
+    def name(self) -> str:
+        """ChromaDB embedding function identifier."""
+        return "ollama"
+
+    def is_legacy(self) -> bool:
+        """ChromaDB: not a legacy embedding function."""
+        return False
+
+    def embed_query(self, input: str | List[str]) -> List[float] | List[List[float]]:
+        """ChromaDB query path: embed one or more query strings."""
+        if isinstance(input, str):
+            vectors = self([input])
+            return vectors[0] if vectors else []
+        return self(input)
+
     def __call__(self, input: List[str]) -> List[List[float]]:
         """Embed a list of documents. Returns list of embedding vectors."""
         import httpx
@@ -761,6 +776,26 @@ class MemoryManager:
         if not self.is_initialized or not self._long:
             return 0
         return self._long.apply_retention()
+
+
+def get_crew_embedder_config() -> Dict[str, Any]:
+    """
+    Build CrewAI embedder config from MemorySettings so crew memory uses Ollama (local).
+
+    When passing memory=True to Crew(...), also pass embedder=get_crew_embedder_config()
+    so CrewAI uses our local embedding model instead of default (OpenAI). Uses the same
+    embedding_model and ollama_base_url as AI-Team short-term memory.
+    """
+    from ai_team.config.settings import get_settings
+
+    m = get_settings().memory
+    return {
+        "provider": "ollama",
+        "config": {
+            "model_name": m.embedding_model,
+            "url": m.ollama_base_url.rstrip("/"),
+        },
+    }
 
 
 # Singleton for use across the app

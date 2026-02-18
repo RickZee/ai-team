@@ -9,7 +9,7 @@
 
 ## Project description
 
-AI-Team is an autonomous multi-agent system that orchestrates planning, development, testing, and deployment. You describe what you want in plain language; the system produces requirements, architecture, code, tests, and deployment artifacts with minimal human intervention. All agents run against local LLMs via Ollama—no cloud API keys or usage costs.
+AI-Team is an autonomous multi-agent system that orchestrates planning, development, testing, and deployment. You describe what you want in plain language; the system produces requirements, architecture, code, tests, and deployment artifacts with minimal human intervention. All agents run against local LLMs via Ollama—no OpenAI or other cloud APIs, and no API keys required.
 
 ### Key features
 
@@ -18,7 +18,7 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 | **Specialized agents** | Manager, Product Owner, Architect, Backend/Frontend/Fullstack Developers, DevOps, Cloud, QA |
 | **End-to-end workflow** | Intake → Planning → Development → Testing → Deployment, driven by a single flow |
 | **Enterprise guardrails** | Behavioral (role, scope), security (code safety, PII, secrets), quality (syntax, completeness) |
-| **Local-first** | Ollama-backed models; optional cloud LLMs via configuration |
+| **Local-first** | Ollama-backed models only; no OpenAI or cloud LLM usage |
 | **Observable** | Structured logging, flow state, and optional Gradio UI for progress and output |
 
 ## Architecture (ASCII)
@@ -57,9 +57,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
 
 ```bash
 git clone https://github.com/yourusername/ai-team.git && cd ai-team
-./scripts/setup_ollama.sh    # Install Ollama and pull recommended models
+./scripts/setup_ollama.sh    # Install Ollama and pull recommended models + embedding model (nomic-embed-text)
 cp .env.example .env && poetry install && poetry run ai-team "Create a REST API for a todo list"
 ```
+
+The setup script pulls the LLM models and the embedding model (`nomic-embed-text`), so crew memory and `AI_TEAM_TEST_MEMORY` tests work without a separate `ollama pull nomic-embed-text`.
 
 For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
@@ -115,11 +117,15 @@ poetry run pytest tests/e2e
 
 Integration full-flow tests use a manual flow driver (no `flow.kickoff()`), so they run with the rest of the suite and do not hang or spike memory.
 
-To run **crew-level** integration tests (planning, development, testing) against **real Ollama** instead of mocks, set `AI_TEAM_USE_REAL_LLM=1`. Tests will skip if Ollama is unreachable and assert on structure only. Full-flow tests remain mock-only by design.
+In **production**, when crews use memory (`memory=True`), they are given an explicit Ollama embedder (from `MemorySettings`: `embedding_model`, `ollama_base_url`) so CrewAI never falls back to an API-key-based embedder. In **integration tests** with `AI_TEAM_USE_REAL_LLM=1`, crew memory is forced off so tests do not depend on the embedding service; production behavior remains local-only.
+
+To run **crew-level** integration tests (planning, development, testing) against **real Ollama** instead of mocks, set `AI_TEAM_USE_REAL_LLM=1`. Tests will skip if Ollama is unreachable and assert on structure only. Full-flow tests remain mock-only by design. For planning tests to pass (rather than skip), use models that return valid JSON and non-empty responses—**14B+ recommended**; smaller models (e.g. 7B–8B) may cause parse or empty-response skips.
 
 ```bash
 AI_TEAM_USE_REAL_LLM=1 poetry run pytest tests/integration -m real_llm -v
 ```
+
+Optional **memory/embedder** tests: run `./scripts/setup_ollama.sh`, then `AI_TEAM_USE_REAL_LLM=1 AI_TEAM_TEST_MEMORY=1 poetry run pytest tests/integration -m test_memory -v`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 

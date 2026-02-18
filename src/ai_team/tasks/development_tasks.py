@@ -103,7 +103,7 @@ def _backend_implementation_guardrail(
     return (True, result)
 
 
-def _frontend_implementation_guardrail(result: Any) -> Tuple[bool, Any]:
+def _frontend_implementation_guardrail(result: Any):
     """
     Validate frontend task output: components must be responsive and accessible.
     Heuristics: presence of @media / flex / grid for responsive; aria-*, role=, alt= for a11y.
@@ -138,7 +138,7 @@ def _frontend_implementation_guardrail(result: Any) -> Tuple[bool, Any]:
     return (True, result)
 
 
-def _devops_configuration_guardrail(result: Any) -> Tuple[bool, Any]:
+def _devops_configuration_guardrail(result: Any):
     """
     Validate DevOps task output: DeploymentConfig must include Dockerfile, compose,
     and CI pipeline (or equivalent). Returns (True, result) or (False, feedback_message).
@@ -183,7 +183,7 @@ def create_backend_implementation_task(
     Returns:
         CrewAI Task configured for backend implementation.
     """
-    def guardrail_fn(result: Any) -> Tuple[bool, Any]:
+    def guardrail_fn(result: Any):
         return _backend_implementation_guardrail(result, architecture=architecture)
 
     return Task(
