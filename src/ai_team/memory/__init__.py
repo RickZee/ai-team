@@ -15,6 +15,7 @@ from ai_team.memory.memory_config import (
     MemoryType,
     OllamaChromaEmbeddingFunction,
     ShortTermStore,
+    get_crew_embedder_config,
     get_memory_manager,
 )
 from ai_team.memory.knowledge_base import (
@@ -30,6 +31,7 @@ __all__ = [
     "MemoryType",
     "OllamaChromaEmbeddingFunction",
     "ShortTermStore",
+    "get_crew_embedder_config",
     "get_memory_manager",
     "KnowledgeBase",
     "KnowledgeItem",
