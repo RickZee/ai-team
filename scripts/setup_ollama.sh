@@ -51,6 +51,9 @@ for arg in "$@"; do
     esac
 done
 
+# Embedding model for crew memory and AI-Team short-term memory (ChromaDB)
+EMBEDDING_MODEL="${EMBEDDING_MODEL:-nomic-embed-text}"
+
 # Set model list based on --small
 if [[ "$USE_SMALL" == true ]]; then
     MODELS=( "qwen3:14b" "qwen2.5-coder:14b" "deepseek-r1:14b" "deepseek-coder-v2:16b" )
@@ -137,6 +140,14 @@ pull_models() {
         fi
         echo ""
     done
+    echo -e "${BLUE}────────────────────────────────────────────────────────${NC}"
+    print_info "Pulling embedding model: ${BOLD}${EMBEDDING_MODEL}${NC} (for crew memory & ChromaDB)"
+    if ollama pull "$EMBEDDING_MODEL"; then
+        print_status "Pulled: $EMBEDDING_MODEL"
+    else
+        print_warning "Failed to pull $EMBEDDING_MODEL — crew memory and AI_TEAM_TEST_MEMORY tests will skip until pulled"
+    fi
+    echo ""
 }
 
 # --- Verify each model with a simple test prompt ---
@@ -200,6 +211,9 @@ OLLAMA_FULLSTACK_DEVELOPER_MODEL=${coder}
 OLLAMA_DEVOPS_MODEL=${coder}
 OLLAMA_CLOUD_ENGINEER_MODEL=${coder}
 OLLAMA_QA_ENGINEER_MODEL=${deepseek_code}
+
+# Embedding model (crew memory + AI-Team short-term memory); must be pulled separately: ollama pull nomic-embed-text
+MEMORY_EMBEDDING_MODEL=${EMBEDDING_MODEL}
 
 # Optional
 OLLAMA_TEMPERATURE=0.7

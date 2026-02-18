@@ -17,6 +17,7 @@ from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.manager import create_manager_agent
 from ai_team.agents.product_owner import create_product_owner_agent
 from ai_team.config.settings import get_settings
+from ai_team.memory import get_crew_embedder_config
 from ai_team.tasks.planning_tasks import create_planning_tasks
 
 logger = structlog.get_logger(__name__)
@@ -100,6 +101,7 @@ def create_planning_crew(
         process=Process.hierarchical,
         manager_agent=manager,
         memory=memory,
+        embedder=get_crew_embedder_config() if memory else None,
         planning=planning,
         verbose=verbose,
         max_rpm=max_rpm,
