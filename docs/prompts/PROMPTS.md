@@ -1254,337 +1254,492 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ## Phase 5: Testing, Iteration & Guardrail Validation (Days 29-35)
 
-### Prompt 5.1: Generate Unit Tests
+> **Key Change:** Demo projects (5.6–5.8) are no longer static definition files.
+> They are **live runs of the AITeamFlow** — the team builds itself.
+> This validates the system end-to-end AND produces real portfolio artifacts.
+
+**Objectives:** Validate the system works by using it. Run AITeamFlow on real project
+descriptions. Capture outputs as demo artifacts. Measure quality. Iterate until passing.
+
+| Task ID | Task | Description | Cursor AI Optimization | Dependencies |
+|---------|------|-------------|----------------------|--------------|
+| 5.1 | Unit Tests | Test individual components | pytest with fixtures | 4.8 |
+| 5.2 | Integration Tests | Test crew interactions | Mock LLM responses | 5.1 |
+| 5.3 | Guardrail Tests | Test guardrail effectiveness | Adversarial inputs | 5.2 |
+| 5.4 | E2E Tests | Full flow on Demo 1 spec | Real AITeamFlow run | 5.2 |
+| 5.5 | Performance Tests | Benchmark execution times | Profile bottlenecks | 5.4 |
+| 5.6 | Demo Run 1 | Hello World Flask API | **AITeamFlow builds it** | 5.4 |
+| 5.7 | Demo Run 2 | TODO App (full-stack) | **AITeamFlow builds it** | 5.6 |
+| 5.8 | Demo Run 3 | Data Pipeline | **AITeamFlow builds it** | 5.6 |
+| 5.9 | Iteration | Fix issues, optimize | Based on real run results | 5.3–5.8 |
+
+### Prompt 5.1: Generate Unit Test Suite
 ```
-Create tests/unit/ with comprehensive unit tests:
+Create tests/unit/ with comprehensive unit tests for all components:
 
-1. test_agents.py:
-   - Test BaseAgent initialization with mock settings
-   - Test each agent's create_agent() factory method
-   - Test agent tool assignment
-   - Test agent LLM configuration
+1. tests/unit/test_agents.py:
+   - Test BaseAgent initialization with each role
+   - Test model assignment from settings
+   - Test guardrail attachment
+   - Test before_task / after_task hook invocation
+   - Mock Ollama LLM responses
 
-2. test_tools.py:
-   - Test file_tools: read, write, path traversal prevention, whitelist enforcement
-   - Test code_tools: execution sandbox, timeout, import blocking
-   - Test git_tools: init, add, commit, branch operations
-   - Test test_tools: pytest runner, coverage parser
+2. tests/unit/test_guardrails.py:
+   - Test each behavioral guardrail in isolation
+   - Test each security guardrail with known-bad inputs
+   - Test each quality guardrail with known-low-quality inputs
+   - Verify guardrail pass/fail return signatures
+   - Test guardrail chaining and ordering
 
-3. test_guardrails.py:
-   - Test behavioral guardrails: role adherence, scope control, output format
-   - Test security guardrails: code safety, PII detection, secret detection, prompt injection
-   - Test quality guardrails: code quality scoring, coverage thresholds, docs validation
+3. tests/unit/test_memory.py:
+   - Test MemoryManager ChromaDB storage and retrieval
+   - Test SQLite session persistence
+   - Test CrewAI crew embedder config (verify no OpenAI fallback)
+   - Mock Ollama embedder responses
+   - Test memory cleanup and TTL expiry
 
-4. test_models.py:
-   - Test all Pydantic output models: validation, serialization, schema export
-   - Test ProjectState: phase transitions, error tracking, retry logic
+4. tests/unit/test_tools.py:
+   - Test each agent tool in isolation
+   - Verify tool schemas and return types
+   - Test error handling for each tool
 
-5. test_memory.py:
-   - Test MemoryManager: store, retrieve, cleanup
-   - Test ChromaDB integration (with in-memory backend)
-   - Test SQLite integration (with temp database)
+5. tests/unit/test_settings.py:
+   - Test Pydantic settings loading from env
+   - Test model assignment per role
+   - Test validation errors for missing required fields
 
-6. test_callbacks.py:
-   - Test callback firing on events
-   - Test metrics collection accuracy
-   - Test structured log output format
-
-Use pytest fixtures, parametrize for edge cases, mock for external deps.
-Target: 90%+ unit test coverage.
+Use pytest fixtures for all shared setup. Aim for 85%+ coverage on
+src/ai_team/. Run: `poetry run pytest tests/unit/ --cov=src/ai_team`
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.2: Generate Integration Tests
+### Prompt 5.2: Generate Integration Test Suite
 ```
-Create tests/integration/ with integration tests:
+Create tests/integration/ with crew and flow integration tests:
 
-1. test_crew_interactions.py:
-   - Test PlanningCrew → DevelopmentCrew handoff (output of one feeds input of next)
-   - Test DevelopmentCrew → TestingCrew handoff
-   - Test retry cycle: TestingCrew failure → DevelopmentCrew retry with feedback
-   - Mock LLM responses at the Ollama HTTP layer
+1. tests/integration/test_crews.py:
+   - Test RequirementsCrew produces valid RequirementsDocument
+   - Test ArchitectureCrew produces valid ArchitectureDocument
+   - Test DevelopmentCrew produces valid CodeFile list
+   - Test QACrew produces valid TestResult
+   - Test DeploymentCrew produces valid DeploymentConfig
+   - Use lightweight mock LLM that returns structured valid responses
+   - Verify crew-to-crew handoffs pass correct context
 
-2. test_tool_chains.py:
-   - Test file_tools → code_tools chain (write file, then execute it)
-   - Test code_tools → test_tools chain (generate code, then test it)
-   - Test git_tools workflow (init → add → commit → branch → diff)
+2. tests/integration/test_flow_routing.py:
+   - Test AITeamFlow state transitions (INTAKE → PLANNING → DEV → QA → DEPLOY)
+   - Test routing logic for each phase gate
+   - Test failure routing (QA fail → back to DEV)
+   - Test human escalation trigger
+   - Mock individual crew outputs to test flow logic independently
 
-3. test_guardrail_integration.py:
-   - Test guardrails triggering during crew execution
-   - Test guardrail retry behavior (task re-executes on guardrail failure)
-   - Test guardrail bypass for human-approved exceptions
+3. tests/integration/test_memory_integration.py:
+   - Test MemoryManager wired into before_task hook: stores task context
+   - Test MemoryManager wired into after_task hook: stores task output
+   - Test cross-session retrieval: simulate second run, verify memory available
+   - Test CrewAI crew memory uses local embedder (no network calls to OpenAI)
+   - Use a temporary ChromaDB/SQLite path for test isolation
 
-4. test_memory_integration.py:
-   - Test memory persistence across crew executions
-   - Test entity memory updates during code generation
-   - Test knowledge base retrieval during architecture design
+4. tests/integration/test_guardrails_in_flow.py:
+   - Test guardrail rejection triggers retry logic
+   - Test max retry exceeded raises correct error
+   - Test guardrail callback fires on rejection
+   - Test flow continues normally when guardrails pass
 
-5. test_flow_integration.py:
-   - Test complete flow with all crews (mocked LLM)
-   - Test flow state persistence and recovery
-   - Test flow routing decisions at each branch point
-
-Use MockOllamaServer fixture that returns predefined responses.
-Include response fixtures in tests/fixtures/ as JSON files.
+Keep integration tests fast by mocking LLM responses. Label slow tests
+with @pytest.mark.slow. Run fast subset: `poetry run pytest tests/integration/ -m "not slow"`
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.3: Generate guardrail test suite
+### Prompt 5.3: Generate Guardrail Test Suite
 ```
-Create tests/unit/test_guardrails_adversarial.py with adversarial guardrail tests:
+Create tests/guardrails/ with comprehensive guardrail effectiveness tests:
 
-1. Security guardrail adversarial tests:
-   - eval() in various disguises: eval, __builtins__['eval'], getattr(builtins, 'eval')
-   - Path traversal attempts: ../../../etc/passwd, ....//....//etc/passwd, encoded variants
-   - PII patterns: real-format SSNs, credit cards (Luhn valid), emails, phone formats
-   - Prompt injection: "Ignore all previous instructions", base64 encoded instructions,
-     role-play attacks ("You are now DAN"), markdown injection
-   - Secret patterns: AWS_SECRET_ACCESS_KEY=..., ghp_..., sk-..., Bearer tokens
+1. tests/guardrails/test_behavioral_guardrails.py:
+   Adversarial inputs for role adherence:
+   - Test: Frontend developer output containing SQL DELETE statements → should fail
+   - Test: Architect output containing raw data mutations → should fail
+   - Test: Manager output containing code implementation → should fail
+   - Test: Valid role-appropriate output → should pass
+   
+   Adversarial inputs for scope control:
+   - Test: Output discussing unrelated features → should fail
+   - Test: Output within defined scope → should pass
+   
+   Adversarial inputs for reasoning:
+   - Test: Short output with no reasoning indicators → should fail
+   - Test: Output with clear rationale statements → should pass
 
-2. Behavioral guardrail adversarial tests:
-   - Role violation: Backend dev outputs React components
-   - Scope creep: Simple API request generates microservices architecture
-   - Infinite delegation: Agent A delegates to B delegates back to A
-   - Output format: valid JSON but wrong schema, partial outputs, empty outputs
+2. tests/guardrails/test_security_guardrails.py:
+   Dangerous code injection:
+   - Test: Output containing os.system("rm -rf /") → should detect and fail
+   - Test: Output containing eval(user_input) → should detect and fail
+   - Test: Output containing __import__("subprocess") → should detect and fail
+   - Test: Output containing base64-encoded dangerous code → should detect and fail
+   - Test: Clean code with no dangerous patterns → should pass
+   
+   Secret detection:
+   - Test: Output containing AWS_SECRET_KEY=AKIA... → should detect and fail
+   - Test: Output containing password="hardcoded123" → should detect and fail
+   - Test: Output referencing environment variables properly → should pass
+   
+   PII detection and redaction:
+   - Test: Output containing SSN pattern → should redact
+   - Test: Output containing credit card pattern → should redact
+   - Test: Clean output → should pass unchanged
 
-3. Quality guardrail adversarial tests:
-   - Code with no functions (just script), 1000-line single function
-   - Tests with no assertions, tests that always pass (assert True)
-   - Dependencies with known CVEs
-   - Circular imports, wildcard imports
+3. tests/guardrails/test_quality_guardrails.py:
+   Code quality:
+   - Test: Python code with syntax error → should fail with specific message
+   - Test: Code with no error handling on I/O → should fail
+   - Test: Code with hardcoded credentials → should fail
+   - Test: Well-structured code → should pass
+   
+   Test coverage:
+   - Test: Output with 0 test cases when tests expected → should fail
+   - Test: Output with tests below minimum threshold → should fail
+   - Test: Output with adequate test cases → should pass
+   
+   Output format:
+   - Test: Malformed JSON when JSON expected → should fail
+   - Test: Missing required fields in structured output → should fail
+   - Test: Valid structured output → should pass
 
-Each test should:
-- Use @pytest.mark.parametrize for multiple variants
-- Assert correct detection (no false negatives)
-- Assert correct classification (severity level)
-- Assert actionable error messages
+4. tests/guardrails/test_retry_behavior.py:
+   - Test: Guardrail fails once, retry succeeds → task completes
+   - Test: Guardrail fails max_retries times → raises MaxRetriesExceeded
+   - Test: Retry includes failure context in next attempt prompt
+   - Test: Retry counter resets between tasks
 
-Use pytest fixtures for guardrail instances with test configuration.
+Use pytest fixtures for TaskOutput mock objects. All inputs should be
+realistic AI-generated text, not trivial synthetic strings.
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.4: Generate E2E Tests
+### Prompt 5.4: Generate E2E Test — Hello World Flask API
 ```
-Create tests/e2e/test_end_to_end.py with full end-to-end tests:
+Create tests/e2e/test_e2e_hello_world.py — the first real end-to-end test
+using an actual AITeamFlow run (not mocked).
 
-1. test_e2e_simple_api:
-   - Input: "Create a Flask REST API with GET /health and GET /items endpoints"
-   - Mock Ollama with realistic multi-turn responses
-   - Assert complete flow execution: planning → development → testing → deployment
-   - Assert output files exist: app.py, test_app.py, requirements.txt, Dockerfile, README.md
-   - Assert output files are valid (parseable Python, valid YAML, etc.)
+This test IS the same run as Demo 1. It validates the system produces
+working code for the simplest possible project.
 
-2. test_e2e_with_frontend:
-   - Input: "Create a todo app with React frontend and FastAPI backend"
-   - Assert both frontend and backend files generated
-   - Assert API client code in frontend matches backend endpoints
+Project specification to feed into AITeamFlow:
+  "Create a simple Flask REST API with:
+   - GET /health endpoint returning {status: ok, version: 1.0}
+   - GET /items returning a list of items from in-memory storage
+   - POST /items accepting {name: str} and adding to the list
+   - Proper error handling (400 for bad input, 404 for not found)
+   - Unit tests with pytest covering all endpoints and edge cases
+   - Requirements.txt and Dockerfile"
 
-3. test_e2e_error_recovery:
-   - Mock: first development attempt produces invalid code
-   - Assert: testing catches it, flow retries, second attempt succeeds
-   - Assert: ProjectState shows retry in phase_history
+Test assertions:
+1. Flow completes without exception
+2. Output directory contains: app.py, test_app.py, requirements.txt, Dockerfile
+3. Generated app.py is valid Python (ast.parse check)
+4. Generated requirements.txt contains flask, pytest
+5. Generated Dockerfile is non-empty and contains FROM instruction
+6. Running `python -m pytest` on generated test_app.py exits 0
+   (subprocess call against the generated code)
+7. Starting the Flask app and hitting /health returns 200
+   (use subprocess + requests, clean up after)
 
-4. test_e2e_human_escalation:
-   - Mock: all retries exhausted
-   - Assert: flow triggers human feedback handler
-   - Mock: human provides clarification
-   - Assert: flow resumes and completes
+On success:
+  - Copy generated output to demos/01_hello_world/output/
+  - Save run metrics (duration, token estimate, retry count) to
+    demos/01_hello_world/run_report.json
 
-5. test_e2e_output_structure:
-   - Run any demo project
-   - Assert: output directory has clean structure
-   - Assert: README.md references all generated files
-   - Assert: Dockerfile builds successfully (if Docker available)
+On failure:
+  - Save the full error context and last agent output to
+    demos/01_hello_world/failure_report.json
+  - Fail the test with a clear message indicating which assertion failed
 
-Include performance assertions: flow completes within reasonable time (with mocks).
+Mark this test: @pytest.mark.e2e @pytest.mark.slow
+Run: `poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s`
+
+The test output IS the demo artifact. No separate demo script needed.
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.5: Generate Performance Tests
+### Prompt 5.5: Generate Performance Benchmarks
 ```
-Create tests/performance/test_benchmarks.py with performance benchmarks:
+Create tests/performance/test_benchmarks.py — execution time profiling:
 
-1. test_llm_response_latency:
-   - Measure time for each model to respond to typical prompts
-   - Categories: short (code snippet), medium (function), long (full file)
-   - Report: p50, p95, p99 latency per model per category
-   - Assert: all responses under 60s timeout
+1. Benchmark each crew independently:
+   - RequirementsCrew: time from input to RequirementsDocument
+   - ArchitectureCrew: time from requirements to ArchitectureDocument
+   - DevelopmentCrew: time from architecture to code files
+   - QACrew: time from code to test results
+   - DeploymentCrew: time from code to deployment config
+   - Record: wall time, agent think time, tool call time, token count estimate
 
-2. test_crew_execution_time:
-   - Measure each crew's total execution time (with mock LLM, fixed response time)
-   - PlanningCrew, DevelopmentCrew, TestingCrew, DeploymentCrew
-   - Report: avg time, overhead vs raw LLM time (measures framework overhead)
+2. Benchmark full flow for Demo 1 spec (beginner complexity):
+   - Expected: complete in under 10 minutes on target hardware
+   - Record phase-by-phase breakdown
+   - Flag any phase exceeding its budget:
+     Requirements: 1 min, Architecture: 2 min, Development: 4 min,
+     QA: 2 min, Deployment: 1 min
 
-3. test_memory_operations:
-   - Benchmark: ChromaDB store (1000 items), retrieve (100 queries), delete
-   - Benchmark: SQLite write (1000 records), query (100 queries)
-   - Assert: memory operations add <5% overhead to total flow time
+3. Identify bottlenecks:
+   - Use cProfile or time.perf_counter per phase
+   - Report: slowest agents, slowest tools, retry overhead
+   - Save profiling report to docs/performance_report.md
 
-4. test_guardrail_overhead:
-   - Measure guardrail execution time per type
-   - Run 1000 iterations of each guardrail with various inputs
-   - Assert: individual guardrail < 100ms, total guardrail overhead < 10% of task time
+4. Hardware profiles:
+   - Test and record results for: 8GB VRAM config, 16GB VRAM config
+   - Note which models are active per profile (from settings)
 
-5. test_full_flow_benchmark:
-   - Run complete flow 5 times, measure total wall time
-   - Report: mean, std dev, min, max
-   - Profile bottlenecks: which phase takes longest
+5. Token usage estimation:
+   - Count approximate tokens in/out per agent
+   - Project cost if using OpenAI API equivalent (for README comparison)
+   - Highlight local-first cost savings
 
-Use pytest-benchmark or manual timing with time.perf_counter().
-Output results as JSON for tracking across commits.
+Run: `poetry run pytest tests/performance/ -v -s --tb=short`
+Save results to: docs/benchmark_results.json
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.6: Generate Demo Project 1 — Hello World Flask API
+### Prompt 5.6: Run Demo Project 1 — Hello World Flask API
 ```
-Create demos/01_hello_world/:
+The E2E test in 5.4 already runs this demo. This prompt covers:
+capturing, verifying, and packaging the demo artifact.
 
-1. input.json:
-   {
-     "project_description": "Create a simple Flask REST API with: GET /health returning status,
-       GET /items listing items from an in-memory list, POST /items adding items to the list,
-       basic error handling, unit tests with pytest",
-     "complexity": "beginner",
-     "expected_duration_minutes": 5
-   }
+Create scripts/capture_demo.py — run after a successful E2E test:
 
-2. expected_output/ directory with reference files:
-   - app.py: Flask app with 3 endpoints, error handlers, CORS
-   - test_app.py: pytest tests for all endpoints, happy path + edge cases
-   - requirements.txt: flask, pytest, pytest-cov
-   - Dockerfile: multi-stage, non-root user, health check
-   - README.md: setup, usage, API reference, testing instructions
+1. Input for this demo (same spec as 5.4 E2E test):
+   Already defined in test_e2e_hello_world.py. Canonical copy lives at:
+   demos/01_hello_world/project_description.txt
 
-3. validation_criteria.json:
-   - files_required: ["app.py", "test_app.py", "requirements.txt", "Dockerfile", "README.md"]
-   - tests_pass: true
-   - coverage_minimum: 80
-   - endpoints: ["/health", "/items"]
-   - http_methods: ["GET", "POST"]
+2. After AITeamFlow completes, capture_demo.py does:
+   a. Verify all required files exist in the output directory
+   b. Run the generated tests: `python -m pytest output/test_app.py -v`
+      - Record: passed, failed, coverage percentage
+   c. Lint the generated code: `ruff check output/app.py`
+      - Record: violations found
+   d. Verify Dockerfile builds: `docker build -t demo-01-test output/`
+      - Record: build success/fail, image size
+   e. Smoke test the running container:
+      - docker run -d -p 5001:5000 demo-01-test
+      - GET /health → expect 200 and {status: ok}
+      - GET /items → expect 200 and []
+      - POST /items {"name": "apple"} → expect 201
+      - GET /items → expect 200 and [{name: "apple"}]
+      - docker stop + rm
 
-4. run_demo.py script that:
-   - Loads input.json
-   - Executes AITeamFlow
-   - Compares output against validation_criteria.json
-   - Reports pass/fail with details
+3. Generate demos/01_hello_world/RESULTS.md:
+   - Summary: PASS / FAIL
+   - Generated files table (name, lines, size)
+   - Test results: X passed, Y failed, Z% coverage
+   - Lint results: clean / N violations
+   - Docker: built successfully, image size
+   - Smoke test: all endpoints responded correctly
+   - Run duration and model used
 
-Include validation script that can be run independently.
+4. Failure handling:
+   - If tests fail: save generated code + failure output to failure/
+   - Log: which guardrail fired, how many retries occurred
+   - Create GitHub issue template with the failure details (optional)
+
+SUCCESS CRITERIA for Demo 1:
+  ✅ All 5 files generated
+  ✅ Tests pass with ≥80% coverage
+  ✅ No critical lint violations
+  ✅ Docker image builds
+  ✅ All smoke test endpoints return expected responses
+  ✅ Total run time < 8 minutes
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.7: Generate Demo Project 2 — TODO App (Full-Stack)
+### Prompt 5.7: Run Demo Project 2 — TODO App (Full-Stack)
 ```
-Create demos/02_todo_app/:
+Run AITeamFlow on a medium-complexity full-stack project.
+This validates multi-file, multi-layer code generation and agent coordination.
 
-1. input.json:
-   {
-     "project_description": "Create a full-stack TODO application with:
-       Backend: FastAPI with SQLite database, CRUD endpoints for todos (create, read, update, delete),
-       todo model with id, title, description, completed, created_at.
-       Frontend: Simple HTML/CSS/JS interface (no React needed), list todos, add new todo,
-       mark as complete, delete todo. Include proper error handling, input validation,
-       comprehensive tests for backend API.",
-     "complexity": "intermediate",
-     "expected_duration_minutes": 15
-   }
+Create demos/02_todo_app/project_description.txt with this specification:
+  "Build a full-stack TODO application:
+   
+   Backend (FastAPI + SQLite):
+   - POST /api/todos — create todo {title: str, description: str}
+   - GET /api/todos — list all todos
+   - GET /api/todos/{id} — get single todo
+   - PUT /api/todos/{id} — update todo (title, description, completed)
+   - DELETE /api/todos/{id} — delete todo
+   - Todo model: id, title, description, completed (bool), created_at (datetime)
+   - SQLAlchemy ORM, Alembic migrations, Pydantic schemas
+   - Proper HTTP status codes and error responses
+   - Comprehensive pytest tests with 85%+ coverage
+   
+   Frontend (plain HTML/CSS/JS, no framework):
+   - List all todos with title, status indicator
+   - Form to add new todo (title + description)
+   - Click todo to mark complete/incomplete (toggle)
+   - Delete button per todo
+   - Fetch API calls to backend, no page reload
+   - Clean, minimal styling
+   
+   Infrastructure:
+   - Dockerfile for backend
+   - docker-compose.yml: backend + serves frontend static files
+   - README.md with setup, usage, API reference"
 
-2. expected_output/ with reference implementation:
-   - backend/main.py: FastAPI app with CRUD routes
-   - backend/models.py: SQLAlchemy models
-   - backend/database.py: SQLite setup
-   - backend/schemas.py: Pydantic schemas
-   - frontend/index.html: UI with fetch API calls
-   - frontend/style.css: Clean styling
-   - frontend/app.js: Frontend logic
-   - tests/test_api.py: Comprehensive API tests
-   - requirements.txt, Dockerfile, docker-compose.yml, README.md
+Run AITeamFlow with this spec. The flow should invoke all crews.
 
-3. validation_criteria.json with:
-   - Required endpoints: POST/GET/PUT/DELETE /api/todos
-   - Database operations: create table, insert, select, update, delete
-   - Frontend: form, list, delete button, complete toggle
-   - Tests: minimum 10 test cases, 85% coverage
+Capture and validate using capture_demo.py extended for this demo:
+  a. Verify required files: backend/main.py, backend/models.py,
+     backend/schemas.py, frontend/index.html, frontend/app.js,
+     requirements.txt, docker-compose.yml, tests/test_api.py
+  b. Run: `pytest backend/tests/ -v --cov=backend`
+     Require: ≥10 test cases, ≥85% coverage
+  c. Verify all 5 CRUD endpoints present in main.py (regex check)
+  d. Verify frontend contains fetch() calls to /api/todos
+  e. Docker compose build: `docker compose build`
+  f. Docker compose up + integration test:
+     - Hit all 5 endpoints with test data
+     - Verify CRUD roundtrip: create → list → update → delete
+     - docker compose down
 
-Include expected output structure diagram.
+Generate demos/02_todo_app/RESULTS.md with same structure as Demo 1.
+
+SUCCESS CRITERIA for Demo 2:
+  ✅ All required files generated
+  ✅ Backend tests pass with ≥85% coverage
+  ✅ All 5 CRUD endpoints verified
+  ✅ Frontend contains working fetch calls
+  ✅ Docker compose builds and CRUD roundtrip passes
+  ✅ Total run time < 18 minutes
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.8: Generate Demo Project 3 — Data Pipeline
+### Prompt 5.8: Run Demo Project 3 — Data Pipeline
 ```
-Create demos/03_data_pipeline/:
+Run AITeamFlow on a data-engineering project.
+This validates the system handles non-web projects, CLI tools, and file I/O.
 
-1. input.json:
-   {
-     "project_description": "Create an ETL data pipeline that:
-       Extract: Read CSV files from an input directory, support multiple CSV schemas.
-       Transform: Clean data (handle nulls, duplicates, type conversion),
-       validate against configurable rules, enrich with computed fields.
-       Load: Write cleaned data to SQLite database, support upsert operations.
-       Include: CLI interface with click, logging, error reporting,
-       configuration via YAML, comprehensive tests with sample data.",
-     "complexity": "intermediate",
-     "expected_duration_minutes": 15
-   }
+Create demos/03_data_pipeline/project_description.txt:
+  "Build an ETL data pipeline with CLI interface:
 
-2. expected_output/:
-   - pipeline/cli.py: Click CLI with run, validate, report commands
-   - pipeline/extract.py: CSV reader with schema detection
-   - pipeline/transform.py: Data cleaning and validation
-   - pipeline/load.py: SQLite writer with upsert
-   - pipeline/config.py: YAML configuration loader
-   - config/pipeline_config.yaml: Sample configuration
-   - data/sample_input.csv: Test data
-   - tests/test_pipeline.py: Unit + integration tests
-   - requirements.txt, Dockerfile, README.md
+   Extract:
+   - Read CSV files from a configurable input directory
+   - Support multiple CSV schemas (auto-detect columns)
+   - Report file count, row count, detected schema per file
 
-3. validation_criteria.json:
-   - Handles: missing values, duplicate rows, type errors
-   - CLI: at least 3 commands
-   - Config: YAML-driven with validation rules
-   - Tests: minimum 12 test cases
+   Transform:
+   - Handle missing values: configurable fill strategy (drop row, fill mean, fill value)
+   - Remove duplicate rows (configurable dedup key columns)
+   - Type conversion: str → int/float/datetime where parseable
+   - Validate rows against configurable rules (min/max value, required fields, regex)
+   - Enrich: add computed columns (e.g., row hash, processing timestamp)
+   - Report: rows passed, rows failed validation, transformations applied
 
-Include sample CSV data with intentional quality issues for testing.
+   Load:
+   - Write cleaned data to SQLite database
+   - Support upsert (insert or update by primary key)
+   - Create table from schema if not exists
+   - Report rows loaded, rows updated, rows skipped
+
+   CLI (click):
+   - `pipeline run --input ./data --config pipeline.yaml --db output.db`
+   - `pipeline validate --input ./data --config pipeline.yaml` (dry run)
+   - `pipeline report --db output.db` (stats on loaded data)
+
+   Config (YAML):
+   - input_dir, db_path
+   - schema: column definitions with type and validation rules
+   - transform: fill_strategy, dedup_keys
+   - load: primary_key, table_name
+
+   Tests:
+   - Unit tests for each module (extract, transform, load)
+   - Integration test: full pipeline run on sample CSV data
+   - Include sample CSV files with intentional quality issues
+   - Minimum 15 test cases, 80% coverage"
+
+Run AITeamFlow with this spec.
+
+Validate:
+  a. Verify: pipeline/cli.py, pipeline/extract.py, pipeline/transform.py,
+     pipeline/load.py, config/pipeline_config.yaml, data/sample_input.csv,
+     tests/test_pipeline.py, requirements.txt
+  b. Run: `pytest tests/ -v --cov=pipeline`
+     Require: ≥15 test cases, ≥80% coverage
+  c. Functional test: run CLI on sample CSV
+     - `python -m pipeline run --input data/ --config config/pipeline_config.yaml --db test.db`
+     - Verify: exit 0, test.db created, rows loaded > 0
+     - `python -m pipeline report --db test.db`
+     - Verify: outputs non-empty stats
+  d. Validate test: `python -m pipeline validate --input data/ --config config/pipeline_config.yaml`
+     - Verify: exits 0 (or 1 with validation report if sample data has issues)
+
+Generate demos/03_data_pipeline/RESULTS.md.
+
+SUCCESS CRITERIA for Demo 3:
+  ✅ All required files generated
+  ✅ Tests pass with ≥80% coverage (≥15 test cases)
+  ✅ CLI runs successfully on sample data
+  ✅ SQLite DB created with data loaded
+  ✅ Report command outputs data stats
+  ✅ Total run time < 20 minutes
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 5.9: Generate Iteration and Fix Script
+### Prompt 5.9: Generate Iteration and Fix Workflow
 ```
-Create scripts/run_all_demos.py — a script that runs all demos and reports results:
+Create scripts/run_all_demos.py — runs all demos and produces a master report.
+This is the primary tool for validating and improving the system.
 
-1. For each demo in demos/:
-   - Load input.json and validation_criteria.json
-   - Execute AITeamFlow (or mock if --mock flag)
-   - Validate output against criteria
-   - Record: pass/fail, duration, issues found
+1. For each demo in [demos/01_hello_world, demos/02_todo_app, demos/03_data_pipeline]:
+   a. Load project_description.txt
+   b. Execute AITeamFlow (real run, not mock)
+   c. Run capture_demo.py for that demo
+   d. Load RESULTS.md and parse pass/fail
+   e. Record: demo name, status, duration, failed criteria
 
-2. Reporting:
-   - Console table: demo name, status, duration, issues
-   - JSON report: detailed results for each demo
-   - Summary: X/Y demos passed, total duration, common issues
+2. Master report output (docs/DEMO_RESULTS.md):
+   | Demo | Status | Duration | Tests | Coverage | Docker | Issues |
+   |------|--------|----------|-------|----------|--------|--------|
+   | Hello World Flask | ✅ PASS | 7m 12s | 8/8 | 84% | ✅ | - |
+   | TODO App | ⚠️ PARTIAL | 16m 45s | 11/12 | 82% | ✅ | 1 test failed |
+   | Data Pipeline | ❌ FAIL | 22m 10s | 9/15 | 71% | N/A | Coverage below threshold |
+   Summary: 2/3 demos passed. Common issues: ...
 
-3. Fix-and-retry mode (--fix flag):
-   - On failure, save the error context
-   - Re-run with additional context about what went wrong
-   - Track improvement across retries
+3. --fix mode (run after reviewing failures):
+   a. For each failed demo:
+      - Load failure_report.json from that demo
+      - Extract: which criterion failed, what the agent output was, guardrail logs
+      - Identify root cause category: prompt issue / guardrail too strict /
+        model capability / task decomposition / tool failure
+      - Generate a fix recommendation in docs/fix_recommendations.md
+      - Optionally re-run the demo with enhanced system prompt context
+   b. Track improvement: compare new RESULTS.md to previous
 
-4. Comparison mode (--compare flag):
-   - Compare output against expected_output/ directory
-   - Diff report: missing files, content differences, extra files
+4. --compare mode:
+   - Diff current output against previous run's captured output
+   - Flag: new files added, files removed, test count changes, coverage changes
+   - Useful for verifying fixes didn't regress passing demos
 
-5. CI integration:
-   - Exit code 0 if all pass, 1 if any fail
-   - JUnit XML output for GitHub Actions
+5. Iteration log:
+   - Append each run to docs/iteration_log.json:
+     {timestamp, demo_results, models_used, total_duration, pass_rate}
+   - Used to track improvement over iterations
 
-Also create scripts/validate_demo.py that validates a single demo's output
-against its criteria without re-running the flow.
+6. GitHub Actions integration:
+   - Exit 0 only if ALL demos pass all criteria
+   - JUnit XML output: reports/junit_demos.xml
+   - Artifacts: upload RESULTS.md, DEMO_RESULTS.md, iteration_log.json
+
+Create docs/ITERATION_PLAYBOOK.md explaining:
+- How to interpret failure reports
+- Common failure patterns and fixes (prompt engineering vs config vs model)
+- How to update guardrail thresholds based on demo results
+- When to switch models vs when to improve prompts
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
@@ -1740,6 +1895,10 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ### Prompt 6.5: Generate demo recording scripts
 ```
+Demo output directories (demos/01_hello_world/output/, etc.) are populated by
+Phase 5's run_all_demos.py. The recording script should use these existing outputs
+rather than triggering new AITeamFlow runs.
+
 Create scripts/record_demo.py — automated demo recording:
 
 1. DemoRecorder class:
