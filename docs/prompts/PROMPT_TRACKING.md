@@ -22,9 +22,11 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 4 | 1 | 4.1–4.3 | Memory config first. |
 | 4 | 2 | 4.4, 4.5, 4.6, 4.7 | After 4.1–4.3; knowledge, reasoning, models, callbacks. |
 | 4 | 3 | 4.8 | After 4.4–4.7; integration tests. |
-| 5 | 1 | 5.1, 5.2, 5.3, 5.4, 5.5 | Test suites; independent. |
-| 5 | 2 | 5.6, 5.7, 5.8 | Demo projects; independent. |
-| 5 | 3 | 5.9 | After 5.6–5.8 optional; iteration script. |
+| 5 | 1 | 5.1, 5.2, 5.3 | Unit, integration, guardrail tests; independent. |
+| 5 | 2 | 5.4 | After 5.2; E2E Hello World (Demo 1 spec). |
+| 5 | 3 | 5.5, 5.6 | After 5.4; performance benchmarks + Demo Run 1 capture. |
+| 5 | 4 | 5.7, 5.8 | After 5.6; Demo Run 2 and 3 (AITeamFlow builds them). |
+| 5 | 5 | 5.9 | After 5.3–5.8; iteration and fix workflow. |
 | 6 | 1 | 6.2, 6.3, 6.4 | UI components; independent. |
 | 6 | 2 | 6.1 | Main Gradio app (uses 6.2–6.4). |
 | 6 | 3 | 6.5, 6.6, 6.7, 6.8 | After 6.1; recording, docs, polish, social. |
@@ -113,15 +115,15 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 5.1  | Generate Unit Tests | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | Pending | |
-| 5.2  | Generate Integration Tests | [phase-5-2-integration-tests.md](phase-5-2-integration-tests.md) | Pending | |
-| 5.3  | Generate guardrail test suite | [phase-5-3-guardrail-test-suite.md](phase-5-3-guardrail-test-suite.md) | Pending | |
-| 5.4  | Generate E2E Tests | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | Pending | |
-| 5.5  | Generate Performance Tests | [phase-5-5-performance-tests.md](phase-5-5-performance-tests.md) | Pending | |
-| 5.6  | Generate Demo Project 1 — Hello World Flask API | [phase-5-6-demo-project-1-hello-world-flask-api.md](phase-5-6-demo-project-1-hello-world-flask-api.md) | Pending | |
-| 5.7  | Generate Demo Project 2 — TODO App (Full-Stack) | [phase-5-7-demo-project-2-todo-app-full-stack.md](phase-5-7-demo-project-2-todo-app-full-stack.md) | Pending | |
-| 5.8  | Generate Demo Project 3 — Data Pipeline | [phase-5-8-demo-project-3-data-pipeline.md](phase-5-8-demo-project-3-data-pipeline.md) | Pending | |
-| 5.9  | Generate Iteration and Fix Script | [phase-5-9-iteration-and-fix-script.md](phase-5-9-iteration-and-fix-script.md) | Pending | |
+| 5.1  | Generate Unit Test Suite | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | **Done** | test_agents, test_guardrails, test_memory, test_tools, test_settings; 85%+ coverage on src/ai_team; `poetry run pytest tests/unit/ --cov=src/ai_team`. |
+| 5.2  | Generate Integration Test Suite | [phase-5-2-integration-tests.md](phase-5-2-integration-tests.md) | **Done** | test_crews, test_flow_routing, test_memory_integration, test_guardrails_in_flow; mock LLM; @pytest.mark.slow; fast subset: `-m "not slow"`. |
+| 5.3  | Generate Guardrail Test Suite | [phase-5-3-guardrail-test-suite.md](phase-5-3-guardrail-test-suite.md) | **Done** | tests/guardrails/: test_behavioral_guardrails, test_security_guardrails, test_quality_guardrails, test_retry_behavior; adversarial inputs. |
+| 5.4  | Generate E2E Test — Hello World Flask API | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | **Done** | test_e2e_hello_world.py: same spec as Demo 1; real AITeamFlow run; output → demos/01_hello_world/output/, run_report.json, failure_report.json. |
+| 5.5  | Generate Performance Benchmarks | [phase-5-5-performance-tests.md](phase-5-5-performance-tests.md) | **Done** | Per-crew benchmarks, phase budgets, hardware profiles (8GB/16GB VRAM), token estimation; docs/performance_report.md, docs/benchmark_results.json. |
+| 5.6  | Run Demo Project 1 — Hello World Flask API | [phase-5-6-demo-project-1-hello-world-flask-api.md](phase-5-6-demo-project-1-hello-world-flask-api.md) | Pending | AITeamFlow builds it; capture_demo.py; project_description.txt; RESULTS.md; success criteria. |
+| 5.7  | Run Demo Project 2 — TODO App (Full-Stack) | [phase-5-7-demo-project-2-todo-app-full-stack.md](phase-5-7-demo-project-2-todo-app-full-stack.md) | Pending | AITeamFlow builds it; full-stack spec; capture_demo extended; RESULTS.md. |
+| 5.8  | Run Demo Project 3 — Data Pipeline | [phase-5-8-demo-project-3-data-pipeline.md](phase-5-8-demo-project-3-data-pipeline.md) | Pending | AITeamFlow builds it; ETL/CLI spec; RESULTS.md. |
+| 5.9  | Generate Iteration and Fix Workflow | [phase-5-9-iteration-and-fix-script.md](phase-5-9-iteration-and-fix-script.md) | Pending | run_all_demos.py; real runs primary; --fix (root cause, fix_recommendations.md); --compare; iteration_log.json; ITERATION_PLAYBOOK.md; CI exit 0 only if all pass. |
 
 ---
 
