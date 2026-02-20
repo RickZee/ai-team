@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 import structlog
 import yaml
-from crewai import Agent
+from crewai import Agent, LLM
 from langchain_ollama import ChatOllama
 from tenacity import (
     retry,
@@ -155,11 +155,12 @@ class BaseAgent(Agent):
         if llm is None:
             settings_key = ROLE_TO_SETTINGS_KEY.get(role_name.lower(), role_name.lower())
             model = settings.ollama.get_model_for_role(settings_key)
-            llm = _RetryOllamaLLM(
-                model=model,
-                base_url=settings.ollama.base_url,
-                request_timeout=settings.ollama.request_timeout,
-                max_retries=settings.ollama.max_retries,
+            # CrewAI 1.x resolves LLM by model name; use "ollama/<model>" so it uses
+            # LiteLLM for Ollama instead of the native OpenAI provider (which requires OPENAI_API_KEY).
+            llm = LLM(
+                model=f"ollama/{model}",
+                api_base=settings.ollama.base_url,
+                timeout=settings.ollama.request_timeout,
             )
             logger.info(
                 "agent_llm_initialized",

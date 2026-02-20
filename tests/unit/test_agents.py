@@ -28,7 +28,7 @@ class TestBaseAgentInitializationWithRoles:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
@@ -48,7 +48,7 @@ class TestBaseAgentInitializationWithRoles:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
@@ -67,7 +67,7 @@ class TestBaseAgentInitializationWithRoles:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "deepseek-r1:14b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
@@ -107,7 +107,7 @@ class TestModelAssignmentFromSettings:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "custom-model:7b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
@@ -127,7 +127,7 @@ class TestGuardrailAttachment:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
@@ -151,7 +151,7 @@ class TestGuardrailAttachment:
         if not real_tools:
             pytest.skip("No file tools available")
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
