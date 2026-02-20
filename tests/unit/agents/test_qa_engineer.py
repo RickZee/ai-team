@@ -51,7 +51,7 @@ class TestCreateQaEngineer:
         self, mock_llm: ChatOllama, qa_config: dict
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base._RetryOllamaLLM", return_value=mock_llm
+            "ai_team.agents.base.LLM", return_value=mock_llm
         ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
             mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
             mock_settings.return_value.ollama.base_url = "http://localhost:11434"
