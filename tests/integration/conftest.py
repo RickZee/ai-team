@@ -51,6 +51,10 @@ def pytest_configure(config: Any) -> None:
         "markers",
         "test_memory: memory/embedder tests; run when AI_TEAM_TEST_MEMORY=1 and Ollama (and embedding model) available.",
     )
+    config.addinivalue_line(
+        "markers",
+        "slow: slow integration tests (e.g. real LLM or embeddings); exclude with -m 'not slow'.",
+    )
 
 
 @pytest.fixture
