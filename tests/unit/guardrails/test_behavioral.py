@@ -8,9 +8,11 @@ from ai_team.guardrails.behavioral import (
     guardrail_to_crewai_callable,
     iteration_limit_guardrail,
     make_output_format_guardrail,
+    make_reasoning_guardrail,
     make_role_adherence_guardrail,
     make_scope_control_guardrail,
     output_format_guardrail,
+    reasoning_guardrail,
     role_adherence_guardrail,
     scope_control_guardrail,
 )
@@ -91,6 +93,14 @@ def test_role_adherence_guardrail_unknown_role_pass():
     assert result.status == "pass"
 
 
+def test_role_adherence_guardrail_manager_fail_implementation():
+    """Manager output with code implementation fails."""
+    mock_output = "import json\n\ndef get_status():\n    return {'phase': 'dev'}\n"
+    result = role_adherence_guardrail(mock_output, "manager")
+    assert result.status == "fail"
+    assert "manager" in result.message.lower() or "implementation" in result.message.lower()
+
+
 # -----------------------------------------------------------------------------
 # scope_control_guardrail
 # -----------------------------------------------------------------------------
@@ -129,6 +139,36 @@ def test_scope_control_guardrail_creep_warn():
     )
     # May be pass or warn depending on keyword overlap
     assert result.status in ("pass", "warn")
+
+
+# -----------------------------------------------------------------------------
+# reasoning_guardrail
+# -----------------------------------------------------------------------------
+
+
+def test_reasoning_guardrail_short_no_indicators_fails():
+    """Short output with no reasoning indicators fails."""
+    result = reasoning_guardrail("Done.")
+    assert result.status == "fail"
+
+
+def test_reasoning_guardrail_with_rationale_passes():
+    """Output with rationale passes."""
+    result = reasoning_guardrail("We chose Redis because it supports TTL and is already in our stack.")
+    assert result.status == "pass"
+
+
+def test_reasoning_guardrail_long_passes():
+    """Long enough output passes even without keywords."""
+    result = reasoning_guardrail("This is a sufficiently long response that describes the approach in detail. " * 2)
+    assert result.status == "pass"
+
+
+def test_make_reasoning_guardrail_crewai():
+    """make_reasoning_guardrail returns CrewAI callable (True/False)."""
+    fn = make_reasoning_guardrail()
+    assert fn("We decided to use JWT because it is stateless.") is True
+    assert fn("No.") is False
 
 
 # -----------------------------------------------------------------------------

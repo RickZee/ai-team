@@ -98,6 +98,17 @@ def code_quality_guardrail(code: str, language: str = "python") -> GuardrailResu
     for m in TODO_PATTERNS.finditer(code):
         suggestions.append("Remove or resolve TODO/FIXME/HACK comments before merge")
 
+    # File I/O without error handling
+    if re.search(r"\bopen\s*\(", code) and "try:" not in code and "with " not in code:
+        suggestions.append("Consider wrapping file I/O in try/except or use 'with open' for error handling.")
+
+    # Hardcoded credentials (quality gate; use secret_detection for full scan)
+    if re.search(
+        r"(?i)(password|api_key|secret)\s*=\s*[\'\"]\S+[\'\"]",
+        code,
+    ):
+        suggestions.append("Do not hardcode credentials; use environment variables or a secrets manager.")
+
     if language == "python":
         try:
             tree = ast.parse(code)
