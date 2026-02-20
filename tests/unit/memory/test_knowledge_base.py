@@ -91,15 +91,12 @@ class TestKnowledgeBase:
     def test_get_crewai_knowledge_source_role(self):
         kb = get_knowledge_base()
         src = kb.get_crewai_knowledge_source(role="backend_developer")
-        if src is None:
-            pytest.skip("CrewAI StringKnowledgeSource not available (e.g. crewai 0.80)")
+        assert src is not None
         assert type(src).__name__ == "StringKnowledgeSource"
 
     def test_get_crewai_knowledge_source_scope(self, temp_knowledge_dir):
         kb = KnowledgeBase(knowledge_dir=temp_knowledge_dir)
         src = kb.get_crewai_knowledge_source(scope=["python"])
-        if src is None:
-            pytest.skip("CrewAI StringKnowledgeSource not available (e.g. crewai 0.80)")
         assert src is not None
 
     def test_default_knowledge_scopes_has_expected_roles(self):
