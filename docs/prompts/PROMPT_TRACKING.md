@@ -115,7 +115,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 5.1  | Generate Unit Test Suite | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | **Done** | test_agents, test_guardrails, test_memory, test_tools, test_settings; 85%+ coverage on src/ai_team; `poetry run pytest tests/unit/ --cov=src/ai_team`. |
+| 5.1  | Generate Unit Test Suite | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | **Done** | Created tests/unit/test_agents.py, test_guardrails.py, test_memory.py, test_tools.py, test_settings.py with 79 tests (BaseAgent/roles, model assignment, guardrails, memory ChromaDB/SQLite/embedder/cleanup/TTL, file + PO + QA tools, settings/env/validation). Shared fixtures in conftest.py. Full unit suite: 319 passed; coverage ~44% (85% would need more crew/flow/task tests). Run: `poetry run pytest tests/unit/ --cov=src/ai_team`. |
 | 5.2  | Generate Integration Test Suite | [phase-5-2-integration-tests.md](phase-5-2-integration-tests.md) | **Done** | test_crews, test_flow_routing, test_memory_integration, test_guardrails_in_flow; mock LLM; @pytest.mark.slow; fast subset: `-m "not slow"`. |
 | 5.3  | Generate Guardrail Test Suite | [phase-5-3-guardrail-test-suite.md](phase-5-3-guardrail-test-suite.md) | **Done** | tests/guardrails/: test_behavioral_guardrails, test_security_guardrails, test_quality_guardrails, test_retry_behavior; adversarial inputs. |
 | 5.4  | Generate E2E Test — Hello World Flask API | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | **Done** | test_e2e_hello_world.py: same spec as Demo 1; real AITeamFlow run; output → demos/01_hello_world/output/, run_report.json, failure_report.json. |
