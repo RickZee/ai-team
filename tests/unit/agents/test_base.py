@@ -177,4 +177,8 @@ class TestBaseAgent:
                 mock_get.return_value.json.return_value = {
                     "models": [{"name": "qwen3:14b"}],
                 }
+                # CrewAI 0.80 wraps llm and model may be repr; force .model so health_check's check passes
+                llm_with_model = MagicMock()
+                llm_with_model.model = "qwen3:14b"
+                object.__setattr__(agent, "llm", llm_with_model)
                 assert agent.health_check() is True
