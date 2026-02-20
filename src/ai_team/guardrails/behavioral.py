@@ -90,6 +90,14 @@ ROLE_RESTRICTIONS: Dict[str, Dict[str, Any]] = {
         ],
         "message": "Frontend developer should not generate backend/database code.",
     },
+    "manager": {
+        "forbidden_patterns": [
+            (r"def\s+\w+\s*\(", "Code implementation (function definition)"),
+            (r"class\s+\w+\s*[\(:]", "Code implementation (class definition)"),
+            (r"import\s+\w+", "Code imports"),
+        ],
+        "message": "Manager should coordinate and delegate, not produce implementation code.",
+    },
 }
 
 
@@ -185,6 +193,46 @@ def scope_control_guardrail(
         status="pass",
         message="Output is within task scope.",
         details={"relevance_ratio": round(overlap, 3)},
+        retry_allowed=True,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Reasoning (minimum substance and rationale)
+# -----------------------------------------------------------------------------
+
+REASONING_INDICATORS = re.compile(
+    r"\b(because|rationale|therefore|reason|so that|in order to|thus|hence|"
+    r"the reason|this is because|we chose|we decided|recommendation)\b",
+    re.IGNORECASE,
+)
+MIN_REASONING_LENGTH = 80
+
+
+def reasoning_guardrail(task_output: str) -> GuardrailResult:
+    """
+    Ensure output shows reasoning: sufficient length and rationale indicators.
+    Fails short outputs with no reasoning phrases (adversarial: terse non-reasoned output).
+    """
+    text = task_output.strip()
+    if len(text) >= MIN_REASONING_LENGTH:
+        return GuardrailResult(
+            status="pass",
+            message="Output has sufficient length and is not trivially short.",
+            details={"length": len(text)},
+            retry_allowed=True,
+        )
+    if REASONING_INDICATORS.search(text):
+        return GuardrailResult(
+            status="pass",
+            message="Output includes reasoning indicators.",
+            details={"length": len(text)},
+            retry_allowed=True,
+        )
+    return GuardrailResult(
+        status="fail",
+        message="Output is too short and lacks clear reasoning or rationale.",
+        details={"length": len(text), "min_length": MIN_REASONING_LENGTH},
         retry_allowed=True,
     )
 
@@ -387,6 +435,11 @@ def make_scope_control_guardrail(original_requirements: str) -> Callable[[str], 
         scope_control_guardrail,
         original_requirements=original_requirements,
     )
+
+
+def make_reasoning_guardrail() -> Callable[[str], bool]:
+    """CrewAI-compatible guardrail for reasoning (no extra args)."""
+    return guardrail_to_crewai_callable(reasoning_guardrail)
 
 
 def make_output_format_guardrail(expected_format: Type[BaseModel]) -> Callable[[str], bool]:
