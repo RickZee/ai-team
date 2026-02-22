@@ -81,3 +81,7 @@ Also, monitoring the CrewAI using logs is awkward. Let's build a very simple UI 
 OK so the basic project is now working. Now testing every step, adding more guardrails and tweaking prompts.
 
 Let's plan to deploy it on AWS AgentCore as well.
+
+After multiple test runs using Ollama - it's now clear that not only it's slow, but also not feasible at the moment if you really want to make any progress. Most of the test runs are very slow, the local models are way to dumb to perform tasks, and the system crashes several times a day because I don't have enough memory.
+
+Ok so for the next time - migrate from Ollama to OpenRouter and try running again.
