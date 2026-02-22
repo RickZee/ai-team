@@ -28,12 +28,8 @@ class TestBaseAgentInitializationWithRoles:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "manager",
@@ -48,12 +44,8 @@ class TestBaseAgentInitializationWithRoles:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "product_owner",
@@ -67,12 +59,8 @@ class TestBaseAgentInitializationWithRoles:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "deepseek-r1:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             for role_name, expected_role in [
                 ("architect", "Architect"),
@@ -107,17 +95,16 @@ class TestModelAssignmentFromSettings:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "custom-model:7b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
+        ) as mock_create_llm, patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             mock_settings.return_value.guardrails.security_enabled = False
-            create_agent("manager", agents_config=agents_config_minimal, tools=[])
-            mock_settings.return_value.ollama.get_model_for_role.assert_called()
-            call_args = mock_settings.return_value.ollama.get_model_for_role.call_args[0][0]
-            assert call_args == "manager"
+            agent = create_agent("manager", agents_config=agents_config_minimal, tools=[])
+            mock_create_llm.assert_called_once()
+            call_args = mock_create_llm.call_args[0]
+            assert call_args[0] == "manager"
+            from ai_team.config.models import OpenRouterSettings
+            assert isinstance(call_args[1], OpenRouterSettings)
+            assert agent.llm is mock_ollama_llm
 
 
 class TestGuardrailAttachment:
@@ -127,12 +114,8 @@ class TestGuardrailAttachment:
         self, agents_config_minimal: dict, mock_ollama_llm: ChatOllama
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "manager",
@@ -151,12 +134,8 @@ class TestGuardrailAttachment:
         if not real_tools:
             pytest.skip("No file tools available")
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_ollama_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
         ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = True
             agent = create_agent(
                 "manager",

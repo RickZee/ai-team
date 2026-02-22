@@ -19,7 +19,7 @@ import structlog
 
 from ai_team.agents.qa_engineer import create_qa_engineer
 from ai_team.config.settings import get_settings
-from ai_team.memory import get_crew_embedder_config
+from ai_team.config.llm_factory import get_embedder_config
 from ai_team.models.development import CodeFile
 from ai_team.models.qa_models import CodeReviewReport
 from ai_team.tasks.testing_tasks import (
@@ -170,7 +170,7 @@ def create_testing_crew(
         tasks=[t_gen, t_exec, t_review],
         process=Process.sequential,
         memory=memory,
-        embedder=get_crew_embedder_config() if memory else None,
+        embedder=get_embedder_config() if memory else None,
         verbose=verbose,
         step_callback=step_callback,
         task_callback=task_callback,

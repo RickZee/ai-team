@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import structlog
 from crewai import Flow
@@ -158,6 +158,7 @@ class AITeamFlow(Flow[ProjectState]):
     5. Deployment (DevOps Configuration)
 
     Use plot() for flow visualization. State is persisted to output_dir on completion/error.
+    Cost estimation runs at kickoff (unless skip_estimate); on decline raises SystemExit.
     """
 
     def __init__(
@@ -169,6 +170,109 @@ class AITeamFlow(Flow[ProjectState]):
         self.logger = structlog.get_logger().bind(flow="AITeamFlow")
         self._feedback_handler = feedback_handler
         self._monitor = monitor
+
+    def kickoff(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Run cost estimation and confirmation at pipeline start, then execute the flow.
+
+        If skip_estimate is set on state.metadata, estimation is skipped (e.g. for CI/CD).
+        If user declines or over budget, raises SystemExit. After execution, displays
+        token tracker summary (estimated vs actual) and saves logs/cost_report_*.json.
+        """
+        from ai_team.config.cost_estimator import RoleCostRow
+        from ai_team.config.models import OpenRouterSettings
+        from ai_team.config.token_tracker import TokenTracker
+
+        tracker: Optional[TokenTracker] = None
+        skip = self.state.metadata.get("skip_estimate") is True
+
+        try:
+            or_settings = OpenRouterSettings()
+            tracker = TokenTracker(or_settings)
+            tracker.register_crewai_hook()
+        except Exception:
+            pass
+
+        if not skip:
+            try:
+                from pydantic import ValidationError
+
+                from ai_team.config.cost_estimator import (
+                    confirm_and_proceed,
+                    display_estimate,
+                    estimate_run_cost,
+                    get_complexity_from_description,
+                )
+
+                or_settings = OpenRouterSettings()
+                if or_settings.show_cost_estimate:
+                    desc = (self.state.project_description or "").strip()
+                    complexity = self.state.metadata.get("complexity_override") or get_complexity_from_description(desc)
+                    rows, total_with_buffer, within_budget = estimate_run_cost(
+                        or_settings, complexity
+                    )
+                    self.state.metadata["estimated_cost_usd"] = total_with_buffer
+                    self.state.metadata["estimated_cost_rows"] = [
+                        {
+                            "role": r.role,
+                            "model_id": r.model_id,
+                            "input_tokens": r.input_tokens,
+                            "output_tokens": r.output_tokens,
+                            "cost_usd": r.cost_usd,
+                        }
+                        for r in rows
+                    ]
+                    display_estimate(
+                        or_settings, complexity, rows, total_with_buffer, within_budget
+                    )
+                    if not confirm_and_proceed(
+                        or_settings, complexity, total_with_buffer
+                    ):
+                        self.logger.info(
+                            "cost_confirm_cancelled", reason="user_declined"
+                        )
+                        raise SystemExit(
+                            "Cost estimation declined or over budget. Exiting."
+                        )
+            except SystemExit:
+                raise
+            except (ValidationError, Exception):
+                # OpenRouter not configured or cost estimation skipped
+                pass
+
+        result = super().kickoff(*args, **kwargs)
+
+        if tracker is not None:
+            try:
+                estimated_rows_raw = self.state.metadata.get("estimated_cost_rows") or []
+                estimated_rows: List[RoleCostRow] = []
+                for d in estimated_rows_raw:
+                    if isinstance(d, dict) and "role" in d and "cost_usd" in d:
+                        estimated_rows.append(
+                            RoleCostRow(
+                                role=str(d["role"]),
+                                model_id=str(d.get("model_id", "")),
+                                input_tokens=int(d.get("input_tokens", 0)),
+                                output_tokens=int(d.get("output_tokens", 0)),
+                                cost_usd=float(d["cost_usd"]),
+                            )
+                        )
+                tracker.summary(estimated_rows if estimated_rows else None)
+                logs_dir = Path(get_settings().project.output_dir).resolve().parent / "logs"
+                tracker.save_report(logs_dir)
+            except Exception as e:
+                self.logger.warning("token_tracker_summary_failed", error=str(e))
+            finally:
+                tracker.unregister_crewai_hook()
+
+        estimated = self.state.metadata.get("estimated_cost_usd")
+        actual_cost = tracker.total_cost if tracker is not None else None
+        logger.info(
+            "cost_estimate_post_run",
+            estimated_cost_usd=estimated,
+            actual_cost_usd=actual_cost,
+        )
+        return result
 
     def _get_feedback_handler(self) -> HumanFeedbackHandler:
         """Return injected handler or one built from settings (for CLI/UI and timeout)."""
@@ -222,6 +326,7 @@ class AITeamFlow(Flow[ProjectState]):
             self.logger.warning("intake_guardrail_failed", reason="prompt_injection")
             return {"status": "rejected", "reason": "prompt_injection"}
 
+        # Cost estimation and confirmation run in AITeamFlow.kickoff() before any LLM calls
         self.state.add_phase_transition(ProjectPhase.INTAKE, ProjectPhase.PLANNING, "Input validated")
         return {"status": "success", "request": desc}
 
@@ -759,12 +864,18 @@ class AITeamFlow(Flow[ProjectState]):
 def run_ai_team(
     project_description: str,
     monitor: Optional[TeamMonitor] = None,
+    skip_estimate: bool = False,
+    env_override: Optional[str] = None,
+    complexity_override: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Main entry point to run the AI Team flow.
 
     Initializes ProjectState with project_description and runs the flow.
     If monitor is provided, starts it before kickoff and stops it after (or on error).
+    If skip_estimate is True, cost estimation is bypassed (e.g. for CI/CD pipelines).
+    If env_override is set (dev/test/prod), AI_TEAM_ENV is set for this run.
+    If complexity_override is set (simple/medium/complex), cost estimation uses it instead of inferring.
     Returns the final result and full state dump.
     """
     if monitor:
@@ -772,6 +883,9 @@ def run_ai_team(
     try:
         flow = AITeamFlow(monitor=monitor)
         flow.state.project_description = project_description
+        flow.state.metadata["skip_estimate"] = skip_estimate
+        if complexity_override is not None:
+            flow.state.metadata["complexity_override"] = complexity_override
         result = flow.kickoff()
         if monitor:
             monitor.stop("complete")

@@ -1253,6 +1253,201 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ---
 
+## Phase 4.A: OpenRouter & Cost Configuration
+
+Moves inference to OpenRouter; Ollama remains for embeddings only (nomic-embed-text). 3-tier env (dev/test/prod), pre-run cost estimation, and single API key.
+
+### Prompt 4.A.1: Install OpenRouter Dependencies
+```
+Update pyproject.toml to ensure we have the required dependencies for OpenRouter
+integration. CrewAI already includes LiteLLM which handles OpenRouter natively,
+so no new packages are needed. However, ensure these are present:
+
+- crewai >= 0.80.0 (already has LiteLLM)
+- pydantic-settings >= 2.2.0 (for OpenRouterSettings)
+- rich >= 13.0.0 (for cost estimation display)
+
+Update .env.example with the OpenRouter configuration block from the config guide.
+Add comments explaining each variable. Keep existing guardrail and memory settings.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.2: Create Model Configuration Module
+```
+Create src/ai_team/config/models.py with the 3-tier environment model configuration.
+
+This file defines:
+1. Environment enum (dev, test, prod) controlled by AI_TEAM_ENV
+2. ModelPricing with estimate() for cost calculation
+3. RoleModelConfig tying model_id + pricing + temperature per role
+4. ROLE_TOKEN_BUDGETS dict with estimated tokens per agent role
+5. ENV_MODELS dict mapping Environment → role → RoleModelConfig
+6. OpenRouterSettings (Pydantic BaseSettings) loading from .env
+
+DEV tier uses DeepSeek V3.2 ($0.25/$0.38) and Devstral 2 ($0.05/$0.22).
+TEST tier uses Gemini 3 Flash, DeepSeek R1, MiniMax M2.1.
+PROD tier uses Claude Sonnet 4, GPT-5.2, GPT-5.3 Codex.
+
+All model IDs use 'openrouter/<provider>/<model>' format for LiteLLM.
+See the config guide for exact model IDs and pricing.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.3: Create Cost Estimator
+```
+Create src/ai_team/config/cost_estimator.py that estimates and displays pipeline
+cost BEFORE execution begins.
+
+Features:
+- estimate_run_cost(): calculates cost per role using token budgets × pricing
+- Rich table output showing each agent's model, tokens, and cost
+- Complexity multipliers: simple (0.5x), medium (1.0x), complex (2.0x)
+- 20% retry buffer for guardrail failures
+- Budget check against AI_TEAM_MAX_COST_PER_RUN
+- confirm_and_proceed(): auto-confirms DEV, requires input for TEST/PROD
+- Panel showing environment label, complexity, and budget
+
+This must be called at the start of AITeamFlow.kickoff() before any
+LLM calls are made.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.4: Create LLM Factory
+```
+Create src/ai_team/config/llm_factory.py with two functions:
+
+1. create_llm_for_role(role, settings) -> crewai.LLM
+   - Sets OPENROUTER_API_KEY and OPENROUTER_API_BASE env vars
+   - Sets OR_SITE_URL and OR_APP_NAME for OpenRouter identification
+   - Reads role config from OpenRouterSettings
+   - Returns CrewAI LLM instance with openrouter/ prefixed model ID
+
+2. get_embedder_config() -> dict
+   - Returns Ollama embedder config for CrewAI memory
+   - Uses OLLAMA_BASE_URL and OLLAMA_EMBEDDING_MODEL from env
+   - Embeddings stay local, only inference goes through OpenRouter
+
+This factory replaces all direct Ollama LLM references in agent definitions.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.5: Update Agent Definitions to Use LLM Factory
+```
+Update all agent definitions in src/ai_team/agents/ to use create_llm_for_role()
+instead of direct Ollama model references.
+
+Before:
+    from langchain_ollama import ChatOllama
+    llm = ChatOllama(model="qwen2.5-coder:14b", base_url="http://localhost:11434")
+
+After:
+    from ai_team.config.llm_factory import create_llm_for_role
+    llm = create_llm_for_role("backend_developer")
+
+Update each agent file:
+- manager.py: create_llm_for_role("manager")
+- product_owner.py: create_llm_for_role("product_owner")
+- architect.py: create_llm_for_role("architect")
+- backend_developer.py: create_llm_for_role("backend_developer")
+- frontend_developer.py: create_llm_for_role("frontend_developer")
+- cloud_engineer.py: create_llm_for_role("cloud_engineer")
+- devops.py: create_llm_for_role("devops")
+- qa_engineer.py: create_llm_for_role("qa_engineer")
+
+Also update all Crew definitions to pass get_embedder_config() explicitly:
+    Crew(memory=True, embedder=get_embedder_config(), ...)
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.6: Wire Cost Estimation into AITeamFlow
+```
+Update src/ai_team/flows/main_flow.py to call cost estimation at the start
+of every pipeline run.
+
+In AITeamFlow.kickoff():
+1. Load OpenRouterSettings
+2. Call confirm_and_proceed(settings, complexity)
+   - complexity is determined from the project description length/keywords
+   - "simple" if < 100 words, "complex" if mentions microservices/ML/etc, else "medium"
+3. If confirm_and_proceed returns False, raise SystemExit with message
+4. If True, proceed with normal flow execution
+5. After execution completes, log actual token usage vs. estimate
+
+Add a --skip-estimate CLI flag that bypasses cost estimation for CI/CD pipelines.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.7: Add Token Usage Tracking
+```
+Create src/ai_team/config/token_tracker.py that tracks actual token usage
+during a pipeline run and compares it to the pre-run estimate.
+
+Features:
+- TokenTracker class with record(role, input_tokens, output_tokens, cost)
+- Hooks into CrewAI's LLM callback events to capture usage automatically
+- summary() method returns Rich table comparing estimated vs actual per role
+- total_cost property for budget enforcement during execution
+- If total_cost exceeds AI_TEAM_MAX_COST_PER_RUN mid-run, emit a warning
+  (don't abort mid-run — just warn and log)
+- Save usage report to logs/cost_report_{timestamp}.json
+
+Wire into main_flow.py to display summary after each pipeline run.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.8: Environment Switching CLI
+```
+Add a CLI command to switch environments easily.
+
+In src/ai_team/main.py or as a separate script:
+
+    # Show current config and estimate
+    python -m ai_team estimate --env dev --complexity medium
+
+    # Run with specific environment
+    python -m ai_team run --env prod --complexity complex
+
+    # Compare costs across all environments
+    python -m ai_team compare-costs --complexity medium
+
+The compare-costs command shows a side-by-side table of all 3 environments
+with per-role costs and totals, making it easy to decide which tier to use.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 4.A.9: Integration Tests for OpenRouter
+```
+Create tests/integration/test_openrouter.py with tests that validate
+the OpenRouter integration works correctly.
+
+Tests (gated behind AI_TEAM_USE_REAL_LLM=1):
+1. test_llm_factory_creates_valid_instance — verify create_llm_for_role()
+   returns a CrewAI LLM with correct model_id and base_url
+2. test_openrouter_connectivity — make a minimal completion call to verify
+   the API key works (use cheapest model: Devstral 2)
+3. test_env_switching — verify switching AI_TEAM_ENV changes model assignments
+4. test_cost_estimation — verify estimate output matches expected ranges
+5. test_embedder_stays_local — verify get_embedder_config() returns Ollama,
+   not OpenRouter (embeddings must stay local)
+
+Non-gated tests (always run):
+6. test_model_config_structure — verify all roles have configs in all envs
+7. test_pricing_data_completeness — all models have pricing entries
+8. test_token_budgets_completeness — all roles have token budgets
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+---
+
 ## Phase 5: Testing, Iteration & Guardrail Validation (Days 29-35)
 
 > **Key Change:** Demo projects (5.6–5.8) are no longer static definition files.

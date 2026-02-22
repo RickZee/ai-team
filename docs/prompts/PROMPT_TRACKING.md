@@ -22,6 +22,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 4 | 1 | 4.1–4.3 | Memory config first. |
 | 4 | 2 | 4.4, 4.5, 4.6, 4.7 | After 4.1–4.3; knowledge, reasoning, models, callbacks. |
 | 4 | 3 | 4.8 | After 4.4–4.7; integration tests. |
+| 4.A | 1 | 4.A.1–4.A.9 | After 4.8; OpenRouter config, cost estimator, LLM factory, agents, flow, CLI, token tracking, integration tests. |
 | 5 | 1 | 5.1, 5.2, 5.3 | Unit, integration, guardrail tests; independent. |
 | 5 | 2 | 5.4 | After 5.2; E2E Hello World (Demo 1 spec). |
 | 5 | 3 | 5.5, 5.6 | After 5.4; performance benchmarks + Demo Run 1 capture. |
@@ -120,19 +121,35 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
+## Phase 4.A: OpenRouter & Cost Configuration
+
+| ID   | Prompt | File | Status | Notes |
+|------|--------|------|--------|------|
+| 4.A.1 | Install OpenRouter Dependencies | [PROMPTS.md](PROMPTS.md) | **Done** | pyproject.toml: crewai, pydantic-settings >=2.2.0, rich >=13.0.0 (no new packages). .env.example: OpenRouter block with comments; kept guardrail and memory settings. |
+| 4.A.2 | Create Model Configuration Module | [PROMPTS.md](PROMPTS.md) | **Done** | `src/ai_team/config/models.py`: Environment (dev/test/prod), ModelPricing.estimate(), RoleModelConfig, ROLE_TOKEN_BUDGETS, ENV_MODELS, OpenRouterSettings; fullstack_developer and devops_engineer→devops mapping included. |
+| 4.A.3 | Create Cost Estimator | [PROMPTS.md](PROMPTS.md) | **Done** | `src/ai_team/config/cost_estimator.py`: estimate_run_cost(), RoleCostRow, get_complexity_from_description(), display_estimate() (Rich table + Panel), confirm_and_proceed() (DEV auto, TEST/PROD via prod_confirm + input), run_estimate_and_confirm(). Complexity simple/medium/complex (0.5x/1.0x/2.0x), 20% retry buffer, budget check. Wired in intake_request after validation, before any LLM; skipped if OpenRouterSettings not loaded. |
+| 4.A.4 | Create LLM Factory | [PROMPTS.md](PROMPTS.md) | **Done** | `src/ai_team/config/llm_factory.py`: create_llm_for_role(role, settings) sets OPENROUTER_* and OR_* env vars, reads OpenRouterSettings.get_model_for_role(), returns crewai.LLM with openrouter/ model; get_embedder_config() returns Ollama provider config from OLLAMA_BASE_URL and OLLAMA_EMBEDDING_MODEL. Agent definitions still use Ollama (4.A.5 will switch to factory). |
+| 4.A.5 | Update Agent Definitions to Use LLM Factory | [PROMPTS.md](PROMPTS.md) | **Done** | BaseAgent in base.py creates LLM via create_llm_for_role(role_name, OpenRouterSettings()); all agents inherit. Crews (planning, development, testing) pass embedder=get_embedder_config() from llm_factory when memory=True. |
+| 4.A.6 | Wire Cost Estimation into AITeamFlow | [PROMPTS.md](PROMPTS.md) | **Done** | Cost estimation runs in `AITeamFlow.kickoff()`: load OpenRouterSettings, complexity from description (simple/medium/complex), `estimate_run_cost` + `display_estimate` + `confirm_and_proceed`; on False raise `SystemExit`. Post-run log: `cost_estimate_post_run` (actual token tracking deferred to 4.A.7). CLI `--skip-estimate` bypasses for CI/CD. Removed duplicate block from `intake_request`. |
+| 4.A.7 | Add Token Usage Tracking | [PROMPTS.md](PROMPTS.md) | **Done** | `src/ai_team/config/token_tracker.py`: TokenTracker with record(role, input_tokens, output_tokens, cost), CrewAI after_llm_call hook for auto capture (token estimates from messages/response + pricing from OpenRouterSettings), summary() Rich table (estimated vs actual per role), total_cost property, mid-run warning when exceeding AI_TEAM_MAX_COST_PER_RUN (log only), save_report() → logs/cost_report_{timestamp}.json. Wired in main_flow.kickoff(): register hook before run, after run display summary and save report; estimated_cost_rows stored in state.metadata for comparison. Unit tests in tests/unit/config/test_token_tracker.py. |
+| 4.A.8 | Environment Switching CLI | [PROMPTS.md](PROMPTS.md) | **Done** | Subcommands in `main.py`: `estimate --env dev --complexity medium`, `run --env prod --complexity complex`, `compare-costs --complexity medium`. Backward compat: `ai-team "description"` runs flow. `run_ai_team()` accepts `env_override` and `complexity_override`; flow uses `complexity_override` from state.metadata. `display_compare_costs()` in cost_estimator shows side-by-side table for dev/test/prod. |
+| 4.A.9 | Integration Tests for OpenRouter | [PROMPTS.md](PROMPTS.md) | **Done** | `tests/integration/test_openrouter.py`: gated (AI_TEAM_USE_REAL_LLM=1) — test_llm_factory_creates_valid_instance, test_openrouter_connectivity (skips without OPENROUTER_API_KEY), test_env_switching, test_cost_estimation, test_embedder_stays_local; non-gated — test_model_config_structure, test_pricing_data_completeness, test_token_budgets_completeness; plus test_get_complexity_from_description. |
+
+---
+
 ## Phase 5: Testing, Iteration & Guardrail Validation
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 5.1  | Generate Unit Test Suite | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | **Done** | Created tests/unit/test_agents.py, test_guardrails.py, test_memory.py, test_tools.py, test_settings.py with 79 tests (BaseAgent/roles, model assignment, guardrails, memory ChromaDB/SQLite/embedder/cleanup/TTL, file + PO + QA tools, settings/env/validation). Shared fixtures in conftest.py. Full unit suite: 319 passed; coverage ~44% (85% would need more crew/flow/task tests). Run: `poetry run pytest tests/unit/ --cov=src/ai_team`. |
-| 5.2  | Generate Integration Test Suite | [phase-5-2-integration-tests.md](phase-5-2-integration-tests.md) | **Done** | test_crews.py: Planning→RequirementsDocument+ArchitectureDocument, Development→CodeFile list, Testing→TestRunResult, Deployment→handoff; mock LLM and crew kickoff. test_flow_routing.py: state transitions INTAKE→…→DEPLOY, routing per phase, QA fail→retry_development, escalate_to_human. test_memory_integration.py: before_task/after_task store context and output, cross-session retrieval, get_crew_embedder_config returns Ollama. test_guardrails_in_flow.py: guardrail rejection→retry, max retry raises, callback on rejection, flow continues when pass. @pytest.mark.slow on memory/Ollama tests; fast subset: `poetry run pytest tests/integration/ -m "not slow"`. |
-| 5.3  | Generate Guardrail Test Suite | [phase-5-3-guardrail-test-suite.md](phase-5-3-guardrail-test-suite.md) | **Done** | tests/guardrails/: conftest (TaskOutputMock, task_output_factory), test_behavioral_guardrails (role adherence frontend/architect/manager, scope, reasoning), test_security_guardrails (code safety, secrets, PII), test_quality_guardrails (code quality, coverage, output format), test_retry_behavior (fail-then-pass, max retries raises ValueError, failure context, per-phase retry reset). Added manager ROLE_RESTRICTIONS and reasoning_guardrail in behavioral.py; I/O and hardcoded-credentials checks in quality code_quality_guardrail. Retry limit implemented as ValueError (no MaxRetriesExceeded type). |
-| 5.4  | Generate E2E Test — Hello World Flask API | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | **Done** | tests/e2e/test_e2e_hello_world.py: real AITeamFlow run (MockHumanFeedbackHandler); asserts flow completion, app.py/test_app.py/requirements.txt/Dockerfile, ast.parse, flask+pytest in requirements, FROM in Dockerfile, pytest exit 0, /health 200; on success copies to demos/01_hello_world/output/ and writes run_report.json; on failure writes failure_report.json. Marked @pytest.mark.e2e @pytest.mark.slow. Run: poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s. Test output is the demo artifact; no separate demo script. |
-| 5.5  | Generate Performance Benchmarks | [phase-5-5-performance-tests.md](phase-5-5-performance-tests.md) | **Done** | tests/performance/test_benchmarks.py: per-crew (Planning, Development, QA, Deployment), full flow Demo 1, cProfile bottlenecks, hardware profiles (memory_preset → 8GB/16GB), token estimation → projected OpenAI cost + local-first note. Run: `poetry run pytest tests/performance/ -v -s --tb=short`. Saves docs/benchmark_results.json and docs/performance_report.md. Real LLM via AI_TEAM_BENCHMARK_FULL=1 or AI_TEAM_USE_REAL_LLM=1. |
-| 5.6  | Run Demo Project 1 — Hello World Flask API | [phase-5-6-demo-project-1-hello-world-flask-api.md](phase-5-6-demo-project-1-hello-world-flask-api.md) | **Done** | scripts/capture_demo.py: verify files, pytest+coverage, ruff, docker build, smoke test (health/items); writes demos/01_hello_world/RESULTS.md. demos/01_hello_world/project_description.txt added. On failure: copies to demos/01_hello_world/failure/<stamp>, capture_result.json, optional issue_template.md. Run after E2E or with --output-dir. |
-| 5.7  | Run Demo Project 2 — TODO App (Full-Stack) | [phase-5-7-demo-project-2-todo-app-full-stack.md](phase-5-7-demo-project-2-todo-app-full-stack.md) | Pending | AITeamFlow builds it; full-stack spec; capture_demo extended; RESULTS.md. |
-| 5.8  | Run Demo Project 3 — Data Pipeline | [phase-5-8-demo-project-3-data-pipeline.md](phase-5-8-demo-project-3-data-pipeline.md) | Pending | AITeamFlow builds it; ETL/CLI spec; RESULTS.md. |
-| 5.9  | Generate Iteration and Fix Workflow | [phase-5-9-iteration-and-fix-script.md](phase-5-9-iteration-and-fix-script.md) | Pending | run_all_demos.py; real runs primary; --fix (root cause, fix_recommendations.md); --compare; iteration_log.json; ITERATION_PLAYBOOK.md; CI exit 0 only if all pass. |
+| 5.1  | Generate Unit Test Suite | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | **Pending** | |
+| 5.2  | Generate Integration Test Suite | [phase-5-2-integration-tests.md](phase-5-2-integration-tests.md) | **Pending** | |
+| 5.3  | Generate Guardrail Test Suite | [phase-5-3-guardrail-test-suite.md](phase-5-3-guardrail-test-suite.md) | **Pending** | |
+| 5.4  | Generate E2E Test — Hello World Flask API | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | **Pending** | |
+| 5.5  | Generate Performance Benchmarks | [phase-5-5-performance-tests.md](phase-5-5-performance-tests.md) | **Pending** | |
+| 5.6  | Run Demo Project 1 — Hello World Flask API | [phase-5-6-demo-project-1-hello-world-flask-api.md](phase-5-6-demo-project-1-hello-world-flask-api.md) | **Pending** | |
+| 5.7  | Run Demo Project 2 — TODO App (Full-Stack) | [phase-5-7-demo-project-2-todo-app-full-stack.md](phase-5-7-demo-project-2-todo-app-full-stack.md) | **Pending** | |
+| 5.8  | Run Demo Project 3 — Data Pipeline | [phase-5-8-demo-project-3-data-pipeline.md](phase-5-8-demo-project-3-data-pipeline.md) | **Pending** | |
+| 5.9  | Generate Iteration and Fix Workflow | [phase-5-9-iteration-and-fix-script.md](phase-5-9-iteration-and-fix-script.md) | **Pending** | |
 
 ---
 
@@ -180,7 +197,8 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 2     | 14 | 0 | 14 |
 | 3     | 13 | 0 | 13 |
 | 4     | 8 | 0 | 8 |
-| 5     | 5 | 4 | 9 |
+| 4.A   | 3 | 6 | 9 |
+| 5     | 0 | 9 | 9 |
 | 6     | 0 | 8 | 8 |
 | 7     | 0 | 13 | 13 |
-| **Total** | **50** | **25** | **75** |
+| **Total** | **48** | **36** | **84** |
