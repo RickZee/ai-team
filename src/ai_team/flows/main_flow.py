@@ -10,7 +10,7 @@ integration, flow visualization via plot(), and comprehensive logging.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -40,6 +40,7 @@ from ai_team.flows.routing import (
 from ai_team.flows.state import ProjectPhase, ProjectState
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, DeploymentConfig
+from ai_team.monitor import MonitorCallback, TeamMonitor
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.tools.test_tools import TestRunResult
 
@@ -159,10 +160,15 @@ class AITeamFlow(Flow[ProjectState]):
     Use plot() for flow visualization. State is persisted to output_dir on completion/error.
     """
 
-    def __init__(self, feedback_handler: Optional[HumanFeedbackHandler] = None) -> None:
+    def __init__(
+        self,
+        feedback_handler: Optional[HumanFeedbackHandler] = None,
+        monitor: Optional[TeamMonitor] = None,
+    ) -> None:
         super().__init__()
         self.logger = structlog.get_logger().bind(flow="AITeamFlow")
         self._feedback_handler = feedback_handler
+        self._monitor = monitor
 
     def _get_feedback_handler(self) -> HumanFeedbackHandler:
         """Return injected handler or one built from settings (for CLI/UI and timeout)."""
@@ -183,6 +189,8 @@ class AITeamFlow(Flow[ProjectState]):
         Project description must be set on state before kickoff (e.g. run_ai_team(description)).
         Initializes validation, runs security guardrail, logs project start.
         """
+        if self._monitor:
+            self._monitor.on_phase_change("intake")
         desc = (self.state.project_description or "").strip()
         self.logger.info("intake_started", request_length=len(desc), project_id=self.state.project_id)
 
@@ -203,6 +211,10 @@ class AITeamFlow(Flow[ProjectState]):
         from ai_team.guardrails import SecurityGuardrails
 
         is_safe, message = SecurityGuardrails.validate_prompt_injection(desc)
+        if self._monitor:
+            self._monitor.on_guardrail(
+                "security", "prompt_injection", "pass" if is_safe else "fail", message or ""
+            )
         if not is_safe:
             self.state.add_error(
                 ProjectPhase.INTAKE, "security_error", message, recoverable=False
@@ -234,12 +246,30 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("run_planning")
     def run_planning_crew(self) -> Dict[str, Any]:
         """Execute PlanningCrew with project description; store requirements and architecture in state."""
+        if self._monitor:
+            self._monitor.on_phase_change("planning")
+            self._monitor.on_log(
+                "system",
+                "Planning crew started, waiting for first response…",
+                "info",
+            )
         self.logger.info("planning_started", project_id=self.state.project_id)
 
         try:
             from ai_team.crews.planning_crew import kickoff as planning_crew_kickoff
 
-            result = planning_crew_kickoff(self.state.project_description or "")
+            step_cb = task_cb = None
+            verbose = None
+            if self._monitor:
+                cb = MonitorCallback(self._monitor)
+                step_cb, task_cb = cb.on_step, cb.on_task
+                verbose = False  # avoid CrewAI's live status output; use our TUI only
+            result = planning_crew_kickoff(
+                self.state.project_description or "",
+                step_callback=step_cb,
+                task_callback=task_cb,
+                verbose=verbose,
+            )
             self.state.requirements, self.state.architecture, needs_clarification = _parse_planning_output(
                 result
             )
@@ -247,6 +277,10 @@ class AITeamFlow(Flow[ProjectState]):
                 ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "Planning completed"
             )
             reset_circuit(self.state, ProjectPhase.PLANNING)
+            try:
+                _persist_state(self.state)
+            except Exception:
+                pass
             confidence = 0.5 if needs_clarification else 1.0
             self.logger.info(
                 "planning_complete",
@@ -261,9 +295,10 @@ class AITeamFlow(Flow[ProjectState]):
                 "confidence": confidence,
             }
         except Exception as e:
-            self.logger.error("planning_failed", error=str(e), exc_info=True)
-            self.state.metadata["last_crew_error"] = {"error": str(e)}
-            return {"status": "error", "error": str(e)}
+            err_msg = str(e)
+            self.logger.error("planning_failed", error=err_msg)
+            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            return {"status": "error", "error": err_msg}
 
     @router(run_planning_crew)
     def route_after_planning(self, planning_result: Dict[str, Any]) -> str:
@@ -273,6 +308,13 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("run_development")
     def run_development_crew(self) -> Dict[str, Any]:
         """Execute DevelopmentCrew with planning outputs; store generated files in state."""
+        if self._monitor:
+            self._monitor.on_phase_change("development")
+            self._monitor.on_log(
+                "system",
+                "Development crew started, waiting for first response…",
+                "info",
+            )
         self.logger.info("development_started", project_id=self.state.project_id)
 
         try:
@@ -280,9 +322,18 @@ class AITeamFlow(Flow[ProjectState]):
                 raise ValueError("Planning outputs missing: requirements and architecture required")
             from ai_team.crews.development_crew import kickoff as development_crew_kickoff
 
+            step_cb = task_cb = None
+            verbose = True
+            if self._monitor:
+                cb = MonitorCallback(self._monitor)
+                step_cb, task_cb = cb.on_step, cb.on_task
+                verbose = False  # avoid CrewAI's live status output; use our TUI only
             code_files, deployment_config = development_crew_kickoff(
                 self.state.requirements,
                 self.state.architecture,
+                step_callback=step_cb,
+                task_callback=task_cb,
+                verbose=verbose,
             )
             self.state.generated_files = code_files
             if deployment_config is not None:
@@ -291,6 +342,10 @@ class AITeamFlow(Flow[ProjectState]):
                 ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "Code generated"
             )
             reset_circuit(self.state, ProjectPhase.DEVELOPMENT)
+            try:
+                _persist_state(self.state)
+            except Exception:
+                pass
             self.logger.info(
                 "development_complete",
                 files_count=len(self.state.generated_files),
@@ -298,9 +353,10 @@ class AITeamFlow(Flow[ProjectState]):
             )
             return {"status": "success", "files": self.state.generated_files}
         except Exception as e:
-            self.logger.error("development_failed", error=str(e), exc_info=True)
-            self.state.metadata["last_crew_error"] = {"error": str(e)}
-            return {"status": "error", "error": str(e)}
+            err_msg = str(e)
+            self.logger.error("development_failed", error=err_msg)
+            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            return {"status": "error", "error": err_msg}
 
     @router(run_development_crew)
     def route_after_development(self, dev_result: Dict[str, Any]) -> str:
@@ -310,6 +366,13 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("run_testing")
     def run_testing_crew(self) -> Dict[str, Any]:
         """Execute TestingCrew with code files; store test results in state."""
+        if self._monitor:
+            self._monitor.on_phase_change("testing")
+            self._monitor.on_log(
+                "system",
+                "Testing crew started, waiting for first response…",
+                "info",
+            )
         self.logger.info("testing_started", project_id=self.state.project_id)
 
         try:
@@ -317,13 +380,33 @@ class AITeamFlow(Flow[ProjectState]):
                 raise ValueError("No generated files to test")
             from ai_team.crews.testing_crew import kickoff as testing_crew_kickoff
 
-            output = testing_crew_kickoff(self.state.generated_files)
+            step_cb = task_cb = None
+            verbose = False
+            if self._monitor:
+                cb = MonitorCallback(self._monitor)
+                step_cb, task_cb = cb.on_step, cb.on_task
+                verbose = False  # keep False; avoid CrewAI's live status output
+            output = testing_crew_kickoff(
+                self.state.generated_files,
+                step_callback=step_cb,
+                task_callback=task_cb,
+                verbose=verbose,
+            )
             self.state.test_results = output.test_run_result
             if output.quality_gate_passed and output.test_run_result:
+                if self._monitor and output.test_run_result:
+                    self._monitor.on_test_result(
+                        passed=output.test_run_result.passed or 0,
+                        failed=output.test_run_result.failed or 0,
+                    )
                 self.state.add_phase_transition(
                     ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "Tests passed"
                 )
                 reset_circuit(self.state, ProjectPhase.TESTING)
+                try:
+                    _persist_state(self.state)
+                except Exception:
+                    pass
                 self.logger.info(
                     "testing_complete",
                     quality_gate_passed=True,
@@ -338,9 +421,10 @@ class AITeamFlow(Flow[ProjectState]):
             )
             return {"status": "tests_failed", "results": output.test_run_result, "output": output}
         except Exception as e:
-            self.logger.error("testing_failed", error=str(e), exc_info=True)
-            self.state.metadata["last_crew_error"] = {"error": str(e)}
-            return {"status": "error", "error": str(e)}
+            err_msg = str(e)
+            self.logger.error("testing_failed", error=err_msg)
+            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            return {"status": "error", "error": err_msg}
 
     @router(run_testing_crew)
     def route_after_testing(self, test_result: Dict[str, Any]) -> str:
@@ -350,12 +434,23 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("run_deployment")
     def run_deployment_crew(self) -> Dict[str, Any]:
         """Execute DeploymentCrew; package output to output_dir and store deployment config in state."""
+        if self._monitor:
+            self._monitor.on_phase_change("deployment")
+            self._monitor.on_log(
+                "system",
+                "Deployment crew started, waiting for first response…",
+                "info",
+            )
         self.logger.info("deployment_started", project_id=self.state.project_id)
 
         try:
             from ai_team.crews.deployment_crew import DeploymentCrew, package_output
 
-            crew = DeploymentCrew(verbose=False)
+            step_cb = task_cb = None
+            if self._monitor:
+                cb = MonitorCallback(self._monitor)
+                step_cb, task_cb = cb.on_step, cb.on_task
+            crew = DeploymentCrew(verbose=False, step_callback=step_cb, task_callback=task_cb)
             product_owner_context = None
             if self.state.requirements:
                 product_owner_context = self.state.requirements.description
@@ -374,12 +469,17 @@ class AITeamFlow(Flow[ProjectState]):
                 ProjectPhase.DEPLOYMENT, ProjectPhase.COMPLETE, "Deployment configured"
             )
             reset_circuit(self.state, ProjectPhase.DEPLOYMENT)
+            try:
+                _persist_state(self.state)
+            except Exception:
+                pass
             self.logger.info("deployment_complete", output_dir=str(output_dir))
             return {"status": "success", "config": self.state.deployment_config}
         except Exception as e:
-            self.logger.error("deployment_failed", error=str(e), exc_info=True)
-            self.state.metadata["last_crew_error"] = {"error": str(e)}
-            return {"status": "error", "error": str(e)}
+            err_msg = str(e)
+            self.logger.error("deployment_failed", error=err_msg)
+            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            return {"status": "error", "error": err_msg}
 
     @router(run_deployment_crew)
     def route_after_deployment(self, deploy_result: Dict[str, Any]) -> str:
@@ -389,7 +489,9 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("finalize_project")
     def finalize_project(self) -> Dict[str, Any]:
         """Package outputs, generate summary, persist state, log completion."""
-        self.state.completed_at = datetime.utcnow()
+        if self._monitor:
+            self._monitor.on_phase_change("complete")
+        self.state.completed_at = datetime.now(timezone.utc)
         duration = self.state.get_duration()
         duration_seconds = duration.total_seconds()
 
@@ -512,6 +614,8 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("handle_fatal_error")
     def handle_fatal_error(self) -> Dict[str, Any]:
         """Handle unrecoverable errors (e.g. intake rejection). Persist state and transition to ERROR."""
+        if self._monitor:
+            self._monitor.on_phase_change("error")
         self.state.add_phase_transition(self.state.current_phase, ProjectPhase.ERROR, "Fatal error")
         try:
             _persist_state(self.state)
@@ -652,20 +756,33 @@ class AITeamFlow(Flow[ProjectState]):
         return mermaid
 
 
-def run_ai_team(project_description: str) -> Dict[str, Any]:
+def run_ai_team(
+    project_description: str,
+    monitor: Optional[TeamMonitor] = None,
+) -> Dict[str, Any]:
     """
     Main entry point to run the AI Team flow.
 
     Initializes ProjectState with project_description and runs the flow.
+    If monitor is provided, starts it before kickoff and stops it after (or on error).
     Returns the final result and full state dump.
     """
-    flow = AITeamFlow()
-    flow.state.project_description = project_description
-    result = flow.kickoff()
-    return {
-        "result": result,
-        "state": flow.state.model_dump(mode="json"),
-    }
+    if monitor:
+        monitor.start()
+    try:
+        flow = AITeamFlow(monitor=monitor)
+        flow.state.project_description = project_description
+        result = flow.kickoff()
+        if monitor:
+            monitor.stop("complete")
+        return {
+            "result": result,
+            "state": flow.state.model_dump(mode="json"),
+        }
+    except Exception:
+        if monitor:
+            monitor.stop("error")
+        raise
 
 
 if __name__ == "__main__":

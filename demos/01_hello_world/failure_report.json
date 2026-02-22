@@ -1,0 +1,11 @@
+{
+  "assertion_failed": "Flow completes without exception",
+  "error_context": {
+    "exception_type": "RecursionError",
+    "exception_message": "maximum recursion depth exceeded",
+    "state_current_phase": "planning",
+    "state_errors": [],
+    "duration_seconds": 1489.39
+  },
+  "last_agent_output": ""
+}

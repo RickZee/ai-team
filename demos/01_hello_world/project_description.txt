@@ -1,0 +1,7 @@
+Create a simple Flask REST API with:
+ - GET /health endpoint returning {status: ok, version: 1.0}
+ - GET /items returning a list of items from in-memory storage
+ - POST /items accepting {name: str} and adding to the list
+ - Proper error handling (400 for bad input, 404 for not found)
+ - Unit tests with pytest covering all endpoints and edge cases
+ - Requirements.txt and Dockerfile

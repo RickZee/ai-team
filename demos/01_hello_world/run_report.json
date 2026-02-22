@@ -1,0 +1,9 @@
+{
+  "duration_seconds": 0,
+  "token_estimate": 0,
+  "retry_count": 0,
+  "retry_counts_per_phase": {},
+  "project_id": "demo-01-fixture",
+  "current_phase": "complete",
+  "files_generated": 4
+}

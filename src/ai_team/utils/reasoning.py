@@ -42,7 +42,7 @@ REASONING_TEMPLATES: Dict[str, str] = {
 OUTPUT_FORMAT_INSTRUCTIONS: Dict[str, str] = {
     "requirements": (
         "Respond with a valid JSON object matching RequirementsDocument: "
-        "project_name, description, target_users (list), user_stories (list of {as_a, i_want, so_that, "
+        "project_name, description (required—brief top-level project summary in 1–2 sentences), target_users (list), user_stories (list of {as_a, i_want, so_that, "
         "acceptance_criteria: [{description, testable}], priority: MoSCoW}), "
         "non_functional_requirements (list of {category, description, measurable}), "
         "assumptions (list), constraints (list). Include at least 3 user stories with acceptance criteria."

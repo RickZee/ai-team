@@ -100,6 +100,21 @@ class TestRequirementsGuardrail:
         passed, _ = requirements_guardrail(result)
         assert passed is True
 
+    def test_passes_json_embedded_in_prose(self) -> None:
+        """Guardrail extracts first top-level {...} when output is prose + JSON."""
+        doc = {
+            "project_name": "Todo API",
+            "description": "REST API for a todo list",
+            "user_stories": [
+                {"as_a": "user", "i_want": "list items", "so_that": "I can track work", "acceptance_criteria": [{"description": "AC1", "testable": True}], "priority": "Must have"},
+                {"as_a": "user", "i_want": "add items", "so_that": "I can add tasks", "acceptance_criteria": [{"description": "AC2", "testable": True}], "priority": "Must have"},
+                {"as_a": "user", "i_want": "delete items", "so_that": "I can remove tasks", "acceptance_criteria": [{"description": "AC3", "testable": True}], "priority": "Should have"},
+            ],
+        }
+        wrapped = "Here are the requirements.\n\n" + json.dumps(doc) + "\n\nWe also need NFRs later."
+        passed, _ = requirements_guardrail(wrapped)
+        assert passed is True
+
 
 class TestArchitectureGuardrail:
     """Test guardrail: architecture structural completeness."""
@@ -122,6 +137,20 @@ class TestArchitectureGuardrail:
             "ascii_diagram": "  [API] --> [Client]  ",
         }
         passed, _ = architecture_guardrail(json.dumps(doc))
+        assert passed is True
+
+    def test_passes_json_embedded_in_prose(self) -> None:
+        """Guardrail extracts first top-level {...} when output is prose + JSON."""
+        doc = {
+            "system_overview": "A minimal system for testing fallback extraction.",
+            "components": [{"name": "API", "responsibilities": "Serves requests"}],
+            "technology_stack": [{"name": "Python", "category": "backend", "justification": "Simple"}],
+            "interface_contracts": [],
+            "adrs": [{"title": "T", "status": "Accepted", "context": "C", "decision": "D", "consequences": "E"}],
+            "ascii_diagram": "  [API] --> [Client]  ",  # long enough for guardrail
+        }
+        wrapped = "Here is the architecture.\n\n" + json.dumps(doc) + "\n\nExplanation: we chose Python."
+        passed, _ = architecture_guardrail(wrapped)
         assert passed is True
 
 
