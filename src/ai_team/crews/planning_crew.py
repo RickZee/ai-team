@@ -16,8 +16,8 @@ from crewai.crew import CrewOutput
 from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.manager import create_manager_agent
 from ai_team.agents.product_owner import create_product_owner_agent
+from ai_team.config.llm_factory import get_embedder_config
 from ai_team.config.settings import get_settings
-from ai_team.memory import get_crew_embedder_config
 from ai_team.tasks.planning_tasks import create_planning_tasks
 from ai_team.utils.llm_wrapper import NoFunctionCallingLLMWrapper
 
@@ -141,7 +141,7 @@ def create_planning_crew(
         process=process,
         manager_agent=manager_agent,
         memory=use_memory,
-        embedder=get_crew_embedder_config() if use_memory else None,
+        embedder=get_embedder_config() if use_memory else None,
         planning=planning,
         planning_llm=planning_llm,
         verbose=verbose,

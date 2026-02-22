@@ -9,16 +9,17 @@ packages = [{include = "ai_team", from = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<=3.13"
+# OpenRouter: crewai (includes LiteLLM), pydantic-settings (OpenRouterSettings), rich (cost display)
 crewai = "^1.0.0"
 crewai-tools = "^1.0.0"
 langchain-ollama = "^0.2.0"
 langchain-community = "^0.3.0"
 pydantic = "^2.7.0"
-pydantic-settings = "^2.2.0"
+pydantic-settings = ">=2.2.0"
 python-dotenv = "^1.0.0"
 gradio = "^4.0.0"
 structlog = "^24.1.0"
-rich = "^13.7.0"
+rich = ">=13.0.0"
 chromadb = ">=1.1.0,<1.2.0"
 sqlalchemy = "^2.0.0"
 aiosqlite = "^0.20.0"

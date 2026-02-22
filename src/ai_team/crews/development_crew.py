@@ -20,7 +20,7 @@ from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.backend_developer import create_backend_developer
 from ai_team.agents.frontend_developer import create_frontend_developer
 from ai_team.agents.devops_engineer import create_devops_engineer
-from ai_team.memory import get_crew_embedder_config
+from ai_team.config.llm_factory import get_embedder_config
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
@@ -229,7 +229,7 @@ def create_development_crew(
         manager_agent=architect,
         manager_llm=manager_llm,
         memory=memory,
-        embedder=get_crew_embedder_config() if memory else None,
+        embedder=get_embedder_config() if memory else None,
         verbose=verbose,
     )
     return crew
@@ -280,7 +280,7 @@ def kickoff(
         manager_agent=architect,
         manager_llm=manager_llm,
         memory=memory,
-        embedder=get_crew_embedder_config() if memory else None,
+        embedder=get_embedder_config() if memory else None,
         verbose=verbose,
         step_callback=step_callback,
         task_callback=task_callback,
