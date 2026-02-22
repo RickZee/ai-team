@@ -1,8 +1,9 @@
 """
 Base Agent for AI Team.
 
-Extends CrewAI's Agent with configuration from YAML/settings, Ollama LLM,
-structlog, memory hooks, guardrails, retry logic, token tracking, and health checks.
+Extends CrewAI's Agent with configuration from YAML/settings, LLM from
+create_llm_for_role (OpenRouter), structlog, memory hooks, guardrails,
+retry logic, token tracking, and health checks.
 """
 
 from pathlib import Path
@@ -19,6 +20,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from ai_team.config.llm_factory import create_llm_for_role
+from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings
 from ai_team.guardrails import SecurityGuardrails
 
@@ -153,21 +156,12 @@ class BaseAgent(Agent):
         settings = get_settings()
 
         if llm is None:
-            settings_key = ROLE_TO_SETTINGS_KEY.get(role_name.lower(), role_name.lower())
-            model = settings.ollama.get_model_for_role(settings_key)
-            # CrewAI 1.x resolves LLM by model name; use "ollama/<model>" so it uses
-            # LiteLLM for Ollama instead of the native OpenAI provider (which requires OPENAI_API_KEY).
-            base = settings.ollama.base_url
-            llm = LLM(
-                model=f"ollama/{model}",
-                api_base=base,
-                base_url=base,
-                timeout=settings.ollama.request_timeout,
-            )
+            openrouter = OpenRouterSettings()
+            llm = create_llm_for_role(role_name, openrouter)
             logger.info(
                 "agent_llm_initialized",
                 role_name=role_name,
-                model=model,
+                model=getattr(llm, "model", None),
             )
 
         tool_list = list(tools) if tools else []
