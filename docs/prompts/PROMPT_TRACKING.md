@@ -30,6 +30,15 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 6 | 1 | 6.2, 6.3, 6.4 | UI components; independent. |
 | 6 | 2 | 6.1 | Main Gradio app (uses 6.2–6.4). |
 | 6 | 3 | 6.5, 6.6, 6.7, 6.8 | After 6.1; recording, docs, polish, social. |
+| 7 | 1 | 7.1 | CDK setup first. |
+| 7 | 2 | 7.2 | Runtime Adapter after 7.1. |
+| 7 | 3 | 7.3, 7.4 | Bedrock + Dockerfile after 7.2. |
+| 7 | 4 | 7.5 | Runtime Stack after 7.4. |
+| 7 | 5 | 7.6, 7.7, 7.8, 7.9 | Memory, Gateway, Observability, Identity after 7.5. |
+| 7 | 6 | 7.10 | Settings refactor (depends on 7.3). |
+| 7 | 7 | 7.11 | Cloud integration tests after 7.5–7.9. |
+| 7 | 8 | 7.12 | Deploy scripts after 7.11. |
+| 7 | 9 | 7.13 | Cost & cleanup after 7.12. |
 
 ---
 
@@ -118,9 +127,9 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 5.1  | Generate Unit Test Suite | [phase-5-1-unit-tests.md](phase-5-1-unit-tests.md) | **Done** | Created tests/unit/test_agents.py, test_guardrails.py, test_memory.py, test_tools.py, test_settings.py with 79 tests (BaseAgent/roles, model assignment, guardrails, memory ChromaDB/SQLite/embedder/cleanup/TTL, file + PO + QA tools, settings/env/validation). Shared fixtures in conftest.py. Full unit suite: 319 passed; coverage ~44% (85% would need more crew/flow/task tests). Run: `poetry run pytest tests/unit/ --cov=src/ai_team`. |
 | 5.2  | Generate Integration Test Suite | [phase-5-2-integration-tests.md](phase-5-2-integration-tests.md) | **Done** | test_crews.py: Planning→RequirementsDocument+ArchitectureDocument, Development→CodeFile list, Testing→TestRunResult, Deployment→handoff; mock LLM and crew kickoff. test_flow_routing.py: state transitions INTAKE→…→DEPLOY, routing per phase, QA fail→retry_development, escalate_to_human. test_memory_integration.py: before_task/after_task store context and output, cross-session retrieval, get_crew_embedder_config returns Ollama. test_guardrails_in_flow.py: guardrail rejection→retry, max retry raises, callback on rejection, flow continues when pass. @pytest.mark.slow on memory/Ollama tests; fast subset: `poetry run pytest tests/integration/ -m "not slow"`. |
 | 5.3  | Generate Guardrail Test Suite | [phase-5-3-guardrail-test-suite.md](phase-5-3-guardrail-test-suite.md) | **Done** | tests/guardrails/: conftest (TaskOutputMock, task_output_factory), test_behavioral_guardrails (role adherence frontend/architect/manager, scope, reasoning), test_security_guardrails (code safety, secrets, PII), test_quality_guardrails (code quality, coverage, output format), test_retry_behavior (fail-then-pass, max retries raises ValueError, failure context, per-phase retry reset). Added manager ROLE_RESTRICTIONS and reasoning_guardrail in behavioral.py; I/O and hardcoded-credentials checks in quality code_quality_guardrail. Retry limit implemented as ValueError (no MaxRetriesExceeded type). |
-| 5.4  | Generate E2E Test — Hello World Flask API | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | **Done** | tests/e2e/test_e2e_hello_world.py: real AITeamFlow run (MockHumanFeedbackHandler); asserts flow completion, app.py/test_app.py/requirements.txt/Dockerfile, ast.parse, flask+pytest in requirements, FROM in Dockerfile, pytest exit 0, /health 200; on success copies to demos/01_hello_world/output/ and writes run_report.json; on failure writes failure_report.json. Marked @pytest.mark.e2e @pytest.mark.slow. Run: poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s. |
-| 5.5  | Generate Performance Benchmarks | [phase-5-5-performance-tests.md](phase-5-5-performance-tests.md) | **Done** | Per-crew benchmarks, phase budgets, hardware profiles (8GB/16GB VRAM), token estimation; docs/performance_report.md, docs/benchmark_results.json. |
-| 5.6  | Run Demo Project 1 — Hello World Flask API | [phase-5-6-demo-project-1-hello-world-flask-api.md](phase-5-6-demo-project-1-hello-world-flask-api.md) | Pending | AITeamFlow builds it; capture_demo.py; project_description.txt; RESULTS.md; success criteria. |
+| 5.4  | Generate E2E Test — Hello World Flask API | [phase-5-4-e2e-tests.md](phase-5-4-e2e-tests.md) | **Done** | tests/e2e/test_e2e_hello_world.py: real AITeamFlow run (MockHumanFeedbackHandler); asserts flow completion, app.py/test_app.py/requirements.txt/Dockerfile, ast.parse, flask+pytest in requirements, FROM in Dockerfile, pytest exit 0, /health 200; on success copies to demos/01_hello_world/output/ and writes run_report.json; on failure writes failure_report.json. Marked @pytest.mark.e2e @pytest.mark.slow. Run: poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s. Test output is the demo artifact; no separate demo script. |
+| 5.5  | Generate Performance Benchmarks | [phase-5-5-performance-tests.md](phase-5-5-performance-tests.md) | **Done** | tests/performance/test_benchmarks.py: per-crew (Planning, Development, QA, Deployment), full flow Demo 1, cProfile bottlenecks, hardware profiles (memory_preset → 8GB/16GB), token estimation → projected OpenAI cost + local-first note. Run: `poetry run pytest tests/performance/ -v -s --tb=short`. Saves docs/benchmark_results.json and docs/performance_report.md. Real LLM via AI_TEAM_BENCHMARK_FULL=1 or AI_TEAM_USE_REAL_LLM=1. |
+| 5.6  | Run Demo Project 1 — Hello World Flask API | [phase-5-6-demo-project-1-hello-world-flask-api.md](phase-5-6-demo-project-1-hello-world-flask-api.md) | **Done** | scripts/capture_demo.py: verify files, pytest+coverage, ruff, docker build, smoke test (health/items); writes demos/01_hello_world/RESULTS.md. demos/01_hello_world/project_description.txt added. On failure: copies to demos/01_hello_world/failure/<stamp>, capture_result.json, optional issue_template.md. Run after E2E or with --output-dir. |
 | 5.7  | Run Demo Project 2 — TODO App (Full-Stack) | [phase-5-7-demo-project-2-todo-app-full-stack.md](phase-5-7-demo-project-2-todo-app-full-stack.md) | Pending | AITeamFlow builds it; full-stack spec; capture_demo extended; RESULTS.md. |
 | 5.8  | Run Demo Project 3 — Data Pipeline | [phase-5-8-demo-project-3-data-pipeline.md](phase-5-8-demo-project-3-data-pipeline.md) | Pending | AITeamFlow builds it; ETL/CLI spec; RESULTS.md. |
 | 5.9  | Generate Iteration and Fix Workflow | [phase-5-9-iteration-and-fix-script.md](phase-5-9-iteration-and-fix-script.md) | Pending | run_all_demos.py; real runs primary; --fix (root cause, fix_recommendations.md); --compare; iteration_log.json; ITERATION_PLAYBOOK.md; CI exit 0 only if all pass. |
@@ -142,17 +151,36 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 ---
 
+## Phase 7: AWS Bedrock AgentCore Deployment
+
+| ID   | Prompt | File | Status | Notes |
+|------|--------|------|--------|------|
+| 7.1  | Initialize CDK Project | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | CDK app, stacks, constructs, tests. |
+| 7.2  | Create AgentCore Runtime Adapter | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | BedrockAgentCoreApp entrypoint, AITeamFlow wrapper. |
+| 7.3  | Add Bedrock Model Integration | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | DeploymentMode, BedrockModelConfig, langchain_aws. |
+| 7.4  | Create Production Dockerfile | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | ARM64 multi-stage, docker/Dockerfile.agentcore. |
+| 7.5  | Create Runtime CDK Stack | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | DockerImageAsset, AgentCore Runtime, S3 output bucket. |
+| 7.6  | Create Memory CDK Stack | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | AgentCore Memory STM/LTM, agentcore_memory adapter. |
+| 7.7  | Create Gateway CDK Stack | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | MCP Gateway, Lambda tools (file, code, test). |
+| 7.8  | Create Observability CDK Stack | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | CloudWatch dashboard, alarms, OpenTelemetry. |
+| 7.9  | Create Identity CDK Stack | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | Cognito User Pool, AgentCore Identity. |
+| 7.10 | Refactor Settings for Deployment Mode | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | get_settings(), AgentCore/Local/HybridSettings. |
+| 7.11 | Create Cloud Integration Tests | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | tests/cloud/, boto3 InvokeAgentRuntime. |
+| 7.12 | Create Deploy and Destroy Scripts | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | deploy_agentcore.sh, destroy_agentcore.sh, Makefile. |
+| 7.13 | Create Cost Estimation and Budget Alerts | [phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md) | Pending | budget_stack.py, docs/COST_ESTIMATION.md. |
+
+---
+
 ## Summary
 
 | Phase | Done | Pending | Total |
 |-------|------|--------|-------|
 | 0     | 5 | 0 | 5 |
-| 1     | 3 | 2 | 5 |
-| 2     | 5 | 9 | 14 |
-| 3     | 4 | 9 | 13 |
-| 4     | 3 | 4 | 7 |
-| 5     | 0 | 9 | 9 |
+| 1     | 5 | 0 | 5 |
+| 2     | 14 | 0 | 14 |
+| 3     | 13 | 0 | 13 |
+| 4     | 8 | 0 | 8 |
+| 5     | 5 | 4 | 9 |
 | 6     | 0 | 8 | 8 |
-| **Total** | **20** | **40** | **60** |
-
-*Phase 4 combines tasks 4.1–4.3 into one prompt by design (60 prompts total). Update the Status and Notes columns as prompts are run.*
+| 7     | 0 | 13 | 13 |
+| **Total** | **50** | **25** | **75** |

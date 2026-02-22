@@ -15,10 +15,7 @@ import yaml
 from crewai import Task
 
 from ai_team.agents.architect import validate_architecture_against_requirements
-from ai_team.agents.product_owner import (
-    _dict_to_requirements_document,
-    _extract_json_block,
-)
+from ai_team.agents.product_owner import _dict_to_requirements_document
 from ai_team.config.settings import get_settings
 from ai_team.models.architecture import (
     ArchitectureDecisionRecord,
@@ -90,23 +87,24 @@ def requirements_guardrail(task_output: Any) -> Tuple[bool, Any]:
     Guardrail: requirements must have at least 3 user stories with acceptance
     criteria. Task output can be string or CrewAI result; parsed as JSON when
     possible. Returns (passed, result) for CrewAI Task guardrail API.
+    Result must be a string when passed=False so CrewAI does not receive TaskOutput.
     """
     text = _task_output_text(task_output)
-    data = _extract_json_block(text)
+    data = _extract_json_block_for_requirements(text)
     if not data:
         logger.warning("requirements_guardrail_no_json", output_preview=text[:200])
-        return (False, task_output)
+        return (False, "Requirements guardrail: no valid JSON in output.")
     doc = _dict_to_requirements_document(data)
     if not doc:
         logger.warning("requirements_guardrail_parse_failed")
-        return (False, task_output)
+        return (False, "Requirements guardrail: failed to parse RequirementsDocument.")
     if len(doc.user_stories) < MIN_USER_STORIES:
         logger.warning(
             "requirements_guardrail_too_few_stories",
             count=len(doc.user_stories),
             required=MIN_USER_STORIES,
         )
-        return (False, task_output)
+        return (False, f"Requirements guardrail: need at least {MIN_USER_STORIES} user stories with acceptance criteria.")
     for i, story in enumerate(doc.user_stories):
         if not story.acceptance_criteria:
             logger.warning(
@@ -114,22 +112,76 @@ def requirements_guardrail(task_output: Any) -> Tuple[bool, Any]:
                 story_index=i,
                 i_want=story.i_want[:60],
             )
-            return (False, task_output)
-    return (True, task_output)
+            return (False, f"Requirements guardrail: user story {i} missing acceptance_criteria.")
+    return (True, text)
 
 
-def _extract_json_block_for_arch(text: str) -> Optional[Dict[str, Any]]:
-    """Extract JSON from markdown block or raw JSON (shared pattern)."""
+def _find_balanced_brace_json(text: str) -> Optional[str]:
+    """Find first top-level {...} in text (balanced braces); return that substring or None."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
+
+def _extract_json_block_for_requirements(text: str) -> Optional[Dict[str, Any]]:
+    """Extract JSON from markdown block, raw JSON, or first top-level {...} in text."""
+    if not text or not text.strip():
+        return None
+    # 1) Markdown code block
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
         try:
             return json.loads(match.group(1).strip())
         except json.JSONDecodeError:
             pass
+    # 2) Whole text is JSON
     try:
         return json.loads(text.strip())
     except json.JSONDecodeError:
+        pass
+    # 3) First top-level JSON object in text (e.g. prose then { ... })
+    candidate = _find_balanced_brace_json(text)
+    if candidate:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
+    return None
+
+
+def _extract_json_block_for_arch(text: str) -> Optional[Dict[str, Any]]:
+    """Extract JSON from markdown block, raw JSON, or first top-level {...} in text."""
+    if not text or not text.strip():
         return None
+    # 1) Markdown code block
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    if match:
+        try:
+            return json.loads(match.group(1).strip())
+        except json.JSONDecodeError:
+            pass
+    # 2) Whole text is JSON
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError:
+        pass
+    # 3) First top-level JSON object in text (e.g. prose then { ... })
+    candidate = _find_balanced_brace_json(text)
+    if candidate:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
+    return None
 
 
 def _dict_to_architecture_document(data: Dict[str, Any]) -> Optional[ArchitectureDocument]:
@@ -190,21 +242,22 @@ def architecture_guardrail(task_output: Any) -> Tuple[bool, Any]:
     when requirements are not available; full check is done when the planning crew
     runs and can call validate_architecture_against_requirements(arch, requirements)
     after both tasks complete). Returns (passed, result) for CrewAI Task guardrail API.
+    Result must be a string when passed=False so CrewAI does not receive TaskOutput.
     """
     text = _task_output_text(task_output)
     data = _extract_json_block_for_arch(text)
     if not data:
         logger.warning("architecture_guardrail_no_json", output_preview=text[:200])
-        return (False, task_output)
+        return (False, "Architecture guardrail: no valid JSON in output.")
     arch = _dict_to_architecture_document(data)
     if not arch:
         logger.warning("architecture_guardrail_parse_failed")
-        return (False, task_output)
+        return (False, "Architecture guardrail: failed to parse ArchitectureDocument.")
     valid, gaps = validate_architecture_against_requirements(arch, requirements=None)
     if not valid:
         logger.warning("architecture_guardrail_gaps", gaps=gaps)
-        return (False, task_output)
-    return (True, task_output)
+        return (False, f"Architecture guardrail: gaps or incomplete ({gaps}).")
+    return (True, text)
 
 
 def _get_guardrail_for_task(task_key: str) -> Callable[[Any], Tuple[bool, Any]]:

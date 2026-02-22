@@ -14,7 +14,7 @@ import json
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
@@ -274,7 +274,7 @@ class LongTermStore:
     ) -> str:
         """Append a conversation turn. Returns row id."""
         row_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         with self._with_conn() as conn:
             conn.execute(
                 "INSERT INTO conversations (id, project_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -284,7 +284,7 @@ class LongTermStore:
 
     def add_metric(self, agent_role: str, model: str, metric_name: str, value: float) -> None:
         """Record an agent performance metric."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         with self._with_conn() as conn:
             conn.execute(
                 "INSERT INTO performance_metrics (agent_role, model, metric_name, value, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -294,7 +294,7 @@ class LongTermStore:
     def add_pattern(self, pattern_type: str, content: str) -> str:
         """Store a learned pattern (e.g. architecture decision, code pattern). Returns id."""
         row_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         with self._with_conn() as conn:
             conn.execute(
                 "INSERT INTO learned_patterns (id, pattern_type, content, created_at) VALUES (?, ?, ?, ?)",
@@ -354,7 +354,7 @@ class LongTermStore:
 
     def apply_retention(self) -> int:
         """Delete entries older than retention_days. Returns number of rows deleted."""
-        cutoff = (datetime.utcnow() - timedelta(days=self._retention_days)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=self._retention_days)).isoformat()
         deleted = 0
         with self._with_conn() as conn:
             for table in ("conversations", "performance_metrics", "learned_patterns"):
@@ -429,7 +429,7 @@ class EntityStore:
         attributes: Optional[Dict[str, Any]] = None,
     ) -> int:
         """Insert or update an entity. Returns entity id."""
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         attrs_json = json.dumps(attributes or {})
         with self._with_conn() as conn:
             conn.execute(
@@ -475,7 +475,7 @@ class EntityStore:
                     reason="entity_not_found",
                 )
                 return
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             meta_json = json.dumps(metadata or {})
             conn.execute(
                 """INSERT INTO entity_relationships (project_id, from_entity_id, to_entity_id, relationship_type, metadata, created_at)

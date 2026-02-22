@@ -19,6 +19,7 @@ from ai_team.agents.product_owner import create_product_owner_agent
 from ai_team.config.settings import get_settings
 from ai_team.memory import get_crew_embedder_config
 from ai_team.tasks.planning_tasks import create_planning_tasks
+from ai_team.utils.llm_wrapper import NoFunctionCallingLLMWrapper
 
 logger = structlog.get_logger(__name__)
 
@@ -44,6 +45,8 @@ def create_planning_crew(
     planning: bool = True,
     on_task_start: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     on_task_complete: Optional[Callable[[str, Any], None]] = None,
+    step_callback: Optional[Callable[..., None]] = None,
+    task_callback: Optional[Callable[..., None]] = None,
 ) -> Crew:
     """
     Create the Planning Crew with hierarchical process.
@@ -69,9 +72,33 @@ def create_planning_crew(
     if max_rpm is None:
         max_rpm = settings.project.crew_max_rpm
 
-    manager = create_manager_agent(config_path=config_path, agents_config=agents_config)
-    product_owner = create_product_owner_agent(config_path=config_path, agents_config=agents_config)
-    architect = create_architect_agent()
+    # When planning_sequential is True (Ollama), use sequential process and no tools for PO
+    # to avoid "Instructor does not support multiple tool calls" when the model uses tools.
+    use_sequential = getattr(settings.project, "planning_sequential", False)
+
+    # CrewAI hierarchical requires manager_agent to have no tools
+    manager = create_manager_agent(
+        tools=[],
+        config_path=config_path,
+        agents_config=agents_config,
+    )
+    product_owner = create_product_owner_agent(
+        tools=[] if use_sequential else None,
+        config_path=config_path,
+        agents_config=agents_config,
+    )
+    architect = create_architect_agent(tools=[] if use_sequential else None)
+
+    # When memory is enabled and we use sequential (Ollama), wrap agents' LLMs so that
+    # CrewAI's TaskEvaluator (long-term memory) uses the non-Instructor path. Otherwise
+    # Ollama can trigger "Instructor does not support multiple tool calls" when storing LTM.
+    if use_sequential and memory:
+        object.__setattr__(
+            product_owner, "llm", NoFunctionCallingLLMWrapper(product_owner.llm)
+        )
+        object.__setattr__(
+            architect, "llm", NoFunctionCallingLLMWrapper(architect.llm)
+        )
 
     agents_map = {
         "product_owner": product_owner,
@@ -82,36 +109,51 @@ def create_planning_crew(
         config_path=config_path,
     )
 
-    # Single task_callback for CrewAI: log task completion; on_task_start would require
-    # step_callback or custom handling if needed.
-    task_callback: Optional[Callable[..., None]] = None
-    if on_task_complete is not None:
-        def _task_callback(callback_arg: Any) -> None:
-            # CrewAI may pass (task, output); we log and forward
-            task_id = getattr(callback_arg, "task", None)
-            tid = str(getattr(task_id, "description", callback_arg)[:80]) if task_id else "unknown"
-            on_task_complete(tid, callback_arg)
-        task_callback = _task_callback
+    # step_callback / task_callback: when provided (e.g. from flow with monitor), use them.
+    # Otherwise build task_callback from on_task_complete or default logging.
+    final_step_cb = step_callback
+    final_task_cb: Optional[Callable[..., None]] = task_callback
+    if final_task_cb is None:
+        if on_task_complete is not None:
+            def _task_callback(callback_arg: Any) -> None:
+                task_id = getattr(callback_arg, "task", None)
+                tid = str(getattr(task_id, "description", callback_arg)[:80]) if task_id else "unknown"
+                on_task_complete(tid, callback_arg)
+            final_task_cb = _task_callback
+        else:
+            final_task_cb = _task_callback_for_logging()
+
+    # Apply sequential process and no planning when use_sequential (set above).
+    use_memory = memory
+    if use_sequential:
+        process = Process.sequential
+        manager_agent = None
+        planning = False
+        planning_llm = None
     else:
-        task_callback = _task_callback_for_logging()
+        process = Process.hierarchical
+        manager_agent = manager
+        planning_llm = getattr(manager, "llm", None) if planning else None
 
     crew = Crew(
         agents=[product_owner, architect],
         tasks=tasks_list,
-        process=Process.hierarchical,
-        manager_agent=manager,
-        memory=memory,
-        embedder=get_crew_embedder_config() if memory else None,
+        process=process,
+        manager_agent=manager_agent,
+        memory=use_memory,
+        embedder=get_crew_embedder_config() if use_memory else None,
         planning=planning,
+        planning_llm=planning_llm,
         verbose=verbose,
         max_rpm=max_rpm,
-        task_callback=task_callback,
+        step_callback=final_step_cb,
+        task_callback=final_task_cb,
     )
     logger.info(
         "planning_crew_created",
-        process="hierarchical",
+        process=process.name if hasattr(process, "name") else str(process),
         num_tasks=len(tasks_list),
-        memory=memory,
+        memory=use_memory,
         planning=planning,
         verbose=verbose,
     )
@@ -125,6 +167,8 @@ def kickoff(
     agents_config: Optional[Dict[str, Any]] = None,
     verbose: Optional[bool] = None,
     max_rpm: Optional[int] = None,
+    step_callback: Optional[Callable[..., None]] = None,
+    task_callback: Optional[Callable[..., None]] = None,
 ) -> CrewOutput:
     """
     Run the Planning Crew with the given project description.
@@ -142,6 +186,8 @@ def kickoff(
         agents_config=agents_config,
         verbose=verbose,
         max_rpm=max_rpm,
+        step_callback=step_callback,
+        task_callback=task_callback,
     )
     inputs = {"project_description": project_description}
     logger.info("planning_crew_kickoff", project_description_len=len(project_description))

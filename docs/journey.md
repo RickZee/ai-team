@@ -65,3 +65,19 @@ Skipping the busy Monday Feb 17... Who doesn't like to start learning at 5 AM?!
 Yes, as expected, the default Cursor Composer is quite limited. It confuses setups, stops at integration tests where Sonnet 4.6 gives clear, short and precise instructions.
 
 Cursor keeps bossing me around. I'm telling it to run the install script, then to execute the integration test. Result: it updated the readme file to tell *me* to execute the script and run the test. Thank you Cursor.
+
+## Feb 21
+
+After many out of memory reboots on my mac :)... Let's do something better. Let's use one of those LLM routers and see how much it'll cost.
+
+## Feb 22
+
+OK so running a smaller LLM definitely affects the team's performance. Big surprise. Alright so we're saving on cost running it locally be losing big time on actually being able to achieve results.
+
+Pivoting to using APIs, with strict cost control and monitoring today.
+
+Also, monitoring the CrewAI using logs is awkward. Let's build a very simple UI for it. Or TUI, as most people are not doing.
+
+OK so the basic project is now working. Now testing every step, adding more guardrails and tweaking prompts.
+
+Let's plan to deploy it on AWS AgentCore as well.

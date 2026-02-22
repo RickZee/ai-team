@@ -76,6 +76,20 @@ class TestModelAssignmentPerRole:
         model = o.get_model_for_role("manager")
         assert "8b" in model or "7b" in model
 
+    def test_single_model_overrides_all_roles(self) -> None:
+        with patch.dict(os.environ, {"OLLAMA_SINGLE_MODEL": "qwen2.5-coder:7b"}):
+            o = OllamaSettings()
+        for role in ("manager", "architect", "backend_dev", "qa"):
+            assert o.get_model_for_role(role) == "qwen2.5-coder:7b"
+
+    def test_32gb_single_preset_returns_qwen25_coder_7b_for_all(self) -> None:
+        with patch.dict(os.environ, {"OLLAMA_MEMORY_PRESET": "32gb_single"}):
+            o = OllamaSettings()
+        assert o.memory_preset == "32gb_single"
+        assert o.get_model_for_role("manager") == "qwen2.5-coder:7b"
+        assert o.get_model_for_role("architect") == "qwen2.5-coder:7b"
+        assert o.get_model_for_role("qa") == "qwen2.5-coder:7b"
+
 
 # -----------------------------------------------------------------------------
 # Validation errors for missing or invalid fields

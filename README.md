@@ -19,7 +19,7 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 | **End-to-end workflow** | Intake → Planning → Development → Testing → Deployment, driven by a single flow |
 | **Enterprise guardrails** | Behavioral (role, scope), security (code safety, PII, secrets), quality (syntax, completeness) |
 | **Local-first** | Ollama-backed models only; no OpenAI or cloud LLM usage |
-| **Observable** | Structured logging, flow state, and optional Gradio UI for progress and output |
+| **Observable** | Structured logging, flow state, optional **Rich TUI monitor** (live agents, phases, guardrails), and optional Gradio UI for progress and output |
 
 ## Architecture (ASCII)
 
@@ -99,6 +99,45 @@ python scripts/run_demo.py demos/02_todo_app
 ```
 
 Each demo directory contains `input.json` and `expected_output.json` for validation.
+
+## Real-time monitor
+
+A Rich-based terminal dashboard shows live agent activity, phase progress, guardrail results, and execution metrics (no extra dependencies beyond `rich`).
+
+```python
+from ai_team.monitor import TeamMonitor, MonitorCallback
+
+monitor = TeamMonitor(project_name="My Project")
+monitor.start()
+
+# Hook into your flow:
+monitor.on_phase_change("planning")
+monitor.on_agent_start("architect", "Designing system", "deepseek-r1:14b")
+monitor.on_guardrail("security", "code_safety", "pass")
+monitor.on_agent_finish("architect")
+
+# When done:
+monitor.stop()  # or monitor.stop("complete") / monitor.stop("error")
+```
+
+Or use the CrewAI callback adapter so the monitor updates from crew execution:
+
+```python
+cb = MonitorCallback(monitor)
+crew = Crew(..., step_callback=cb.on_step, task_callback=cb.on_task)
+```
+
+To try the dashboard with simulated activity: `python -m ai_team.monitor`.
+
+**Single command** to run the flow with the live TUI:
+
+```bash
+poetry run ai-team --monitor "Create a REST API for a todo list"
+```
+
+Optional: `--project-name "My Project"` to set the title in the dashboard.
+
+From code you can still pass a `TeamMonitor` into `run_ai_team(description, monitor=monitor)`. The monitor is started before the flow and stopped when the flow completes or errors; phase changes and crew step/task callbacks update the dashboard automatically. At the very start of a phase (e.g. 0s in Planning), tasks completed and agent rows may show zero until the first crew step or task finishes.
 
 ## Testing
 

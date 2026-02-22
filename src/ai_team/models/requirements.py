@@ -48,7 +48,7 @@ class RequirementsDocument(BaseModel):
     """Structured requirements document produced by the Product Owner agent."""
 
     project_name: str = Field(..., description="Name of the project")
-    description: str = Field(..., description="Brief project description")
+    description: str = Field(default="", description="Brief project description")
     target_users: List[str] = Field(default_factory=list, description="Primary user personas or roles")
     user_stories: List[UserStory] = Field(default_factory=list, description="User stories with acceptance criteria")
     non_functional_requirements: List[NonFunctionalRequirement] = Field(

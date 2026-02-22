@@ -26,6 +26,7 @@ HUMAN_ESCALATION_CONFIDENCE_THRESHOLD = 0.6
 
 def create_manager_agent(
     *,
+    tools: Optional[Any] = None,
     before_task: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     after_task: Optional[Callable[[str, Any], None]] = None,
     guardrail_tools: bool = True,
@@ -49,6 +50,8 @@ def create_manager_agent(
     ProjectState.awaiting_human_input = True and populating human_feedback
     (e.g. via blocker_resolution or status_reporting with state_updates_json).
 
+    :param tools: Tool list for the manager; default is get_manager_tools(). Pass [] for
+        use as CrewAI hierarchical manager_agent (CrewAI requires manager to have no tools).
     :param before_task: Optional callback(task_id, context) for memory/state before task.
     :param after_task: Optional callback(task_id, output) for memory/state after task.
     :param guardrail_tools: Wrap tools with security guardrails.
@@ -56,7 +59,8 @@ def create_manager_agent(
     :param agents_config: Pre-loaded agents config dict (for tests).
     :return: Configured BaseAgent instance for the manager role.
     """
-    tools = get_manager_tools()
+    if tools is None:
+        tools = get_manager_tools()
     agent = create_agent(
         "manager",
         tools=tools,
@@ -68,7 +72,7 @@ def create_manager_agent(
     )
     logger.info(
         "manager_agent_created",
-        tools=[t.name for t in tools],
+        tools=[getattr(t, "name", str(t)) for t in tools],
         allow_delegation=getattr(agent, "allow_delegation", True),
     )
     return agent

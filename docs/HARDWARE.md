@@ -28,7 +28,26 @@ This hardware is the **sweet spot** for a high-performance autonomous team. You 
 
 **Alternative High-Quality Option**: `llama3.3:70b` at Q3_K or Q4_K (tight fit, ~34–38 GB). Use only for Manager/Architect if you want maximum reasoning depth — slower (~15–25 t/s) and requires closing other apps.
 
-## 2. MacBook Air (24 GB unified memory) – Recommended Configuration
+## 2. 32 GB RAM – Single-model configuration (recommended)
+
+For **32 GB RAM** with headroom for ChromaDB, SQLite, and orchestration, use **one model for all seven agent roles** so only one model is loaded at a time.
+
+**Recommended: Qwen2.5-Coder 7B (Q5 or Q4)**
+
+- **Model**: `qwen2.5-coder:7b` (Q5_K_M for quality, Q4_K_M for speed)
+- **Why**: Strong instruction-following and code generation across Manager, PO, Architect, Backend/Frontend, DevOps, Cloud, and QA. ~14 GB when quantized (Q4/Q5), leaving plenty of RAM for the app and memory systems.
+- **Ollama**: `ollama pull qwen2.5-coder:7b`
+
+**Configuration**
+
+Set either:
+
+- `OLLAMA_MEMORY_PRESET=32gb_single` (all roles use `qwen2.5-coder:7b`), or  
+- `OLLAMA_SINGLE_MODEL=qwen2.5-coder:7b`
+
+**Alternative**: `deepseek-r1-distill:7b` for stronger reasoning on architecture/design tasks, with slightly slower inference.
+
+## 3. MacBook Air (24 GB unified memory) – Recommended Configuration
 
 More constrained, so prioritize **speed + quality balance** over raw size. Expect usable performance with smart model choices.
 
@@ -50,7 +69,7 @@ More constrained, so prioritize **speed + quality balance** over raw size. Expec
 
 **Note**: Avoid 32B+ models on 24 GB — they will swap heavily and become frustratingly slow. The 14B Qwen coder models deliver surprisingly close quality to 32B versions for most dev-team workflows.
 
-## 3. General Setup & Optimization Tips
+## 4. General Setup & Optimization Tips
 
 - **Preferred backend**: Use the latest Ollama (supports MLX acceleration on Apple Silicon for best speed/memory efficiency). Alternative: LM Studio with native MLX models.
 - **Quantization sweet spot**: Q5_K_M for best quality, Q4_K_M for more headroom/speed.
