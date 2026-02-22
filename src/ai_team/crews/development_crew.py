@@ -242,6 +242,8 @@ def kickoff(
     verbose: bool = True,
     memory: bool = True,
     max_iterations: int = DEVELOPMENT_MAX_ITERATIONS,
+    step_callback: Optional[Any] = None,
+    task_callback: Optional[Any] = None,
 ) -> Tuple[List[CodeFile], Optional[DeploymentConfig]]:
     """
     Run the Development Crew and return code files and deployment config.
@@ -280,6 +282,8 @@ def kickoff(
         memory=memory,
         embedder=get_crew_embedder_config() if memory else None,
         verbose=verbose,
+        step_callback=step_callback,
+        task_callback=task_callback,
     )
 
     inputs = {

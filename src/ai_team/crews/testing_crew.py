@@ -134,6 +134,8 @@ def create_testing_crew(
     guardrail_max_retries: Optional[int] = None,
     memory: bool = False,
     verbose: bool = False,
+    step_callback: Optional[Any] = None,
+    task_callback: Optional[Any] = None,
 ) -> Crew:
     """
     Build the Testing Crew: sequential process, QA Engineer only.
@@ -170,6 +172,8 @@ def create_testing_crew(
         memory=memory,
         embedder=get_crew_embedder_config() if memory else None,
         verbose=verbose,
+        step_callback=step_callback,
+        task_callback=task_callback,
     )
     logger.info(
         "testing_crew_created",
@@ -185,6 +189,8 @@ def kickoff(
     guardrail_max_retries: Optional[int] = None,
     memory: bool = False,
     verbose: bool = False,
+    step_callback: Optional[Any] = None,
+    task_callback: Optional[Any] = None,
 ) -> TestingCrewOutput:
     """
     Run the Testing Crew on the given code files from the Development Crew.
@@ -204,6 +210,8 @@ def kickoff(
         guardrail_max_retries=guardrail_max_retries,
         memory=memory,
         verbose=verbose,
+        step_callback=step_callback,
+        task_callback=task_callback,
     )
     code_files_summary = _code_files_to_summary(code_files)
     inputs = {"code_files_summary": code_files_summary}

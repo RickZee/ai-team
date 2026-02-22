@@ -289,3 +289,29 @@ class TestHumanEscalationTrigger:
         assert flow.state.awaiting_human_input is False  # handler resolved it
         phases = [t.to_phase for t in flow.state.phase_history]
         assert ProjectPhase.AWAITING_HUMAN in phases
+
+
+class TestFlowWithMonitor:
+    """When a monitor is passed to AITeamFlow, phase and guardrail events are reported."""
+
+    def test_intake_request_calls_monitor_phase_and_guardrail(self) -> None:
+        """intake_request calls monitor.on_phase_change('intake') and on_guardrail for security."""
+        from unittest.mock import patch
+
+        from ai_team.flows.main_flow import AITeamFlow
+
+        mock_monitor = MagicMock()
+        with patch(
+            "ai_team.guardrails.SecurityGuardrails.validate_prompt_injection",
+            return_value=(True, ""),
+        ):
+            flow = AITeamFlow(monitor=mock_monitor)
+            flow.state.project_description = "A valid project description that is long enough."
+            result = flow.intake_request()
+        assert result.get("status") == "success"
+        mock_monitor.on_phase_change.assert_any_call("intake")
+        mock_monitor.on_guardrail.assert_called_once()
+        call_args = mock_monitor.on_guardrail.call_args[0]
+        assert call_args[0] == "security"
+        assert call_args[1] == "prompt_injection"
+        assert call_args[2] == "pass"

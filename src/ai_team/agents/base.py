@@ -157,9 +157,11 @@ class BaseAgent(Agent):
             model = settings.ollama.get_model_for_role(settings_key)
             # CrewAI 1.x resolves LLM by model name; use "ollama/<model>" so it uses
             # LiteLLM for Ollama instead of the native OpenAI provider (which requires OPENAI_API_KEY).
+            base = settings.ollama.base_url
             llm = LLM(
                 model=f"ollama/{model}",
-                api_base=settings.ollama.base_url,
+                api_base=base,
+                base_url=base,
                 timeout=settings.ollama.request_timeout,
             )
             logger.info(

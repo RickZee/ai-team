@@ -1,0 +1,87 @@
+{
+  "crews": {
+    "PlanningCrew": {
+      "wall_time_seconds": 0.034,
+      "token_input_estimate": 95,
+      "token_output_estimate": 82,
+      "agent_think_time_seconds": 0,
+      "tool_call_time_seconds": 0
+    },
+    "DevelopmentCrew": {
+      "wall_time_seconds": 0.0,
+      "token_input_estimate": 106,
+      "token_output_estimate": 11,
+      "agent_think_time_seconds": 0,
+      "tool_call_time_seconds": 0
+    },
+    "QACrew": {
+      "wall_time_seconds": 0.0,
+      "token_input_estimate": 14,
+      "token_output_estimate": 500,
+      "agent_think_time_seconds": 0,
+      "tool_call_time_seconds": 0
+    },
+    "DeploymentCrew": {
+      "wall_time_seconds": 0.0,
+      "token_input_estimate": 0,
+      "token_output_estimate": 300,
+      "agent_think_time_seconds": 0,
+      "tool_call_time_seconds": 0
+    }
+  },
+  "full_flow": {
+    "demo": "Demo 1 (beginner)",
+    "total_seconds": 0.0,
+    "expected_under_10_minutes": 600,
+    "phases": {
+      "total": 1.660000634728931e-07,
+      "requirements_architecture": 0.0,
+      "development": 0.0,
+      "qa": 0.0,
+      "deployment": 0.0
+    }
+  },
+  "phase_budgets": {
+    "requirements_min": 60,
+    "architecture_min": 120,
+    "development_min": 240,
+    "qa_min": 120,
+    "deployment_min": 60
+  },
+  "phase_times_seconds": {
+    "total": 1.660000634728931e-07,
+    "requirements_architecture": 0.0,
+    "development": 0.0,
+    "qa": 0.0,
+    "deployment": 0.0
+  },
+  "bottlenecks": [
+    "Profile (top cumulative):          1150725 function calls (1103452 primitive calls) in 0.659 seconds;    Ordered by: cumulative time;    List reduced from 2159 to 15 due to restriction <15>;    ncalls  tottime  percall  cumtime  percall filename:lineno(function);         1    0.000    0.000    0.381    0.381 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/__init__.py:1(<module>)"
+  ],
+  "hardware_profiles": {
+    "16GB_VRAM": {
+      "memory_preset": "default",
+      "models_per_role": {
+        "manager": "qwen3:14b",
+        "product_owner": "qwen3:14b",
+        "architect": "deepseek-r1:14b",
+        "backend_dev": "deepseek-coder-v2:16b",
+        "frontend_dev": "qwen2.5-coder:14b",
+        "devops": "qwen2.5-coder:14b",
+        "cloud": "qwen2.5-coder:14b",
+        "qa": "qwen3:14b"
+      },
+      "single_model": null
+    }
+  },
+  "token_estimation": {
+    "total_input_tokens_estimate": 215,
+    "total_output_tokens_estimate": 893,
+    "projected_openai_equivalent_usd": 0.0289,
+    "local_first_note": "Ollama/local runs avoid API cost; only hardware/electricity."
+  },
+  "meta": {
+    "run_real": false
+  },
+  "profile_summary": "         1150725 function calls (1103452 primitive calls) in 0.659 seconds\n   Ordered by: cumulative time\n   List reduced from 2159 to 15 due to restriction <15>\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.381    0.381 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/__init__.py:1(<module>)\n        1    0.000    0.000    0.378    0.378 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/planning_crew.py:1(<module>)\n        1    0.000    0.000    0.322    0.322 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/__init__.py:1(<module>)\n  337/300    0.002    0.000    0.316    0.001 {built-in method builtins.__build_class__}\n      171    0.002    0.000    0.307    0.002 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/pydantic/_internal/_model_construction.py:83(__new__)\n      149    0.001    0.000    0.265    0.002 <frozen importlib._bootstrap>:1240(_find_spec)\n      149    0.000    0.000    0.257    0.002 <frozen importlib._bootstrap_external>:1520(find_spec)\n      149    0.000    0.000    0.257    0.002 <frozen importlib._bootstrap_external>:1491(_get_spec)\n      191    0.001    0.000    0.256    0.001 <frozen importlib._bootstrap_external>:1593(find_spec)\n      654    0.250    0.000    0.250    0.000 {built-in method posix.stat}\n      618    0.000    0.000    0.250    0.000 <frozen importlib._bootstrap_external>:140(_path_stat)\n        1    0.000    0.000    0.248    0.248 /opt/anaconda3/lib/python3.12/tempfile.py:471(__del__)\n        1    0.000    0.000    0.248    0.248 /opt/anaconda3/lib/python3.12/tempfile.py:446(cleanup)\n        1    0.000    0.000    0.248    0.248 /opt/anaconda3/lib/python3.12/http/client.py:430(close)\n        1    0.000    0.000    0.211    0.211 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/base.py:1(<module>)"
+}

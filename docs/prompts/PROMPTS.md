@@ -292,7 +292,8 @@ Create the Product Owner agent with:
    - Extends BaseAgent
    - Tools: requirements_parser, user_story_generator, acceptance_criteria_writer, priority_scorer
    - Output format: RequirementsDocument Pydantic model with:
-     - Project name, description, target users
+     - Project name; a brief top-level description (required—summarize the project in one or two sentences)
+     - Target users
      - User stories (as a user, I want, so that) with acceptance criteria
      - MoSCoW priority for each story
      - Non-functional requirements (performance, security, scalability)
@@ -620,9 +621,9 @@ Create src/ai_team/config/tasks.yaml and src/ai_team/tasks/planning_tasks.py:
 
 YAML definitions for:
 1. requirements_gathering task:
-   - description: "Analyze the project idea and create comprehensive requirements"
+   - description: "Analyze the project idea and create comprehensive requirements; include a brief top-level description (the description field)"
    - agent: product_owner
-   - expected_output: "RequirementsDocument with user stories, acceptance criteria, priorities"
+   - expected_output: "RequirementsDocument with a brief top-level description, user stories, acceptance criteria, priorities"
    - output_pydantic: RequirementsDocument
    - guardrail: requirements must have at least 3 user stories with acceptance criteria
 2. architecture_design task:
@@ -2048,6 +2049,567 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ---
 
+## Phase 7: AWS Bedrock AgentCore Deployment (Days 43–52)
+
+Deploy ai-team to production on Amazon Bedrock AgentCore using AWS CDK (Python). LLM switches from local Ollama to Bedrock (Claude Sonnet 4 / Haiku 4.5); ARM64 container; AgentCore Runtime, Memory, Gateway, Observability, and Identity. Full phase spec (architecture, WBS, cursor rules): [.archive/phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md).
+
+### Prompt 7.1: Initialize CDK Project
+```
+Create an AWS CDK Python project for deploying ai-team to Amazon Bedrock AgentCore.
+
+Directory structure:
+infra/
+├── app.py                    # CDK app entry point
+├── cdk.json                  # CDK configuration
+├── requirements.txt          # CDK dependencies
+├── cdk.context.json          # Context values
+├── stacks/
+│   ├── __init__.py
+│   ├── base_stack.py         # Shared resources (ECR repo, S3 bucket, base IAM)
+│   ├── runtime_stack.py      # AgentCore Runtime + container deployment
+│   ├── memory_stack.py       # AgentCore Memory configuration
+│   ├── gateway_stack.py      # AgentCore Gateway + Lambda tools
+│   ├── observability_stack.py # CloudWatch + AgentCore Observability
+│   └── identity_stack.py     # Cognito + AgentCore Identity
+├── constructs/
+│   ├── __init__.py
+│   ├── agentcore_runtime.py  # Reusable Runtime construct
+│   └── lambda_tool.py        # Reusable Lambda tool construct
+└── tests/
+    ├── __init__.py
+    └── test_stacks.py        # CDK assertion tests
+
+CDK app.py should:
+1. Accept environment parameter (dev/staging/prod) via context
+2. Define stack dependencies: base → runtime → memory/gateway/observability/identity
+3. Tag all resources with: project=ai-team, environment={env}, managed-by=cdk
+4. Use us-east-1 as default region (AgentCore availability)
+
+requirements.txt:
+- aws-cdk-lib>=2.150.0
+- constructs>=10.0.0
+- aws-cdk.aws-bedrock-alpha (if available, otherwise use CfnResource for AgentCore)
+- boto3
+- pytest
+
+Include cdk.json with app command pointing to app.py.
+```
+
+### Prompt 7.2: Create AgentCore Runtime Adapter
+```
+Create src/ai_team/adapters/agentcore_adapter.py — wraps AITeamFlow for AgentCore Runtime.
+
+The adapter must:
+1. Import BedrockAgentCoreApp from bedrock_agentcore.runtime
+2. Create a BedrockAgentCoreApp instance
+3. Define @app.entrypoint that:
+   a. Extracts "prompt" from payload (the project description)
+   b. Extracts optional config overrides (model, guardrail settings)
+   c. Initializes AITeamFlow with production settings
+   d. Calls flow.kickoff() with the prompt
+   e. Returns structured response: {project_id, status, files: [...], summary}
+   f. Handles errors gracefully — return error details, never crash the runtime
+4. Support session context from AgentCore (context.session_id)
+5. Integrate with AgentCore Memory for session state persistence
+6. Include health check endpoint
+
+Code structure:
+
+    from bedrock_agentcore.runtime import BedrockAgentCoreApp
+    from ai_team.flows.main_flow import AITeamFlow
+    from ai_team.config.settings import get_settings
+
+    app = BedrockAgentCoreApp()
+
+    @app.entrypoint
+    def invoke_ai_team(payload, context):
+        """Main entrypoint for AgentCore Runtime invocation."""
+        prompt = payload.get("prompt", "")
+        config = payload.get("config", {})
+        session_id = context.session_id
+
+        settings = get_settings(deployment_mode="agentcore", overrides=config)
+        flow = AITeamFlow(settings=settings, session_id=session_id)
+
+        try:
+            result = flow.kickoff(project_description=prompt)
+            return {
+                "project_id": result.project_id,
+                "status": result.status,
+                "files": [f.dict() for f in result.files],
+                "summary": result.summary,
+                "metrics": result.metrics
+            }
+        except Exception as e:
+            return {"status": "error", "error": str(e), "phase": flow.current_phase}
+
+    if __name__ == "__main__":
+        app.run()
+
+Also create src/ai_team/adapters/__init__.py.
+Include ability to run locally with `python -m ai_team.adapters.agentcore_adapter`.
+```
+
+### Prompt 7.3: Add Bedrock Model Integration
+```
+Extend src/ai_team/config/settings.py to support Amazon Bedrock as an LLM provider alongside Ollama.
+
+1. Add DeploymentMode enum: LOCAL (Ollama), AGENTCORE (Bedrock), HYBRID
+2. Add BedrockModelConfig(BaseSettings):
+   - region: str = "us-east-1"
+   - Per-role model assignments using Bedrock model IDs:
+     - manager_model: str = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+     - product_owner_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+     - architect_model: str = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+     - backend_developer_model: str = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+     - frontend_developer_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+     - devops_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+     - cloud_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+     - qa_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+   - temperature, max_tokens, top_p defaults
+3. Modify BaseAgent to select LLM based on deployment_mode:
+   - LOCAL → LangChain ChatOllama
+   - AGENTCORE → LangChain ChatBedrock (from langchain_aws)
+   - HYBRID → try Bedrock, fallback to Ollama
+4. Add langchain-aws to pyproject.toml dependencies
+5. Add DEPLOYMENT_MODE env var (default: "local")
+
+Ensure backward compatibility — existing Ollama setup continues to work unchanged.
+Environment variable: DEPLOYMENT_MODE=agentcore activates Bedrock models.
+```
+
+### Prompt 7.4: Create Production Dockerfile
+```
+Create docker/Dockerfile.agentcore — an ARM64-optimized container for AgentCore Runtime.
+
+Requirements:
+1. Base image: python:3.11-slim (ARM64 compatible)
+2. Multi-stage build:
+   Stage 1 (builder):
+   - Install Poetry, build-essential, git
+   - Copy pyproject.toml and poetry.lock
+   - Install dependencies with Poetry (no dev deps)
+   - Export to requirements.txt for slim install
+   Stage 2 (runtime):
+   - Python 3.11-slim
+   - Install only runtime system deps (git for GitPython)
+   - Copy installed packages from builder
+   - Copy src/ directory
+   - Create non-root user "agentcore"
+   - Set DEPLOYMENT_MODE=agentcore as default env
+   - Set entrypoint: python -m ai_team.adapters.agentcore_adapter
+3. ARM64 specific:
+   - Platform: linux/arm64 (AgentCore requires ARM64)
+   - No platform-specific binary deps that would break on ARM
+4. Optimization:
+   - .dockerignore: tests/, docs/, demos/, ui/, .git/, __pycache__/
+   - Layer caching: deps installed before code copy
+   - Final image < 500MB target
+5. Health check: HEALTHCHECK CMD python -c "import ai_team; print('ok')"
+
+Also create docker/.dockerignore.
+Test locally: docker build --platform linux/arm64 -f docker/Dockerfile.agentcore -t ai-team:latest .
+```
+
+### Prompt 7.5: Create Runtime CDK Stack
+```
+Create infra/stacks/runtime_stack.py — CDK stack for AgentCore Runtime deployment.
+
+The stack must:
+1. Build and push the ARM64 container to ECR using aws_cdk.aws_ecr_assets.DockerImageAsset:
+   - Point to docker/Dockerfile.agentcore
+   - Platform: linux/arm64
+   - This eliminates the need for separate CodeBuild configuration
+
+2. Create IAM role for the AgentCore Runtime with permissions:
+   - bedrock:InvokeModel (for Bedrock model access)
+   - bedrock-agentcore:* (for AgentCore services)
+   - ecr:GetAuthorizationToken, ecr:BatchGetImage (for container pull)
+   - logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents (CloudWatch)
+   - s3:PutObject, s3:GetObject (for project output storage)
+   - Scoped to least-privilege with specific resource ARNs
+
+3. Create the AgentCore Runtime resource:
+   - Use CfnResource or L2 construct if available:
+     Type: AWS::BedrockAgentCore::AgentRuntime (or equivalent)
+   - Properties:
+     - agentRuntimeName: f"ai-team-{environment}"
+     - containerImage: Docker image URI from DockerImageAsset
+     - roleArn: IAM role ARN
+     - networkMode: DEFAULT
+     - protocolConfiguration: HTTP
+   - If L2 construct not yet available, use aws_cdk.CfnResource with proper type
+
+4. Create S3 bucket for project output artifacts:
+   - Bucket name: f"ai-team-outputs-{account}-{region}"
+   - Versioning enabled, encryption with SSE-S3
+   - Lifecycle rule: expire after 90 days
+
+5. Stack outputs:
+   - AgentRuntimeArn
+   - AgentRuntimeEndpoint
+   - ECRRepositoryUri
+   - OutputBucketName
+
+Accept parameters: environment (dev/prod), container_path, runtime_name.
+Include CDK assertion test in infra/tests/test_stacks.py.
+```
+
+### Prompt 7.6: Create Memory CDK Stack
+```
+Create infra/stacks/memory_stack.py — CDK stack for AgentCore Memory.
+
+The stack must provision AgentCore Memory with:
+1. Memory resource configuration:
+   - memoryName: f"ai-team-memory-{environment}"
+   - Short-term memory (STM): enabled for multi-turn conversation context within a session
+   - Long-term memory (LTM): enabled with strategies:
+     a. semantic — stores factual information about projects
+     b. summary — maintains condensed project state across sessions
+     c. user_preference — (optional) stores per-user customization preferences
+   - Associate with the Runtime from runtime_stack via runtime ARN
+
+2. Use CfnResource if no L2 construct available:
+   Type: AWS::BedrockAgentCore::Memory
+   Properties:
+     memoryName, memoryStrategies configuration
+
+3. IAM permissions:
+   - Grant the Runtime role access to AgentCore Memory APIs
+   - bedrock-agentcore:CreateMemory, GetMemory, UpdateMemory, SearchMemory
+
+4. Integration code adapter:
+   Also create src/ai_team/adapters/agentcore_memory.py that:
+   - Wraps AgentCore Memory SDK calls
+   - Provides same interface as local MemoryManager
+   - store(key, value), retrieve(query, top_k), cleanup(session_id)
+   - Auto-detects: if running in AgentCore → use managed memory, else → use local ChromaDB
+
+5. Stack outputs:
+   - MemoryId
+   - MemoryArn
+
+Stack depends on runtime_stack (needs runtime ARN).
+```
+
+### Prompt 7.7: Create Gateway CDK Stack
+```
+Create infra/stacks/gateway_stack.py — CDK stack for AgentCore Gateway.
+
+The stack must:
+1. Create AgentCore Gateway resource:
+   - gatewayName: f"ai-team-gateway-{environment}"
+   - Protocol: MCP (Model Context Protocol)
+   - This Gateway exposes the agent's custom tools as MCP-compatible endpoints
+
+2. Register Lambda-backed tools with the Gateway:
+   a. file_operations tool:
+      - Lambda function that wraps file_tools.py operations
+      - Reads/writes to S3 output bucket
+      - IAM: s3:GetObject, s3:PutObject on output bucket
+   b. code_execution tool:
+      - Lambda function that wraps code_tools.py
+      - Alternatively, configure AgentCore Code Interpreter as a built-in tool
+      - Timeout: 60 seconds, memory: 512MB
+   c. test_runner tool:
+      - Lambda function that runs pytest on generated code
+      - Lambda layer with pytest, coverage pre-installed
+      - Timeout: 120 seconds, memory: 1024MB
+
+3. Each Lambda tool:
+   - Python 3.11 runtime, ARM64 architecture
+   - Bundled from src/ai_team/tools/ directory
+   - Structured logging via structlog
+   - Error handling that returns Gateway-compatible error responses
+
+4. Gateway authorization:
+   - Connect to AgentCore Identity (from identity_stack)
+   - Tools require authenticated agent identity to invoke
+
+5. Stack outputs:
+   - GatewayId, GatewayArn, GatewayEndpoint
+   - Per-tool Lambda ARNs
+
+Stack depends on runtime_stack (output bucket, IAM roles).
+```
+
+### Prompt 7.8: Create Observability CDK Stack
+```
+Create infra/stacks/observability_stack.py — CDK stack for AgentCore Observability.
+
+The stack must:
+1. Enable AgentCore Observability for the Runtime:
+   - Enable CloudWatch Transaction Search (prerequisite for AgentCore tracing)
+   - Configure log group: /aws/bedrock-agentcore/ai-team-{environment}
+   - Retention: 30 days (dev), 90 days (prod)
+
+2. Create CloudWatch dashboard: f"ai-team-{environment}-dashboard"
+   Widgets:
+   a. Agent invocation count (time series, 5min granularity)
+   b. Average latency per phase (Planning, Development, Testing, Deployment)
+   c. Error rate (percentage of failed invocations)
+   d. Token usage per invocation (estimated from response sizes)
+   e. Session duration distribution
+   f. Guardrail trigger frequency (by category: behavioral, security, quality)
+
+3. CloudWatch alarms:
+   a. High error rate: > 20% over 5 minutes → SNS notification
+   b. High latency: p95 > 300 seconds → SNS notification
+   c. Throttling: > 10 throttles in 5 minutes → SNS notification
+   d. Create SNS topic: f"ai-team-{environment}-alerts" with email subscription
+
+4. AgentCore Evaluations (if available):
+   - Enable built-in evaluators: correctness, helpfulness, tool_selection_accuracy
+   - Configure continuous online evaluation
+
+5. OpenTelemetry integration:
+   - Add opentelemetry SDK to container dependencies
+   - Emit traces from AITeamFlow phase transitions
+   - Span per crew execution, tool invocation, guardrail check
+
+6. Stack outputs:
+   - DashboardUrl
+   - LogGroupName
+   - AlarmTopicArn
+```
+
+### Prompt 7.9: Create Identity CDK Stack
+```
+Create infra/stacks/identity_stack.py — CDK stack for AgentCore Identity + authentication.
+
+The stack must:
+1. Create Amazon Cognito User Pool:
+   - Pool name: f"ai-team-users-{environment}"
+   - Self-signup: enabled (dev), disabled (prod)
+   - Password policy: min 8 chars, require uppercase + number + symbol
+   - MFA: optional (dev), required (prod)
+   - Email verification enabled
+   - Standard attributes: email (required), name (optional)
+
+2. Create Cognito User Pool Client:
+   - Client name: f"ai-team-client-{environment}"
+   - Auth flows: USER_PASSWORD_AUTH, USER_SRP_AUTH
+   - OAuth: authorization_code grant, implicit grant
+   - Callback URLs: configurable (localhost for dev, domain for prod)
+   - Token validity: access=1h, id=1h, refresh=30d
+
+3. Configure AgentCore Identity:
+   - Inbound auth: OAuth 2.0 with Cognito as identity provider
+   - Discovery URL: Cognito's OpenID Connect endpoint
+   - Allowed audiences: [user pool client ID]
+   - This controls who can invoke the AgentCore Runtime
+
+4. Create admin user for testing:
+   - Only in dev environment
+   - Username from CDK context parameter
+   - Temporary password, force change on first login
+
+5. Stack outputs:
+   - UserPoolId
+   - UserPoolClientId
+   - CognitoDomain
+   - OAuthEndpoint
+   - IdentityProviderUrl
+
+Stack is independent but feeds into runtime_stack for auth configuration.
+```
+
+### Prompt 7.10: Refactor Settings for Deployment Mode
+```
+Refactor src/ai_team/config/settings.py to cleanly support both local and cloud deployments.
+
+Changes:
+1. Add DeploymentMode enum: LOCAL, AGENTCORE, HYBRID
+   - LOCAL: Ollama models, local ChromaDB/SQLite, local file system
+   - AGENTCORE: Bedrock models, AgentCore Memory, S3 output, AgentCore tools
+   - HYBRID: Bedrock models, local memory (for development with cloud LLMs)
+
+2. Settings factory method:
+
+    def get_settings(deployment_mode: str = None, overrides: dict = None) -> AITeamSettings:
+        mode = deployment_mode or os.getenv("DEPLOYMENT_MODE", "local")
+        if mode == "agentcore":
+            return AgentCoreSettings(**overrides or {})
+        elif mode == "hybrid":
+            return HybridSettings(**overrides or {})
+        else:
+            return LocalSettings(**overrides or {})
+
+3. AgentCoreSettings(AITeamSettings):
+   - LLM: BedrockModelConfig (Claude Sonnet 4, Haiku 4.5)
+   - Memory: AgentCore Memory (no local ChromaDB/SQLite)
+   - Output: S3 bucket path
+   - Tools: AgentCore Gateway endpoints
+   - Logging: CloudWatch + structlog
+
+4. LocalSettings(AITeamSettings):
+   - LLM: OllamaModelConfig (existing behavior, unchanged)
+   - Memory: local ChromaDB + SQLite
+   - Output: local filesystem
+   - Tools: local tool implementations
+   - Logging: structlog console/file
+
+5. HybridSettings(AITeamSettings):
+   - LLM: BedrockModelConfig (use Bedrock for quality)
+   - Memory: local ChromaDB + SQLite (no AWS memory dependency)
+   - Output: local filesystem
+   - Useful for: development with production-quality LLM responses
+
+6. Update BaseAgent.get_llm() to dispatch based on deployment mode:
+
+    if settings.deployment_mode == DeploymentMode.LOCAL:
+        from langchain_ollama import ChatOllama
+        return ChatOllama(model=model_name, base_url=settings.ollama.base_url)
+    else:
+        from langchain_aws import ChatBedrock
+        return ChatBedrock(model_id=model_name, region_name=settings.bedrock.region)
+
+Ensure zero breaking changes to existing local workflow.
+All new settings have sensible defaults.
+```
+
+### Prompt 7.11: Create Cloud Integration Tests
+```
+Create tests/cloud/ directory with integration tests for the deployed AgentCore system.
+
+1. tests/cloud/conftest.py:
+   - Fixtures: boto3 client for bedrock-agentcore, runtime ARN from env/SSM
+   - Skip decorator: @pytest.mark.skipif(not os.getenv("AGENTCORE_RUNTIME_ARN"))
+   - Timeout: 600 seconds per test (cloud execution is slower)
+
+2. tests/cloud/test_runtime_invocation.py:
+   a. test_health_check:
+      - Invoke runtime with {"prompt": "health check"}
+      - Assert response contains status: "ok"
+   b. test_simple_project:
+      - Invoke with {"prompt": "Create a Python function that calculates fibonacci numbers"}
+      - Assert response has: project_id, status=complete/in_progress, files list
+   c. test_hello_world_demo:
+      - Invoke with Demo 01 input (Flask API)
+      - Assert response contains expected files: app.py, test_app.py, requirements.txt
+      - Assert status is not "error"
+   d. test_error_handling:
+      - Invoke with empty prompt
+      - Assert graceful error response (not 500/crash)
+   e. test_session_persistence:
+      - Invoke twice with same session_id
+      - Assert second invocation can reference context from first
+
+3. tests/cloud/test_observability.py:
+   a. test_cloudwatch_logs_exist:
+      - After invoking runtime, check CloudWatch for log entries
+      - Assert log group exists, recent log streams present
+   b. test_metrics_published:
+      - Check CloudWatch metrics namespace for ai-team metrics
+
+4. tests/cloud/test_memory.py:
+   a. test_memory_store_and_retrieve:
+      - Store a value via AgentCore Memory API
+      - Retrieve and assert match
+
+5. scripts/run_cloud_tests.py:
+   - Reads runtime ARN from CDK outputs or SSM Parameter Store
+   - Sets env vars
+   - Runs: pytest tests/cloud/ -v --timeout=600
+
+Use boto3 bedrock-agentcore client for all invocations.
+```
+
+### Prompt 7.12: Create Deploy and Destroy Scripts
+```
+Create deployment automation scripts:
+
+1. scripts/deploy_agentcore.sh:
+   #!/bin/bash
+   # Deploy ai-team to AWS Bedrock AgentCore
+   # Usage: ./scripts/deploy_agentcore.sh [dev|staging|prod]
+
+   Steps:
+   a. Parse environment argument (default: dev)
+   b. Check prerequisites: aws cli configured, cdk installed, docker available
+   c. Verify AWS credentials: aws sts get-caller-identity
+   d. Verify Bedrock model access: check that Claude models are enabled
+   e. Bootstrap CDK if needed: cdk bootstrap
+   f. Build and deploy stacks in order:
+      - cdk deploy AiTeamBase-{env} --require-approval never
+      - cdk deploy AiTeamRuntime-{env} --require-approval never
+      - cdk deploy AiTeamMemory-{env} AiTeamGateway-{env} AiTeamObservability-{env} AiTeamIdentity-{env} --require-approval never
+   g. Print outputs: Runtime ARN, Dashboard URL, Cognito domain
+   h. Store outputs in SSM Parameter Store for script access
+   i. Run smoke test: invoke runtime with simple prompt
+   j. Total expected time: ~15-20 minutes
+
+2. scripts/destroy_agentcore.sh:
+   #!/bin/bash
+   # Tear down ai-team AgentCore deployment
+   # Usage: ./scripts/destroy_agentcore.sh [dev|staging|prod]
+
+   Steps:
+   a. Confirmation prompt (skip with --force flag)
+   b. Empty S3 buckets first (CDK can't delete non-empty buckets)
+   c. cdk destroy --all --force
+   d. Clean up SSM parameters
+   e. Verify all resources removed
+
+3. scripts/deploy_quick.sh:
+   - Minimal deployment using AgentCore starter toolkit instead of CDK
+   - For rapid iteration during development:
+     pip install bedrock-agentcore-starter-toolkit
+     agentcore configure -e src/ai_team/adapters/agentcore_adapter.py
+     agentcore launch
+   - Outputs runtime ARN for immediate testing
+
+4. Makefile targets:
+   deploy-dev: ## Deploy to dev environment
+   deploy-prod: ## Deploy to prod environment
+   destroy-dev: ## Tear down dev environment
+   cloud-test: ## Run cloud integration tests
+   smoke-test: ## Quick runtime health check
+```
+
+### Prompt 7.13: Create Cost Estimation and Budget Alerts
+```
+Create infra/stacks/budget_stack.py and docs/COST_ESTIMATION.md:
+
+1. budget_stack.py — CDK stack for AWS Budgets:
+   a. Monthly budget alert:
+      - Dev: $50/month threshold
+      - Prod: $500/month threshold
+   b. Notification thresholds: 50%, 80%, 100% of budget
+   c. SNS notifications to configurable email
+   d. Tag-based cost allocation: filter by project=ai-team tag
+
+2. docs/COST_ESTIMATION.md — cost breakdown:
+
+   | Service | Dev (estimated) | Prod (estimated) | Notes |
+   |---------|----------------|------------------|-------|
+   | AgentCore Runtime | $50-100/mo | $200-500/mo | Per invocation + session time |
+   | Bedrock Models (Claude Sonnet 4) | $3/1M input + $15/1M output | Scales with usage | Dominant cost for complex projects |
+   | Bedrock Models (Claude Haiku 4.5) | $0.80/1M input + $4/1M output | Scales with usage | Used for simpler agent roles |
+   | AgentCore Memory | $5-10/mo | $20-50/mo | Based on storage + queries |
+   | AgentCore Gateway | $5-10/mo | $20-50/mo | Per tool invocation |
+   | ECR | $1-5/mo | $1-5/mo | Container storage |
+   | S3 | $1-5/mo | $5-20/mo | Project outputs |
+   | CloudWatch | $5-10/mo | $20-50/mo | Logs + metrics + dashboards |
+   | Cognito | Free tier | Free tier | Up to 50K MAU free |
+   | **Total** | **~$70-150/mo** | **~$270-700/mo** | |
+
+3. Cost optimization tips:
+   - Use Haiku 4.5 for simple agent roles (PO, DevOps, QA) — 4-5x cheaper than Sonnet
+   - Use Sonnet 4 only for Architect and Backend Dev (where quality matters most)
+   - Set max_tokens limits per agent to prevent runaway costs
+   - Enable Bedrock caching for repeated tool descriptions
+   - Use dev environment for development, destroy when not in use
+   - Budget alerts prevent surprise bills
+
+4. Include a per-invocation cost estimator:
+   - Estimate tokens per phase based on demo runs
+   - Calculate cost per project generation
+   - Target: < $1 per simple project, < $5 per complex project
+```
+
+---
+
 ## Summary: Prompt Coverage Matrix
 
 | Phase | Tasks | Prompts | Status |
@@ -2059,6 +2621,7 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 | Phase 4: Memory & Integration | 4.1–4.8 | 7/8* | ✅ Complete |
 | Phase 5: Testing & Demos | 5.1–5.9 | 9/9 | ✅ Complete |
 | Phase 6: UI & Showcase | 6.1–6.8 | 8/8 | ✅ Complete |
-| **TOTAL** | **61 tasks** | **61 prompts** | **✅ ALL COMPLETE** |
+| Phase 7: AgentCore Deployment | 7.1–7.13 | 13/13 | Pending |
+| **TOTAL** | **74 tasks** | **74 prompts** | |
 
 *Phase 4 combines tasks 4.1-4.3 into a single prompt by design.

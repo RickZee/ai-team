@@ -46,11 +46,11 @@ def _test_generation_guardrail(task_output: Any):
     """
     Guardrail: tests must have meaningful assertions and cover edge cases.
     Uses validate_test_quality on extracted test code; passes if assertions
-    and edge-case hints are present.
+    and edge-case hints are present. Returns (passed, str) so CrewAI never gets TaskOutput.
     """
     s = _task_output_to_str(task_output)
     if not s or not s.strip():
-        return (False, task_output)
+        return (False, "Test generation guardrail: empty output.")
     # Use first substantial code block or full output as test code sample.
     code_match = re.search(r"```(?:\w+)?\s*\n(.*?)```", s, re.DOTALL)
     test_code = (code_match.group(1) if code_match else s).strip()
@@ -61,20 +61,21 @@ def _test_generation_guardrail(task_output: Any):
             x in s.lower()
             for x in ["empty", "none", "zero", "null", "edge", "boundary", "invalid", "exception", "raise"]
         )
-        return (has_assert and has_edge, task_output)
+        return (has_assert and has_edge, s)
     report = validate_test_quality(test_code)
     passed = report.has_assertions and (report.edge_cases_mentioned or report.passed)
-    return (passed, task_output)
+    return (passed, s)
 
 
 def _test_execution_guardrail(task_output: Any):
     """
     Guardrail: minimum 80% coverage, zero critical failures.
     Parses JSON or summary from task output and runs coverage_guardrail.
+    Returns (passed, str) so CrewAI never gets TaskOutput.
     """
     s = _task_output_to_str(task_output)
     if not s or not s.strip():
-        return (False, task_output)
+        return (False, "Test execution guardrail: empty output.")
     # Try to parse as TestRunResult-like JSON.
     try:
         # May be wrapped in markdown code block.
@@ -90,11 +91,11 @@ def _test_execution_guardrail(task_output: Any):
         failed = int(data.get("failed", 0))
         errors = int(data.get("errors", 0))
         if failed > 0 or errors > 0:
-            return (False, task_output)
+            return (False, f"Test execution guardrail: {failed} failed, {errors} errors.")
         line_pct = data.get("line_coverage_pct")
         if line_pct is not None:
             cov_ratio = line_pct / 100.0 if line_pct > 1 else line_pct
-            return (cov_ratio >= MIN_COVERAGE_THRESHOLD, task_output)
+            return (cov_ratio >= MIN_COVERAGE_THRESHOLD, s)
         # Build dict for coverage_guardrail.
         total_coverage = data.get("line_coverage_pct")
         if total_coverage is not None:
@@ -107,20 +108,21 @@ def _test_execution_guardrail(task_output: Any):
         if pct_match:
             coverage_report["total_coverage"] = float(pct_match.group(1)) / 100.0
         if re.search(r"\d+\s+failed|\d+\s+error", s, re.IGNORECASE):
-            return (False, task_output)
+            return (False, "Test execution guardrail: failures or errors in output.")
 
     result = coverage_guardrail(coverage_report, min_coverage_threshold=MIN_COVERAGE_THRESHOLD)
-    return (result.passed, task_output)
+    return (result.passed, s)
 
 
 def _code_review_guardrail(task_output: Any):
     """
     Guardrail: no critical or high-severity findings.
     Parses CodeReviewReport-like output or scans for severity keywords.
+    Returns (passed, str) so CrewAI never gets TaskOutput.
     """
     s = _task_output_to_str(task_output)
     if not s or not s.strip():
-        return (True, task_output)  # No output treated as no findings.
+        return (True, s)  # No output treated as no findings.
     try:
         raw = s.strip()
         json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
@@ -131,13 +133,13 @@ def _code_review_guardrail(task_output: Any):
             critical = int(data.get("critical_count", 0))
             high = int(data.get("high_count", 0))
             if critical > 0 or high > 0:
-                return (False, task_output)
+                return (False, f"Code review guardrail: {critical} critical, {high} high findings.")
             findings = data.get("findings", [])
             for f in findings:
                 sev = (f.get("severity") or "").lower()
                 if sev in ("critical", "high"):
-                    return (False, task_output)
-            return (True, task_output)
+                    return (False, "Code review guardrail: critical or high severity finding.")
+            return (True, s)
     except json.JSONDecodeError:
         pass
     # Text fallback: fail if explicit critical/high finding mentioned.
@@ -145,8 +147,8 @@ def _code_review_guardrail(task_output: Any):
     if re.search(r"severity\s*:\s*(critical|high)", lower) or re.search(
         r"(critical|high)\s*severity", lower
     ):
-        return (False, task_output)
-    return (True, task_output)
+        return (False, "Code review guardrail: critical or high severity mentioned.")
+    return (True, s)
 
 
 # -----------------------------------------------------------------------------

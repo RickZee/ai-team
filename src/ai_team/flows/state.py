@@ -6,7 +6,7 @@ Imports document/code types from models and tools; defines phase transitions,
 errors, and retry tracking with validators.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -54,7 +54,10 @@ class PhaseTransition(BaseModel):
 
     from_phase: ProjectPhase = Field(..., description="Phase before transition")
     to_phase: ProjectPhase = Field(..., description="Phase after transition")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When the transition occurred")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When the transition occurred",
+    )
     reason: str = Field(default="", description="Optional reason or trigger")
 
 
@@ -64,7 +67,10 @@ class ProjectError(BaseModel):
     phase: ProjectPhase = Field(..., description="Phase when the error occurred")
     error_type: str = Field(..., description="Error category or code")
     message: str = Field(..., description="Human-readable message")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="When the error occurred")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When the error occurred",
+    )
     recoverable: bool = Field(default=True, description="Whether the flow can retry or recover")
 
 
@@ -93,7 +99,10 @@ class ProjectState(BaseModel):
     errors: List[ProjectError] = Field(default_factory=list, description="Errors encountered")
     retry_counts: Dict[str, int] = Field(default_factory=dict, description="Per-phase retry counts")
     max_retries: int = Field(default=3, ge=0, description="Maximum retries per phase")
-    started_at: datetime = Field(default_factory=datetime.utcnow, description="When the flow started")
+    started_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="When the flow started",
+    )
     completed_at: Optional[datetime] = Field(default=None, description="When the flow completed (if any)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata")
     # Human-in-the-loop
@@ -119,7 +128,7 @@ class ProjectState(BaseModel):
             PhaseTransition(
                 from_phase=from_phase,
                 to_phase=to_phase,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 reason=reason,
             )
         )
@@ -138,7 +147,7 @@ class ProjectState(BaseModel):
                 phase=phase,
                 error_type=error_type,
                 message=message,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 recoverable=recoverable,
             )
         )
@@ -160,8 +169,13 @@ class ProjectState(BaseModel):
 
     def get_duration(self) -> timedelta:
         """Return elapsed time since started_at; if completed_at set, use that as end."""
-        end = self.completed_at or datetime.utcnow()
-        return end - self.started_at
+        end = self.completed_at or datetime.now(timezone.utc)
+        start = self.started_at
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+        return end - start
 
     def to_summary(self) -> str:
         """Human-readable status summary."""

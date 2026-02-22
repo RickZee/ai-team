@@ -3,6 +3,12 @@ End-to-end test: real AITeamFlow run for Hello World Flask API (Demo 1).
 
 Uses an actual AITeamFlow run (not mocked). Validates the system produces
 working code for the simplest possible project. Test output is the demo artifact.
+
+Requires: Ollama running locally (e.g. http://localhost:11434) with models
+qwen3:14b, deepseek-r1:14b, deepseek-coder-v2:16b, qwen2.5-coder:14b pulled.
+Do not set OPENAI_API_KEY when running this test; the test forces all CrewAI
+LLM paths to use Ollama via env and patches. If you need to use OpenAI instead,
+run with a valid OPENAI_API_KEY and do not rely on the Ollama-only patches.
 """
 
 from __future__ import annotations
@@ -20,9 +26,108 @@ from typing import Any, Dict, List
 import pytest
 import requests
 
-from ai_team.config.settings import get_settings
+from ai_team.config.settings import get_settings, reload_settings
 from ai_team.flows.human_feedback import MockHumanFeedbackHandler
 from ai_team.flows.main_flow import AITeamFlow
+
+
+def _patch_crewai_llm_for_ollama() -> None:
+    """Force CrewAI to use Ollama: patch create_llm and LLM.__new__ (Crew may call LLM() directly)."""
+    from crewai.llm import LLM as CrewAILLM
+    from crewai.llms.base_llm import BaseLLM
+    from crewai.utilities import llm_utils
+
+    _original_create_llm = llm_utils.create_llm
+
+    def _create_llm(llm_value: object) -> object:
+        if isinstance(llm_value, (CrewAILLM, BaseLLM)):
+            return llm_value
+        if isinstance(llm_value, str):
+            if not llm_value.startswith("ollama/"):
+                llm_value = f"ollama/{llm_value}"
+            return _original_create_llm(llm_value)
+        if llm_value is not None:
+            model = getattr(llm_value, "model", None) or getattr(llm_value, "model_name", None)
+            base_url = getattr(llm_value, "base_url", None) or ""
+            api_base = getattr(llm_value, "api_base", None) or ""
+            if model and isinstance(model, str) and "ollama" not in model.lower():
+                if "11434" in str(base_url) or "11434" in str(api_base):
+                    base = api_base or base_url or "http://localhost:11434"
+                    return CrewAILLM(
+                        model=f"ollama/{model}",
+                        api_base=base,
+                        base_url=base,
+                        timeout=getattr(llm_value, "timeout", None),
+                    )
+        return _original_create_llm(llm_value)
+
+    llm_utils.create_llm = _create_llm
+
+    # Crew/hierarchical path may call LLM(model="gpt-4.1-mini") directly; always force Ollama in e2e
+    # so every LLM path (including Task Execution Planner) uses LiteLLM → Ollama, not OpenAI.
+    # Set a dummy api_key so LiteLLM's client doesn't raise AuthenticationError; api_base sends requests to Ollama.
+    _original_new = CrewAILLM.__new__
+
+    def _llm_new(cls: type, model: str, is_litellm: bool = False, **kwargs: Any) -> Any:
+        if model and not model.startswith("ollama/"):
+            model = "ollama/qwen3:14b"
+            kwargs.setdefault("api_base", "http://localhost:11434")
+            kwargs.setdefault("base_url", "http://localhost:11434")
+        if model and (model.startswith("ollama/") or "11434" in str(kwargs.get("api_base") or "")):
+            kwargs.setdefault("api_key", "ollama")  # Satisfy LiteLLM client check; Ollama ignores key
+            kwargs.setdefault("base_url", kwargs.get("base_url") or "http://localhost:11434")
+            kwargs.setdefault("api_base", kwargs.get("api_base") or "http://localhost:11434")
+        return _original_new(cls, model, is_litellm=is_litellm, **kwargs)
+
+    CrewAILLM.__new__ = _llm_new
+
+
+def _patch_litellm_for_ollama() -> None:
+    """Ensure LiteLLM completion calls use Ollama base URL when model is ollama/*."""
+    import litellm
+
+    # Global fallback so any call without api_base uses Ollama (CrewAI may not pass it in some paths).
+    litellm.api_base = "http://localhost:11434"
+
+    _original_completion = litellm.completion
+    _original_acompletion = getattr(litellm, "acompletion", None)
+    _ollama_base = "http://localhost:11434"
+
+    def _inject_ollama_base(kwargs: dict) -> None:
+        model = kwargs.get("model")
+        if model and "ollama" in str(model).lower():
+            if not kwargs.get("api_base"):
+                kwargs["api_base"] = _ollama_base
+            kwargs.setdefault("api_key", "ollama")
+
+    def _completion(*args: Any, **kwargs: Any) -> Any:
+        _inject_ollama_base(kwargs)
+        return _original_completion(*args, **kwargs)
+
+    litellm.completion = _completion
+    if _original_acompletion:
+
+        async def _acompletion(*args: Any, **kwargs: Any) -> Any:
+            _inject_ollama_base(kwargs)
+            return await _original_acompletion(*args, **kwargs)
+
+        litellm.acompletion = _acompletion
+
+    # CrewAI may strip None from params, so LLM instances created without api_base
+    # never pass it. Patch CrewAI LLM to inject api_base in _prepare_completion_params.
+    from crewai.llm import LLM as CrewAILLM
+
+    _orig_prepare = CrewAILLM._prepare_completion_params
+
+    def _prepare_completion_params(self: Any, messages: Any, tools: Any = None) -> dict:
+        params = _orig_prepare(self, messages, tools)
+        if self.model and "ollama" in str(self.model).lower():
+            params.setdefault("api_base", _ollama_base)
+            params.setdefault("api_key", "ollama")
+        return params
+
+    CrewAILLM._prepare_completion_params = _prepare_completion_params
+
 
 # Project specification (same as Demo 1)
 PROJECT_SPEC = """Create a simple Flask REST API with:
@@ -91,9 +196,37 @@ def test_e2e_hello_world_flask_api() -> None:
     """
     Run real AITeamFlow for Hello World Flask spec; assert output and behavior.
 
+    Requires Ollama running; OPENAI_API_KEY must be unset so all LLM paths use Ollama.
     On success: copy output to demos/01_hello_world/output/, save run_report.json.
     On failure: save failure_report.json and fail with clear message.
     """
+    # Force CrewAI to use Ollama: env for create_llm(None), and __new__ patch for direct LLM() calls.
+    os.environ["MODEL"] = "ollama/qwen3:14b"
+    os.environ["API_BASE"] = "http://localhost:11434"
+    os.environ["OLLAMA_BASE_URL"] = "http://localhost:11434"
+    # LiteLLM reads OPENAI_API_KEY from env; point base URL to Ollama so requests don't hit api.openai.com.
+    os.environ["OPENAI_API_KEY"] = "ollama"
+    os.environ["OPENAI_BASE_URL"] = "http://localhost:11434"
+    os.environ["OPENAI_API_BASE"] = "http://localhost:11434"
+    # Avoid hierarchical planner "Instructor multiple tool calls" with Ollama
+    os.environ["PROJECT_PLANNING_SEQUENTIAL"] = "1"
+    # Reduce Rich/guardrail console output to avoid segfault in CrewAI's handle_guardrail_completed
+    os.environ["PROJECT_CREW_VERBOSE"] = "false"
+    # Use coder model for PO/Architect to reduce Instructor multi-tool-call issues with structured output
+    os.environ["OLLAMA_PRODUCT_OWNER_MODEL"] = "qwen2.5-coder:14b"
+    os.environ["OLLAMA_ARCHITECT_MODEL"] = "qwen2.5-coder:14b"
+    reload_settings()  # so planning crew and flow see PROJECT_* and OLLAMA_* from env
+    # Patch default model where it's used (llm_utils caches the import).
+    try:
+        import crewai.cli.constants as _c
+        import crewai.utilities.llm_utils as _u
+        _c.DEFAULT_LLM_MODEL = "ollama/qwen3:14b"
+        _u.DEFAULT_LLM_MODEL = "ollama/qwen3:14b"
+    except Exception:
+        pass
+    _patch_crewai_llm_for_ollama()
+    _patch_litellm_for_ollama()
+
     settings = get_settings()
     base_output = Path(settings.project.output_dir).resolve()
     base_output.mkdir(parents=True, exist_ok=True)

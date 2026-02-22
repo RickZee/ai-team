@@ -89,10 +89,17 @@ class DeploymentCrew:
     Output: complete deployment package (use package_output() to write to disk).
     """
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        verbose: bool = False,
+        step_callback: Optional[Any] = None,
+        task_callback: Optional[Any] = None,
+    ) -> None:
         self._cloud = create_cloud_engineer()
         self._devops = create_devops_engineer()
         self._verbose = verbose
+        self._step_callback = step_callback
+        self._task_callback = task_callback
 
     def kickoff(
         self,
@@ -169,6 +176,8 @@ class DeploymentCrew:
             tasks=[task_infra, task_packaging, task_docs],
             process=Process.sequential,
             verbose=self._verbose,
+            step_callback=self._step_callback,
+            task_callback=self._task_callback,
         )
 
         logger.info("deployment_crew_kickoff", tasks=3)

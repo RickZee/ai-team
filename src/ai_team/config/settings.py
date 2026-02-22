@@ -28,6 +28,10 @@ _MODEL_32GB: dict[str, str] = {
     "qa": "qwen3:8b",
 }
 
+# Single model for all roles (32GB-friendly): Qwen2.5-Coder 7B recommended; load once, reuse.
+# Use OLLAMA_SINGLE_MODEL or memory_preset=32gb_single.
+_SINGLE_MODEL_32GB: str = "qwen2.5-coder:7b"
+
 _ROLE_TO_ENV_KEY: dict[str, str] = {
     "manager": "OLLAMA_MANAGER_MODEL",
     "product_owner": "OLLAMA_PRODUCT_OWNER_MODEL",
@@ -46,7 +50,9 @@ class OllamaSettings(BaseSettings):
     Ollama API and per-role model configuration.
 
     Supports base URL, timeouts, retries, optional model assignment per agent role,
-    and memory_preset. When memory_preset is "32gb", get_model_for_role returns
+    memory_preset, and single_model. When single_model is set (e.g. qwen2.5-coder:7b),
+    all roles use it. When memory_preset is "32gb_single", one model (Qwen2.5-Coder 7B)
+    is used for all roles. When memory_preset is "32gb", get_model_for_role returns
     7B/8B model names (~8-10 GB peak) unless a role-specific env var is set.
     """
 
@@ -56,9 +62,13 @@ class OllamaSettings(BaseSettings):
         default="http://localhost:11434",
         description="Ollama API base URL",
     )
-    memory_preset: Literal["default", "32gb"] = Field(
+    memory_preset: Literal["default", "32gb", "32gb_single"] = Field(
         default="default",
-        description="Use '32gb' for 7B/8B models (peak ~8-10 GB); role env vars override.",
+        description="Use '32gb' for 7B/8B per-role; '32gb_single' for one model (qwen2.5-coder:7b) for all roles.",
+    )
+    single_model: Optional[str] = Field(
+        default=None,
+        description="When set, all agent roles use this model (e.g. qwen2.5-coder:7b). Overrides per-role and preset.",
     )
     default_model: str = Field(
         default="qwen3:14b",
@@ -79,6 +89,10 @@ class OllamaSettings(BaseSettings):
 
     def get_model_for_role(self, role: str) -> str:
         """Return the configured model for the given agent role."""
+        if self.single_model and self.single_model.strip():
+            return self.single_model.strip()
+        if self.memory_preset == "32gb_single":
+            return _SINGLE_MODEL_32GB
         role_lower = role.lower()
         if self.memory_preset == "32gb":
             env_key = _ROLE_TO_ENV_KEY.get(role_lower)
@@ -236,6 +250,10 @@ class ProjectSettings(BaseSettings):
     default_timeout: int = Field(default=3600, ge=1, description="Default timeout in seconds for runs")
     crew_verbose: bool = Field(default=True, description="Verbose crew execution (e.g. for development)")
     crew_max_rpm: Optional[int] = Field(default=None, ge=1, description="Max requests per minute for crew (Ollama rate limiting)")
+    planning_sequential: bool = Field(
+        default=False,
+        description="Use sequential process and disable crew planning for planning crew. Set True for Ollama to avoid 'Instructor multiple tool calls' in hierarchical planner.",
+    )
 
 
 class Settings(BaseSettings):

@@ -4,18 +4,25 @@
 
 planning:
   requirements_gathering:
-    description: "Analyze the following project idea and create comprehensive requirements.\n\nProject idea: {project_description}"
+    description: |
+      Analyze the following project idea and create comprehensive requirements. Your output MUST be a single valid JSON object only—no markdown, no prose before or after.
+      The JSON must conform to RequirementsDocument: project_name (string), description (string), target_users (array of strings), user_stories (array of {as_a, i_want, so_that, acceptance_criteria (array of {description, testable}), priority one of "Must have"|"Should have"|"Could have"|"Won't have (this time)", story_id}), non_functional_requirements (array of {category, description, measurable}), assumptions (array of strings), constraints (array of strings).
+      Include at least 3 user stories, each with at least one acceptance_criterion. Respond with only the JSON object—nothing else.
+      Project idea: {project_description}
     agent: product_owner
-    expected_output: "RequirementsDocument with user stories, acceptance criteria, priorities"
+    expected_output: "A single JSON object conforming to RequirementsDocument (project_name, description, target_users, user_stories with acceptance_criteria and priorities, non_functional_requirements, assumptions, constraints). No markdown or prose."
     output_pydantic: RequirementsDocument
     guardrail: "requirements must have at least 3 user stories with acceptance criteria"
     context: []
     timeout_seconds: 600
 
   architecture_design:
-    description: "Design system architecture based on requirements"
+    description: |
+      Design system architecture based on the requirements (from context). Your output MUST be a single valid JSON object only—no markdown, no code listings, no prose before or after.
+      The JSON must conform to ArchitectureDocument: system_overview (string), components (array of {name, responsibilities}), technology_stack (array of {name, category, justification}), interface_contracts (array of {provider, consumer, contract_type, description}), data_model_outline (string), ascii_diagram (string), adrs (array of {title, status, context, decision, consequences}), deployment_topology (string).
+      Respond with only the JSON object—nothing else.
     agent: architect
-    expected_output: "ArchitectureDocument with components, interfaces, tech stack"
+    expected_output: "A single JSON object conforming to ArchitectureDocument (system_overview, components, technology_stack, interface_contracts, ascii_diagram, adrs, deployment_topology). No markdown or prose."
     output_pydantic: ArchitectureDocument
     guardrail: "architecture must address all requirements"
     context: [requirements_gathering]
