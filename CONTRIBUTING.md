@@ -8,7 +8,7 @@ Thank you for your interest in contributing. This document covers development se
 
 - Python 3.11 or 3.12
 - [Poetry](https://python-poetry.org/) (or use `uv` with the same `pyproject.toml`)
-- Ollama (optional for full flow; see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md))
+- OpenRouter API key for full flow (see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md))
 
 ### Install
 
@@ -83,8 +83,8 @@ poetry run pytest
 
 ## Testing requirements
 
-- **Unit tests:** Fast, isolated; mock external services and Ollama. Live under `tests/unit/`.
-- **Integration tests:** May hit Ollama or local services; use fixtures and timeouts. Live under `tests/integration/`.
+- **Unit tests:** Fast, isolated; mock external services. Live under `tests/unit/`.
+- **Integration tests:** May hit OpenRouter when `AI_TEAM_USE_REAL_LLM=1`; use fixtures and timeouts. Live under `tests/integration/`.
 - **E2E tests:** Full flow when applicable; document any environment assumptions. Live under `tests/e2e/`.
 
 Run with coverage:

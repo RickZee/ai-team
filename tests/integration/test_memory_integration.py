@@ -1,18 +1,20 @@
 """Dedicated memory/embedder integration tests.
 
 Run when AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1 (Crew memory test),
-or AI_TEAM_TEST_MEMORY=1 (MemoryManager short-term ChromaDB test). Requires Ollama
-and the embedding model (e.g. nomic-embed-text) for tests that use embeddings.
+or AI_TEAM_TEST_MEMORY=1 (MemoryManager short-term ChromaDB test). Requires
+OPENROUTER_API_KEY for tests that use embeddings.
 
 Covers: MemoryManager before_task/after_task wiring, cross-session retrieval,
-CrewAI crew memory with local embedder (no OpenAI). Uses temporary ChromaDB/SQLite
+CrewAI crew memory with OpenRouter embedder. Uses temporary ChromaDB/SQLite
 for test isolation.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict
+from unittest.mock import patch
 
 import pytest
 from crewai import Agent, Crew, Task
@@ -43,7 +45,7 @@ class TestMemoryManagerBeforeAfterTaskHooks:
             sqlite_path=sqlite_path,
             memory_enabled=True,
             embedding_model=get_settings().memory.embedding_model,
-            ollama_base_url=get_settings().memory.ollama_base_url,
+            embedding_api_base=get_settings().memory.embedding_api_base,
         )
         manager = MemoryManager()
         manager.initialize(settings)
@@ -68,8 +70,8 @@ class TestMemoryManagerBeforeAfterTaskHooks:
         assert stored_context["task_id"] == "requirements_gathering"
         assert "project_description" in str(stored_context["context"])
 
-        # Retrieve by query (embedding search) - requires Ollama for embeddings
-        if get_settings().validate_ollama_connection():
+        # Retrieve by query (embedding search) - requires OpenRouter for embeddings
+        if os.environ.get("OPENROUTER_API_KEY"):
             results = manager.retrieve(
                 query="project description",
                 memory_type="short_term",
@@ -90,7 +92,7 @@ class TestMemoryManagerBeforeAfterTaskHooks:
             sqlite_path=sqlite_path,
             memory_enabled=True,
             embedding_model=get_settings().memory.embedding_model,
-            ollama_base_url=get_settings().memory.ollama_base_url,
+            embedding_api_base=get_settings().memory.embedding_api_base,
         )
         manager = MemoryManager()
         manager.initialize(settings)
@@ -126,8 +128,8 @@ class TestMemoryCrossSessionRetrieval:
         """Store in one session; new manager instance with same path can retrieve (long_term or short_term)."""
         if not test_memory_enabled:
             pytest.skip("Set AI_TEAM_TEST_MEMORY=1 to run")
-        if not get_settings().validate_ollama_connection():
-            pytest.skip("Ollama unreachable (embedding required for short_term)")
+        if not os.environ.get("OPENROUTER_API_KEY"):
+            pytest.skip("OPENROUTER_API_KEY not set (embedding required for short_term)")
 
         chroma_path = str(tmp_path / "chroma")
         sqlite_path = str(tmp_path / "memory.db")
@@ -137,7 +139,7 @@ class TestMemoryCrossSessionRetrieval:
             sqlite_path=sqlite_path,
             memory_enabled=True,
             embedding_model=get_settings().memory.embedding_model,
-            ollama_base_url=get_settings().memory.ollama_base_url,
+            embedding_api_base=get_settings().memory.embedding_api_base,
         )
 
         # Session 1: create manager, store
@@ -163,22 +165,23 @@ class TestMemoryCrossSessionRetrieval:
         assert any("JWT" in (r.get("document") or "") for r in results)
 
 
-class TestCrewMemoryUsesLocalEmbedder:
-    """CrewAI crew memory uses local embedder (no network calls to OpenAI)."""
+class TestCrewMemoryUsesOpenRouterEmbedder:
+    """CrewAI crew memory uses OpenRouter-backed embedder."""
 
-    def test_get_crew_embedder_config_returns_ollama(self) -> None:
-        """get_crew_embedder_config() returns Ollama provider, not OpenAI."""
-        config = get_crew_embedder_config()
-        assert config.get("provider") == "ollama"
+    def test_get_crew_embedder_config_returns_openrouter_backed(self) -> None:
+        """get_crew_embedder_config() returns openai provider with embedding model for OpenRouter."""
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
+            config = get_crew_embedder_config()
+        assert config.get("provider") == "openai"
         assert "config" in config
-        assert "model_name" in config["config"] or "url" in config["config"]
-        # Explicitly no OpenAI
-        assert "openai" not in str(config).lower() or config.get("provider") != "openai"
+        assert "model_name" in config["config"]
+        # OpenRouter embeddings use provider/model (e.g. openai/text-embedding-3-small)
+        assert "embedding" in config["config"]["model_name"].lower()
 
 
 @pytest.mark.test_memory
 class TestCrewMemoryWithEmbedder:
-    """Crew with memory=True and Ollama embedder runs without OpenAI."""
+    """Crew with memory=True and OpenRouter embedder runs."""
 
     @pytest.mark.slow
     def test_minimal_crew_with_memory_and_embedder_runs(
@@ -189,17 +192,13 @@ class TestCrewMemoryWithEmbedder:
         """Run a minimal Crew with memory=True and get_crew_embedder_config(); no exception."""
         if not (use_real_llm and test_memory_enabled):
             pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1 to run")
-        if not get_settings().validate_ollama_connection():
-            pytest.skip("Ollama unreachable")
+        if not os.environ.get("OPENROUTER_API_KEY"):
+            pytest.skip("OPENROUTER_API_KEY not set")
 
-        from langchain_ollama import ChatOllama
+        from ai_team.config.llm_factory import create_llm_for_role
+        from ai_team.config.models import OpenRouterSettings
 
-        settings = get_settings()
-        llm = ChatOllama(
-            model=settings.ollama.default_model,
-            base_url=settings.ollama.base_url,
-            request_timeout=settings.ollama.request_timeout,
-        )
+        llm = create_llm_for_role("manager", OpenRouterSettings())
         agent = Agent(
             role="Responder",
             goal="Answer in one word when asked.",
@@ -220,11 +219,8 @@ class TestCrewMemoryWithEmbedder:
                 verbose=False,
             )
         except PydanticValidationError as e:
-            if "embedder" in str(e).lower() or "nomic" in str(e).lower() or "not found" in str(e).lower():
-                pytest.skip(
-                    f"Embedder init failed (embedding model may be missing): {e!s}. "
-                    "Run: ollama pull nomic-embed-text"
-                )
+            if "embedder" in str(e).lower():
+                pytest.skip(f"Embedder init failed: {e!s}")
             raise
         result = crew.kickoff(inputs={})
         assert result is not None
@@ -240,11 +236,11 @@ class TestMemoryManagerShortTermChromaDB:
         test_memory_enabled: bool,
         tmp_path: Path,
     ) -> None:
-        """Store a doc in short_term and retrieve by semantic query; requires Ollama + embedding model."""
+        """Store a doc in short_term and retrieve by semantic query; requires OpenRouter + embedding."""
         if not test_memory_enabled:
             pytest.skip("Set AI_TEAM_TEST_MEMORY=1 to run")
-        if not get_settings().validate_ollama_connection():
-            pytest.skip("Ollama unreachable (embedding model required)")
+        if not os.environ.get("OPENROUTER_API_KEY"):
+            pytest.skip("OPENROUTER_API_KEY not set (embedding required)")
 
         chroma_path = str(tmp_path / "chroma")
         sqlite_path = str(tmp_path / "memory.db")
@@ -253,7 +249,7 @@ class TestMemoryManagerShortTermChromaDB:
             sqlite_path=sqlite_path,
             memory_enabled=True,
             embedding_model=get_settings().memory.embedding_model,
-            ollama_base_url=get_settings().memory.ollama_base_url,
+            embedding_api_base=get_settings().memory.embedding_api_base,
         )
         manager = MemoryManager()
         manager.initialize(settings)

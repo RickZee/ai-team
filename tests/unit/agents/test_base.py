@@ -3,8 +3,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from langchain_ollama import ChatOllama
-
 from ai_team.agents.base import (
     BaseAgent,
     create_agent,
@@ -48,9 +46,11 @@ class TestCreateAgent:
     """Test create_agent factory."""
 
     @pytest.fixture
-    def mock_llm(self) -> ChatOllama:
-        """Real ChatOllama instance so CrewAI accepts it; no network if not invoked."""
-        return ChatOllama(model="qwen3:14b", base_url="http://localhost:11434")
+    def mock_llm(self):
+        """Mock LLM for tests (no network)."""
+        llm = MagicMock()
+        llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+        return llm
 
     @pytest.fixture
     def minimal_config(self) -> dict:
@@ -67,7 +67,7 @@ class TestCreateAgent:
         }
 
     def test_create_agent_from_dict_returns_base_agent(
-        self, minimal_config: dict, mock_llm: ChatOllama
+        self, minimal_config: dict, mock_llm
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
             "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
@@ -91,11 +91,13 @@ class TestBaseAgent:
     """Test BaseAgent behavior."""
 
     @pytest.fixture
-    def mock_llm(self) -> ChatOllama:
-        """Real ChatOllama so CrewAI accepts it; no network if not invoked."""
-        return ChatOllama(model="qwen3:14b", base_url="http://localhost:11434")
+    def mock_llm(self):
+        """Mock LLM for tests (no network)."""
+        llm = MagicMock()
+        llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+        return llm
 
-    def test_token_usage_starts_zero(self, mock_llm: ChatOllama) -> None:
+    def test_token_usage_starts_zero(self, mock_llm) -> None:
         with patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
             agent = BaseAgent(
                 role_name="manager",
@@ -108,7 +110,7 @@ class TestBaseAgent:
         assert agent.token_usage["input_tokens"] == 0
         assert agent.token_usage["output_tokens"] == 0
 
-    def test_record_tokens_updates_usage(self, mock_llm: ChatOllama) -> None:
+    def test_record_tokens_updates_usage(self, mock_llm) -> None:
         with patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
             agent = BaseAgent(
                 role_name="manager",
@@ -125,7 +127,7 @@ class TestBaseAgent:
         assert agent.token_usage["input_tokens"] == 15
         assert agent.token_usage["output_tokens"] == 25
 
-    def test_before_task_callback_invokes_hook(self, mock_llm: ChatOllama) -> None:
+    def test_before_task_callback_invokes_hook(self, mock_llm) -> None:
         hook = MagicMock()
         with patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
             agent = BaseAgent(
@@ -140,7 +142,7 @@ class TestBaseAgent:
         agent.before_task_callback("task_1", {"key": "value"})
         hook.assert_called_once_with("task_1", {"key": "value"})
 
-    def test_after_task_callback_invokes_hook(self, mock_llm: ChatOllama) -> None:
+    def test_after_task_callback_invokes_hook(self, mock_llm) -> None:
         hook = MagicMock()
         with patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
             agent = BaseAgent(
@@ -155,7 +157,7 @@ class TestBaseAgent:
         agent.after_task_callback("task_1", "output text")
         hook.assert_called_once_with("task_1", "output text")
 
-    def test_health_check_uses_ollama_settings(self, mock_llm: ChatOllama) -> None:
+    def test_health_check_uses_openrouter(self, mock_llm) -> None:
         with patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
             agent = BaseAgent(
                 role_name="manager",
@@ -165,16 +167,10 @@ class TestBaseAgent:
                 llm=mock_llm,
                 tools=[],
             )
-        with patch("ai_team.agents.base.get_settings") as mock_settings:
-            mock_settings.return_value.ollama.check_health.return_value = True
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
             with patch("httpx.get") as mock_get:
                 mock_get.return_value.status_code = 200
-                mock_get.return_value.json.return_value = {
-                    "models": [{"name": "qwen3:14b"}],
-                }
-                # CrewAI 0.80 wraps llm and model may be repr; force .model so health_check's check passes
-                llm_with_model = MagicMock()
-                llm_with_model.model = "qwen3:14b"
-                object.__setattr__(agent, "llm", llm_with_model)
                 assert agent.health_check() is True
+        mock_get.assert_called_once()
+        (url,) = mock_get.call_args[0]
+        assert "openrouter" in str(url)

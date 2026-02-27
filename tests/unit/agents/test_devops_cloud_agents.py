@@ -1,9 +1,7 @@
 """Unit tests for DevOps and Cloud agents and their tools."""
 
 import pytest
-from unittest.mock import patch
-
-from langchain_ollama import ChatOllama
+from unittest.mock import MagicMock, patch
 
 from ai_team.agents.base import BaseAgent
 from ai_team.agents.devops_engineer import create_devops_engineer, DevOpsEngineer
@@ -23,8 +21,10 @@ def _identity_llm(llm: object) -> object:
 
 
 @pytest.fixture
-def mock_llm() -> ChatOllama:
-    return ChatOllama(model="qwen3:14b", base_url="http://localhost:11434")
+def mock_llm():
+    llm = MagicMock()
+    llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+    return llm
 
 
 @pytest.fixture
@@ -53,15 +53,11 @@ def infra_config() -> dict:
 
 class TestDevOpsEngineer:
     def test_create_devops_engineer_returns_base_agent(
-        self, mock_llm: ChatOllama, infra_config: dict
+        self, mock_llm, infra_config: dict
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
         ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_devops_engineer(agents_config=infra_config)
             assert isinstance(agent, BaseAgent)
@@ -77,15 +73,11 @@ class TestDevOpsEngineer:
 
 class TestCloudEngineer:
     def test_create_cloud_engineer_returns_base_agent(
-        self, mock_llm: ChatOllama, infra_config: dict
+        self, mock_llm, infra_config: dict
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
         ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_cloud_engineer(agents_config=infra_config)
             assert isinstance(agent, BaseAgent)

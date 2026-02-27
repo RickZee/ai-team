@@ -1,4 +1,4 @@
-"""Unit tests for MemoryManager (long-term store round-trip; no Ollama)."""
+"""Unit tests for MemoryManager (long-term store round-trip; no embedder)."""
 
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from ai_team.memory.memory_config import MemoryManager
 
 
 class TestMemoryManagerLongTerm:
-    """Long-term (SQLite) store/retrieve round-trip without embedding/Ollama."""
+    """Long-term (SQLite) store/retrieve round-trip without embedding network."""
 
     def test_long_term_store_and_retrieve_round_trip(self, tmp_path: Path) -> None:
         """Store a conversation in long_term and retrieve it via MemoryManager."""

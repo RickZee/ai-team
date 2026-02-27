@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain_ollama import ChatOllama
 
 # CrewAI 0.80 has no crewai.agent.core; tests patch crewai.agent.core.create_llm.
 # Inject a minimal shim so patch() can attach (Agent 0.80 does not call create_llm).
@@ -24,9 +23,11 @@ def _identity_llm(llm: object) -> object:
 
 
 @pytest.fixture
-def mock_ollama_llm() -> ChatOllama:
-    """Real ChatOllama instance; no network if not invoked."""
-    return ChatOllama(model="qwen3:14b", base_url="http://localhost:11434")
+def mock_ollama_llm():
+    """Mock LLM for agent tests (OpenRouter-style; no network)."""
+    llm = MagicMock()
+    llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+    return llm
 
 
 @pytest.fixture

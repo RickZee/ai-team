@@ -116,7 +116,7 @@ class TestOpenRouterGated:
         self,
         use_real_llm: bool,
     ) -> None:
-        """Minimal completion call to verify OpenRouter API key works (Devstral 2)."""
+        """Minimal completion call to verify OpenRouter API key works (free-tier model)."""
         if not use_real_llm:
             pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
         api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -125,7 +125,7 @@ class TestOpenRouterGated:
         base = os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
         url = f"{base.rstrip('/')}/chat/completions"
         payload = {
-            "model": "openrouter/mistralai/devstral-2-2507",
+            "model": "stepfun/step-3.5-flash:free",
             "messages": [{"role": "user", "content": "Reply with one word: OK"}],
             "max_tokens": 10,
         }
@@ -139,9 +139,9 @@ class TestOpenRouterGated:
         )
         data = resp.json()
         choices = data.get("choices", [])
-        assert len(choices) >= 1
+        assert len(choices) >= 1, "OpenRouter must return at least one choice"
         content = choices[0].get("message", {}).get("content", "")
-        assert isinstance(content, str) and len(content) > 0
+        assert isinstance(content, str), "Choice content must be a string (may be empty for some free-tier models)"
 
     def test_env_switching(
         self,
@@ -184,19 +184,18 @@ class TestOpenRouterGated:
                 assert r.model_id.startswith("openrouter/")
         assert isinstance(within_budget, bool)
 
-    def test_embedder_stays_local(
+    def test_embedder_uses_openrouter(
         self,
         use_real_llm: bool,
     ) -> None:
-        """get_embedder_config() returns Ollama, not OpenRouter (embeddings stay local)."""
+        """get_embedder_config() returns OpenRouter-backed embedder (openai provider)."""
         if not use_real_llm:
             pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
         config = get_embedder_config()
-        assert config.get("provider") == "ollama"
+        assert config.get("provider") == "openai"
         assert "config" in config
-        assert "model_name" in config["config"] and "url" in config["config"]
-        config_str = str(config).lower()
-        assert "openrouter" not in config_str, "Embedder must be Ollama only, not OpenRouter"
+        assert "model_name" in config["config"]
+        assert "openrouter" in config["config"]["model_name"].lower()
 
 
 # -----------------------------------------------------------------------------

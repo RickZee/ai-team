@@ -1,9 +1,7 @@
 """Unit tests for QA Engineer agent, quality gates, and feedback for developers."""
 
 import pytest
-from unittest.mock import patch
-
-from langchain_ollama import ChatOllama
+from unittest.mock import MagicMock, patch
 
 from ai_team.agents.base import BaseAgent
 from ai_team.agents.qa_engineer import (
@@ -27,8 +25,10 @@ def _identity_llm(llm: object) -> object:
 
 
 @pytest.fixture
-def mock_llm() -> ChatOllama:
-    return ChatOllama(model="qwen3:14b", base_url="http://localhost:11434")
+def mock_llm():
+    llm = MagicMock()
+    llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+    return llm
 
 
 @pytest.fixture
@@ -48,15 +48,11 @@ def qa_config() -> dict:
 
 class TestCreateQaEngineer:
     def test_create_qa_engineer_returns_base_agent(
-        self, mock_llm: ChatOllama, qa_config: dict
+        self, mock_llm, qa_config: dict
     ) -> None:
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
         ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_qa_engineer(agents_config=qa_config)
         assert isinstance(agent, BaseAgent)

@@ -1,18 +1,13 @@
 # E2E Tests
 
-End-to-end tests run a real AITeamFlow (no mocks) and require **Ollama** to be running locally.
+End-to-end tests run a real AITeamFlow (no mocks) and require **OpenRouter** (OPENROUTER_API_KEY set).
 
 ## Running the Hello World E2E test
 
-1. **Start Ollama** and pull the models used by ai-team (see project docs or `config/settings.py`), e.g.:
-   - `qwen3:14b`
-   - `deepseek-r1:14b`
-   - `deepseek-coder-v2:16b`
-   - `qwen2.5-coder:14b`
+1. **Set `OPENROUTER_API_KEY`** in your environment or `.env` (get one at https://openrouter.ai/settings/keys).
 
-2. **Unset `OPENAI_API_KEY`** for the test run so all CrewAI LLM paths use Ollama:
+2. Run the e2e test:
    ```bash
-   unset OPENAI_API_KEY
    poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s
    ```
 

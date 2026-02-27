@@ -15,7 +15,7 @@ from git import GitCommandError, InvalidGitRepositoryError, Repo
 from git.repo.fun import is_git_dir
 from pydantic import BaseModel, Field
 
-from ai_team.config.settings import get_settings
+from ai_team.config.llm_factory import complete_with_openrouter
 
 logger = structlog.get_logger(__name__)
 
@@ -319,24 +319,11 @@ def git_status(path: str) -> GitStatus:
 
 def generate_commit_message(diff: str) -> str:
     """
-    Generate a conventional commit message from a diff using the configured LLM.
+    Generate a conventional commit message from a diff using OpenRouter.
 
     :param diff: Git diff text.
     :return: Suggested commit message (single line or multi-line conventional).
     """
-    try:
-        from langchain_ollama import ChatOllama
-        from langchain_core.messages import HumanMessage
-    except ImportError as e:
-        logger.warning("generate_commit_message_skip", reason="langchain_ollama not available", error=str(e))
-        return "feat: update (run with LLM available for better message)"
-
-    settings = get_settings()
-    llm = ChatOllama(
-        base_url=settings.ollama.base_url,
-        model=settings.ollama.default_model,
-        timeout=settings.ollama.request_timeout,
-    )
     prompt = """Given the following git diff, suggest a single conventional commit message.
 Use format: type(scope): short description
 Types: feat, fix, docs, style, refactor, test, chore.
@@ -345,41 +332,24 @@ Keep the first line under 72 characters. You may add a blank line and body if ne
 Diff:
 """
     prompt += diff if diff else "(no diff)"
-    try:
-        response = llm.invoke([HumanMessage(content=prompt)])
-        text = response.content.strip() if hasattr(response, "content") else str(response)
-        # Use first line as the main message
-        first = text.split("\n")[0].strip()
-        if not first:
-            return "chore: update"
-        logger.info("generate_commit_message", suggestion=first)
-        return first
-    except Exception as e:
-        logger.exception("generate_commit_message_failed", error=str(e))
-        return "chore: update (LLM unavailable)"
+    text = complete_with_openrouter(prompt)
+    if not text:
+        return "feat: update (run with OPENROUTER_API_KEY for better message)"
+    first = text.split("\n")[0].strip()
+    if not first:
+        return "chore: update"
+    logger.info("generate_commit_message", suggestion=first)
+    return first
 
 
 def create_pr_description(commits: List[str], changes: List[str]) -> str:
     """
-    Generate a PR description from a list of commit messages and change summary.
+    Generate a PR description from a list of commit messages and change summary (OpenRouter).
 
     :param commits: List of commit message strings.
     :param changes: List of change descriptions or file paths.
     :return: Generated PR body text.
     """
-    try:
-        from langchain_ollama import ChatOllama
-        from langchain_core.messages import HumanMessage
-    except ImportError as e:
-        logger.warning("create_pr_description_skip", reason="langchain_ollama not available", error=str(e))
-        return "## Summary\n\n(Enable LLM for generated description.)"
-
-    settings = get_settings()
-    llm = ChatOllama(
-        base_url=settings.ollama.base_url,
-        model=settings.ollama.default_model,
-        timeout=settings.ollama.request_timeout,
-    )
     commits_text = "\n".join(f"- {c}" for c in commits) if commits else "- (no commits)"
     changes_text = "\n".join(f"- {ch}" for ch in changes) if changes else "- (no changes listed)"
     prompt = f"""Write a short pull request description (2-4 paragraphs) that includes:
@@ -394,11 +364,8 @@ Changes:
 {changes_text}
 
 Output only the PR description, no preamble."""
-    try:
-        response = llm.invoke([HumanMessage(content=prompt)])
-        text = response.content.strip() if hasattr(response, "content") else str(response)
-        logger.info("create_pr_description", length=len(text))
-        return text
-    except Exception as e:
-        logger.exception("create_pr_description_failed", error=str(e))
-        return "## Summary\n\n(Error generating description.)"
+    text = complete_with_openrouter(prompt)
+    if not text:
+        return "## Summary\n\n(Enable OPENROUTER_API_KEY for generated description.)"
+    logger.info("create_pr_description", length=len(text))
+    return text

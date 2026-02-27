@@ -10,6 +10,8 @@ integration, flow visualization via plot(), and comprehensive logging.
 from __future__ import annotations
 
 import json
+import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -18,6 +20,8 @@ import structlog
 from crewai import Flow
 from crewai.flow.flow import listen, router, start
 
+from ai_team.config.model_validation import ModelValidationError, validate_models_before_run
+from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings
 from ai_team.flows.error_handling import (
     handle_deployment_error as handle_deployment_error_fn,
@@ -50,6 +54,13 @@ logger = structlog.get_logger()
 MAX_PROJECT_DESCRIPTION_LENGTH = 50_000
 MIN_PROJECT_DESCRIPTION_LENGTH = 10
 
+# Root cause of RecursionError: CrewAI Flow executes steps recursively. In flow.py,
+# _execute_start_method() -> _execute_listeners() -> _execute_single_listener() ->
+# _execute_listeners() (again). Each transition adds stack frames; retry cycles and
+# long runs exceed the default limit (~1000). Raising the limit for the duration of
+# kickoff is the standard mitigation (see community reports on RecursionError).
+FLOW_RECURSION_LIMIT = 5000
+
 
 # =============================================================================
 # HELPERS: planning output extraction
@@ -73,6 +84,25 @@ def _extract_json_block(text: str) -> Optional[Dict[str, Any]]:
         return json.loads(text.strip())
     except json.JSONDecodeError:
         return None
+
+
+def _looks_like_architecture(data: Any) -> bool:
+    """
+    Return True if the parsed dict looks like an ArchitectureDocument, not a health-check or wrong schema.
+
+    Rejects trivial responses like {"status": "ok", "version": "1.0"} that the LLM sometimes returns.
+    """
+    if not isinstance(data, dict):
+        return False
+    keys = set(data.keys())
+    # Must have at least one of the main architecture fields
+    if "system_overview" in keys or "components" in keys or "technology_stack" in keys:
+        return True
+    # Reject health-check / status-only objects
+    if keys <= {"status", "version"} or keys <= {"status"} or keys <= {"ok"}:
+        return False
+    # Allow dicts that at least have structure (e.g. multiple semantic keys)
+    return len(keys) >= 2 and "status" not in keys
 
 
 def _persist_state(state: ProjectState) -> None:
@@ -115,7 +145,7 @@ def _parse_planning_output(crew_result: Any) -> tuple[Optional[RequirementsDocum
 
     if len(raw_list) >= 2:
         data = _extract_json_block(raw_list[1])
-        if data:
+        if data and _looks_like_architecture(data):
             try:
                 architecture = ArchitectureDocument.model_validate(data)
             except Exception:
@@ -124,6 +154,13 @@ def _parse_planning_output(crew_result: Any) -> tuple[Optional[RequirementsDocum
                     components=[],
                     technology_stack=[],
                 )
+        elif data:
+            # LLM returned JSON but not architecture (e.g. health-check); use fallback
+            architecture = ArchitectureDocument(
+                system_overview=data.get("system_overview", "Architecture could not be parsed (invalid schema)."),
+                components=[],
+                technology_stack=[],
+            )
 
     if not requirements:
         requirements = RequirementsDocument(
@@ -403,6 +440,9 @@ class AITeamFlow(Flow[ProjectState]):
             err_msg = str(e)
             self.logger.error("planning_failed", error=err_msg)
             self.state.metadata["last_crew_error"] = {"error": err_msg}
+            if self._monitor:
+                self._monitor.on_agent_error("planning", err_msg)
+                self._monitor.on_log("planning", err_msg[:200], "error")
             return {"status": "error", "error": err_msg}
 
     @router(run_planning_crew)
@@ -461,6 +501,9 @@ class AITeamFlow(Flow[ProjectState]):
             err_msg = str(e)
             self.logger.error("development_failed", error=err_msg)
             self.state.metadata["last_crew_error"] = {"error": err_msg}
+            if self._monitor:
+                self._monitor.on_agent_error("development", err_msg)
+                self._monitor.on_log("development", err_msg[:200], "error")
             return {"status": "error", "error": err_msg}
 
     @router(run_development_crew)
@@ -486,11 +529,10 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.testing_crew import kickoff as testing_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = False
+            verbose = not self._monitor  # CrewAI verbose when no TUI
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
-                verbose = False  # keep False; avoid CrewAI's live status output
             output = testing_crew_kickoff(
                 self.state.generated_files,
                 step_callback=step_cb,
@@ -529,6 +571,9 @@ class AITeamFlow(Flow[ProjectState]):
             err_msg = str(e)
             self.logger.error("testing_failed", error=err_msg)
             self.state.metadata["last_crew_error"] = {"error": err_msg}
+            if self._monitor:
+                self._monitor.on_agent_error("testing", err_msg)
+                self._monitor.on_log("testing", err_msg[:200], "error")
             return {"status": "error", "error": err_msg}
 
     @router(run_testing_crew)
@@ -555,7 +600,11 @@ class AITeamFlow(Flow[ProjectState]):
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
-            crew = DeploymentCrew(verbose=False, step_callback=step_cb, task_callback=task_cb)
+            crew = DeploymentCrew(
+                verbose=not self._monitor,
+                step_callback=step_cb,
+                task_callback=task_cb,
+            )
             product_owner_context = None
             if self.state.requirements:
                 product_owner_context = self.state.requirements.description
@@ -584,6 +633,9 @@ class AITeamFlow(Flow[ProjectState]):
             err_msg = str(e)
             self.logger.error("deployment_failed", error=err_msg)
             self.state.metadata["last_crew_error"] = {"error": err_msg}
+            if self._monitor:
+                self._monitor.on_agent_error("deployment", err_msg)
+                self._monitor.on_log("deployment", err_msg[:200], "error")
             return {"status": "error", "error": err_msg}
 
     @router(run_deployment_crew)
@@ -878,9 +930,18 @@ def run_ai_team(
     If complexity_override is set (simple/medium/complex), cost estimation uses it instead of inferring.
     Returns the final result and full state dump.
     """
+    if env_override is not None:
+        os.environ["AI_TEAM_ENV"] = env_override
+    try:
+        validate_models_before_run(OpenRouterSettings(), get_settings().memory)
+    except ModelValidationError as e:
+        logger.error("model_validation_failed", missing=e.missing, message=str(e))
+        raise
     if monitor:
         monitor.start()
+    old_limit = sys.getrecursionlimit()
     try:
+        sys.setrecursionlimit(FLOW_RECURSION_LIMIT)
         flow = AITeamFlow(monitor=monitor)
         flow.state.project_description = project_description
         flow.state.metadata["skip_estimate"] = skip_estimate
@@ -897,6 +958,8 @@ def run_ai_team(
         if monitor:
             monitor.stop("error")
         raise
+    finally:
+        sys.setrecursionlimit(old_limit)
 
 
 if __name__ == "__main__":

@@ -309,28 +309,26 @@ class TestBottlenecks:
 
 @pytest.mark.performance
 class TestHardwareProfiles:
-    """Record results for 8GB VRAM and 16GB VRAM configs (from settings)."""
+    """Record OpenRouter models per role (from OpenRouterSettings)."""
 
     def test_hardware_profiles(
         self,
         benchmark_collector: Dict[str, Any],
     ) -> None:
-        """Record active models per memory_preset (8GB ~ 32gb, 16GB ~ default)."""
-        from ai_team.config.settings import get_settings
+        """Record active models per role from OpenRouterSettings (AI_TEAM_ENV)."""
+        from ai_team.config.models import OpenRouterSettings
 
-        settings = get_settings()
-        ollama = settings.ollama
-        preset = getattr(ollama, "memory_preset", "default")
+        settings = OpenRouterSettings()
+        env = getattr(settings, "ai_team_env", None)
+        env_name = str(env.value) if env else "dev"
 
         role_models: Dict[str, str] = {}
         for role in ("manager", "product_owner", "architect", "backend_dev", "frontend_dev", "devops", "cloud", "qa"):
-            role_models[role] = ollama.get_model_for_role(role)
+            role_models[role] = settings.get_model_for_role(role).model_id
 
-        profile_name = "8GB_VRAM" if preset in ("32gb", "32gb_single") else "16GB_VRAM"
-        benchmark_collector.setdefault("hardware_profiles", {})[profile_name] = {
-            "memory_preset": preset,
+        benchmark_collector.setdefault("hardware_profiles", {})["openrouter"] = {
+            "env": env_name,
             "models_per_role": role_models,
-            "single_model": getattr(ollama, "single_model", None),
         }
 
 
