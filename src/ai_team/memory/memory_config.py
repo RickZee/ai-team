@@ -28,23 +28,29 @@ MemoryType = Literal["short_term", "long_term", "entity"]
 
 
 # -----------------------------------------------------------------------------
-# Ollama embedding function for ChromaDB
+# OpenRouter embedding function for ChromaDB
 # -----------------------------------------------------------------------------
 
 
-class OllamaChromaEmbeddingFunction:
+class OpenRouterChromaEmbeddingFunction:
     """
-    Embedding function that calls Ollama's embedding API for ChromaDB.
+    Embedding function that calls OpenRouter's embeddings API for ChromaDB.
     Implements the interface expected by ChromaDB (Documents -> Embeddings).
     """
 
-    def __init__(self, model: str, base_url: str = "http://localhost:11434") -> None:
+    def __init__(
+        self,
+        model: str,
+        base_url: str = "https://openrouter.ai/api/v1",
+        api_key_env: str = "OPENROUTER_API_KEY",
+    ) -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self._api_key_env = api_key_env
 
     def name(self) -> str:
         """ChromaDB embedding function identifier."""
-        return "ollama"
+        return "openrouter"
 
     def is_legacy(self) -> bool:
         """ChromaDB: not a legacy embedding function."""
@@ -59,25 +65,37 @@ class OllamaChromaEmbeddingFunction:
 
     def __call__(self, input: List[str]) -> List[List[float]]:
         """Embed a list of documents. Returns list of embedding vectors."""
+        import os
+
         import httpx
 
         if not input:
             return []
+        api_key = os.environ.get(self._api_key_env, "")
+        if not api_key:
+            logger.warning("openrouter_embedding_skip", reason="OPENROUTER_API_KEY not set")
+            return [[0.0] * 1536 for _ in input]
         out: List[List[float]] = []
+        url = f"{self.base_url}/embeddings"
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         for doc in input:
             try:
                 with httpx.Client(timeout=60.0) as client:
                     r = client.post(
-                        f"{self.base_url}/api/embeddings",
-                        json={"model": self.model, "prompt": doc},
+                        url,
+                        headers=headers,
+                        json={"model": self.model, "input": doc},
                     )
                     r.raise_for_status()
                     data = r.json()
-                    out.append(data.get("embedding", []))
+                    emb = data.get("data", [{}])
+                    vec = emb[0].get("embedding", []) if emb else []
+                    out.append(vec if vec else [0.0] * 1536)
             except Exception as e:
-                logger.warning("ollama_embedding_failed", doc_len=len(doc), error=str(e))
-                # Fallback: zero vector of typical nomic size (768) so ChromaDB doesn't fail
-                out.append([0.0] * 768)
+                logger.warning(
+                    "openrouter_embedding_failed", doc_len=len(doc), error=str(e)
+                )
+                out.append([0.0] * 1536)
         return out
 
 
@@ -97,24 +115,27 @@ class ShortTermStore:
         chromadb_path: str,
         embedding_model: str,
         collection_name: str,
-        ollama_base_url: str,
+        embedding_api_base: str = "https://openrouter.ai/api/v1",
+        api_key_env: str = "OPENROUTER_API_KEY",
     ) -> None:
         self._chromadb_path = Path(chromadb_path)
         self._chromadb_path.mkdir(parents=True, exist_ok=True)
         self._embedding_model = embedding_model
         self._collection_name_prefix = collection_name
-        self._ollama_base_url = ollama_base_url
+        self._embedding_api_base = embedding_api_base
+        self._api_key_env = api_key_env
         self._client: Any = None
-        self._ef: Optional[OllamaChromaEmbeddingFunction] = None
+        self._ef: Optional[OpenRouterChromaEmbeddingFunction] = None
 
     def _ensure_client(self) -> Any:
         if self._client is None:
             import chromadb
 
             self._client = chromadb.PersistentClient(path=str(self._chromadb_path))
-            self._ef = OllamaChromaEmbeddingFunction(
+            self._ef = OpenRouterChromaEmbeddingFunction(
                 model=self._embedding_model,
-                base_url=self._ollama_base_url,
+                base_url=self._embedding_api_base,
+                api_key_env=self._api_key_env,
             )
         return self._client
 
@@ -596,7 +617,7 @@ class MemoryManager:
             chromadb_path=settings.chromadb_path,
             embedding_model=settings.embedding_model,
             collection_name=settings.collection_name,
-            ollama_base_url=settings.ollama_base_url,
+            embedding_api_base=settings.embedding_api_base,
         )
         self._long = LongTermStore(
             sqlite_path=settings.sqlite_path,
@@ -780,22 +801,14 @@ class MemoryManager:
 
 def get_crew_embedder_config() -> Dict[str, Any]:
     """
-    Build CrewAI embedder config from MemorySettings so crew memory uses Ollama (local).
+    Build CrewAI embedder config so crew memory uses OpenRouter for embeddings.
 
-    When passing memory=True to Crew(...), also pass embedder=get_crew_embedder_config()
-    so CrewAI uses our local embedding model instead of default (OpenAI). Uses the same
-    embedding_model and ollama_base_url as AI-Team short-term memory.
+    When passing memory=True to Crew(...), also pass embedder=get_crew_embedder_config().
+    Delegates to llm_factory.get_embedder_config() for a single source of truth.
     """
-    from ai_team.config.settings import get_settings
+    from ai_team.config.llm_factory import get_embedder_config
 
-    m = get_settings().memory
-    return {
-        "provider": "ollama",
-        "config": {
-            "model_name": m.embedding_model,
-            "url": m.ollama_base_url.rstrip("/"),
-        },
-    }
+    return get_embedder_config()
 
 
 # Singleton for use across the app

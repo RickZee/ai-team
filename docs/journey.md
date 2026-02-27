@@ -85,3 +85,11 @@ Let's plan to deploy it on AWS AgentCore as well.
 After multiple test runs using Ollama - it's now clear that not only it's slow, but also not feasible at the moment if you really want to make any progress. Most of the test runs are very slow, the local models are way to dumb to perform tasks, and the system crashes several times a day because I don't have enough memory.
 
 Ok so for the next time - migrate from Ollama to OpenRouter and try running again.
+
+## Feb 27
+
+Bright and early Friday... Finally, running a demo! And seeing agent talk to each other. This is very cool.
+
+Also, enjoying the regular (as of late), Cursor idiosyncrasies. I'm getting a feeling that just switching to Claude full time will get a much better value, faster results. It's like arguing with a mid-level engineer, who have enough experience to have very strong opinions, but not enough experience to understand a larger context, and not willing to even try what is being asked. And - just throwing the task back at you, "here, if you're so smart why don't you do it yourself".
+
+Ran into a problem with free OpenRouter account - the max number of tokens is 4096, and there's no way to set a larger limit?

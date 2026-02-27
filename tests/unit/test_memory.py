@@ -1,7 +1,7 @@
 """
 Comprehensive unit tests for memory: MemoryManager ChromaDB storage/retrieval,
-SQLite session persistence, CrewAI embedder config (no OpenAI fallback),
-mock Ollama embedder, memory cleanup and TTL expiry.
+SQLite session persistence, CrewAI embedder config (OpenRouter),
+mock embedder, memory cleanup and TTL expiry.
 """
 
 from pathlib import Path
@@ -13,7 +13,7 @@ from ai_team.config.settings import MemorySettings
 from ai_team.memory.memory_config import (
     MemoryManager,
     get_crew_embedder_config,
-    OllamaChromaEmbeddingFunction,
+    OpenRouterChromaEmbeddingFunction,
 )
 
 
@@ -23,7 +23,7 @@ from ai_team.memory.memory_config import (
 
 
 class TestMemoryManagerChromaDB:
-    """Short-term (ChromaDB) store and retrieve; mock embedder to avoid Ollama."""
+    """Short-term (ChromaDB) store and retrieve; mock embedder to avoid network."""
 
     def test_short_term_store_retrieve_round_trip(self, tmp_path: Path) -> None:
         """Store in short_term and retrieve via semantic search (mocked embedder)."""
@@ -34,12 +34,12 @@ class TestMemoryManagerChromaDB:
             sqlite_path=sqlite_path,
             memory_enabled=True,
             retention_days=90,
-            ollama_base_url="http://localhost:11434",
+            embedding_api_base="https://openrouter.ai/api/v1",
         )
-        # Mock embedding to return fixed vectors so we don't call Ollama
+        # Mock embedding to return fixed vectors so we don't call OpenRouter
         with patch(
-            "ai_team.memory.memory_config.OllamaChromaEmbeddingFunction.__call__",
-            return_value=[[0.1] * 768],
+            "ai_team.memory.memory_config.OpenRouterChromaEmbeddingFunction.__call__",
+            return_value=[[0.1] * 1536],
         ):
             manager = MemoryManager()
             manager.initialize(settings)
@@ -110,39 +110,31 @@ class TestMemoryManagerSQLitePersistence:
 # -----------------------------------------------------------------------------
 
 
-class TestCrewEmbedderConfigNoOpenAI:
-    """get_crew_embedder_config must return Ollama provider only."""
+class TestCrewEmbedderConfig:
+    """get_crew_embedder_config delegates to llm_factory and returns OpenRouter-backed config."""
 
-    def test_returns_ollama_provider_only(self) -> None:
-        mock_memory = MagicMock()
-        mock_memory.embedding_model = "nomic-embed-text"
-        mock_memory.ollama_base_url = "http://localhost:11434/"
-        with patch("ai_team.config.settings.get_settings") as m:
-            m.return_value.memory = mock_memory
+    def test_returns_openai_provider_for_openrouter(self) -> None:
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
             out = get_crew_embedder_config()
-        assert out["provider"] == "ollama"
-        assert "openai" not in str(out).lower()
+        assert out["provider"] == "openai"
         assert "config" in out
-        assert out["config"]["model_name"] == "nomic-embed-text"
-        assert out["config"]["url"] == "http://localhost:11434"
+        assert "model_name" in out["config"]
+        assert "embedding" in out["config"]["model_name"].lower()
 
-    def test_strips_trailing_slash_from_base_url(self) -> None:
-        mock_memory = MagicMock()
-        mock_memory.embedding_model = "custom-embed"
-        mock_memory.ollama_base_url = "http://127.0.0.1:11434/"
-        with patch("ai_team.config.settings.get_settings") as m:
-            m.return_value.memory = mock_memory
+    def test_embedder_config_has_model_name(self) -> None:
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "key"}, clear=False):
             out = get_crew_embedder_config()
-        assert out["config"]["url"] == "http://127.0.0.1:11434"
+        assert "config" in out
+        assert out["config"]["model_name"]
 
 
 # -----------------------------------------------------------------------------
-# Mock Ollama embedder responses
+# Mock OpenRouter embedder responses
 # -----------------------------------------------------------------------------
 
 
-class TestMockOllamaEmbedder:
-    """OllamaChromaEmbeddingFunction behavior without hitting network."""
+class TestMockOpenRouterEmbedder:
+    """OpenRouterChromaEmbeddingFunction behavior without hitting network."""
 
     def test_embedding_function_returns_list_of_vectors(self) -> None:
         """__call__ returns list of lists (one vector per doc)."""
@@ -152,17 +144,18 @@ class TestMockOllamaEmbedder:
             mock_client_cls.return_value.__exit__.return_value = None
             client.post.return_value.status_code = 200
             client.post.return_value.json.return_value = {
-                "embedding": [0.0] * 768,
+                "data": [{"embedding": [0.0] * 1536}],
             }
             client.post.return_value.raise_for_status = MagicMock()
-            ef = OllamaChromaEmbeddingFunction(
-                model="nomic-embed-text",
-                base_url="http://localhost:11434",
+            ef = OpenRouterChromaEmbeddingFunction(
+                model="openai/text-embedding-3-small",
+                base_url="https://openrouter.ai/api/v1",
             )
-            result = ef(["hello world"])
+            with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
+                result = ef(["hello world"])
         assert isinstance(result, list)
         assert len(result) == 1
-        assert len(result[0]) == 768
+        assert len(result[0]) == 1536
 
     def test_embed_query_single_string(self) -> None:
         with patch("httpx.Client") as mock_client_cls:
@@ -170,15 +163,18 @@ class TestMockOllamaEmbedder:
             mock_client_cls.return_value.__enter__.return_value = client
             mock_client_cls.return_value.__exit__.return_value = None
             client.post.return_value.status_code = 200
-            client.post.return_value.json.return_value = {"embedding": [0.1] * 768}
+            client.post.return_value.json.return_value = {
+                "data": [{"embedding": [0.1] * 1536}],
+            }
             client.post.return_value.raise_for_status = MagicMock()
-            ef = OllamaChromaEmbeddingFunction(
-                model="nomic-embed-text",
-                base_url="http://localhost:11434",
+            ef = OpenRouterChromaEmbeddingFunction(
+                model="openai/text-embedding-3-small",
+                base_url="https://openrouter.ai/api/v1",
             )
-            vec = ef.embed_query("single query")
+            with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
+                vec = ef.embed_query("single query")
         assert isinstance(vec, list)
-        assert len(vec) == 768
+        assert len(vec) == 1536
 
 
 # -----------------------------------------------------------------------------
@@ -196,11 +192,11 @@ class TestMemoryCleanupAndTTL:
             sqlite_path=":memory:",
             memory_enabled=True,
             retention_days=90,
-            ollama_base_url="http://localhost:11434",
+            embedding_api_base="https://openrouter.ai/api/v1",
         )
         with patch(
-            "ai_team.memory.memory_config.OllamaChromaEmbeddingFunction.__call__",
-            return_value=[[0.0] * 768],
+            "ai_team.memory.memory_config.OpenRouterChromaEmbeddingFunction.__call__",
+            return_value=[[0.0] * 1536],
         ):
             manager = MemoryManager()
             manager.initialize(settings)

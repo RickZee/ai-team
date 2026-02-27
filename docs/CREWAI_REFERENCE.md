@@ -139,12 +139,16 @@ report_task = Task(
 | `agents`       | List of agents |
 | `tasks`        | List of tasks |
 | `process`      | `Process.sequential` or `Process.hierarchical` |
-| `manager_llm`  | LLM for manager (hierarchical) |
+| `manager_llm`  | LLM for manager (hierarchical) — Crew-level override; no per-agent slot here |
 | `manager_agent`| Custom manager agent (hierarchical) |
 | `memory`      | `True` for default memory, or `Memory(...)` instance |
 | `planning`     | `True` to add step-by-step planning before iterations |
-| `planning_llm` | LLM for planning (default gpt-4o-mini) |
+| `planning_llm` | LLM for planning — Crew-level override (CrewAI default gpt-4o-mini if unset) |
 | `verbose`     | Log crew execution |
+
+**Why only manager and planning?** CrewAI’s `Crew` only exposes these two LLM overrides at the crew level. Every **agent** already has its own `llm` (set in the Agent constructor). So task execution uses each task’s assigned agent’s LLM; the crew-level slots are only for the hierarchical manager and the optional planning step, which are not tied to a single task agent.
+
+**In this project:** We keep LLM choice consistent with config. Each agent gets its LLM from `create_llm_for_role(role_name, openrouter)` in `BaseAgent` (see `config/models.py` and `config/llm_factory.py`). For `manager_llm` and `planning_llm` we pass the same config-derived LLM from the manager/architect agent (e.g. `manager_llm=getattr(architect, "llm", None)` in the development crew, `planning_llm=getattr(manager, "llm", None)` in the planning crew), so manager and planning use our role-based config rather than CrewAI defaults.
 
 **Example:**
 
@@ -256,15 +260,17 @@ def discard(self, result):
 
 ---
 
-## 5. Memory types
+## 5. Memory (unified API)
 
-CrewAI provides a **unified Memory API** (single `Memory` class). Storage default is LanceDB (under `./.crewai/memory` or `$CREWAI_STORAGE_DIR`). Older setups may reference ChromaDB/SQLite; current docs use the unified Memory with configurable embedder and storage.
+CrewAI provides a **unified Memory API** — a single `Memory` class that replaces separate short-term, long-term, and entity memory types. The LLM analyzes content on save (scope, categories, importance) and recall uses composite scoring (semantic + recency + importance).
+
+**Storage:** Default backend is **LanceDB**. Data lives under `./.crewai/memory`, or `$CREWAI_STORAGE_DIR/memory` if set. Pass `storage="path/to/dir"` or a custom `StorageBackend` instance for a different backend. LanceDB is serialized with a shared lock so multiple `Memory` instances (e.g. agent + crew) can share the same path.
 
 **Usage patterns:**
 
 - **Standalone:** `memory = Memory()` then `memory.remember(...)`, `memory.recall(...)`.
-- **With Crew:** `Crew(..., memory=True)` or `memory=Memory(...)`.
-- **With Agent:** `memory=memory.scope("/agent/researcher")` for private scope.
+- **With Crew:** `Crew(..., memory=True)` or `memory=Memory(...)`. When `memory=True`, the crew's `embedder` is passed through automatically.
+- **With Agent:** `memory=memory.scope("/agent/researcher")` for private scope; use `memory.slice(scopes=[...], read_only=True)` for multi-scope read-only views.
 - **In Flows:** `self.remember(...)`, `self.recall(...)`, `self.extract_memories(...)`.
 
 **Core API:**
@@ -274,20 +280,25 @@ from crewai import Memory
 
 memory = Memory()
 
-# Store (LLM can infer scope/categories/importance)
+# Store (LLM infers scope/categories/importance when omitted)
 memory.remember("We use PostgreSQL for the user database.")
 memory.remember("Staging uses port 8080.", scope="/project/staging")
 
-# Recall (composite scoring: semantic + recency + importance)
+# Recall (composite scoring; depth="shallow" for fast vector-only, "deep" for LLM-guided)
 matches = memory.recall("What database do we use?", limit=5)
 for m in matches:
     print(f"[{m.score:.2f}] {m.record.content}")
 
-# Scopes (hierarchical, like paths)
+# Scopes (hierarchical, like paths); use explicit scope when known
 agent_memory = memory.scope("/agent/researcher")
 agent_memory.remember("Found three relevant papers.")
 
-# Tuning
+# Extract atomic facts from raw text before storing
+facts = memory.extract_memories(meeting_notes)
+for fact in facts:
+    memory.remember(fact)
+
+# Tuning (defaults: recency 0.3, semantic 0.5, importance 0.2, half-life 30 days)
 memory = Memory(
     recency_weight=0.4,
     semantic_weight=0.4,
@@ -296,9 +307,21 @@ memory = Memory(
 )
 ```
 
-**Entity / knowledge:** Use scopes (e.g. `/project/alpha`, `/customer/acme`) and optional **Knowledge** sources for RAG. Memory supports `extract_memories(raw_text)` to break text into atomic facts before storing.
+**Best practices:** Use explicit scopes when you know them (e.g. `scope="/project/alpha/decisions"`); let the LLM infer for freeform content. Keep scope depth shallow (2–3 levels). Use `/{entity_type}/{id}` patterns (e.g. `/project/alpha`, `/agent/researcher`, `/customer/acme`). For scripts/notebooks without a crew lifecycle, call `memory.drain_writes()` or `memory.close()` after `remember_many()` so pending saves complete.
 
-**Embedder:** Pass `embedder={"provider": "openai", "config": {"model_name": "text-embedding-3-small"}}` or use Ollama/local provider. Crew passes its `embedder` when `memory=True`.
+**Entity / knowledge:** Use scopes and optional **Knowledge** sources for RAG. Memory supports consolidation (dedup/update on save when similarity > threshold) and `remember_many()` (non-blocking; recall automatically waits for pending writes).
+
+**Embedder:** Pass `embedder={"provider": "openai", "config": {"model_name": "text-embedding-3-small"}}` or use Ollama/local provider. Crew passes its `embedder` when `memory=True`. Default is OpenAI when not set.
+
+### LanceDB vs ChromaDB/SQLite (and refactor impact)
+
+| Aspect | CrewAI default (LanceDB) | ChromaDB + SQLite (e.g. custom MemoryManager) |
+|--------|--------------------------|-----------------------------------------------|
+| **What it is** | Single vector store; one `Memory` API with scopes, composite scoring, LLM analysis, consolidation. | Often split: vector store (ChromaDB) for semantic RAG + relational store (SQLite) for conversations, metrics, entity graphs. |
+| **When used** | Whenever `Crew(..., memory=True)` or `Memory()` is used — CrewAI uses LanceDB under `./.crewai/memory` (or `$CREWAI_STORAGE_DIR/memory`). | Custom app-level memory (e.g. per-project short-term, cross-session long-term, entity memory) if you implement it. |
+| **Data model** | One store; “short vs long” is expressed via recency/importance in scoring, not separate DBs. | Explicit separation: short-term (vectors per project), long-term (tables), entity (tables). |
+
+In this repo, crews use **CrewAI memory** (`memory=True`, `embedder=get_embedder_config()`), so **LanceDB is already in use** for crew-internal context. Any custom **MemoryManager** (ChromaDB + SQLite) is a separate, optional layer for app-level persistence (e.g. before_task/after_task wiring). You do **not** need to refactor existing code or unit/integration tests for LanceDB: CrewAI’s default is already LanceDB. Tests that target your custom MemoryManager are testing that layer; change them only if you decide to remove or replace that layer (e.g. migrate to CrewAI’s Memory API for app-level context too).
 
 ---
 

@@ -26,6 +26,8 @@ logger = structlog.get_logger()
 # Backoff delays in seconds for retryable errors: 1s, 2s, 4s, 8s
 RETRY_BACKOFF_DELAYS = [1, 2, 4, 8]
 CIRCUIT_BREAKER_THRESHOLD = 3
+# Cap consecutive failures so a bad state file or loop cannot inflate indefinitely
+MAX_CONSECUTIVE_FAILURES_CAP = 10
 
 
 # -----------------------------------------------------------------------------
@@ -199,10 +201,10 @@ def get_consecutive_failures(state: ProjectState, phase: ProjectPhase) -> int:
 
 
 def record_failure(state: ProjectState, phase: ProjectPhase) -> int:
-    """Increment consecutive failure count for phase; return new count."""
+    """Increment consecutive failure count for phase (capped); return new count."""
     key = _consecutive_failures_key(phase)
     current = int(state.metadata.get(key, 0))
-    new_count = current + 1
+    new_count = min(current + 1, MAX_CONSECUTIVE_FAILURES_CAP)
     state.metadata[key] = new_count
     return new_count
 
@@ -242,9 +244,15 @@ def persist_state_on_error(state: ProjectState, error_info: Optional[Dict[str, A
 
 
 def load_state_from_file(path: Path) -> ProjectState:
-    """Load ProjectState from a JSON file for resume."""
+    """Load ProjectState from a JSON file for resume. Resets consecutive_failures_* so a new run does not inherit old counts."""
     data = json.loads(path.read_text(encoding="utf-8"))
-    return ProjectState.model_validate(data)
+    state = ProjectState.model_validate(data)
+    meta = state.metadata
+    for phase in ProjectPhase:
+        key = _consecutive_failures_key(phase)
+        if key in meta:
+            meta[key] = 0
+    return state
 
 
 def rollback_last_phase(state: ProjectState) -> Optional[ProjectPhase]:

@@ -206,6 +206,20 @@ class TestStatePreservation:
         assert loaded.project_id == state.project_id
         assert loaded.current_phase == state.current_phase
 
+    def test_load_state_resets_consecutive_failures(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Loaded state has consecutive_failures_* reset to 0 so a new run does not inherit old counts."""
+        from ai_team.flows import error_handling as eh
+        settings = MagicMock()
+        settings.project.output_dir = str(tmp_path)
+        monkeypatch.setattr(eh, "get_settings", lambda: settings)
+
+        state = ProjectState(project_id="reset1", current_phase=ProjectPhase.PLANNING)
+        record_failure(state, ProjectPhase.PLANNING)
+        record_failure(state, ProjectPhase.PLANNING)
+        path = persist_state_on_error(state)
+        loaded = load_state_from_file(path)
+        assert get_consecutive_failures(loaded, ProjectPhase.PLANNING) == 0
+
     def test_rollback_last_phase(self) -> None:
         state = ProjectState(project_id="roll1", current_phase=ProjectPhase.DEVELOPMENT)
         state.add_phase_transition(ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "Done")

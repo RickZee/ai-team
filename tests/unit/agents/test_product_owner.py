@@ -143,20 +143,16 @@ class TestCreateProductOwnerAgent:
         }
 
     def test_returns_base_agent(self, minimal_config: dict) -> None:
-        from unittest.mock import patch
-        from langchain_ollama import ChatOllama
+        from unittest.mock import MagicMock, patch
 
         def _identity_llm(llm: object) -> object:
             return llm
 
-        mock_llm = ChatOllama(model="qwen3:14b", base_url="http://localhost:11434")
+        mock_llm = MagicMock()
+        mock_llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
         with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.LLM", return_value=mock_llm
+            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
         ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
-            mock_settings.return_value.ollama.get_model_for_role.return_value = "qwen3:14b"
-            mock_settings.return_value.ollama.base_url = "http://localhost:11434"
-            mock_settings.return_value.ollama.request_timeout = 300
-            mock_settings.return_value.ollama.max_retries = 3
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_product_owner_agent(tools=[], agents_config=minimal_config)
         assert isinstance(agent, BaseAgent)

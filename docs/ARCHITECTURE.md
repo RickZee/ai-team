@@ -93,7 +93,7 @@ This document describes the AI Team system architecture: flows, crews, agents, t
 | **DevOps Engineer** | CI/CD, Docker, K8s, monitoring, observability. |
 | **QA Engineer** | Test strategy, automation, coverage, quality checks. |
 
-Agents are defined in `config/agents.yaml` (role, goal, backstory, verbose, allow_delegation, max_iter, memory) and mapped to Ollama models in settings.
+Agents are defined in `config/agents.yaml` (role, goal, backstory, verbose, allow_delegation, max_iter, memory) and mapped to OpenRouter models in config (OpenRouterSettings, AI_TEAM_ENV).
 
 ### 2.4 Tool Layer
 
@@ -217,12 +217,12 @@ State is carried in **ProjectState** through the flow; each crew reads/writes th
 | Layer | Technology | Purpose |
 |-------|------------|---------|
 | Orchestration | **CrewAI Flows** | Flow, routers, state; event-driven pipeline. |
-| LLM | **Ollama** | Local models (e.g. qwen3, deepseek-r1, qwen2.5-coder) per agent. |
+| LLM | **OpenRouter** | Models per agent (openrouter/deepseek/..., openrouter/mistralai/...) via AI_TEAM_ENV. |
 | State & schemas | **Pydantic** | ProjectState, RequirementsDocument, ArchitectureDocument, CodeFile, TestResult, DeploymentConfig. |
 | Short-term memory | **ChromaDB** | Vector store for recent context. |
 | Long-term memory | **SQLite** | Persistent memory store. |
 | UI | **Gradio** | Demo UI for project input, progress, and output. |
-| Config | **pydantic-settings** | Settings, Ollama, guardrails, memory from env. |
+| Config | **pydantic-settings** | Settings, OpenRouter, guardrails, memory from env. |
 | Logging | **structlog** | Structured logs for flow and agents. |
 
 ---
@@ -233,7 +233,7 @@ State is carried in **ProjectState** through the flow; each crew reads/writes th
 ai-team/
 ├── src/ai_team/
 │   ├── config/           # Flow/Crew/Agent config
-│   │   ├── settings.py   # Settings, Ollama, guardrails, memory
+│   │   ├── settings.py   # Settings, guardrails, memory
 │   │   └── agents.yaml   # Agent definitions (role, goal, backstory)
 │   ├── agents/           # Agent implementations (BaseAgent, Manager, PO, Architect, …)
 │   ├── crews/            # PlanningCrew, DevelopmentCrew, TestingCrew, DeploymentCrew
@@ -249,7 +249,7 @@ ai-team/
 │   ├── integration/
 │   └── e2e/
 ├── docs/                 # ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md
-├── scripts/              # setup_ollama.sh, test_models.py, run_demo.py
+├── scripts/              # setup_openrouter.sh, test_models.py, run_demo.py
 ├── ui/                   # Gradio app (app.py, components/, pages/)
 └── demos/                # Demo projects (input.json, expected_output.json)
 ```
@@ -259,7 +259,7 @@ ai-team/
 ## 7. Integration Points and Extension Guide
 
 - **Adding an agent**  
-  - Add entry in `config/agents.yaml` and (if needed) a model in `OllamaModelConfig` in `config/settings.py`.  
+  - Add entry in `config/agents.yaml` and (if needed) a model in `config/models.py` (OpenRouterSettings, ENV_MODELS).  
   - Implement the agent in `agents/` (extend BaseAgent), attach tools, then add to the appropriate crew in `crews/`.
 
 - **Adding a crew**  
@@ -305,22 +305,21 @@ ai-team/
 
 ---
 
-### ADR-002: Why Ollama over Cloud APIs
+### ADR-002: Why OpenRouter for LLM and Embeddings
 
 **Status:** Accepted  
 
-**Context:** Agents need an LLM backend; we want to support local development, demos, and optional air-gapped or low-cost deployment.
+**Context:** Agents need an LLM and embedding backend; we want a single API key, multiple models per role, and no local GPU requirement.
 
-**Decision:** Use **Ollama** as the default LLM provider (with optional cloud fallback via configuration).
+**Decision:** Use **OpenRouter** as the sole provider for inference and embeddings.
 
 **Rationale:**
 
-- **Local-first:** No API keys or network dependency for core runs; easier onboarding and demos.
-- **Cost and privacy:** No per-token cost; data stays on the host when using local models.
-- **Model choice:** Different models per role (e.g. reasoning for Architect, coding for Backend) via `OllamaModelConfig`.
-- **Maturity:** Ollama is widely used for local LLM runs and integrates cleanly with CrewAI/LiteLLM.
+- **Single key:** One `OPENROUTER_API_KEY` for chat and embeddings.
+- **Model choice:** Different models per role via `OpenRouterSettings` and `AI_TEAM_ENV` (dev/test/prod).
+- **No local GPU:** No Ollama or local model setup; works in CI and on any host with network.
 
-**Consequences:** We need to document hardware requirements (e.g. VRAM) and provide setup scripts (e.g. `setup_ollama.sh`). Cloud can be supported later via the same LiteLLM/CrewAI abstraction if we add an alternate provider in settings.
+**Consequences:** Requires network and OpenRouter account. See `scripts/setup_openrouter.sh` and `.env.example`.
 
 ---
 
