@@ -5,133 +5,12 @@ This module provides centralized configuration management using Pydantic setting
 Configuration is loaded from .env by default; alternative YAML loading is supported.
 """
 
-import os
 from pathlib import Path
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Optional
 
 import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-# 32GB preset: 7B/8B models so peak RAM stays ~8-10 GB (one model loaded at a time).
-# Role-specific env vars (e.g. OLLAMA_MANAGER_MODEL) override the preset when set.
-_MODEL_32GB: dict[str, str] = {
-    "manager": "qwen3:8b",
-    "product_owner": "qwen3:8b",
-    "architect": "deepseek-r1:8b",
-    "backend_dev": "qwen2.5-coder:7b",
-    "frontend_dev": "qwen2.5-coder:7b",
-    "fullstack_dev": "qwen2.5-coder:7b",
-    "devops": "qwen2.5-coder:7b",
-    "cloud": "qwen2.5-coder:7b",
-    "qa": "qwen3:8b",
-}
-
-# Single model for all roles (32GB-friendly): Qwen2.5-Coder 7B recommended; load once, reuse.
-# Use OLLAMA_SINGLE_MODEL or memory_preset=32gb_single.
-_SINGLE_MODEL_32GB: str = "qwen2.5-coder:7b"
-
-_ROLE_TO_ENV_KEY: dict[str, str] = {
-    "manager": "OLLAMA_MANAGER_MODEL",
-    "product_owner": "OLLAMA_PRODUCT_OWNER_MODEL",
-    "architect": "OLLAMA_ARCHITECT_MODEL",
-    "backend_dev": "OLLAMA_BACKEND_DEV_MODEL",
-    "frontend_dev": "OLLAMA_FRONTEND_DEV_MODEL",
-    "fullstack_dev": "OLLAMA_FULLSTACK_DEV_MODEL",
-    "devops": "OLLAMA_DEVOPS_MODEL",
-    "cloud": "OLLAMA_CLOUD_MODEL",
-    "qa": "OLLAMA_QA_MODEL",
-}
-
-
-class OllamaSettings(BaseSettings):
-    """
-    Ollama API and per-role model configuration.
-
-    Supports base URL, timeouts, retries, optional model assignment per agent role,
-    memory_preset, and single_model. When single_model is set (e.g. qwen2.5-coder:7b),
-    all roles use it. When memory_preset is "32gb_single", one model (Qwen2.5-Coder 7B)
-    is used for all roles. When memory_preset is "32gb", get_model_for_role returns
-    7B/8B model names (~8-10 GB peak) unless a role-specific env var is set.
-    """
-
-    model_config = SettingsConfigDict(env_prefix="OLLAMA_", extra="ignore")
-
-    base_url: str = Field(
-        default="http://localhost:11434",
-        description="Ollama API base URL",
-    )
-    memory_preset: Literal["default", "32gb", "32gb_single"] = Field(
-        default="default",
-        description="Use '32gb' for 7B/8B per-role; '32gb_single' for one model (qwen2.5-coder:7b) for all roles.",
-    )
-    single_model: Optional[str] = Field(
-        default=None,
-        description="When set, all agent roles use this model (e.g. qwen2.5-coder:7b). Overrides per-role and preset.",
-    )
-    default_model: str = Field(
-        default="qwen3:14b",
-        description="Default model used when a role has no specific assignment",
-    )
-    manager_model: str = Field(default="qwen3:14b", description="Model for Manager agent")
-    product_owner_model: str = Field(default="qwen3:14b", description="Model for Product Owner")
-    architect_model: str = Field(default="deepseek-r1:14b", description="Model for Architect")
-    backend_dev_model: str = Field(default="deepseek-coder-v2:16b", description="Model for Backend Developer")
-    frontend_dev_model: str = Field(default="qwen2.5-coder:14b", description="Model for Frontend Developer")
-    fullstack_dev_model: str = Field(default="deepseek-coder-v2:16b", description="Model for Fullstack Developer")
-    devops_model: str = Field(default="qwen2.5-coder:14b", description="Model for DevOps")
-    cloud_model: str = Field(default="qwen2.5-coder:14b", description="Model for Cloud Engineer")
-    qa_model: str = Field(default="qwen3:14b", description="Model for QA Agent")
-
-    request_timeout: int = Field(default=300, ge=1, le=3600, description="Request timeout in seconds")
-    max_retries: int = Field(default=3, ge=0, le=10, description="Max retries for Ollama requests")
-
-    def get_model_for_role(self, role: str) -> str:
-        """Return the configured model for the given agent role."""
-        if self.single_model and self.single_model.strip():
-            return self.single_model.strip()
-        if self.memory_preset == "32gb_single":
-            return _SINGLE_MODEL_32GB
-        role_lower = role.lower()
-        if self.memory_preset == "32gb":
-            env_key = _ROLE_TO_ENV_KEY.get(role_lower)
-            if env_key is not None and os.environ.get(env_key) is not None:
-                    # User set this role explicitly; use it
-                    role_map = {
-                        "manager": self.manager_model,
-                        "product_owner": self.product_owner_model,
-                        "architect": self.architect_model,
-                        "backend_dev": self.backend_dev_model,
-                        "frontend_dev": self.frontend_dev_model,
-                        "fullstack_dev": self.fullstack_dev_model,
-                        "devops": self.devops_model,
-                        "cloud": self.cloud_model,
-                        "qa": self.qa_model,
-                    }
-                    return role_map.get(role_lower, self.default_model)
-            return _MODEL_32GB.get(role_lower, "qwen3:8b")
-        role_map = {
-            "manager": self.manager_model,
-            "product_owner": self.product_owner_model,
-            "architect": self.architect_model,
-            "backend_dev": self.backend_dev_model,
-            "frontend_dev": self.frontend_dev_model,
-            "fullstack_dev": self.fullstack_dev_model,
-            "devops": self.devops_model,
-            "cloud": self.cloud_model,
-            "qa": self.qa_model,
-        }
-        return role_map.get(role_lower, self.default_model)
-
-    def check_health(self) -> bool:
-        """Validate that the Ollama server is reachable. Returns True if healthy."""
-        try:
-            import httpx
-            response = httpx.get(f"{self.base_url.rstrip('/')}/api/tags", timeout=5)
-            return response.status_code == 200
-        except Exception:
-            return False
 
 
 class GuardrailSettings(BaseSettings):
@@ -179,7 +58,10 @@ class MemorySettings(BaseSettings):
 
     chromadb_path: str = Field(default="./data/chroma", description="ChromaDB persistence directory")
     sqlite_path: str = Field(default="./data/memory.db", description="SQLite database path for long-term memory")
-    embedding_model: str = Field(default="nomic-embed-text", description="Model used for embeddings")
+    embedding_model: str = Field(
+        default="openai/text-embedding-3-small",
+        description="Embedding model (OpenRouter: provider/model, e.g. openai/text-embedding-3-small)",
+    )
     collection_name: str = Field(default="ai_team_memory", description="ChromaDB collection name prefix (project_id appended)")
     memory_enabled: bool = Field(default=True, description="Master switch to enable/disable memory")
     max_results: int = Field(default=10, ge=1, le=100, description="Max results for RAG/semantic retrieval (top_k)")
@@ -188,9 +70,9 @@ class MemorySettings(BaseSettings):
         default=True,
         description="When True, short-term memory is shared across crews within the same project",
     )
-    ollama_base_url: str = Field(
-        default="http://localhost:11434",
-        description="Ollama API base URL for embedding model (used by short-term memory)",
+    embedding_api_base: str = Field(
+        default="https://openrouter.ai/api/v1",
+        description="API base URL for embeddings (OpenRouter)",
     )
 
 
@@ -249,10 +131,10 @@ class ProjectSettings(BaseSettings):
     max_iterations: int = Field(default=10, ge=1, le=100, description="Max iterations per run")
     default_timeout: int = Field(default=3600, ge=1, description="Default timeout in seconds for runs")
     crew_verbose: bool = Field(default=True, description="Verbose crew execution (e.g. for development)")
-    crew_max_rpm: Optional[int] = Field(default=None, ge=1, description="Max requests per minute for crew (Ollama rate limiting)")
+    crew_max_rpm: Optional[int] = Field(default=None, ge=1, description="Max requests per minute for crew")
     planning_sequential: bool = Field(
         default=False,
-        description="Use sequential process and disable crew planning for planning crew. Set True for Ollama to avoid 'Instructor multiple tool calls' in hierarchical planner.",
+        description="Use sequential process and disable crew planning for planning crew.",
     )
 
 
@@ -260,8 +142,7 @@ class Settings(BaseSettings):
     """
     Root settings class. Loads from .env by default; supports creation from YAML.
 
-    Nested models: ollama, guardrails, memory, logging, project.
-    Use validate_ollama_connection() to check Ollama on startup.
+    Nested models: guardrails, memory, logging, project, callback, human_feedback.
     """
 
     model_config = SettingsConfigDict(
@@ -272,7 +153,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    ollama: OllamaSettings = Field(default_factory=OllamaSettings, description="Ollama API and model config")
     guardrails: GuardrailSettings = Field(default_factory=GuardrailSettings, description="Guardrail config")
     memory: MemorySettings = Field(default_factory=MemorySettings, description="Memory backend config")
     logging: LoggingSettings = Field(default_factory=LoggingSettings, description="Logging config")
@@ -282,15 +162,11 @@ class Settings(BaseSettings):
         default_factory=HumanFeedbackSettings, description="Human-in-the-loop feedback config"
     )
 
-    def validate_ollama_connection(self) -> bool:
-        """Validate that the Ollama server is reachable. Returns True if healthy."""
-        return self.ollama.check_health()
-
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Settings":
         """
         Create Settings from a YAML file. Top-level keys should match
-        nested model names (ollama, guardrails, memory, logging, project).
+        nested model names (guardrails, memory, logging, project, etc.).
         Environment variables still override when present.
         """
         path = Path(path)
@@ -301,7 +177,6 @@ class Settings(BaseSettings):
         # Build kwargs for nested models; leave missing as default
         kwargs: dict[str, Any] = {}
         for name, model_class in [
-            ("ollama", OllamaSettings),
             ("guardrails", GuardrailSettings),
             ("memory", MemorySettings),
             ("logging", LoggingSettings),

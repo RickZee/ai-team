@@ -315,3 +315,50 @@ class TestFlowWithMonitor:
         assert call_args[0] == "security"
         assert call_args[1] == "prompt_injection"
         assert call_args[2] == "pass"
+
+
+class TestFlowCrewVerboseFromMonitor:
+    """Crews receive verbose=False when monitor is set, verbose=None when no monitor."""
+
+    def test_planning_crew_receives_verbose_false_when_monitor_set(self) -> None:
+        """With monitor, planning crew kickoff is called with verbose=False."""
+        from unittest.mock import patch
+
+        from ai_team.flows.main_flow import AITeamFlow
+
+        mock_monitor = MagicMock()
+        with patch(
+            "ai_team.crews.planning_crew.kickoff"
+        ) as mock_planning_kickoff:
+            mock_planning_kickoff.return_value = "Requirements and architecture output"
+            with patch(
+                "ai_team.flows.main_flow._parse_planning_output",
+                return_value=(MagicMock(), MagicMock(), False),
+            ):
+                flow = AITeamFlow(monitor=mock_monitor)
+                flow.state.project_description = "A REST API for todos."
+                flow.run_planning_crew()
+        mock_planning_kickoff.assert_called_once()
+        call_kw = mock_planning_kickoff.call_args[1]
+        assert call_kw["verbose"] is False
+
+    def test_planning_crew_receives_verbose_none_when_no_monitor(self) -> None:
+        """Without monitor, planning crew kickoff is called with verbose=None (use settings)."""
+        from unittest.mock import patch
+
+        from ai_team.flows.main_flow import AITeamFlow
+
+        with patch(
+            "ai_team.crews.planning_crew.kickoff"
+        ) as mock_planning_kickoff:
+            mock_planning_kickoff.return_value = "Requirements and architecture output"
+            with patch(
+                "ai_team.flows.main_flow._parse_planning_output",
+                return_value=(MagicMock(), MagicMock(), False),
+            ):
+                flow = AITeamFlow(monitor=None)
+                flow.state.project_description = "A REST API for todos."
+                flow.run_planning_crew()
+        mock_planning_kickoff.assert_called_once()
+        call_kw = mock_planning_kickoff.call_args[1]
+        assert call_kw["verbose"] is None

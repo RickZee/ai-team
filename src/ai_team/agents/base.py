@@ -12,13 +12,6 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar
 import structlog
 import yaml
 from crewai import Agent, LLM
-from langchain_ollama import ChatOllama
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from ai_team.config.llm_factory import create_llm_for_role
 from ai_team.config.models import OpenRouterSettings
@@ -50,31 +43,6 @@ def _load_agents_config() -> Dict[str, Any]:
         raise FileNotFoundError(f"Agents config not found: {config_path}")
     with open(config_path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
-
-
-class _RetryOllamaLLM(ChatOllama):
-    """ChatOllama wrapper that retries on failure with exponential backoff."""
-
-    def __init__(
-        self,
-        max_retries: int = 3,
-        *args: Any,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self._max_retries = max_retries
-
-    def invoke(self, *args: Any, **kwargs: Any) -> Any:
-        @retry(
-            retry=retry_if_exception_type((Exception,)),
-            stop=stop_after_attempt(self._max_retries),
-            wait=wait_exponential(multiplier=1, min=2, max=60),
-            reraise=True,
-        )
-        def _invoke() -> Any:
-            return super(_RetryOllamaLLM, self).invoke(*args, **kwargs)
-
-        return _invoke()
 
 
 def _wrap_tool_with_guardrail(tool: Any, guardrail_enabled: bool = True) -> Any:
@@ -111,8 +79,8 @@ def _wrap_tool_with_guardrail(tool: Any, guardrail_enabled: bool = True) -> Any:
 
 class BaseAgent(Agent):
     """
-    CrewAI Agent extended with YAML/settings config, Ollama LLM, logging,
-    memory hooks, guardrails, retry, token tracking, and health check.
+    CrewAI Agent extended with YAML/settings config, OpenRouter LLM, logging,
+    memory hooks, guardrails, token tracking, and health check.
     """
 
     def __init__(
@@ -231,33 +199,25 @@ class BaseAgent(Agent):
         logger.info("agent_tools_attached", role_name=self._role_name, count=len(tools))
 
     def health_check(self) -> bool:
-        """Verify the agent's assigned model is available (Ollama)."""
-        settings = get_settings()
-        if not settings.ollama.check_health():
+        """Verify OpenRouter is reachable and API key is set."""
+        import os
+
+        import httpx
+
+        api_key = os.environ.get("OPENROUTER_API_KEY", "")
+        if not api_key:
+            logger.warning("agent_health_check_skip", reason="OPENROUTER_API_KEY not set")
             return False
-        # Optionally check that the specific model is listed
         try:
-            import httpx
             r = httpx.get(
-                f"{settings.ollama.base_url.rstrip('/')}/api/tags",
-                timeout=5,
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10,
             )
-            if r.status_code != 200:
-                return False
-            data = r.json()
-            models = [m.get("name") for m in data.get("models", [])]
-            # Our LLM may use model name with :tag
-            llm = getattr(self, "llm", None)
-            model = getattr(llm, "model", None) if llm else None
-            if model and models:
-                base = model.split(":")[0] if ":" in model else model
-                if not any(base in m for m in models):
-                    logger.warning("agent_model_not_found", model=model, available=models[:5])
-                    return False
+            return r.status_code == 200
         except Exception as e:
             logger.warning("agent_health_check_error", error=str(e))
             return False
-        return True
 
 
 def create_agent(

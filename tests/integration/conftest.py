@@ -2,10 +2,9 @@
 
 Shared fixtures and mock helpers for crew and full-flow integration tests.
 By default all LLM calls are mocked. Set AI_TEAM_USE_REAL_LLM=1 to run
-crew-level integration tests against real Ollama (full-flow tests stay mock-only).
+crew-level integration tests against real OpenRouter (full-flow tests stay mock-only).
 When using real LLM, CrewAI crew memory is forced off (memory=False) so CrewAI's
-built-in RAG/embedder is not used (it can default to an API-key-based embedder).
-AI-Team's own memory (ChromaDB + Ollama) is local and separate. Use 14B+ models for fewer skips.
+built-in RAG/embedder is not used. AI-Team uses OpenRouter for LLM and embeddings.
 
 Full-flow tests (marked with @pytest.mark.full_flow) use a manual flow driver
 (_run_flow_manually) and do not call flow.kickoff(), so they run synchronously
@@ -45,11 +44,11 @@ def pytest_configure(config: Any) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "real_llm: integration tests that use real Ollama when AI_TEAM_USE_REAL_LLM=1.",
+        "real_llm: integration tests that use real OpenRouter when AI_TEAM_USE_REAL_LLM=1.",
     )
     config.addinivalue_line(
         "markers",
-        "test_memory: memory/embedder tests; run when AI_TEAM_TEST_MEMORY=1 and Ollama (and embedding model) available.",
+        "test_memory: memory/embedder tests; run when AI_TEAM_TEST_MEMORY=1 and OPENROUTER_API_KEY set.",
     )
     config.addinivalue_line(
         "markers",
@@ -59,7 +58,7 @@ def pytest_configure(config: Any) -> None:
 
 @pytest.fixture
 def use_real_llm() -> bool:
-    """Whether to use real Ollama in crew-level integration tests (default: False)."""
+    """Whether to use real OpenRouter in crew-level integration tests (default: False)."""
     return os.environ.get("AI_TEAM_USE_REAL_LLM", "").lower() in ("1", "true", "yes")
 
 
@@ -69,7 +68,7 @@ def test_memory_enabled() -> bool:
     return os.environ.get("AI_TEAM_TEST_MEMORY", "").lower() in ("1", "true", "yes")
 
 
-def _wrap_ollama_llm_for_crewai(llm: Any) -> Any:
+def _wrap_llm_for_crewai(llm: Any) -> Any:
     """Wrap a LangChain-style LLM (has invoke) so CrewAI's llm.call(messages, ...) works.
     CrewAI expects .call(); LangChain uses .invoke(). Adapter converts messages and returns content."""
     from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -132,48 +131,16 @@ def _wrap_ollama_llm_for_crewai(llm: Any) -> Any:
 
 
 @pytest.fixture(autouse=True)
-def _patch_create_llm_for_real_ollama(use_real_llm: bool) -> Any:
-    """When using real Ollama, ensure every LLM is Ollama (no OpenAI path). Pass through
-    our LangChain ChatOllama instances; when CrewAI passes a string model name (e.g.
-    for its planning agent), build a ChatOllama from settings. Wrap in an adapter so
-    CrewAI's .call(messages, ...) works (LangChain uses .invoke()). When use_real_llm,
-    also force CrewAI crew memory off so its built-in RAG/embedder is not used
-    (that path can default to an API-key-based embedder; AI-Team memory is local)."""
+def _patch_create_llm_for_real_openrouter(use_real_llm: bool) -> Any:
+    """When using real OpenRouter (AI_TEAM_USE_REAL_LLM=1), force crew memory off so
+    tests do not depend on embedder. LLMs are already OpenRouter via create_llm_for_role."""
     if not use_real_llm:
         yield
         return
 
-    import crewai.agent.core as crewai_core
-    from langchain_ollama import ChatOllama
-
-    from ai_team.config.settings import get_settings
     from ai_team.crews import development_crew as development_crew_mod
     from ai_team.crews import planning_crew as planning_crew_mod
     from ai_team.crews import testing_crew as testing_crew_mod
-
-    _original_create_llm = crewai_core.create_llm
-
-    def _create_llm_passthrough(llm_value: Any) -> Any:
-        if (
-            llm_value is not None
-            and not isinstance(llm_value, str)
-            and hasattr(llm_value, "invoke")
-        ):
-            return _wrap_ollama_llm_for_crewai(llm_value)
-        if isinstance(llm_value, str) and llm_value.strip():
-            settings = get_settings()
-            model = llm_value.strip()
-            # CrewAI may pass a cloud model name (e.g. gpt-4o-mini) for its planning agent;
-            # use our default Ollama model so we never call a non-Ollama API.
-            if model.startswith("gpt-") or model.startswith("claude-") or "openai" in model.lower():
-                model = settings.ollama.default_model
-            chat = ChatOllama(
-                model=model,
-                base_url=settings.ollama.base_url,
-                request_timeout=settings.ollama.request_timeout,
-            )
-            return _wrap_ollama_llm_for_crewai(chat)
-        return _original_create_llm(llm_value)
 
     _orig_create_planning = planning_crew_mod.create_planning_crew
     _orig_create_development = development_crew_mod.create_development_crew
@@ -188,7 +155,7 @@ def _patch_create_llm_for_real_ollama(use_real_llm: bool) -> Any:
     def _create_testing_no_memory(*args: Any, **kwargs: Any) -> Any:
         return _orig_create_testing(*args, **{**kwargs, "memory": False})
 
-    with patch.object(crewai_core, "create_llm", side_effect=_create_llm_passthrough), patch.object(
+    with patch.object(
         planning_crew_mod, "create_planning_crew", _create_planning_no_memory
     ), patch.object(
         development_crew_mod, "create_development_crew", _create_development_no_memory

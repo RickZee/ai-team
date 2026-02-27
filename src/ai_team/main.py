@@ -69,11 +69,14 @@ def _cmd_compare_costs(complexity: str) -> int:
     return 0
 
 
+_OUTPUT_CHOICES = ("tui", "crewai")
+
+
 def _cmd_run(
     description: str,
     env: str | None,
     complexity: str | None,
-    monitor: bool,
+    output_mode: str,
     skip_estimate: bool,
     project_name: str,
 ) -> int:
@@ -82,7 +85,8 @@ def _cmd_run(
         return 2  # caller should print usage
     if env is not None:
         os.environ["AI_TEAM_ENV"] = env
-    monitor_obj = TeamMonitor(project_name=project_name) if monitor else None
+    use_tui = output_mode == "tui"
+    monitor_obj = TeamMonitor(project_name=project_name) if use_tui else None
     try:
         result = run_ai_team(
             description.strip(),
@@ -137,9 +141,15 @@ def main() -> int:
         help="Override complexity (simple | medium | complex). Default: infer from description.",
     )
     run_p.add_argument(
+        "--output",
+        choices=_OUTPUT_CHOICES,
+        default="crewai",
+        help="Progress output: 'tui' = Rich TUI dashboard, 'crewai' = CrewAI default verbose (default: crewai).",
+    )
+    run_p.add_argument(
         "--monitor",
         action="store_true",
-        help="Show the Rich TUI monitor during the run.",
+        help="Use Rich TUI for progress (shortcut for --output tui).",
     )
     run_p.add_argument(
         "--skip-estimate",
@@ -193,7 +203,7 @@ def main() -> int:
             description=description,
             env=None,
             complexity=None,
-            monitor=False,
+            output_mode="crewai",
             skip_estimate=False,
             project_name="AI-Team Project",
         )
@@ -206,11 +216,12 @@ def main() -> int:
         description = (args.run_description or "").strip()
         if not description:
             run_p.error('Project description is required (e.g. ai-team run "Create a REST API")')
+        output_mode = "tui" if args.monitor else args.output
         return _cmd_run(
             description=description,
             env=args.env,
             complexity=args.complexity,
-            monitor=args.monitor,
+            output_mode=output_mode,
             skip_estimate=args.skip_estimate,
             project_name=args.project_name,
         )

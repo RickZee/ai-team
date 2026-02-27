@@ -1,15 +1,15 @@
 """
-LLM factory for OpenRouter inference and local Ollama embeddings.
+LLM factory for OpenRouter inference and embeddings.
 
 create_llm_for_role() builds CrewAI LLM instances from OpenRouterSettings (openrouter/
-prefixed model IDs). get_embedder_config() returns Ollama embedder config for CrewAI
-memory so embeddings stay local while inference goes through OpenRouter.
+prefixed model IDs). get_embedder_config() returns embedder config for CrewAI memory
+using OpenRouter's embeddings API (OpenAI-compatible; one API key for all).
 """
 
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import structlog
 from crewai import LLM
@@ -18,8 +18,9 @@ from ai_team.config.models import OpenRouterSettings
 
 logger = structlog.get_logger(__name__)
 
-_DEFAULT_OLLAMA_BASE = "http://localhost:11434"
-_DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"
+# OpenRouter embeddings: use provider/model (e.g. openai/...) not openrouter/openai/...
+_DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small"
+_OPENROUTER_EMBED_BASE = "https://openrouter.ai/api/v1"
 
 
 def create_llm_for_role(role: str, settings: OpenRouterSettings) -> LLM:
@@ -43,10 +44,12 @@ def create_llm_for_role(role: str, settings: OpenRouterSettings) -> LLM:
         os.environ["OR_APP_NAME"] = settings.or_app_name
 
     role_config = settings.get_model_for_role(role)
+    # Cap max_tokens so requests stay within OpenRouter key limits (402 = credits/max_tokens)
+    max_tokens = min(role_config.max_tokens, 8192)
     llm = LLM(
         model=role_config.model_id,
         temperature=role_config.temperature,
-        max_tokens=role_config.max_tokens,
+        max_tokens=max_tokens,
     )
     logger.debug(
         "llm_factory_created",
@@ -59,19 +62,70 @@ def create_llm_for_role(role: str, settings: OpenRouterSettings) -> LLM:
 
 def get_embedder_config() -> Dict[str, Any]:
     """
-    Return Ollama embedder config for CrewAI memory.
+    Return OpenRouter-backed embedder config for CrewAI memory.
 
-    Uses OLLAMA_BASE_URL and OLLAMA_EMBEDDING_MODEL from the environment.
-    Embeddings stay local (Ollama); only inference goes through OpenRouter.
+    Uses OPENROUTER_API_KEY and optional OPENROUTER_EMBEDDING_MODEL / OPENROUTER_API_BASE.
+    Sets OPENAI_API_KEY and OPENAI_API_BASE so CrewAI's OpenAI provider routes to OpenRouter
+    (one API key for LLM and embeddings).
 
-    :return: Dict with 'provider' and 'config' for CrewAI embedder (ollama model_name + url).
+    :return: Dict with 'provider' and 'config' for CrewAI embedder (openai-compatible).
     """
-    base_url = os.environ.get("OLLAMA_BASE_URL", _DEFAULT_OLLAMA_BASE)
-    model = os.environ.get("OLLAMA_EMBEDDING_MODEL", _DEFAULT_EMBEDDING_MODEL)
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    base_url = os.environ.get("OPENROUTER_API_BASE", _OPENROUTER_EMBED_BASE).rstrip("/")
+    model = os.environ.get("OPENROUTER_EMBEDDING_MODEL", _DEFAULT_EMBEDDING_MODEL)
+    if api_key:
+        os.environ["OPENAI_API_KEY"] = api_key
+        os.environ["OPENAI_API_BASE"] = base_url
     return {
-        "provider": "ollama",
+        "provider": "openai",
         "config": {
             "model_name": model,
-            "url": base_url.rstrip("/"),
         },
     }
+
+
+def complete_with_openrouter(
+    prompt: str,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
+) -> str:
+    """
+    One-shot completion via OpenRouter HTTP API (for tools that need a simple LLM call).
+
+    :param prompt: User prompt text.
+    :param model: OpenRouter model ID (e.g. openrouter/deepseek/...). If None, uses manager model from settings.
+    :param api_key: API key; if None, uses OPENROUTER_API_KEY from env.
+    :param api_base: API base URL; if None, uses OPENROUTER_API_BASE from env or default.
+    :return: Assistant content string, or empty string on failure.
+    """
+    import httpx
+
+    key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        logger.warning("complete_with_openrouter_skip", reason="OPENROUTER_API_KEY not set")
+        return ""
+    base = (api_base or os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")).rstrip("/")
+    if model is None:
+        settings = OpenRouterSettings()
+        model = settings.get_model_for_role("manager").model_id
+    url = f"{base}/chat/completions"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1024,
+    }
+    try:
+        with httpx.Client(timeout=60.0) as client:
+            r = client.post(url, headers=headers, json=payload)
+            r.raise_for_status()
+            data = r.json()
+            choices = data.get("choices", [])
+            if not choices:
+                return ""
+            content = choices[0].get("message", {}).get("content", "")
+            return (content or "").strip()
+    except Exception as e:
+        logger.warning("complete_with_openrouter_failed", error=str(e))
+        return ""

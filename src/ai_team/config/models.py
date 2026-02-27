@@ -72,20 +72,22 @@ ROLE_TOKEN_BUDGETS: Dict[str, Dict[str, int]] = {
 }
 
 # ── Model ID constants (openrouter/<provider>/<model>) ──────────────────────
+# IDs match OpenRouter's /models API (with openrouter/ prefix for LiteLLM routing).
+# See https://openrouter.ai/models for current list and pricing.
 
 _DEEPSEEK_V3 = "openrouter/deepseek/deepseek-chat-v3-0324"
-_DEVSTRAL_2 = "openrouter/mistralai/devstral-2-2507"
+_DEVSTRAL_2 = "openrouter/mistralai/devstral-2512"
 _DEEPSEEK_R1 = "openrouter/deepseek/deepseek-r1-0528"
-_GEMINI_FLASH = "openrouter/google/gemini-3.0-flash"
-_MINIMAX_M2 = "openrouter/minimax/minimax-m2-1"
+_GEMINI_FLASH = "openrouter/google/gemini-3-flash-preview"
+_MINIMAX_M2 = "openrouter/minimax/minimax-m2"
 _CLAUDE_SONNET = "openrouter/anthropic/claude-sonnet-4"
 _GPT52 = "openrouter/openai/gpt-5.2"
-_GPT53_CODEX = "openrouter/openai/codex-gpt-5.3"
+_GPT53_CODEX = "openrouter/openai/gpt-5.3-codex"
 
-# Pricing per 1M tokens (input, output) — from config guide
+# Pricing per 1M tokens (input, output) — check OpenRouter pricing for latest.
 _PRICES: Dict[str, ModelPricing] = {
     _DEEPSEEK_V3: ModelPricing(input_per_m=0.25, output_per_m=0.38),
-    _DEVSTRAL_2: ModelPricing(input_per_m=0.05, output_per_m=0.22),
+    _DEVSTRAL_2: ModelPricing(input_per_m=0.06, output_per_m=0.22),
     _DEEPSEEK_R1: ModelPricing(input_per_m=0.40, output_per_m=1.75),
     _GEMINI_FLASH: ModelPricing(input_per_m=0.50, output_per_m=3.00),
     _MINIMAX_M2: ModelPricing(input_per_m=0.28, output_per_m=1.20),

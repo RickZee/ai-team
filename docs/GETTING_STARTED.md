@@ -6,9 +6,7 @@ This guide walks you through prerequisites, installation, your first run, and co
 
 - [ ] **Python 3.11 or 3.12** — Check with `python3 --version`.
 - [ ] **Poetry** (or uv) — [Install Poetry](https://python-poetry.org/docs/#installation) or [uv](https://docs.astral.sh/uv/).
-- [ ] **Ollama** (for local LLMs) — [Install Ollama](https://ollama.com) and ensure it is running.
-- [ ] **Enough disk space** — Model pulls can be several GB per model; see [scripts/setup_ollama.sh](scripts/setup_ollama.sh) for recommended models.
-- [ ] **Optional:** Adequate RAM/VRAM for your chosen models (see [Hardware & model guide](HARDWARE.md) if present, or the setup script).
+- [ ] **OpenRouter API key** — Get one at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys); add to `.env` as `OPENROUTER_API_KEY`.
 
 ## Step-by-step installation
 
@@ -19,16 +17,7 @@ git clone https://github.com/yourusername/ai-team.git
 cd ai-team
 ```
 
-### 2. Install Ollama and pull models
-
-```bash
-chmod +x scripts/setup_ollama.sh
-./scripts/setup_ollama.sh
-```
-
-The script can install Ollama if missing, start the service, and pull recommended models (e.g. qwen3, qwen2.5-coder, deepseek-r1, deepseek-coder-v2). Use `--small` for smaller variants (e.g. 14B) if you have limited VRAM/RAM.
-
-### 3. Create the project environment
+### 2. Create the project environment
 
 ```bash
 poetry install
@@ -41,30 +30,30 @@ uv sync
 uv sync --extra dev   # for pytest, ruff, mypy, etc.
 ```
 
-### 4. Configure environment
+### 3. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set at least:
+Edit `.env` and set:
 
-- `OLLAMA_BASE_URL` — usually `http://localhost:11434`.
-- Optional: per-role models (e.g. `MANAGER_MODEL`, `BACKEND_DEV_MODEL`) if you want to override defaults.
+- `OPENROUTER_API_KEY` — your key from https://openrouter.ai/settings/keys.
+- Optional: `AI_TEAM_ENV=dev` (default), `test`, or `prod`.
 
-### 5. Verify setup
+### 4. Verify setup
 
 ```bash
 # Quick test that the package runs
 poetry run python -c "import ai_team; print('OK')"
 
-# Run tests (no Ollama required for unit tests)
+# Run unit tests (no real LLM required)
 poetry run pytest tests/unit -v
 ```
 
 ## First run walkthrough
 
-1. **Ensure Ollama is running** and the models you need are pulled (see Troubleshooting below).
+1. **Ensure `OPENROUTER_API_KEY` is set** in `.env` (see Troubleshooting below if you see auth errors).
 
 2. **Run the CLI** with a short prompt:
    ```bash
@@ -88,37 +77,58 @@ poetry run pytest tests/unit -v
 
 ## Troubleshooting common issues
 
-### Ollama not running
+### OpenRouter not configured
 
-**Symptom:** Connection errors to `http://localhost:11434` or “Ollama not available”.
-
-**Fix:**
-
-- Start Ollama: `ollama serve` (or start the Ollama app on macOS/Windows).
-- Check: `curl http://localhost:11434/api/tags` should return a JSON list of models.
-- If you use a remote Ollama host, set `OLLAMA_BASE_URL` in `.env` to that URL.
-
-### Model not found
-
-**Symptom:** Errors like “model not found” or “model XYZ is not available”.
+**Symptom:** "OpenRouter not configured" or auth/401 errors.
 
 **Fix:**
 
-- List models: `ollama list`.
-- Pull the model: `ollama pull <model_name>` (e.g. `ollama pull qwen2.5-coder:7b`).
-- In `.env`, set the role-specific variable to a model you have (e.g. `BACKEND_DEV_MODEL=qwen2.5-coder:7b`).
-- Ensure the model name in config matches exactly (including tag, e.g. `:7b` or `:32b`).
+- Add `OPENROUTER_API_KEY=sk-or-v1-...` to `.env` (get a key at https://openrouter.ai/settings/keys).
+- Ensure `OPENROUTER_API_BASE` is `https://openrouter.ai/api/v1` unless using a proxy.
 
-### VRAM / out-of-memory errors
+### Model not found / does not exist
 
-**Symptom:** Ollama or the app fails with OOM or GPU memory errors.
+**Symptom:** Before the run starts, you see an error listing one or more model IDs that are "not available on OpenRouter".
 
 **Fix:**
 
-- Use smaller models: run `scripts/setup_ollama.sh --small` to pull 14B (or smaller) variants.
-- In `.env`, assign lighter models to each role (e.g. 7B or 14B instead of 32B).
-- Close other GPU-heavy applications.
-- If you have only CPU, prefer smaller models and expect slower runs; see [docs/HARDWARE.md](HARDWARE.md) if available for hardware-specific notes.
+- Before each run, AI-Team checks that all configured OpenRouter models (LLM per role and the embedding model) exist. If any are missing, it fails immediately and lists the invalid model IDs.
+- Set `OPENROUTER_EMBEDDING_MODEL` (or `MEMORY_EMBEDDING_MODEL`) to a valid OpenRouter embedding model (e.g. `openai/text-embedding-3-small`).
+- Fix the model IDs for your `AI_TEAM_ENV` in `config/models.py` so they match models available on OpenRouter.
+
+### ChromaDB: "Embedding function conflict: new: openai vs persisted: ollama"
+
+**Symptom:** Memory search fails with `ValueError: An embedding function already exists in the collection configuration... new: openai vs persisted: ollama`.
+
+**Cause:** ChromaDB data was created when the app used Ollama for embeddings. The app now uses OpenRouter/OpenAI; ChromaDB does not allow changing the embedding function on an existing collection.
+
+**Fix:** Remove existing ChromaDB data so new collections use the current embedder.
+
+1. **AI-Team short-term store** (if you use it): remove `./data/chroma` (or `MEMORY_CHROMADB_PATH` if set), e.g. `rm -rf ./data/chroma`.
+2. **CrewAI’s internal RAG storage** (default): CrewAI stores Chroma in the app data directory. On macOS: `~/Library/Application Support/<project_dir_name>/` (project dir name is your current working directory name, or set `CREWAI_STORAGE_DIR`). Remove the ChromaDB files there: `chroma.sqlite3` and `chromadb-*.lock`. Example (macOS, project name `ai-team`):  
+   `rm -f "$HOME/Library/Application Support/ai-team/chroma.sqlite3" "$HOME/Library/Application Support/ai-team/chromadb-"*.lock`
+
+Back up first if you need to keep old memory data.
+
+### OpenRouter 402: "This request requires more credits, or fewer max_tokens"
+
+**Symptom:** `LLM Failed`, `OpenrouterException`, or `litellm.APIError` with message like "You requested up to 65536 tokens, but can only afford 11841".
+
+**Cause:** Your OpenRouter API key has a per-request or total token limit. The app (or CrewAI/LiteLLM) is requesting more output tokens than your key allows.
+
+**Fix:**
+
+- **Increase key limit:** In [OpenRouter Settings](https://openrouter.ai/settings/keys), create or edit your key and raise the total limit so requests fit.
+- **Lower max_tokens:** The app caps agent LLMs at 8192 tokens; if you still see 402, another component (e.g. CrewAI memory) may be using a higher default. Set a lower limit on your OpenRouter key so that even large defaults stay under the limit, or update your CrewAI version if it exposes max_tokens for memory.
+
+### Model or rate limits
+
+**Symptom:** Errors from OpenRouter about model or rate limits.
+
+**Fix:**
+
+- Use `AI_TEAM_ENV=dev` for cheaper/dev models; see `config/models.py` for tier model IDs.
+- Check OpenRouter dashboard for usage and limits.
 
 ### Tests hang or time out
 
@@ -126,7 +136,7 @@ poetry run pytest tests/unit -v
 
 **Fix:**
 
-- Integration/e2e tests may call Ollama; ensure Ollama is running and the required model is pulled.
+- Integration/e2e tests may call OpenRouter when `AI_TEAM_USE_REAL_LLM=1`; ensure `OPENROUTER_API_KEY` is set.
 - Increase timeout: `poetry run pytest --timeout=60` (or set in `pyproject.toml`).
 - Run only unit tests when developing: `poetry run pytest tests/unit`.
 
@@ -137,7 +147,7 @@ poetry run pytest tests/unit -v
 **Fix:**
 
 - Recreate the environment: `poetry install` (or `uv sync`).
-- Ensure you are in the project directory and using the project’s virtualenv: `poetry shell` then run commands, or always use `poetry run`.
+- Ensure you are in the project directory and using the project's virtualenv: `poetry shell` then run commands, or always use `poetry run`.
 
 ---
 

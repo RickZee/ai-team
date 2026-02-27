@@ -12,7 +12,6 @@ python = ">=3.11,<=3.13"
 # OpenRouter: crewai (includes LiteLLM), pydantic-settings (OpenRouterSettings), rich (cost display)
 crewai = "^1.0.0"
 crewai-tools = "^1.0.0"
-langchain-ollama = "^0.2.0"
 langchain-community = "^0.3.0"
 pydantic = "^2.7.0"
 pydantic-settings = ">=2.2.0"
@@ -28,7 +27,9 @@ pyyaml = "^6.0.0"
 jinja2 = "^3.1.0"
 httpx = "^0.27.0"
 tenacity = "^8.2.0"
-litellm = "^1.0.0"
+# Pin below 1.80 to avoid Pydantic 2.12+ recursion issues (CrewAI ecosystem fix).
+# Note: 1.167.1 is not on PyPI; 1.74.9 is the minimum CrewAI 1.6.1 accepts (litellm extra).
+litellm = "1.74.9"
 setuptools = ">=59.6,<69"
 
 [tool.poetry.group.dev.dependencies]
@@ -73,7 +74,7 @@ addopts = "-v --tb=short"
 markers = [
     "e2e: end-to-end tests (real AITeamFlow run, no mocks).",
     "full_flow: full AITeamFlow tests driven by manual runner (no kickoff).",
-    "real_llm: integration tests that use real Ollama when AI_TEAM_USE_REAL_LLM=1.",
+    "real_llm: integration tests that use real OpenRouter when AI_TEAM_USE_REAL_LLM=1.",
     "slow: slow tests (e.g. real LLM or long runs); exclude with -m 'not slow'.",
     "timeout: per-test timeout (pytest-timeout).",
     "performance: performance benchmark tests; record timings and write benchmark_results.json.",
