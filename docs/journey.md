@@ -93,3 +93,11 @@ Bright and early Friday... Finally, running a demo! And seeing agent talk to eac
 Also, enjoying the regular (as of late), Cursor idiosyncrasies. I'm getting a feeling that just switching to Claude full time will get a much better value, faster results. It's like arguing with a mid-level engineer, who have enough experience to have very strong opinions, but not enough experience to understand a larger context, and not willing to even try what is being asked. And - just throwing the task back at you, "here, if you're so smart why don't you do it yourself".
 
 Ran into a problem with free OpenRouter account - the max number of tokens is 4096, and there's no way to set a larger limit?
+
+## Fed 28
+
+Well I can't believe this is the second weekend I'm spending on this :)
+
+Now that the code has been integration tested, and is actually trying (quite desperately) to produce some working code, let's look at different options for production deployments.
+
+OpenRouter is great but I think it's time to get serious and try out something enterprise-ready. Lets switch to AWS Bedrock and it's cheap Nova models. With some cost estimates to see whether it's really cheap :). Anyone out there who's been oversold by great technical sales team from vendors?
