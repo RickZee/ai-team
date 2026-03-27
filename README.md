@@ -23,9 +23,13 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 
 #### Sample screenshots
 
-| Planning output (requirements) | Planning output (architecture) |
-|---|---|
-| ![Sample planning screenshot: requirements](ai-team-work-sample-1.png) | ![Sample planning screenshot: architecture](ai-team-work-sample-2.png) |
+Planning output (requirements):
+
+![Sample planning screenshot: requirements](ai-team-work-sample-1.png)
+
+Planning output (architecture):
+
+![Sample planning screenshot: architecture](ai-team-work-sample-2.png)
 
 ## Architecture (ASCII)
 
