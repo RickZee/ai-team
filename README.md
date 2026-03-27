@@ -21,6 +21,12 @@ AI-Team is an autonomous multi-agent system that orchestrates planning, developm
 | **OpenRouter-only** | LLM and embeddings via OpenRouter; single API key |
 | **Observable** | Structured logging, flow state, optional **Rich TUI monitor** (live agents, phases, guardrails), and optional Gradio UI for progress and output |
 
+#### Sample screenshots
+
+| Planning output (requirements) | Planning output (architecture) |
+|---|---|
+| ![Sample planning screenshot: requirements](ai-team-work-sample-1.png) | ![Sample planning screenshot: architecture](ai-team-work-sample-2.png) |
+
 ## Architecture (ASCII)
 
 ```
