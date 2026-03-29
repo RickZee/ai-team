@@ -31,6 +31,10 @@ Planning output (architecture):
 
 ![Sample planning screenshot: architecture](ai-team-work-sample-2.png)
 
+## Journey
+
+Detailed log of this project: [docs/journey.md](docs/journey.md).
+
 ## Architecture (ASCII)
 
 ```
