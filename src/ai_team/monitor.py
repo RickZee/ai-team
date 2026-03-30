@@ -329,6 +329,42 @@ class TeamMonitor:
             self._add_log(agent, message, level)
         self.update()
 
+    def on_langgraph_update(self, chunk: dict[str, Any]) -> None:
+        """
+        Map LangGraph ``stream_mode=updates`` chunks to phase and activity log (Phase 8).
+
+        Each ``chunk`` maps node names to partial state updates.
+        """
+        with self._lock:
+            for node_name, update in chunk.items():
+                if not isinstance(update, dict):
+                    self._add_log(
+                        "langgraph",
+                        f"{node_name}: {str(update)[:120]}",
+                        "info",
+                    )
+                    continue
+                phase = update.get("current_phase")
+                if isinstance(phase, str):
+                    try:
+                        self.current_phase = Phase(phase)
+                    except ValueError:
+                        self._add_log(
+                            "langgraph",
+                            f"{node_name} → {phase}",
+                            "info",
+                        )
+                    else:
+                        self._add_log(
+                            "langgraph",
+                            f"{node_name} → phase {phase}",
+                            "success",
+                        )
+                errs = update.get("errors")
+                if isinstance(errs, list) and errs:
+                    self._add_log("langgraph", f"{node_name}: {errs[-1]}", "warn")
+        self.update()
+
     # -- Internal rendering --------------------------------------------------
 
     def _add_log(self, agent: str, message: str, level: str) -> None:
@@ -422,12 +458,20 @@ class TeamMonitor:
 
     def _render_phases(self) -> Panel:
         parts: list[Text] = []
+        current_idx = (
+            PHASE_ORDER.index(self.current_phase)
+            if self.current_phase in PHASE_ORDER
+            else len(PHASE_ORDER)
+        )
         for i, phase in enumerate(PHASE_ORDER):
             icon = PHASE_ICONS[phase]
-            if phase == self.current_phase and phase != Phase.COMPLETE:
+            if self.current_phase == Phase.ERROR:
+                style = "bold red" if phase == Phase.COMPLETE else "dim"
+                marker = "✗" if phase == Phase.COMPLETE else "○"
+            elif phase == self.current_phase and phase != Phase.COMPLETE:
                 style = "bold yellow"
                 marker = "▶"
-            elif PHASE_ORDER.index(phase) < PHASE_ORDER.index(self.current_phase):
+            elif i < current_idx:
                 style = "bold green"
                 marker = "✓"
             else:
@@ -437,6 +481,9 @@ class TeamMonitor:
             parts.append(Text(label, style=style))
             if i < len(PHASE_ORDER) - 1:
                 parts.append(Text(" → ", style="dim"))
+        if self.current_phase == Phase.ERROR:
+            parts.append(Text(" → ", style="dim"))
+            parts.append(Text(f" ✗ {PHASE_ICONS[Phase.ERROR]} Error", style="bold red"))
         return Panel(
             Text.assemble(*parts),
             title="[bold]Pipeline[/bold]",

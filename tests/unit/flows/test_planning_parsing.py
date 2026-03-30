@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from ai_team.flows.main_flow import (
     _looks_like_architecture,
     _parse_planning_output,

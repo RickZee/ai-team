@@ -9,16 +9,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-from pydantic import BaseModel, Field
-
 from ai_team.guardrails.behavioral import output_format_guardrail
 from ai_team.guardrails.quality import (
-    GuardrailResult,
     code_quality_guardrail,
     coverage_guardrail,
 )
-
+from pydantic import BaseModel, Field
 
 # -----------------------------------------------------------------------------
 # Code quality

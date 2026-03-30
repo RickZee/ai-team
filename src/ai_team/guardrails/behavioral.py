@@ -101,12 +101,23 @@ ROLE_RESTRICTIONS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def role_adherence_guardrail(task_output: str, agent_role: str) -> GuardrailResult:
+def role_adherence_guardrail(
+    task_output: str,
+    agent_role: str,
+    *,
+    is_supervisor: bool = False,
+) -> GuardrailResult:
     """
     Verify the agent stayed within its role boundaries.
 
     E.g. backend dev shouldn't generate frontend code; QA shouldn't modify
     production source; product owner shouldn't emit implementation code.
+
+    When ``is_supervisor`` is True the check is advisory-only (``warn`` instead
+    of ``fail``).  A supervisor coordinating technical workers naturally
+    references code concepts ("import flask", "define the health endpoint
+    class") when delegating — this is coordination, not implementation.
+    Security and quality guardrails still enforce hard limits on the output.
     """
     role_lower = agent_role.lower().strip().replace(" ", "_")
     violations: List[str] = []
@@ -114,21 +125,35 @@ def role_adherence_guardrail(task_output: str, agent_role: str) -> GuardrailResu
     if role_lower in ROLE_RESTRICTIONS:
         restrictions = ROLE_RESTRICTIONS[role_lower]
         for pattern, label in restrictions["forbidden_patterns"]:
-            if re.search(pattern, task_output, re.IGNORECASE):
-                violations.append(label)
+            hits = len(re.findall(pattern, task_output, re.IGNORECASE))
+            if hits:
+                violations.append(f"{label} (x{hits})" if hits > 1 else label)
 
-    if violations:
+    if not violations:
         return GuardrailResult(
-            status="fail",
-            message=ROLE_RESTRICTIONS.get(role_lower, {}).get("message", "Role boundary violation.")
-            or "Role boundary violation.",
+            status="pass",
+            message="Output adheres to role boundaries.",
+            details={"agent_role": agent_role},
+            retry_allowed=True,
+        )
+
+    if is_supervisor:
+        return GuardrailResult(
+            status="warn",
+            message=(
+                ROLE_RESTRICTIONS.get(role_lower, {}).get("message", "Role boundary violation.")
+                or "Role boundary violation."
+            )
+            + " (supervisor — advisory only)",
             details={"violations": violations, "agent_role": agent_role},
             retry_allowed=True,
         )
+
     return GuardrailResult(
-        status="pass",
-        message="Output adheres to role boundaries.",
-        details={"agent_role": agent_role},
+        status="fail",
+        message=ROLE_RESTRICTIONS.get(role_lower, {}).get("message", "Role boundary violation.")
+        or "Role boundary violation.",
+        details={"violations": violations, "agent_role": agent_role},
         retry_allowed=True,
     )
 

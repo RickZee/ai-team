@@ -1,13 +1,13 @@
 """Unit tests for BaseAgent and create_agent factory."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from ai_team.agents.base import (
-    BaseAgent,
-    create_agent,
     ROLE_TO_SETTINGS_KEY,
+    BaseAgent,
     _load_agents_config,
+    create_agent,
 )
 
 

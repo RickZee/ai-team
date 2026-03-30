@@ -1,11 +1,8 @@
 """Unit tests for memory.knowledge_base."""
 
-import tempfile
-from pathlib import Path
 
-import yaml
 import pytest
-
+import yaml
 from ai_team.memory.knowledge_base import (
     DEFAULT_KNOWLEDGE_SCOPES,
     KnowledgeBase,

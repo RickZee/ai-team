@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from ai_team.flows.human_feedback import (
     FeedbackType,
+    HumanFeedbackHandler,
     HumanFeedbackRequest,
     HumanFeedbackResult,
-    HumanFeedbackHandler,
     MockHumanFeedbackHandler,
     parse_feedback_response,
 )

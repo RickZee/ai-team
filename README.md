@@ -5,21 +5,80 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> Transform natural language requirements into production-ready code with a team of specialized AI agents. Built on [CrewAI](https://crewai.com) with [OpenRouter](https://openrouter.ai) for LLM and embeddings.
+> A multi-agent software development system that transforms natural language into production-ready code — and a **framework comparison platform** for evaluating orchestration approaches side by side.
 
-## Project description
+## Project goals
 
-AI-Team is an autonomous multi-agent system that orchestrates planning, development, testing, and deployment. You describe what you want in plain language; the system produces requirements, architecture, code, tests, and deployment artifacts with minimal human intervention. All agents use OpenRouter for inference and embeddings (one API key).
+1. **Build** an autonomous AI team that accepts a project description and delivers requirements, architecture, code, tests, and deployment artifacts end-to-end.
+2. **Compare** multiple orchestration frameworks running the same agents, tools, guardrails, and demos — measuring output quality, cost, latency, and developer experience.
+3. **Evaluate** which framework best suits which use case, from quick prototypes to enterprise pipelines.
 
-### Key features
+### Why compare?
+
+The multi-agent framework landscape is moving fast. CrewAI, LangGraph, Claude Agent SDK, AutoGen, AWS Bedrock Agents — each makes different trade-offs around orchestration control, state management, human-in-the-loop, persistence, streaming, and cost. Rather than pick one and hope, this project runs the **same team through multiple backends** and lets the data decide.
+
+## Orchestration backends
+
+All backends share the same `Backend` protocol, tools, guardrails, Pydantic models, and team profiles. Swap at runtime with `--backend`:
+
+| Backend | Status | Orchestration model | LLM provider | Key strengths |
+|---------|--------|-------------------|--------------|---------------|
+| **[CrewAI](https://crewai.com)** | Production | Crews + Flows (`@start`, `@listen`, `@router`) | OpenRouter | Simple setup, hierarchical process, built-in delegation |
+| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | Production | StateGraph with nodes + conditional edges | OpenRouter | Explicit routing, checkpointing, time-travel, state inspection |
+| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Planned | Nested subagents + session persistence | Anthropic API | Extended thinking, prompt caching (90% savings), file rollback, vision, native MCP |
+
+```bash
+ai-team --backend crewai      "Build a REST API"   # CrewAI (default)
+ai-team --backend langgraph   "Build a REST API"   # LangGraph
+ai-team --backend claude-sdk  "Build a REST API"   # Claude Agent SDK (planned)
+```
+
+### Backend comparison
+
+Run the same demo through multiple backends and compare:
+
+```bash
+python scripts/compare_backends.py demos/01_hello_world --env dev
+```
+
+Produces a side-by-side report: output quality, cost, latency, token usage, error rate.
+
+### Future backends
+
+The multi-backend architecture supports adding new frameworks by implementing the `Backend` protocol:
+
+- **AutoGen** — Microsoft's multi-agent framework
+- **AWS Bedrock Agents** — managed agent service
+- **Strands** — AWS open-source agent SDK
+- **Custom** — bare LLM calls with manual orchestration
+
+## Team profiles
+
+Not every project needs all 9 agents. Select a profile with `--team`:
+
+| Profile | Agents | Use case |
+|---------|--------|----------|
+| `full` (default) | All 9 agents, all phases | Full software project |
+| `backend-api` | Manager, PO, Architect, Backend Dev, QA, DevOps | REST API / microservice |
+| `frontend-app` | Manager, PO, Architect, Frontend Dev, QA, DevOps | SPA / static site |
+| `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering |
+| `prototype` | Architect, Fullstack Dev, QA | Quick prototype |
+| `infra-only` | Architect, DevOps, Cloud | IaC / CI-CD only |
+
+Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_profiles.yaml) and work identically across all backends.
+
+## Key features
 
 | Feature | Description |
 |---------|-------------|
-| **Specialized agents** | Manager, Product Owner, Architect, Backend/Frontend/Fullstack Developers, DevOps, Cloud, QA |
-| **End-to-end workflow** | Intake → Planning → Development → Testing → Deployment, driven by a single flow |
+| **9 specialized agents** | Manager, Product Owner, Architect, Backend/Frontend/Fullstack Developers, DevOps, Cloud, QA |
+| **End-to-end workflow** | Intake → Planning → Development → Testing → Deployment |
+| **Multi-backend** | Same team, same demos, different orchestration — compare results |
+| **Team profiles** | Right-size the team for the use case (`--team backend-api`, `--team prototype`, ...) |
 | **Enterprise guardrails** | Behavioral (role, scope), security (code safety, PII, secrets), quality (syntax, completeness) |
-| **OpenRouter-only** | LLM and embeddings via OpenRouter; single API key |
-| **Observable** | Structured logging, flow state, optional **Rich TUI monitor** (live agents, phases, guardrails), and optional Gradio UI for progress and output |
+| **MCP servers** | Per-team, per-agent MCP tool providers (GitHub, filesystem, Docker, Postgres) |
+| **RAG knowledge** | Static best practices + dynamic project knowledge, scoped per agent role |
+| **Observable** | Rich TUI, Gradio UI, structured logging, cost tracking |
 
 #### Sample screenshots
 
@@ -35,54 +94,68 @@ Planning output (architecture):
 
 Detailed log of this project: [docs/journey.md](docs/journey.md).
 
-## Architecture (ASCII)
+## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           FLOW LAYER (Orchestration)                            │
-│  AITeamFlow: intake → planning → development → testing → deployment → finalize  │
-│  ProjectState (Pydantic); @start, @listen, @router                              │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                        │
-        ┌───────────────────────────────┼───────────────────────────────┐
-        ▼                               ▼                               ▼
-┌───────────────┐             ┌───────────────┐             ┌───────────────┐
-│ PlanningCrew  │             │DevelopmentCrew│             │ TestingCrew   │
-│ DeploymentCrew│             │ (Manager +    │             │ (QA + tools)  │
-│ (Manager, PO, │             │   Dev agents) │             │               │
-│  Architect)   │             │               │             │               │
-└───────┬───────┘             └───────┬───────┘             └───────┬───────┘
-        │                             │                             │
-        └─────────────────────────────┼─────────────────────────────┘
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  TOOL LAYER: file (read/write/list) · code (gen/review/sandbox) · git · test    │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  GUARDRAILS (behavioral, security, quality)  │  MEMORY (session + long-term)    │
-└──────────────────────────────────────────────┴──────────────────────────────────┘
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              CLI / Gradio UI                                 │
+│         --backend crewai | langgraph | claude-sdk    --team <profile>        │
+└──────────────────────────────┬───────────────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         Backend Protocol (core/)                             │
+│           run(description, team, env) → ProjectResult                        │
+│           stream(description, team, env) → AsyncIterator[StreamEvent]        │
+└──────┬───────────────────────┬───────────────────────┬───────────────────────┘
+       ▼                       ▼                       ▼
+┌──────────────┐   ┌───────────────────┐   ┌────────────────────┐
+│   CrewAI     │   │    LangGraph      │   │  Claude Agent SDK  │
+│  Crews+Flows │   │  StateGraph+nodes │   │ Nested subagents   │
+│  @start,     │   │  conditional      │   │ session persistence │
+│  @listen,    │   │  edges, subgraphs │   │ hooks, skills,     │
+│  @router     │   │  checkpointing    │   │ extended thinking  │
+└──────┬───────┘   └─────────┬─────────┘   └──────────┬─────────┘
+       └─────────────────────┼─────────────────────────┘
+                             ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  SHARED LAYERS                                                               │
+│  Tools: file · code · git · test │ MCP servers (per-team, per-agent)         │
+│  Guardrails: behavioral · security · quality                                 │
+│  RAG: static knowledge · project indexing · session knowledge                │
+│  Memory: session + long-term   │ Team profiles (config/team_profiles.yaml)   │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
 
-## Quick start (3 commands)
+## Quick start
 
 ```bash
 git clone https://github.com/yourusername/ai-team.git && cd ai-team
-cp .env.example .env   # Add OPENROUTER_API_KEY (get one at https://openrouter.ai/settings/keys)
-poetry install && poetry run ai-team "Create a REST API for a todo list"
+cp .env.example .env   # Add API keys (see Configuration below)
+poetry install
+
+# Run with CrewAI (default)
+poetry run ai-team "Create a REST API for a todo list"
+
+# Run with LangGraph
+poetry run ai-team --backend langgraph --team backend-api "Create a REST API for a todo list"
+
+# Run with Claude Agent SDK (when implemented)
+poetry run ai-team --backend claude-sdk "Create a REST API for a todo list"
 ```
 
-Optional: `./scripts/setup_openrouter.sh` prints OpenRouter env reminders. For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
+For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Configuration reference
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API key (required) | — |
+| `OPENROUTER_API_KEY` | OpenRouter API key (CrewAI / LangGraph backends) | — |
+| `ANTHROPIC_API_KEY` | Anthropic API key (Claude Agent SDK backend) | — |
 | `AI_TEAM_ENV` | Tier: `dev`, `test`, `prod` | `dev` |
+| `AI_TEAM_BACKEND` | Default backend: `crewai`, `langgraph`, `claude-sdk` | `crewai` |
+| `AI_TEAM_LANGGRAPH_POSTGRES_URI` | Postgres URI for LangGraph checkpointing (optional) | SQLite |
 | `OPENROUTER_API_BASE` | OpenRouter endpoint | `https://openrouter.ai/api/v1` |
 | `OPENROUTER_EMBEDDING_MODEL` | Embedding model for crew memory | `openai/text-embedding-3-small` |
 | `GUARDRAIL_MAX_RETRIES` | Max guardrail retries | `3` |
@@ -91,7 +164,7 @@ Optional: `./scripts/setup_openrouter.sh` prints OpenRouter env reminders. For s
 | `MAX_FILE_SIZE_KB` | Max file size for tools (KB) | `500` |
 | `GRADIO_SERVER_PORT` | Gradio UI port | `7860` |
 
-Copy `.env.example` to `.env` and set `OPENROUTER_API_KEY`. Before each run, a pre-flight check validates that all configured OpenRouter models (LLM and embedding) exist. Agent→model mapping and guardrail behavior are documented in [docs/AGENTS.md](docs/AGENTS.md) and [docs/GUARDRAILS.md](docs/GUARDRAILS.md).
+Copy `.env.example` to `.env` and set the API key for your chosen backend. Before each run, a pre-flight check validates configured models. Agent→model mapping and guardrail behavior are documented in [docs/AGENTS.md](docs/AGENTS.md) and [docs/GUARDRAILS.md](docs/GUARDRAILS.md).
 
 ### Models by environment
 
@@ -127,60 +200,36 @@ poetry run python scripts/run_demo.py demos/02_todo_app
 
 Each demo directory contains `project_description.txt` or `input.json`, and optionally `expected_output.json` for validation.
 
-**Running a demo with OpenRouter (DEV)** — Use the cheapest OpenRouter tier (dev: DeepSeek V3 + Devstral 2). Set `OPENROUTER_API_KEY` in `.env`, then:
+### CLI options
 
-- With cost estimate and confirmation:  
-  `poetry run python -m ai_team run "$(cat demos/01_hello_world/project_description.txt)" --env dev`
-- Without confirmation (e.g. CI): add `--skip-estimate`
-- Progress: `--output tui` or `--monitor` for Rich TUI; default `--output crewai` for CrewAI verbose. Optionally `--project-name "Demo 01 Hello World"` when using TUI.
+```bash
+poetry run python -m ai_team run "Build a minimal Flask API" \
+  --backend langgraph --team backend-api --env dev --skip-estimate
+```
 
-## Progress output (TUI vs CrewAI)
+| Flag | Description |
+|------|-------------|
+| `--backend` | `crewai` (default), `langgraph`, `claude-sdk` |
+| `--team` | Team profile from `config/team_profiles.yaml` |
+| `--env` | `dev`, `test`, `prod` — selects model tier |
+| `--skip-estimate` | Skip cost estimate confirmation |
+| `--output` | `crewai` (default), `tui` — progress display mode |
+| `--monitor` | Alias for `--output tui` |
+| `--stream` | JSON lines streaming (LangGraph) |
+| `--thread-id` | Resume thread (LangGraph checkpointing) |
+| `--resume` | Resume after human-in-the-loop interrupt |
 
-You can choose how progress is shown during a run:
-
-- **`--output tui`** (or **`--monitor`**) — Rich TUI: a live-updating terminal dashboard (phases, agents, guardrails, metrics). CrewAI verbose is turned off so only the TUI is shown.
-- **`--output crewai`** (default) — CrewAI default: CrewAI’s own verbose output (agent steps, task completion) to the terminal. No TUI.
-
-Example: `poetry run python -m ai_team run "Create a REST API" --output crewai` uses CrewAI output; add `--output tui` or `--monitor` for the Rich dashboard. The same `--output` option is available in `scripts/run_demo.py`.
+The Gradio UI (`poetry run ai-team-ui`) supports backend and team selection in the interface.
 
 ## Real-time monitor (TUI)
 
-A Rich-based terminal dashboard shows live agent activity, phase progress, guardrail results, and execution metrics (no extra dependencies beyond `rich`).
-
-```python
-from ai_team.monitor import TeamMonitor, MonitorCallback
-
-monitor = TeamMonitor(project_name="My Project")
-monitor.start()
-
-# Hook into your flow:
-monitor.on_phase_change("planning")
-monitor.on_agent_start("architect", "Designing system", "deepseek-r1:14b")
-monitor.on_guardrail("security", "code_safety", "pass")
-monitor.on_agent_finish("architect")
-
-# When done:
-monitor.stop()  # or monitor.stop("complete") / monitor.stop("error")
-```
-
-Or use the CrewAI callback adapter so the monitor updates from crew execution:
-
-```python
-cb = MonitorCallback(monitor)
-crew = Crew(..., step_callback=cb.on_step, task_callback=cb.on_task)
-```
-
-To try the dashboard with simulated activity: `python -m ai_team.monitor`.
-
-**Single command** to run the flow with the live TUI:
+A Rich-based terminal dashboard shows live agent activity, phase progress, guardrail results, and execution metrics. Works with all backends.
 
 ```bash
 poetry run ai-team --monitor "Create a REST API for a todo list"
 ```
 
-Optional: `--project-name "My Project"` to set the title in the dashboard.
-
-From code you can still pass a `TeamMonitor` into `run_ai_team(description, monitor=monitor)`. The monitor is started before the flow and stopped when the flow completes or errors; phase changes and crew step/task callbacks update the dashboard automatically. At the very start of a phase (e.g. 0s in Planning), tasks completed and agent rows may show zero until the first crew step or task finishes.
+To try with simulated activity: `python -m ai_team.monitor`. See the monitor API in `src/ai_team/monitor/`.
 
 ## Testing
 
@@ -218,22 +267,32 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 ```
 ai-team/
 ├── src/ai_team/
-│   ├── config/          # Settings, agents.yaml
-│   ├── agents/          # Agent implementations (base, manager, PO, architect, devs, QA, DevOps)
-│   ├── crews/           # Planning, Development, Testing, Deployment crews
-│   ├── flows/           # AITeamFlow and state
-│   ├── tools/           # File, code, git, test tools
-│   ├── guardrails/      # Behavioral, security, quality
-│   ├── memory/          # Session and long-term memory
-│   ├── utils/           # Shared utilities
-│   └── ui/              # Gradio app and components
+│   ├── core/                # Backend protocol, ProjectResult, TeamProfile loader
+│   ├── config/              # Settings, agents.yaml, team_profiles.yaml, models.py
+│   ├── backends/
+│   │   ├── registry.py      # Backend discovery and instantiation
+│   │   ├── crewai_backend/  # CrewAI: crews, flows, agents, state
+│   │   ├── langgraph_backend/  # LangGraph: graphs, nodes, routing, subgraphs
+│   │   └── claude_sdk_backend/ # Claude Agent SDK (planned): subagents, hooks, skills
+│   ├── agents/              # Shared agent definitions
+│   ├── tools/               # File, code, git, test tools
+│   ├── mcp/                 # MCP server configs and adapters
+│   ├── rag/                 # RAG pipeline (static + dynamic + session knowledge)
+│   ├── guardrails/          # Behavioral, security, quality
+│   ├── memory/              # Session and long-term memory
+│   ├── monitor/             # Rich TUI dashboard
+│   ├── utils/               # Shared utilities
+│   └── ui/                  # Gradio app and components
 ├── tests/
 │   ├── unit/
 │   ├── integration/
 │   └── e2e/
-├── demos/               # 01_hello_world, 02_todo_app
-├── docs/                # ARCHITECTURE, AGENTS, GUARDRAILS, FLOWS, TOOLS, MEMORY, GETTING_STARTED
-└── scripts/             # setup_openrouter.sh, test_models.py, run_demo.py
+├── demos/                   # 01_hello_world, 02_todo_app
+├── docs/
+│   ├── langgraph/           # LangGraph backend plan
+│   ├── claude-agent-sdk/    # Claude Agent SDK backend plan
+│   └── *.md                 # ARCHITECTURE, AGENTS, FLOWS, GUARDRAILS, TOOLS, MEMORY
+└── scripts/                 # setup, run_demo, compare_backends
 ```
 
 ## Code stats
@@ -256,10 +315,24 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - PR process and commit message convention
 - How to add new agents, tools, or guardrails
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and ADRs |
+| [FLOWS.md](docs/FLOWS.md) | Orchestration flows (CrewAI and LangGraph) |
+| [AGENTS.md](docs/AGENTS.md) | Agent roles, prompts, model mapping |
+| [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
+| [TOOLS.md](docs/TOOLS.md) | Tool specifications |
+| [MEMORY.md](docs/MEMORY.md) | Memory and knowledge management |
+| [LangGraph Plan](docs/langgraph/LANGGRAPH_MIGRATION_PLAN.md) | LangGraph backend architecture and tasks |
+| [Claude SDK Plan](docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md) | Claude Agent SDK backend architecture and tasks |
+| [Journey](docs/journey.md) | Project background and ongoing story |
+
 ## License and acknowledgments
 
 - **License:** [MIT](LICENSE).
-- **CrewAI:** [crewai.com](https://crewai.com) — agent and crew framework.
-- **OpenRouter:** [openrouter.ai](https://openrouter.ai) — LLM and embeddings API.
-
-This project is suitable for portfolios and demonstrations of multi-agent software development systems.
+- **[CrewAI](https://crewai.com)** — agent and crew framework.
+- **[LangGraph](https://langchain-ai.github.io/langgraph/)** — graph-based agent orchestration.
+- **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** — Anthropic's agent framework.
+- **[OpenRouter](https://openrouter.ai)** — LLM and embeddings API.

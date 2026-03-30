@@ -9,8 +9,6 @@ from __future__ import annotations
 import base64
 from typing import Any
 
-import pytest
-
 from ai_team.guardrails.security import (
     code_safety_guardrail,
     crewai_code_safety_guardrail,
@@ -19,7 +17,6 @@ from ai_team.guardrails.security import (
     pii_redaction_guardrail,
     secret_detection_guardrail,
 )
-
 
 # -----------------------------------------------------------------------------
 # Dangerous code injection

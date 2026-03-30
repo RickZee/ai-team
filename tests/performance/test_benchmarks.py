@@ -12,11 +12,10 @@ from __future__ import annotations
 import cProfile
 import io
 import json
-import os
 import pstats
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
@@ -50,7 +49,7 @@ class TestCrewBenchmarks:
 
     def test_benchmark_planning_crew(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
         run_real_benchmarks: bool,
     ) -> None:
         """RequirementsCrew + ArchitectureCrew (PlanningCrew): input -> RequirementsDocument + ArchitectureDocument."""
@@ -97,7 +96,7 @@ class TestCrewBenchmarks:
 
     def test_benchmark_development_crew(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
         run_real_benchmarks: bool,
     ) -> None:
         """DevelopmentCrew: requirements + architecture -> code files."""
@@ -139,7 +138,7 @@ class TestCrewBenchmarks:
 
     def test_benchmark_testing_crew(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
         run_real_benchmarks: bool,
     ) -> None:
         """QACrew (TestingCrew): code files -> test results."""
@@ -174,7 +173,7 @@ class TestCrewBenchmarks:
 
     def test_benchmark_deployment_crew(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
         run_real_benchmarks: bool,
     ) -> None:
         """DeploymentCrew: code + architecture + test results -> deployment config."""
@@ -182,7 +181,7 @@ class TestCrewBenchmarks:
         from ai_team.models.development import CodeFile
         from ai_team.tools.test_tools import TestRunResult
 
-        code_files: List[CodeFile] = [
+        code_files: list[CodeFile] = [
             CodeFile(path="app.py", content="from flask import Flask\n", language="python", description="App"),
         ]
         arch = ArchitectureDocument(system_overview="Flask API", components=[], technology_stack=[])
@@ -221,11 +220,11 @@ class TestFullFlowBenchmark:
 
     def test_benchmark_full_flow_demo1(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
         run_real_benchmarks: bool,
     ) -> None:
         """Full flow for Demo 1 spec; phase-by-phase breakdown; flag over-budget phases."""
-        phase_times: Dict[str, float] = {}
+        phase_times: dict[str, float] = {}
         total_start = time.perf_counter()
         try:
             if run_real_benchmarks:
@@ -280,7 +279,7 @@ class TestBottlenecks:
 
     def test_bottleneck_profiling(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
     ) -> None:
         """Use cProfile on a minimal crew creation + kickoff path; report top functions."""
         prof = cProfile.Profile()
@@ -313,7 +312,7 @@ class TestHardwareProfiles:
 
     def test_hardware_profiles(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
     ) -> None:
         """Record active models per role from OpenRouterSettings (AI_TEAM_ENV)."""
         from ai_team.config.models import OpenRouterSettings
@@ -322,7 +321,7 @@ class TestHardwareProfiles:
         env = getattr(settings, "ai_team_env", None)
         env_name = str(env.value) if env else "dev"
 
-        role_models: Dict[str, str] = {}
+        role_models: dict[str, str] = {}
         for role in ("manager", "product_owner", "architect", "backend_dev", "frontend_dev", "devops", "cloud", "qa"):
             role_models[role] = settings.get_model_for_role(role).model_id
 
@@ -338,7 +337,7 @@ class TestTokenEstimation:
 
     def test_token_estimation(
         self,
-        benchmark_collector: Dict[str, Any],
+        benchmark_collector: dict[str, Any],
     ) -> None:
         """Approximate tokens in/out per agent; project cost if OpenAI equivalent; local-first savings."""
         crews = benchmark_collector.get("crews", {})
@@ -358,7 +357,7 @@ class TestTokenEstimation:
 
 @pytest.mark.performance
 def test_save_benchmark_results(
-    benchmark_collector: Dict[str, Any],
+    benchmark_collector: dict[str, Any],
     benchmark_results_dir: Path,
 ) -> None:
     """Ensure collector is ready for session teardown to write docs/benchmark_results.json."""

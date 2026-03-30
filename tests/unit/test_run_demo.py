@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -84,21 +83,15 @@ class TestRunDemoOutputMode:
 
 
 class TestRunDemoLoadDescription:
-    """_load_description prefers project_description.txt and falls back to input.json."""
+    """``load_project_description`` prefers project_description.txt and falls back to input.json."""
 
     def test_load_description_from_txt(self) -> None:
         """Demo 01 has project_description.txt; content is used."""
-        import importlib.util
+        from ai_team.utils.demo_input import load_project_description
 
         demo_dir = REPO_ROOT / "demos" / "01_hello_world"
         if not demo_dir.is_dir():
             pytest.skip(f"Demo dir not found: {demo_dir}")
-        spec = importlib.util.spec_from_file_location(
-            "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
-        )
-        assert spec is not None and spec.loader is not None
-        run_demo = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(run_demo)
-        desc = run_demo._load_description(demo_dir)
+        desc = load_project_description(demo_dir)
         assert "Flask" in desc
         assert "REST API" in desc

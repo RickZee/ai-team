@@ -1,17 +1,15 @@
 """Unit tests for quality guardrails with passing and failing examples."""
 
-import pytest
 from unittest.mock import patch
 
 from ai_team.guardrails.quality import (
     GuardrailResult,
+    architecture_compliance_guardrail,
     code_quality_guardrail,
     coverage_guardrail,
-    documentation_guardrail,
-    architecture_compliance_guardrail,
     dependency_guardrail,
+    documentation_guardrail,
 )
-
 
 # -----------------------------------------------------------------------------
 # GuardrailResult

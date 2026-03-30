@@ -1,13 +1,10 @@
 """Unit tests for callback system: MetricsReport and AITeamCallback."""
 
-import asyncio
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
 from ai_team.utils.callbacks import AITeamCallback, MetricsReport
-
 
 # -----------------------------------------------------------------------------
 # MetricsReport

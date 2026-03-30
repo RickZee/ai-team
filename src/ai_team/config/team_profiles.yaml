@@ -1,0 +1,63 @@
+# Use-case team profiles: which agents and phases participate (shared by CrewAI and LangGraph).
+# Agent keys must match top-level keys in config/agents.yaml.
+
+profiles:
+  full:
+    agents:
+      - manager
+      - product_owner
+      - architect
+      - backend_developer
+      - frontend_developer
+      - fullstack_developer
+      - devops_engineer
+      - cloud_engineer
+      - qa_engineer
+    phases: [intake, planning, development, testing, deployment]
+    # Phase 6: optional RAG scoping (metadata; LangGraph/CrewAI read via profile.metadata["rag"])
+    rag:
+      knowledge_topics: [python, security, testing, api, devops]
+      include_markdown_sources: true
+
+  backend-api:
+    agents:
+      - manager
+      - product_owner
+      - architect
+      - backend_developer
+      - qa_engineer
+      - devops_engineer
+    phases: [intake, planning, development, testing, deployment]
+
+  frontend-app:
+    agents:
+      - manager
+      - product_owner
+      - architect
+      - frontend_developer
+      - qa_engineer
+      - devops_engineer
+    phases: [intake, planning, development, testing, deployment]
+
+  data-pipeline:
+    agents:
+      - manager
+      - product_owner
+      - architect
+      - backend_developer
+      - qa_engineer
+    phases: [intake, planning, development, testing]
+
+  prototype:
+    agents:
+      - architect
+      - fullstack_developer
+      - qa_engineer
+    phases: [intake, planning, development, testing]
+
+  infra-only:
+    agents:
+      - architect
+      - devops_engineer
+      - cloud_engineer
+    phases: [intake, planning, deployment]

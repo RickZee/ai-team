@@ -21,11 +21,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 import requests
-
 from ai_team.config.settings import get_settings, reload_settings
 from ai_team.flows.human_feedback import MockHumanFeedbackHandler
 from ai_team.flows.main_flow import AITeamFlow
@@ -146,7 +145,7 @@ REQUIRED_FILES = ["app.py", "test_app.py", "requirements.txt", "Dockerfile"]
 FLASK_PORT = 17542  # Unlikely to conflict
 
 
-def _materialize_generated_files(output_dir: Path, generated_files: List[Dict[str, Any]]) -> None:
+def _materialize_generated_files(output_dir: Path, generated_files: list[dict[str, Any]]) -> None:
     """Write state.generated_files (list of dicts) to output_dir."""
     for gf in generated_files or []:
         path = gf.get("path") or ""
@@ -159,10 +158,10 @@ def _materialize_generated_files(output_dir: Path, generated_files: List[Dict[st
 
 
 def _run_report(
-    state: Dict[str, Any],
+    state: dict[str, Any],
     duration_seconds: float,
     token_estimate: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build run_report.json payload."""
     retry_counts = state.get("retry_counts") or {}
     total_retries = sum(retry_counts.values())
@@ -179,9 +178,9 @@ def _run_report(
 
 def _failure_report(
     assertion_failed: str,
-    error_context: Dict[str, Any],
+    error_context: dict[str, Any],
     last_agent_output: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build failure_report.json payload."""
     return {
         "assertion_failed": assertion_failed,
@@ -265,7 +264,7 @@ def test_e2e_hello_world_flask_api() -> None:
     generated_files = state_dump.get("generated_files") or []
     _materialize_generated_files(output_dir, generated_files)
 
-    def save_failure(assertion_failed: str, error_context: Dict[str, Any], last_agent: str = "") -> None:
+    def save_failure(assertion_failed: str, error_context: dict[str, Any], last_agent: str = "") -> None:
         failure = _failure_report(assertion_failed, error_context, last_agent)
         FAILURE_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
         FAILURE_REPORT_PATH.write_text(json.dumps(failure, indent=2), encoding="utf-8")

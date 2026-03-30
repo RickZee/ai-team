@@ -14,24 +14,21 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from crewai.utilities.converter import ConverterError
-from pydantic import ValidationError
-
+from ai_team.config.settings import get_settings
+from ai_team.crews.planning_crew import kickoff as planning_crew_kickoff
+from ai_team.crews.testing_crew import kickoff as run_testing_crew
 from ai_team.flows.error_handling import reset_circuit
+from ai_team.flows.human_feedback import MockHumanFeedbackHandler
 from ai_team.flows.main_flow import AITeamFlow, _parse_planning_output
-from ai_team.flows.state import ProjectPhase
 from ai_team.flows.routing import (
     route_after_deployment,
     route_after_development,
     route_after_planning,
     route_after_testing,
 )
-from ai_team.config.settings import get_settings
-from ai_team.crews.development_crew import kickoff as development_crew_kickoff
-from ai_team.crews.planning_crew import kickoff as planning_crew_kickoff
-from ai_team.crews.testing_crew import kickoff as run_testing_crew
-from ai_team.flows.human_feedback import MockHumanFeedbackHandler
-
+from ai_team.flows.state import ProjectPhase
+from crewai.utilities.converter import ConverterError
+from pydantic import ValidationError
 
 # -----------------------------------------------------------------------------
 # Full-flow runner (no CrewAI kickoff — avoids async/event-bus hang)

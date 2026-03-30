@@ -5,34 +5,36 @@ known-bad inputs; pass/fail return signatures; chaining and ordering.
 
 from unittest.mock import patch
 
-import pytest
-from pydantic import BaseModel, Field
-
 from ai_team.guardrails.behavioral import (
     GuardrailResult as BehavioralGuardrailResult,
+)
+from ai_team.guardrails.behavioral import (
     delegation_guardrail,
     iteration_limit_guardrail,
     make_output_format_guardrail,
     make_role_adherence_guardrail,
-    make_scope_control_guardrail,
+    output_format_guardrail,
     role_adherence_guardrail,
     scope_control_guardrail,
-    output_format_guardrail,
-)
-from ai_team.guardrails.security import (
-    GuardrailResult as SecurityGuardrailResult,
-    code_safety_guardrail,
-    pii_redaction_guardrail,
-    secret_detection_guardrail,
-    path_security_guardrail,
 )
 from ai_team.guardrails.quality import (
     GuardrailResult as QualityGuardrailResult,
+)
+from ai_team.guardrails.quality import (
     code_quality_guardrail,
     coverage_guardrail,
     documentation_guardrail,
 )
-
+from ai_team.guardrails.security import (
+    GuardrailResult as SecurityGuardrailResult,
+)
+from ai_team.guardrails.security import (
+    code_safety_guardrail,
+    path_security_guardrail,
+    pii_redaction_guardrail,
+    secret_detection_guardrail,
+)
+from pydantic import BaseModel, Field
 
 # -----------------------------------------------------------------------------
 # Behavioral guardrails in isolation

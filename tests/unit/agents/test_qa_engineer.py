@@ -1,20 +1,20 @@
 """Unit tests for QA Engineer agent, quality gates, and feedback for developers."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from ai_team.agents.base import BaseAgent
 from ai_team.agents.qa_engineer import (
-    create_qa_engineer,
-    quality_gate_passed,
-    feedback_for_developers,
     MIN_COVERAGE_THRESHOLD_DEFAULT,
+    create_qa_engineer,
+    feedback_for_developers,
+    quality_gate_passed,
 )
 from ai_team.models.qa_models import (
-    TestResult,
-    TestExecutionResult,
-    CoverageReport,
     BugReport,
+    CoverageReport,
+    TestExecutionResult,
+    TestResult,
 )
 from ai_team.tools.qa_tools import get_qa_tools
 

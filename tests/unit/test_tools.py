@@ -7,22 +7,20 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from ai_team.tools.file_tools import (
-    read_file,
-    write_file,
-    list_directory,
     create_directory,
     delete_file,
+    list_directory,
+    read_file,
+    write_file,
 )
 from ai_team.tools.product_owner import (
-    requirements_parser,
-    user_story_generator,
     acceptance_criteria_writer,
     priority_scorer,
+    requirements_parser,
+    user_story_generator,
 )
 from ai_team.tools.qa_tools import get_qa_tools
-
 
 # -----------------------------------------------------------------------------
 # File tools — isolation, schemas, error handling
