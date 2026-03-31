@@ -1,5 +1,5 @@
 {
   "project_name": "hello_world",
-  "description": "A minimal Hello World Flask API",
+  "description": "Create a simple Flask REST API with: GET /health endpoint returning {status: ok, version: 1.0}; GET /items returning a list of items from in-memory storage; POST /items accepting {name: str} and adding to the list; proper error handling (400 for bad input, 404 for not found); unit tests with pytest covering all endpoints and edge cases; requirements.txt and Dockerfile.",
   "requirements": ["Flask", "pytest"]
 }
