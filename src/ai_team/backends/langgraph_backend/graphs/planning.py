@@ -25,13 +25,30 @@ logger = structlog.get_logger(__name__)
 PLANNING_WORKERS = ("product_owner", "architect")
 PLANNING_SUPERVISOR_NAME = "planning_supervisor"
 
+_STRUCTURED_OUTPUT_INSTRUCTIONS = """
+## Required structured output
+At the end of your response, you MUST output two fenced JSON blocks in this exact order:
+
+1) Requirements:
+```json
+{ "requirements": { "functional": [], "non_functional": [], "constraints": [], "acceptance_criteria": [] } }
+```
+
+2) Architecture:
+```json
+{ "architecture": { "overview": "", "components": [], "data_flow": [], "interfaces": [], "risks": [] } }
+```
+
+The JSON must be valid (no trailing commas). Keep prose above the JSON blocks.
+""".strip()
+
 
 def _make_worker(
     role_key: str,
     name: str,
     llm: BaseChatModel,
 ) -> CompiledStateGraph:
-    prompt = load_agent_prompt(role_key).system_message()
+    prompt = load_agent_prompt(role_key).system_message() + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
     tools = get_langchain_tools_for_role(role_key)
     return create_react_agent(
         llm,
@@ -96,7 +113,11 @@ def compile_planning_subgraph(
         behavioral_role = active_workers[0]
         logger.info("planning_subgraph_compiled", workers=active_workers, mode="single_agent")
     else:
-        supervisor_prompt = load_agent_prompt("manager").system_message()
+        supervisor_prompt = (
+            load_agent_prompt("manager").system_message()
+            + "\n\n"
+            + _STRUCTURED_OUTPUT_INSTRUCTIONS
+        )
         workflow = create_supervisor(
             worker_agents,
             model=m_llm,
