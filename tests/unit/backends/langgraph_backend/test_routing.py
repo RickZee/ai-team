@@ -95,9 +95,7 @@ def test_route_after_human_review_testing() -> None:
 
 def test_normalize_hitl_metadata_explicit() -> None:
     assert (
-        normalize_hitl_metadata({"metadata": {"hitl_source": "planning"}})[
-            "hitl_source"
-        ]
+        normalize_hitl_metadata({"metadata": {"hitl_source": "planning"}})["hitl_source"]
         == "planning"
     )
 

@@ -5,17 +5,14 @@ These tools integrate with ProjectState when used within AITeamFlow: status and
 phase suggestions can be applied to the flow state by the orchestrator.
 """
 
-from typing import Any, Dict, List, Optional, Type
-
+import structlog
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
-
-import structlog
 
 logger = structlog.get_logger(__name__)
 
 # Default capability hints for delegation (can be overridden by flow/context)
-DEFAULT_AGENT_CAPABILITIES: Dict[str, List[str]] = {
+DEFAULT_AGENT_CAPABILITIES: dict[str, list[str]] = {
     "product_owner": ["requirements", "user_stories", "acceptance_criteria", "prioritization"],
     "architect": ["architecture", "tech_stack", "api_design", "adr"],
     "backend_developer": ["backend", "api", "database", "services"],
@@ -35,11 +32,11 @@ class TaskDelegationInput(BaseModel):
     """Input for task_delegation tool."""
 
     task_description: str = Field(..., description="Clear description of the task to delegate.")
-    required_skills: List[str] = Field(
+    required_skills: list[str] = Field(
         default_factory=list,
         description="Skills or domains needed (e.g. backend, testing, architecture).",
     )
-    current_workload: Optional[str] = Field(
+    current_workload: str | None = Field(
         default=None,
         description="Optional JSON or summary of each agent's current workload to balance assignment.",
     )
@@ -53,15 +50,15 @@ class TimelineManagementInput(BaseModel):
         ...,
         description="Current project phase (e.g. intake, planning, development, testing, deployment).",
     )
-    completed_milestones: Optional[str] = Field(
+    completed_milestones: str | None = Field(
         default=None,
         description="Comma-separated or JSON list of completed milestones.",
     )
-    next_milestones: Optional[str] = Field(
+    next_milestones: str | None = Field(
         default=None,
         description="Planned next milestones or deliverables.",
     )
-    risks_or_delays: Optional[str] = Field(
+    risks_or_delays: str | None = Field(
         default=None,
         description="Any risks or delays affecting the timeline.",
     )
@@ -71,11 +68,11 @@ class BlockerResolutionInput(BaseModel):
     """Input for blocker_resolution tool."""
 
     blocker_description: str = Field(..., description="Description of the blocker.")
-    affected_phase: Optional[str] = Field(
+    affected_phase: str | None = Field(
         default=None,
         description="Phase or area affected (e.g. development, testing).",
     )
-    suggested_actions: Optional[str] = Field(
+    suggested_actions: str | None = Field(
         default=None,
         description="Optional suggested actions to resolve or escalate.",
     )
@@ -84,21 +81,21 @@ class BlockerResolutionInput(BaseModel):
 class StatusReportingInput(BaseModel):
     """Input for status_reporting tool."""
 
-    project_id: Optional[str] = Field(default=None, description="Project identifier for the report.")
+    project_id: str | None = Field(default=None, description="Project identifier for the report.")
     current_phase: str = Field(
         ...,
         description="Current project phase.",
     )
     summary: str = Field(..., description="Brief status summary.")
-    phase_suggestion: Optional[str] = Field(
+    phase_suggestion: str | None = Field(
         default=None,
         description="Suggested next phase transition if any (e.g. planning -> development).",
     )
-    blockers: Optional[str] = Field(
+    blockers: str | None = Field(
         default=None,
         description="Comma-separated list of current blockers.",
     )
-    state_updates_json: Optional[str] = Field(
+    state_updates_json: str | None = Field(
         default=None,
         description="Optional JSON object with suggested ProjectState updates (phase_history, warnings, etc.).",
     )
@@ -121,13 +118,13 @@ class TaskDelegationTool(BaseTool):
         "Use when coordinating work: provide task description, required skills, and optional workload summary. "
         "Returns the recommended agent and a short justification."
     )
-    args_schema: Type[BaseModel] = TaskDelegationInput
+    args_schema: type[BaseModel] = TaskDelegationInput
 
     def _run(
         self,
         task_description: str,
-        required_skills: Optional[List[str]] = None,
-        current_workload: Optional[str] = None,
+        required_skills: list[str] | None = None,
+        current_workload: str | None = None,
         priority: str = "normal",
     ) -> str:
         required_skills = required_skills or []
@@ -135,11 +132,7 @@ class TaskDelegationTool(BaseTool):
         best_agent = None
         best_score = -1
         for agent_name, capabilities in DEFAULT_AGENT_CAPABILITIES.items():
-            score = sum(
-                1
-                for s in required_lower
-                if any(c in s or s in c for c in capabilities)
-            )
+            score = sum(1 for s in required_lower if any(c in s or s in c for c in capabilities))
             if score > best_score:
                 best_score = score
                 best_agent = agent_name
@@ -171,14 +164,14 @@ class TimelineManagementTool(BaseTool):
         "risks or delays. Use to maintain project status and recommend phase transitions. "
         "Returns a timeline summary and optional phase transition suggestion for ProjectState."
     )
-    args_schema: Type[BaseModel] = TimelineManagementInput
+    args_schema: type[BaseModel] = TimelineManagementInput
 
     def _run(
         self,
         current_phase: str,
-        completed_milestones: Optional[str] = None,
-        next_milestones: Optional[str] = None,
-        risks_or_delays: Optional[str] = None,
+        completed_milestones: str | None = None,
+        next_milestones: str | None = None,
+        risks_or_delays: str | None = None,
     ) -> str:
         lines = [
             f"Current phase: **{current_phase}**.",
@@ -191,7 +184,10 @@ class TimelineManagementTool(BaseTool):
             "timeline_management",
             current_phase=current_phase,
         )
-        return " ".join(lines) + " Use this to update project status and phase_history in ProjectState."
+        return (
+            " ".join(lines)
+            + " Use this to update project status and phase_history in ProjectState."
+        )
 
 
 class BlockerResolutionTool(BaseTool):
@@ -205,13 +201,13 @@ class BlockerResolutionTool(BaseTool):
         "If the blocker requires human input or critical decisions, recommend escalating (set "
         "awaiting_human_input and human_feedback in ProjectState)."
     )
-    args_schema: Type[BaseModel] = BlockerResolutionInput
+    args_schema: type[BaseModel] = BlockerResolutionInput
 
     def _run(
         self,
         blocker_description: str,
-        affected_phase: Optional[str] = None,
-        suggested_actions: Optional[str] = None,
+        affected_phase: str | None = None,
+        suggested_actions: str | None = None,
     ) -> str:
         phase = affected_phase or "unknown"
         actions = suggested_actions or "Assess impact; consider reassigning or escalating to human."
@@ -241,16 +237,16 @@ class StatusReportingTool(BaseTool):
         "and blockers. Use state_updates_json to suggest ProjectState updates (e.g. phase transition, "
         "warnings). The flow will merge these into ProjectState."
     )
-    args_schema: Type[BaseModel] = StatusReportingInput
+    args_schema: type[BaseModel] = StatusReportingInput
 
     def _run(
         self,
         current_phase: str,
         summary: str,
-        project_id: Optional[str] = None,
-        phase_suggestion: Optional[str] = None,
-        blockers: Optional[str] = None,
-        state_updates_json: Optional[str] = None,
+        project_id: str | None = None,
+        phase_suggestion: str | None = None,
+        blockers: str | None = None,
+        state_updates_json: str | None = None,
     ) -> str:
         lines = [
             f"Project: {project_id or 'current'}.",
@@ -271,7 +267,7 @@ class StatusReportingTool(BaseTool):
         return " ".join(lines)
 
 
-def get_manager_tools() -> List[BaseTool]:
+def get_manager_tools() -> list[BaseTool]:
     """Return the list of tools for the Manager agent."""
     return [
         TaskDelegationTool(),

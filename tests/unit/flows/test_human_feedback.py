@@ -23,7 +23,9 @@ class TestParseFeedbackResponse:
 
     def test_free_text_when_no_option_match(self) -> None:
         options = ["Yes", "No"]
-        result = parse_feedback_response("I want to add more details", options, FeedbackType.CLARIFICATION)
+        result = parse_feedback_response(
+            "I want to add more details", options, FeedbackType.CLARIFICATION
+        )
         assert result.selected_option is None
         assert result.free_text == "I want to add more details"
 

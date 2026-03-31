@@ -9,12 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import structlog
-
 from ai_team.config.settings import get_settings
 from ai_team.core.results.models import GeneratedFileEntry, RunMetadata, Scorecard
 
@@ -22,7 +21,7 @@ logger = structlog.get_logger(__name__)
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -55,13 +54,9 @@ class ResultsBundle:
     def init_dirs(self) -> None:
         (self._base_output / "artifacts" / "intake").mkdir(parents=True, exist_ok=True)
         (self._base_output / "artifacts" / "planning").mkdir(parents=True, exist_ok=True)
-        (self._base_output / "artifacts" / "development").mkdir(
-            parents=True, exist_ok=True
-        )
+        (self._base_output / "artifacts" / "development").mkdir(parents=True, exist_ok=True)
         (self._base_output / "artifacts" / "testing").mkdir(parents=True, exist_ok=True)
-        (self._base_output / "artifacts" / "deployment").mkdir(
-            parents=True, exist_ok=True
-        )
+        (self._base_output / "artifacts" / "deployment").mkdir(parents=True, exist_ok=True)
         (self._base_output / "reports").mkdir(parents=True, exist_ok=True)
         (self._base_output / "logs").mkdir(parents=True, exist_ok=True)
         self._base_workspace.mkdir(parents=True, exist_ok=True)
@@ -164,7 +159,7 @@ class ResultsBundle:
         extra: dict[str, Any] | None = None,
         started_at: datetime | None = None,
     ) -> RunMetadata:
-        s = get_settings()
+        get_settings()
         return RunMetadata(
             project_id=self.project_id,
             backend=backend,
@@ -177,4 +172,3 @@ class ResultsBundle:
             models=dict(models or {}),
             extra=dict(extra or {}),
         )
-

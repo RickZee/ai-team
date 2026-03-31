@@ -34,9 +34,7 @@ def describe_thread_state(
     snap = get_thread_state_snapshot(graph, thread_id)
     out: dict[str, Any] = {
         "thread_id": thread_id,
-        "values_keys": (
-            list(snap.values.keys()) if isinstance(snap.values, dict) else None
-        ),
+        "values_keys": (list(snap.values.keys()) if isinstance(snap.values, dict) else None),
         "next": list(snap.next) if snap.next else [],
         "tasks": len(snap.tasks) if snap.tasks else 0,
         "metadata": snap.metadata,

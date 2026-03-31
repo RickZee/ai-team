@@ -47,12 +47,12 @@ def qa_config() -> dict:
 
 
 class TestCreateQaEngineer:
-    def test_create_qa_engineer_returns_base_agent(
-        self, mock_llm, qa_config: dict
-    ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
+    def test_create_qa_engineer_returns_base_agent(self, mock_llm, qa_config: dict) -> None:
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_qa_engineer(agents_config=qa_config)
         assert isinstance(agent, BaseAgent)

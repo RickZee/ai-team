@@ -10,10 +10,8 @@ function versions (for testing) are provided.
 import getpass
 import re
 from pathlib import Path
-from typing import List, Optional
 
 import structlog
-
 from ai_team.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -22,7 +20,7 @@ logger = structlog.get_logger(__name__)
 MAX_DIRECTORY_DEPTH = 20
 
 
-def _get_allowed_roots() -> List[Path]:
+def _get_allowed_roots() -> list[Path]:
     """Return resolved absolute paths for workspace and output directories."""
     settings = get_settings()
     return [
@@ -72,9 +70,7 @@ def _resolve_and_validate_path(
         except (OSError, RuntimeError):
             continue
     if not under_any:
-        raise ValueError(
-            f"Path not under allowed directories (workspace/output): {path_str}"
-        )
+        raise ValueError(f"Path not under allowed directories (workspace/output): {path_str}")
 
     if must_exist and not resolved.exists():
         raise ValueError(f"Path does not exist: {resolved}")
@@ -104,7 +100,7 @@ def _check_nesting_limit(resolved: Path) -> None:
     raise ValueError(f"Path not under allowed roots: {resolved}")
 
 
-def _audit_log(operation: str, path: str, success: bool, detail: Optional[str] = None) -> None:
+def _audit_log(operation: str, path: str, success: bool, detail: str | None = None) -> None:
     """Emit audit log for file operations."""
     user = getpass.getuser()
     logger.info(
@@ -117,7 +113,7 @@ def _audit_log(operation: str, path: str, success: bool, detail: Optional[str] =
     )
 
 
-def _scan_dangerous_patterns(content: str) -> Optional[str]:
+def _scan_dangerous_patterns(content: str) -> str | None:
     """Scan content for dangerous patterns. Returns first match or None."""
     settings = get_settings()
     for pattern in settings.guardrails.dangerous_patterns:
@@ -139,9 +135,7 @@ def _check_file_size(path: Path, max_kb: int) -> None:
     """Raise ValueError if file size exceeds max_kb."""
     size_kb = path.stat().st_size / 1024
     if size_kb > max_kb:
-        raise ValueError(
-            f"File size {size_kb:.1f} KB exceeds limit {max_kb} KB: {path}"
-        )
+        raise ValueError(f"File size {size_kb:.1f} KB exceeds limit {max_kb} KB: {path}")
 
 
 # -----------------------------------------------------------------------------
@@ -197,9 +191,7 @@ def write_file(path: str, content: str) -> bool:
     if dangerous:
         raise ValueError(f"Content contains dangerous pattern: {dangerous}")
     _scan_pii_warn(content)
-    resolved = _resolve_and_validate_path(
-        path, allow_new_file=True
-    )
+    resolved = _resolve_and_validate_path(path, allow_new_file=True)
     # Prevent accidental creation of pytest-collected scratch files at workspace root.
     # Root-level files named "test_*.py" will be collected by pytest and can break runs.
     settings = get_settings()
@@ -208,11 +200,15 @@ def write_file(path: str, content: str) -> bool:
         rel = resolved.relative_to(ws_root)
     except ValueError:
         rel = None
-    if rel is not None:
-        if resolved.suffix == ".py" and resolved.name.startswith("test_") and len(rel.parts) == 1:
-            raise ValueError(
-                "Refusing to write root-level pytest file. Put tests under tests/ (e.g. tests/test_*.py)."
-            )
+    if (
+        rel is not None
+        and resolved.suffix == ".py"
+        and resolved.name.startswith("test_")
+        and len(rel.parts) == 1
+    ):
+        raise ValueError(
+            "Refusing to write root-level pytest file. Put tests under tests/ (e.g. tests/test_*.py)."
+        )
     if resolved.exists() and resolved.is_dir():
         _audit_log("write_file", str(resolved), False, "path is a directory")
         raise ValueError(f"Path is a directory: {resolved}")
@@ -227,7 +223,7 @@ def write_file(path: str, content: str) -> bool:
     return True
 
 
-def list_directory(path: str) -> List[str]:
+def list_directory(path: str) -> list[str]:
     """
     List directory contents with restricted scope (under workspace/output only).
 

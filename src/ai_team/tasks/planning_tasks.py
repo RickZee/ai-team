@@ -7,13 +7,12 @@ CrewAI Task objects with context passing, guardrails, and timeout configuration.
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
 import yaml
-from crewai import Task
-
 from ai_team.agents.architect import validate_architecture_against_requirements
 from ai_team.agents.product_owner import _dict_to_requirements_document
 from ai_team.config.settings import get_settings
@@ -25,6 +24,7 @@ from ai_team.models.architecture import (
     TechnologyChoice,
 )
 from ai_team.models.requirements import RequirementsDocument
+from crewai import Task
 
 logger = structlog.get_logger(__name__)
 
@@ -32,7 +32,7 @@ logger = structlog.get_logger(__name__)
 MIN_USER_STORIES = 3
 
 
-def _load_tasks_yaml(config_path: Optional[Path] = None) -> Dict[str, Any]:
+def _load_tasks_yaml(config_path: Path | None = None) -> dict[str, Any]:
     """Load tasks.yaml; return full dict. Uses config_path or default next to config."""
     if config_path is not None and config_path.exists():
         path = config_path
@@ -45,7 +45,7 @@ def _load_tasks_yaml(config_path: Optional[Path] = None) -> Dict[str, Any]:
     return data or {}
 
 
-def planning_tasks_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
+def planning_tasks_config(config_path: Path | None = None) -> dict[str, Any]:
     """
     Return the planning section of tasks.yaml as a dict.
 
@@ -71,7 +71,7 @@ def _output_pydantic_class(name: str) -> Any:
 def _task_output_text(result: Any) -> str:
     """Extract raw text from CrewAI TaskOutput or similar."""
     if hasattr(result, "raw"):
-        return getattr(result, "raw") or ""
+        return result.raw or ""
     if isinstance(result, str):
         return result
     return str(result)
@@ -82,7 +82,7 @@ def _task_output_text(result: Any) -> str:
 # -----------------------------------------------------------------------------
 
 
-def requirements_guardrail(task_output: Any) -> Tuple[bool, Any]:
+def requirements_guardrail(task_output: Any) -> tuple[bool, Any]:
     """
     Guardrail: requirements must have at least 3 user stories with acceptance
     criteria. Task output can be string or CrewAI result; parsed as JSON when
@@ -104,7 +104,10 @@ def requirements_guardrail(task_output: Any) -> Tuple[bool, Any]:
             count=len(doc.user_stories),
             required=MIN_USER_STORIES,
         )
-        return (False, f"Requirements guardrail: need at least {MIN_USER_STORIES} user stories with acceptance criteria.")
+        return (
+            False,
+            f"Requirements guardrail: need at least {MIN_USER_STORIES} user stories with acceptance criteria.",
+        )
     for i, story in enumerate(doc.user_stories):
         if not story.acceptance_criteria:
             logger.warning(
@@ -116,7 +119,7 @@ def requirements_guardrail(task_output: Any) -> Tuple[bool, Any]:
     return (True, text)
 
 
-def _find_balanced_brace_json(text: str) -> Optional[str]:
+def _find_balanced_brace_json(text: str) -> str | None:
     """Find first top-level {...} in text (balanced braces); return that substring or None."""
     start = text.find("{")
     if start == -1:
@@ -132,7 +135,7 @@ def _find_balanced_brace_json(text: str) -> Optional[str]:
     return None
 
 
-def _extract_json_block_for_requirements(text: str) -> Optional[Dict[str, Any]]:
+def _extract_json_block_for_requirements(text: str) -> dict[str, Any] | None:
     """Extract JSON from markdown block, raw JSON, or first top-level {...} in text."""
     if not text or not text.strip():
         return None
@@ -140,25 +143,28 @@ def _extract_json_block_for_requirements(text: str) -> Optional[Dict[str, Any]]:
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
         try:
-            return json.loads(match.group(1).strip())
+            obj = json.loads(match.group(1).strip())
+            return obj if isinstance(obj, dict) else None
         except json.JSONDecodeError:
             pass
     # 2) Whole text is JSON
     try:
-        return json.loads(text.strip())
+        obj = json.loads(text.strip())
+        return obj if isinstance(obj, dict) else None
     except json.JSONDecodeError:
         pass
     # 3) First top-level JSON object in text (e.g. prose then { ... })
     candidate = _find_balanced_brace_json(text)
     if candidate:
         try:
-            return json.loads(candidate)
+            obj = json.loads(candidate)
+            return obj if isinstance(obj, dict) else None
         except json.JSONDecodeError:
             pass
     return None
 
 
-def _extract_json_block_for_arch(text: str) -> Optional[Dict[str, Any]]:
+def _extract_json_block_for_arch(text: str) -> dict[str, Any] | None:
     """Extract JSON from markdown block, raw JSON, or first top-level {...} in text."""
     if not text or not text.strip():
         return None
@@ -166,25 +172,28 @@ def _extract_json_block_for_arch(text: str) -> Optional[Dict[str, Any]]:
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
         try:
-            return json.loads(match.group(1).strip())
+            obj = json.loads(match.group(1).strip())
+            return obj if isinstance(obj, dict) else None
         except json.JSONDecodeError:
             pass
     # 2) Whole text is JSON
     try:
-        return json.loads(text.strip())
+        obj = json.loads(text.strip())
+        return obj if isinstance(obj, dict) else None
     except json.JSONDecodeError:
         pass
     # 3) First top-level JSON object in text (e.g. prose then { ... })
     candidate = _find_balanced_brace_json(text)
     if candidate:
         try:
-            return json.loads(candidate)
+            obj = json.loads(candidate)
+            return obj if isinstance(obj, dict) else None
         except json.JSONDecodeError:
             pass
     return None
 
 
-def _dict_to_architecture_document(data: Dict[str, Any]) -> Optional[ArchitectureDocument]:
+def _dict_to_architecture_document(data: dict[str, Any]) -> ArchitectureDocument | None:
     """Build ArchitectureDocument from dict (e.g. parsed agent output)."""
     try:
         components = [
@@ -236,7 +245,7 @@ def _dict_to_architecture_document(data: Dict[str, Any]) -> Optional[Architectur
         return None
 
 
-def architecture_guardrail(task_output: Any) -> Tuple[bool, Any]:
+def architecture_guardrail(task_output: Any) -> tuple[bool, Any]:
     """
     Guardrail: architecture must address all requirements (structural completeness
     when requirements are not available; full check is done when the planning crew
@@ -260,7 +269,7 @@ def architecture_guardrail(task_output: Any) -> Tuple[bool, Any]:
     return (True, text)
 
 
-def _get_guardrail_for_task(task_key: str) -> Callable[[Any], Tuple[bool, Any]]:
+def _get_guardrail_for_task(task_key: str) -> Callable[[Any], tuple[bool, Any]]:
     """Return the guardrail callable for a planning task key (CrewAI: (passed, result))."""
     guardrails = {
         "requirements_gathering": requirements_guardrail,
@@ -272,10 +281,10 @@ def _get_guardrail_for_task(task_key: str) -> Callable[[Any], Tuple[bool, Any]]:
 
 
 def create_planning_tasks(
-    agents: Dict[str, Any],
+    agents: dict[str, Any],
     *,
-    config_path: Optional[Path] = None,
-) -> Tuple[List[Task], Dict[str, int]]:
+    config_path: Path | None = None,
+) -> tuple[list[Task], dict[str, int]]:
     """
     Create CrewAI Task objects for the planning crew from config/tasks.yaml.
 
@@ -298,9 +307,9 @@ def create_planning_tasks(
         3600,
     )
 
-    task_list: List[Task] = []
-    task_by_key: Dict[str, Task] = {}
-    timeouts: Dict[str, int] = {}
+    task_list: list[Task] = []
+    task_by_key: dict[str, Task] = {}
+    timeouts: dict[str, int] = {}
 
     # Order: requirements_gathering first, then architecture_design (context depends on first)
     ordered_keys = ["requirements_gathering", "architecture_design"]
@@ -316,8 +325,10 @@ def create_planning_tasks(
         description = cfg.get("description", "")
         expected_output = cfg.get("expected_output", "")
         output_pydantic_name = cfg.get("output_pydantic")
-        output_pydantic = _output_pydantic_class(output_pydantic_name) if output_pydantic_name else None
-        context_keys: List[str] = cfg.get("context") or []
+        output_pydantic = (
+            _output_pydantic_class(output_pydantic_name) if output_pydantic_name else None
+        )
+        context_keys: list[str] = cfg.get("context") or []
         context_tasks = [task_by_key[k] for k in context_keys if k in task_by_key]
         timeout_seconds = cfg.get("timeout_seconds") or default_timeout
 

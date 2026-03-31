@@ -9,12 +9,11 @@ using OpenRouter's embeddings API (OpenAI-compatible; one API key for all).
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
-from crewai import LLM
-
 from ai_team.config.models import OpenRouterSettings
+from crewai import LLM
 
 logger = structlog.get_logger(__name__)
 
@@ -60,7 +59,7 @@ def create_llm_for_role(role: str, settings: OpenRouterSettings) -> LLM:
     return llm
 
 
-def get_embedder_config() -> Dict[str, Any]:
+def get_embedder_config() -> dict[str, Any]:
     """
     Return OpenRouter-backed embedder config for CrewAI memory.
 
@@ -86,9 +85,9 @@ def get_embedder_config() -> Dict[str, Any]:
 
 def complete_with_openrouter(
     prompt: str,
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    api_base: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    api_base: str | None = None,
 ) -> str:
     """
     One-shot completion via OpenRouter HTTP API (for tools that need a simple LLM call).
@@ -105,7 +104,9 @@ def complete_with_openrouter(
     if not key:
         logger.warning("complete_with_openrouter_skip", reason="OPENROUTER_API_KEY not set")
         return ""
-    base = (api_base or os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")).rstrip("/")
+    base = (
+        api_base or os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
+    ).rstrip("/")
     if model is None:
         settings = OpenRouterSettings()
         model = settings.get_model_for_role("manager").model_id

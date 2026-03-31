@@ -11,18 +11,18 @@ via guardrail execution).
 from __future__ import annotations
 
 import re
-from typing import Any, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
-from crewai import Task
 import structlog
-
-from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.guardrails.quality import (
     architecture_compliance_guardrail,
     code_quality_guardrail,
     documentation_guardrail,
 )
 from ai_team.guardrails.security import code_safety_guardrail
+from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
+from crewai import Task
 
 logger = structlog.get_logger()
 
@@ -30,9 +30,9 @@ logger = structlog.get_logger()
 GUARDRAIL_MAX_RETRIES = 3
 
 
-def _task_output_to_code_files(result: Any) -> List[Tuple[str, str, str]]:
+def _task_output_to_code_files(result: Any) -> list[tuple[str, str, str]]:
     """Extract (path, content, language) from task output (TaskOutput or pydantic)."""
-    files: List[Tuple[str, str, str]] = []
+    files: list[tuple[str, str, str]] = []
     pydantic_out = getattr(result, "pydantic", None)
     raw = getattr(result, "raw", None) or (result if isinstance(result, str) else str(result))
 
@@ -50,14 +50,16 @@ def _task_output_to_code_files(result: Any) -> List[Tuple[str, str, str]]:
     # Fallback: try to parse raw as list of code file descriptions (e.g. JSON-like)
     if raw and isinstance(raw, str) and raw.strip():
         # Minimal heuristic: look for path/content-like blocks (caller may use output_pydantic)
-        logger.warning("development_tasks guardrail received raw output; pydantic preferred", raw_len=len(raw))
+        logger.warning(
+            "development_tasks guardrail received raw output; pydantic preferred", raw_len=len(raw)
+        )
     return files
 
 
 def _backend_implementation_guardrail(
     result: Any,
-    architecture: Optional[dict] = None,
-) -> Tuple[bool, Any]:
+    architecture: dict | None = None,
+) -> tuple[bool, Any]:
     """
     Validate backend task output: code must pass lint (quality), have docstrings,
     and follow architecture. Used as CrewAI task guardrail; returns (True, result)
@@ -70,19 +72,23 @@ def _backend_implementation_guardrail(
         logger.warning("backend_implementation guardrail failed", reason=msg)
         return (False, msg)
 
-    paths: List[str] = []
+    paths: list[str] = []
     for path, content, language in code_files:
         paths.append(path)
         lang = (language or "python").lower()
         # Code safety (lint / dangerous patterns)
         safety = code_safety_guardrail(content)
         if safety.should_block():
-            logger.warning("backend_implementation guardrail failed", path=path, reason=safety.message)
+            logger.warning(
+                "backend_implementation guardrail failed", path=path, reason=safety.message
+            )
             return (False, f"{path}: {safety.message}")
         # Code quality (length, complexity, naming, docstrings)
         quality = code_quality_guardrail(content, language=lang)
         if not quality.passed:
-            feedback = "; ".join(quality.suggestions[:5]) if quality.suggestions else quality.message
+            feedback = (
+                "; ".join(quality.suggestions[:5]) if quality.suggestions else quality.message
+            )
             logger.warning("backend_implementation guardrail failed", path=path, reason=feedback)
             return (False, f"{path}: {feedback}")
         # Documentation (docstrings for public functions)
@@ -95,7 +101,11 @@ def _backend_implementation_guardrail(
     if architecture:
         arch_result = architecture_compliance_guardrail(paths, architecture)
         if not arch_result.passed:
-            feedback = "; ".join(arch_result.suggestions[:3]) if arch_result.suggestions else arch_result.message
+            feedback = (
+                "; ".join(arch_result.suggestions[:3])
+                if arch_result.suggestions
+                else arch_result.message
+            )
             logger.warning("backend_implementation guardrail failed", reason=feedback)
             return (False, f"Architecture compliance: {feedback}")
 
@@ -167,8 +177,8 @@ def _devops_configuration_guardrail(result: Any):
 
 def create_backend_implementation_task(
     agent: Any,
-    context: Optional[Sequence[Task]] = None,
-    architecture: Optional[dict] = None,
+    context: Sequence[Task] | None = None,
+    architecture: dict | None = None,
     guardrail_max_retries: int = GUARDRAIL_MAX_RETRIES,
 ) -> Task:
     """
@@ -183,6 +193,7 @@ def create_backend_implementation_task(
     Returns:
         CrewAI Task configured for backend implementation.
     """
+
     def guardrail_fn(result: Any):
         return _backend_implementation_guardrail(result, architecture=architecture)
 
@@ -199,7 +210,7 @@ def create_backend_implementation_task(
 
 def create_frontend_implementation_task(
     agent: Any,
-    context: Optional[Sequence[Task]] = None,
+    context: Sequence[Task] | None = None,
     guardrail_max_retries: int = GUARDRAIL_MAX_RETRIES,
 ) -> Task:
     """
@@ -226,7 +237,7 @@ def create_frontend_implementation_task(
 
 def create_devops_configuration_task(
     agent: Any,
-    context: Optional[Sequence[Task]] = None,
+    context: Sequence[Task] | None = None,
     guardrail_max_retries: int = GUARDRAIL_MAX_RETRIES,
 ) -> Task:
     """

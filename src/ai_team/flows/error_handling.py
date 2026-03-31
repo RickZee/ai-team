@@ -10,16 +10,15 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
-from pydantic import BaseModel, Field
-
 from ai_team.config.settings import get_settings
 from ai_team.flows.state import ProjectPhase, ProjectState
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 
@@ -86,7 +85,7 @@ RECOVERABLE_INDICATORS = [
 ]
 
 
-def classify_error(error: Dict[str, Any]) -> ErrorCategory:
+def classify_error(error: dict[str, Any]) -> ErrorCategory:
     """
     Classify an error dict into Retryable, Recoverable, or Fatal.
 
@@ -116,11 +115,11 @@ class StructuredErrorLog(BaseModel):
     """Structured error log entry: phase, agent, tool, error type, stack trace."""
 
     phase: str = Field(..., description="Phase when error occurred")
-    agent: Optional[str] = Field(default=None, description="Agent involved if known")
-    tool: Optional[str] = Field(default=None, description="Tool involved if known")
+    agent: str | None = Field(default=None, description="Agent involved if known")
+    tool: str | None = Field(default=None, description="Tool involved if known")
     error_type: str = Field(..., description="Error category or code")
     message: str = Field(..., description="Human-readable message")
-    stack_trace: Optional[str] = Field(default=None, description="Stack trace if available")
+    stack_trace: str | None = Field(default=None, description="Stack trace if available")
     timestamp: str = Field(default="", description="ISO timestamp")
 
 
@@ -128,12 +127,11 @@ def record_structured_error(
     phase: ProjectPhase,
     error_type: str,
     message: str,
-    agent: Optional[str] = None,
-    tool: Optional[str] = None,
-    stack_trace: Optional[str] = None,
+    agent: str | None = None,
+    tool: str | None = None,
+    stack_trace: str | None = None,
 ) -> StructuredErrorLog:
     """Build and return a structured error log entry; log it via structlog."""
-    from datetime import datetime
 
     entry = StructuredErrorLog(
         phase=phase.value,
@@ -142,7 +140,7 @@ def record_structured_error(
         error_type=error_type,
         message=message,
         stack_trace=stack_trace,
-        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     )
     logger.error(
         "flow_error",
@@ -176,9 +174,9 @@ def build_error_summary_report(state: ProjectState) -> str:
     return "\n".join(lines)
 
 
-def get_error_metrics(state: ProjectState) -> Dict[str, Any]:
+def get_error_metrics(state: ProjectState) -> dict[str, Any]:
     """Return metrics: error rate per phase, retry count distribution."""
-    total_by_phase: Dict[str, int] = {}
+    total_by_phase: dict[str, int] = {}
     for err in state.errors:
         key = err.phase.value
         total_by_phase[key] = total_by_phase.get(key, 0) + 1
@@ -229,7 +227,7 @@ def circuit_breaker_should_escalate(state: ProjectState, phase: ProjectPhase) ->
 # -----------------------------------------------------------------------------
 
 
-def persist_state_on_error(state: ProjectState, error_info: Optional[Dict[str, Any]] = None) -> Path:
+def persist_state_on_error(state: ProjectState, error_info: dict[str, Any] | None = None) -> Path:
     """
     Save ProjectState to JSON in output_dir on error.
     Optionally merge error_info into state.metadata for resume context.
@@ -259,7 +257,7 @@ def load_state_from_file(path: Path) -> ProjectState:
     return state
 
 
-def rollback_last_phase(state: ProjectState) -> Optional[ProjectPhase]:
+def rollback_last_phase(state: ProjectState) -> ProjectPhase | None:
     """
     Undo last phase transition: revert current_phase and remove last transition from history.
     Returns the phase we rolled back to, or None if no valid rollback.
@@ -299,8 +297,8 @@ def get_recovery_action(
     category: ErrorCategory,
     state: ProjectState,
     phase: ProjectPhase,
-    max_retries: Optional[int] = None,
-) -> Tuple[RecoveryAction, Dict[str, Any]]:
+    max_retries: int | None = None,
+) -> tuple[RecoveryAction, dict[str, Any]]:
     """
     Determine recovery action and payload.
 
@@ -308,10 +306,13 @@ def get_recovery_action(
     payload may include backoff_attempt, feedback_message, etc.
     """
     max_retries = max_retries or state.max_retries
-    payload: Dict[str, Any] = {}
+    payload: dict[str, Any] = {}
 
     if circuit_breaker_should_escalate(state, phase):
-        return "escalate", {"reason": "circuit_breaker", "consecutive_failures": get_consecutive_failures(state, phase)}
+        return "escalate", {
+            "reason": "circuit_breaker",
+            "consecutive_failures": get_consecutive_failures(state, phase),
+        }
 
     if category == ErrorCategory.FATAL:
         return "escalate", {"reason": "fatal_error"}
@@ -326,7 +327,10 @@ def get_recovery_action(
 
     if category == ErrorCategory.RECOVERABLE:
         # Retry with feedback (caller can inject feedback into next prompt)
-        return "retry_with_feedback", {"reason": "recoverable", "feedback": "Please fix the reported issue and try again."}
+        return "retry_with_feedback", {
+            "reason": "recoverable",
+            "feedback": "Please fix the reported issue and try again.",
+        }
 
     return "escalate", {"reason": "unknown"}
 
@@ -338,9 +342,9 @@ def get_recovery_action(
 
 def handle_planning_error(
     state: ProjectState,
-    error: Dict[str, Any],
-    persist_fn: Optional[Any] = None,
-) -> Dict[str, Any]:
+    error: dict[str, Any],
+    persist_fn: Any | None = None,
+) -> dict[str, Any]:
     """
     Handle planning crew execution failure: classify, record, persist, decide action.
     Returns dict with status, action, summary, path, etc. for flow routing.
@@ -351,9 +355,9 @@ def handle_planning_error(
 
 def handle_development_error(
     state: ProjectState,
-    error: Dict[str, Any],
-    persist_fn: Optional[Any] = None,
-) -> Dict[str, Any]:
+    error: dict[str, Any],
+    persist_fn: Any | None = None,
+) -> dict[str, Any]:
     """Handle development (code generation) failure."""
     phase = ProjectPhase.DEVELOPMENT
     return _handle_phase_error(state, phase, "development", error, persist_fn)
@@ -361,9 +365,9 @@ def handle_development_error(
 
 def handle_testing_error(
     state: ProjectState,
-    error: Dict[str, Any],
-    persist_fn: Optional[Any] = None,
-) -> Dict[str, Any]:
+    error: dict[str, Any],
+    persist_fn: Any | None = None,
+) -> dict[str, Any]:
     """Handle testing crew execution failure."""
     phase = ProjectPhase.TESTING
     return _handle_phase_error(state, phase, "testing", error, persist_fn)
@@ -371,9 +375,9 @@ def handle_testing_error(
 
 def handle_deployment_error(
     state: ProjectState,
-    error: Dict[str, Any],
-    persist_fn: Optional[Any] = None,
-) -> Dict[str, Any]:
+    error: dict[str, Any],
+    persist_fn: Any | None = None,
+) -> dict[str, Any]:
     """Handle deployment/packaging failure."""
     phase = ProjectPhase.DEPLOYMENT
     return _handle_phase_error(state, phase, "deployment", error, persist_fn)
@@ -383,9 +387,9 @@ def _handle_phase_error(
     state: ProjectState,
     phase: ProjectPhase,
     phase_name: str,
-    error: Dict[str, Any],
-    persist_fn: Optional[Any] = None,
-) -> Dict[str, Any]:
+    error: dict[str, Any],
+    persist_fn: Any | None = None,
+) -> dict[str, Any]:
     """
     Shared logic: classify error, record in state, persist, circuit breaker, recovery action.
     """
@@ -410,7 +414,9 @@ def _handle_phase_error(
             logger.warning("state_persistence_failed", error=str(e))
     else:
         try:
-            persist_state_on_error(state, {"phase": phase_name, "error": msg, "category": category.value})
+            persist_state_on_error(
+                state, {"phase": phase_name, "error": msg, "category": category.value}
+            )
         except Exception as e:
             logger.warning("state_persistence_failed", error=str(e))
 
@@ -418,7 +424,7 @@ def _handle_phase_error(
     summary = build_error_summary_report(state)
     metrics = get_error_metrics(state)
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "status": "error",
         "phase": phase_name,
         "action": action,

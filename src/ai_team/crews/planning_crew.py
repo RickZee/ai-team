@@ -6,13 +6,11 @@ Tasks: requirements_gathering → architecture_design (sequential dependency).
 Output: RequirementsDocument and ArchitectureDocument (via task output_pydantic).
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 import structlog
-from crewai import Crew, Process
-from crewai.crew import CrewOutput
-
 from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.manager import create_manager_agent
 from ai_team.agents.product_owner import create_product_owner_agent
@@ -20,33 +18,37 @@ from ai_team.config.llm_factory import get_embedder_config
 from ai_team.config.settings import get_settings
 from ai_team.tasks.planning_tasks import create_planning_tasks
 from ai_team.utils.llm_wrapper import NoFunctionCallingLLMWrapper
+from crewai import Crew, Process
+from crewai.crew import CrewOutput
 
 logger = structlog.get_logger(__name__)
 
 
 def _task_callback_for_logging() -> Callable[..., None]:
     """Build a task_callback that logs on task completion (for metrics/logging)."""
+
     def on_task_complete(callback_arg: Any) -> None:
         # CrewAI task_callback receives (task, output) or similar; log generically
         logger.info(
             "planning_crew_task_complete",
             callback_arg_type=type(callback_arg).__name__,
         )
+
     return on_task_complete
 
 
 def create_planning_crew(
     *,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
-    verbose: Optional[bool] = None,
-    max_rpm: Optional[int] = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
+    verbose: bool | None = None,
+    max_rpm: int | None = None,
     memory: bool = True,
     planning: bool = True,
-    on_task_start: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-    on_task_complete: Optional[Callable[[str, Any], None]] = None,
-    step_callback: Optional[Callable[..., None]] = None,
-    task_callback: Optional[Callable[..., None]] = None,
+    on_task_start: Callable[[str, dict[str, Any]], None] | None = None,
+    on_task_complete: Callable[[str, Any], None] | None = None,
+    step_callback: Callable[..., None] | None = None,
+    task_callback: Callable[..., None] | None = None,
 ) -> Crew:
     """
     Create the Planning Crew with hierarchical process.
@@ -93,12 +95,8 @@ def create_planning_crew(
     # CrewAI's TaskEvaluator (long-term memory) uses the non-Instructor path. Otherwise
     # Ollama can trigger "Instructor does not support multiple tool calls" when storing LTM.
     if use_sequential and memory:
-        object.__setattr__(
-            product_owner, "llm", NoFunctionCallingLLMWrapper(product_owner.llm)
-        )
-        object.__setattr__(
-            architect, "llm", NoFunctionCallingLLMWrapper(architect.llm)
-        )
+        object.__setattr__(product_owner, "llm", NoFunctionCallingLLMWrapper(product_owner.llm))
+        object.__setattr__(architect, "llm", NoFunctionCallingLLMWrapper(architect.llm))
 
     agents_map = {
         "product_owner": product_owner,
@@ -112,13 +110,19 @@ def create_planning_crew(
     # step_callback / task_callback: when provided (e.g. from flow with monitor), use them.
     # Otherwise build task_callback from on_task_complete or default logging.
     final_step_cb = step_callback
-    final_task_cb: Optional[Callable[..., None]] = task_callback
+    final_task_cb: Callable[..., None] | None = task_callback
     if final_task_cb is None:
         if on_task_complete is not None:
+
             def _task_callback(callback_arg: Any) -> None:
                 task_id = getattr(callback_arg, "task", None)
-                tid = str(getattr(task_id, "description", callback_arg)[:80]) if task_id else "unknown"
+                tid = (
+                    str(getattr(task_id, "description", callback_arg)[:80])
+                    if task_id
+                    else "unknown"
+                )
                 on_task_complete(tid, callback_arg)
+
             final_task_cb = _task_callback
         else:
             final_task_cb = _task_callback_for_logging()
@@ -163,12 +167,12 @@ def create_planning_crew(
 def kickoff(
     project_description: str,
     *,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
-    verbose: Optional[bool] = None,
-    max_rpm: Optional[int] = None,
-    step_callback: Optional[Callable[..., None]] = None,
-    task_callback: Optional[Callable[..., None]] = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
+    verbose: bool | None = None,
+    max_rpm: int | None = None,
+    step_callback: Callable[..., None] | None = None,
+    task_callback: Callable[..., None] | None = None,
 ) -> CrewOutput:
     """
     Run the Planning Crew with the given project description.

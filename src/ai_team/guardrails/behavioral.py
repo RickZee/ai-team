@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Dict, List, Literal, Optional, Type, TypeVar
+from collections.abc import Callable
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +28,7 @@ class GuardrailResult(BaseModel):
         description="pass = check succeeded; fail = check failed (retry or reject); warn = advisory.",
     )
     message: str = Field(..., description="Human-readable summary.")
-    details: Optional[Dict[str, Any]] = Field(
+    details: dict[str, Any] | None = Field(
         default=None,
         description="Structured details (e.g. violations, parse errors).",
     )
@@ -42,10 +43,16 @@ class GuardrailResult(BaseModel):
 # -----------------------------------------------------------------------------
 
 # Roles that may delegate (from agents.yaml: manager, architect have allow_delegation: true)
-ALLOWED_DELEGATORS = {"manager", "architect", "engineering_manager", "solutions_architect", "tech_lead"}
+ALLOWED_DELEGATORS = {
+    "manager",
+    "architect",
+    "engineering_manager",
+    "solutions_architect",
+    "tech_lead",
+}
 
 # Role-specific forbidden patterns: backend shouldn't emit frontend; QA shouldn't modify source; etc.
-ROLE_RESTRICTIONS: Dict[str, Dict[str, Any]] = {
+ROLE_RESTRICTIONS: dict[str, dict[str, Any]] = {
     "qa_engineer": {
         "forbidden_patterns": [
             (r"def\s+(?!test_)\w+\(", "Production code (non-test function)"),
@@ -120,7 +127,7 @@ def role_adherence_guardrail(
     Security and quality guardrails still enforce hard limits on the output.
     """
     role_lower = agent_role.lower().strip().replace(" ", "_")
-    violations: List[str] = []
+    violations: list[str] = []
 
     if role_lower in ROLE_RESTRICTIONS:
         restrictions = ROLE_RESTRICTIONS[role_lower]
@@ -271,7 +278,7 @@ def delegation_guardrail(
     delegating_agent: str,
     target_agent: str,
     task: str,
-    delegation_chain: Optional[List[str]] = None,
+    delegation_chain: list[str] | None = None,
 ) -> GuardrailResult:
     """
     Validate that delegation makes sense (e.g. Manager can delegate; individual
@@ -327,7 +334,7 @@ T = TypeVar("T", bound=BaseModel)
 
 def output_format_guardrail(
     output: str,
-    expected_format: Type[T],
+    expected_format: type[T],
 ) -> GuardrailResult:
     """
     Validate that output matches the expected Pydantic model.
@@ -443,9 +450,11 @@ def guardrail_to_crewai_callable(
     False (fail). Pass and warn are treated as success; fail as failure (task may
     retry if guardrail_max_retries allows).
     """
+
     def crewai_guardrail(task_output: str) -> bool:
         result = guardrail_fn(task_output, *args, **kwargs)
         return result.status != "fail"
+
     return crewai_guardrail
 
 
@@ -467,6 +476,6 @@ def make_reasoning_guardrail() -> Callable[[str], bool]:
     return guardrail_to_crewai_callable(reasoning_guardrail)
 
 
-def make_output_format_guardrail(expected_format: Type[BaseModel]) -> Callable[[str], bool]:
+def make_output_format_guardrail(expected_format: type[BaseModel]) -> Callable[[str], bool]:
     """CrewAI-compatible guardrail for output format (bound to Pydantic type)."""
     return guardrail_to_crewai_callable(output_format_guardrail, expected_format=expected_format)

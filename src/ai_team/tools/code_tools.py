@@ -15,17 +15,18 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, List, Optional, Type
+from typing import Any
 
 try:
     import resource
 except ImportError:
     resource = None  # type: ignore[assignment]
 
-from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
+import contextlib
 
 import structlog
+from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
@@ -98,9 +99,9 @@ class LintIssue(BaseModel):
     """A single lint issue."""
 
     file_path: str = Field(default="", description="File or '<stdin>'.")
-    line: Optional[int] = Field(default=None, description="Line number if available.")
-    column: Optional[int] = Field(default=None, description="Column if available.")
-    code: Optional[str] = Field(default=None, description="Rule or code (e.g. E501).")
+    line: int | None = Field(default=None, description="Line number if available.")
+    column: int | None = Field(default=None, description="Column if available.")
+    code: str | None = Field(default=None, description="Rule or code (e.g. E501).")
     message: str = Field(description="Linter message.")
     severity: str = Field(default="warning", description="One of: error, warning, info.")
 
@@ -109,9 +110,9 @@ class LintResult(BaseModel):
     """Structured result from lint_code."""
 
     success: bool = Field(description="True if linter ran without failure.")
-    issues: List[LintIssue] = Field(default_factory=list, description="List of lint issues.")
+    issues: list[LintIssue] = Field(default_factory=list, description="List of lint issues.")
     raw_output: str = Field(default="", description="Raw linter stdout/stderr.")
-    error: Optional[str] = Field(default=None, description="Error message if linter failed to run.")
+    error: str | None = Field(default=None, description="Error message if linter failed to run.")
 
 
 # Tool input schemas (for CrewAI BaseTool)
@@ -148,7 +149,7 @@ class FormatCodeInput(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-def _apply_resource_limits(timeout_seconds: int, max_memory_mb: int = 512) -> Optional[Any]:
+def _apply_resource_limits(timeout_seconds: int, max_memory_mb: int = 512) -> Any | None:
     """Return a callable for preexec_fn that sets CPU and memory limits (Unix only)."""
     if resource is None:
         return None
@@ -165,7 +166,7 @@ def _apply_resource_limits(timeout_seconds: int, max_memory_mb: int = 512) -> Op
     return setlimits
 
 
-def _is_shell_command_allowed(command: str) -> tuple[bool, Optional[str]]:
+def _is_shell_command_allowed(command: str) -> tuple[bool, str | None]:
     """Check if shell command is allowed. Returns (allowed, reason_if_blocked)."""
     command_stripped = command.strip()
     if not command_stripped:
@@ -182,7 +183,7 @@ def _is_shell_command_allowed(command: str) -> tuple[bool, Optional[str]]:
 def _audit_log(
     operation: str,
     *,
-    extra: Optional[dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Emit audit log for code/shell execution."""
     payload = {"operation": operation, "timestamp": time.time()}
@@ -199,7 +200,7 @@ def _audit_log(
 def execute_python(
     code: str,
     timeout: int = 30,
-    blocked_imports: Optional[frozenset[str]] = None,
+    blocked_imports: frozenset[str] | None = None,
 ) -> ExecutionResult:
     """
     Run Python code in a subprocess with resource limits and import restrictions.
@@ -224,12 +225,10 @@ def _guard(name, *args, **kwargs):
     return _orig_import(name, *args, **kwargs)
 builtins.__import__ = _guard
 # End guard
-""" % repr(
-        set(blocked)
-    )
+""" % repr(set(blocked))
 
     script_content = guard.strip() + "\n\n" + code
-    tmpdir: Optional[Path] = None
+    tmpdir: Path | None = None
     try:
         tmpdir = Path(tempfile.mkdtemp(prefix="ai_team_code_"))
         script_path = tmpdir / "script.py"
@@ -287,10 +286,8 @@ builtins.__import__ = _guard
         )
     finally:
         if tmpdir and tmpdir.exists():
-            try:
+            with contextlib.suppress(Exception):
                 shutil.rmtree(tmpdir, ignore_errors=True)
-            except Exception:
-                pass
 
 
 def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
@@ -313,14 +310,13 @@ def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
         )
 
     start = time.perf_counter()
-    tmpdir: Optional[Path] = None
+    tmpdir: Path | None = None
     try:
         tmpdir = Path(tempfile.mkdtemp(prefix="ai_team_shell_"))
         proc = subprocess.run(
             command,
             shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             cwd=str(tmpdir),
             timeout=timeout,
             encoding="utf-8",
@@ -354,15 +350,13 @@ def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
         )
     finally:
         if tmpdir and tmpdir.exists():
-            try:
+            with contextlib.suppress(Exception):
                 shutil.rmtree(tmpdir, ignore_errors=True)
-            except Exception:
-                pass
 
 
-def _parse_ruff_output(text: str) -> List[LintIssue]:
+def _parse_ruff_output(text: str) -> list[LintIssue]:
     """Parse ruff check output (one issue per line: path:line:col: code message)."""
-    issues: List[LintIssue] = []
+    issues: list[LintIssue] = []
     for line in text.strip().splitlines():
         line = line.strip()
         if not line:
@@ -387,9 +381,9 @@ def _parse_ruff_output(text: str) -> List[LintIssue]:
     return issues
 
 
-def _parse_eslint_output(text: str) -> List[LintIssue]:
+def _parse_eslint_output(text: str) -> list[LintIssue]:
     """Parse eslint output (simple line format or JSON); fallback to single issue with raw output."""
-    issues: List[LintIssue] = []
+    issues: list[LintIssue] = []
     # Common pattern: path:line col: message (rule)
     for line in text.strip().splitlines():
         line = line.strip()
@@ -489,10 +483,8 @@ def lint_code(code: str, language: str) -> LintResult:
         return LintResult(success=False, raw_output="", error=str(e))
     finally:
         if tmpdir and tmpdir.exists():
-            try:
+            with contextlib.suppress(Exception):
                 shutil.rmtree(tmpdir, ignore_errors=True)
-            except Exception:
-                pass
 
 
 def format_code(code: str, language: str) -> str:
@@ -552,10 +544,8 @@ def format_code(code: str, language: str) -> str:
         return code
     finally:
         if tmpdir and tmpdir.exists():
-            try:
+            with contextlib.suppress(Exception):
                 shutil.rmtree(tmpdir, ignore_errors=True)
-            except Exception:
-                pass
 
 
 # -----------------------------------------------------------------------------
@@ -571,7 +561,7 @@ class ExecutePythonTool(BaseTool):
         "Execute Python code in a sandbox: subprocess, timeout, blocked imports (os, subprocess, sys, shutil). "
         "Returns stdout, stderr, return_code, and whether it timed out. Use for safe code execution."
     )
-    args_schema: Type[BaseModel] = ExecutePythonInput
+    args_schema: type[BaseModel] = ExecutePythonInput
 
     def _run(self, code: str, timeout: int = 30) -> str:
         result = execute_python(code=code, timeout=timeout)
@@ -586,7 +576,7 @@ class ExecuteShellTool(BaseTool):
         "Run a shell command if it is whitelisted (pip install, pytest, ruff, mypy, git status, etc.). "
         "Dangerous commands are blocked. Returns stdout, stderr, return_code. Use for running tests or linters."
     )
-    args_schema: Type[BaseModel] = ExecuteShellInput
+    args_schema: type[BaseModel] = ExecuteShellInput
 
     def _run(self, command: str, timeout: int = 10) -> str:
         result = execute_shell(command=command, timeout=timeout)
@@ -601,7 +591,7 @@ class LintCodeTool(BaseTool):
         "Lint code: use language 'python' for ruff, 'javascript' for eslint. "
         "Returns success, list of issues (file, line, column, code, message, severity), and raw output."
     )
-    args_schema: Type[BaseModel] = LintCodeInput
+    args_schema: type[BaseModel] = LintCodeInput
 
     def _run(self, code: str, language: str) -> str:
         result = lint_code(code=code, language=language)
@@ -616,13 +606,13 @@ class FormatCodeTool(BaseTool):
         "Format code with black (Python) or prettier (JavaScript/TypeScript). "
         "Returns the formatted code string. Use language 'python', 'javascript', or 'typescript'."
     )
-    args_schema: Type[BaseModel] = FormatCodeInput
+    args_schema: type[BaseModel] = FormatCodeInput
 
     def _run(self, code: str, language: str) -> str:
         return format_code(code=code, language=language)
 
 
-def get_code_tools() -> List[BaseTool]:
+def get_code_tools() -> list[BaseTool]:
     """Return list of CrewAI BaseTool instances for code execution, linting, and formatting."""
     return [
         ExecutePythonTool(),

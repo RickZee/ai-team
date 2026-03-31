@@ -30,9 +30,11 @@ def pytest_configure(config: Any) -> None:
 @pytest.fixture(scope="session")
 def run_real_benchmarks() -> bool:
     """Whether to run real crew/flow benchmarks (requires Ollama)."""
-    return os.environ.get("AI_TEAM_BENCHMARK_FULL", "").lower() in ("1", "true", "yes") or os.environ.get(
-        "AI_TEAM_USE_REAL_LLM", ""
-    ).lower() in ("1", "true", "yes")
+    return os.environ.get("AI_TEAM_BENCHMARK_FULL", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    ) or os.environ.get("AI_TEAM_USE_REAL_LLM", "").lower() in ("1", "true", "yes")
 
 
 @pytest.fixture(scope="session")

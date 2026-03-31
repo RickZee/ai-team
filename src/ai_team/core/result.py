@@ -15,9 +15,7 @@ class ProjectResult(BaseModel):
     carries that in ``raw`` while exposing a stable envelope for CLI and UI.
     """
 
-    backend_name: str = Field(
-        ..., description="Backend identifier, e.g. crewai or langgraph."
-    )
+    backend_name: str = Field(..., description="Backend identifier, e.g. crewai or langgraph.")
     success: bool = Field(
         default=True, description="Whether the run completed without fatal error."
     )
@@ -25,9 +23,5 @@ class ProjectResult(BaseModel):
         default_factory=dict,
         description="Backend-specific payload (e.g. CrewAI result and state dump).",
     )
-    error: str | None = Field(
-        default=None, description="Error message when success is False."
-    )
-    team_profile: str = Field(
-        default="full", description="Active team profile name for this run."
-    )
+    error: str | None = Field(default=None, description="Error message when success is False.")
+    team_profile: str = Field(default="full", description="Active team profile name for this run.")

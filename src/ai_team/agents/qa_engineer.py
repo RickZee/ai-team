@@ -8,10 +8,9 @@ provides feedback for developer agents to fix issues.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
-
 from ai_team.agents.base import BaseAgent, create_agent
 from ai_team.models.qa_models import TestResult
 from ai_team.tools.qa_tools import get_qa_tools
@@ -24,12 +23,12 @@ MIN_COVERAGE_THRESHOLD_DEFAULT = 0.8
 
 def create_qa_engineer(
     *,
-    tools: Optional[List[Any]] = None,
-    before_task: Optional[Any] = None,
-    after_task: Optional[Any] = None,
+    tools: list[Any] | None = None,
+    before_task: Any | None = None,
+    after_task: Any | None = None,
     guardrail_tools: bool = True,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
 ) -> BaseAgent:
     """
     Create the QA Engineer agent with test_generator, test_runner, coverage_analyzer,
@@ -85,7 +84,7 @@ def feedback_for_developers(result: TestResult) -> str:
     Returns:
         Human-readable feedback string.
     """
-    parts: List[str] = []
+    parts: list[str] = []
     ex = result.execution_results
     if ex.failed > 0 or ex.errors > 0:
         parts.append(f"Tests: {ex.failed} failed, {ex.errors} errors, {ex.passed} passed.")

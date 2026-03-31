@@ -4,15 +4,15 @@ Testing tools: pytest runner with coverage, single-test runner, coverage reports
 Used by the QA agent to run tests, collect coverage, run lint, and validate test code quality.
 """
 
+import contextlib
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
-
-from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
+from typing import Any
 
 import structlog
+from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
@@ -30,7 +30,9 @@ class CoverageSummary(BaseModel):
 
     file_path: str = Field(..., description="Source file path.")
     line_coverage_pct: float = Field(..., description="Line coverage percentage.")
-    branch_coverage_pct: Optional[float] = Field(None, description="Branch coverage percentage if available.")
+    branch_coverage_pct: float | None = Field(
+        None, description="Branch coverage percentage if available."
+    )
     lines_covered: int = Field(0, description="Lines covered.")
     lines_missing: int = Field(0, description="Lines not covered.")
 
@@ -45,9 +47,13 @@ class TestRunResult(BaseModel):
     skipped: int = Field(0, description="Number of skipped tests.")
     warnings: int = Field(0, description="Number of warnings.")
     duration_seconds: float = Field(0.0, description="Total run duration in seconds.")
-    line_coverage_pct: Optional[float] = Field(None, description="Overall line coverage percentage.")
-    branch_coverage_pct: Optional[float] = Field(None, description="Overall branch coverage percentage.")
-    per_file_coverage: List[CoverageSummary] = Field(default_factory=list, description="Per-file coverage.")
+    line_coverage_pct: float | None = Field(None, description="Overall line coverage percentage.")
+    branch_coverage_pct: float | None = Field(
+        None, description="Overall branch coverage percentage."
+    )
+    per_file_coverage: list[CoverageSummary] = Field(
+        default_factory=list, description="Per-file coverage."
+    )
     raw_output: str = Field("", description="Raw pytest/cov output for debugging.")
     success: bool = Field(..., description="True if all tests passed and no errors.")
 
@@ -68,20 +74,26 @@ class UncoveredRegion(BaseModel):
 
     file_path: str = Field(..., description="Source file path.")
     line_start: int = Field(..., description="Start line number.")
-    line_end: Optional[int] = Field(None, description="End line number (for ranges).")
-    branch_info: Optional[str] = Field(None, description="Branch description if applicable.")
+    line_end: int | None = Field(None, description="End line number (for ranges).")
+    branch_info: str | None = Field(None, description="Branch description if applicable.")
 
 
 class CoverageReport(BaseModel):
     """Coverage report with HTML/JSON paths and suggestions."""
 
-    html_report_path: Optional[str] = Field(None, description="Path to HTML coverage report.")
-    json_report_path: Optional[str] = Field(None, description="Path to JSON coverage report.")
+    html_report_path: str | None = Field(None, description="Path to HTML coverage report.")
+    json_report_path: str | None = Field(None, description="Path to JSON coverage report.")
     line_coverage_pct: float = Field(0.0, description="Overall line coverage.")
-    branch_coverage_pct: Optional[float] = Field(None, description="Overall branch coverage.")
-    uncovered_lines: List[UncoveredRegion] = Field(default_factory=list, description="Uncovered line regions.")
-    uncovered_branches: List[UncoveredRegion] = Field(default_factory=list, description="Uncovered branches.")
-    suggestions: List[str] = Field(default_factory=list, description="Suggestions for tests to add.")
+    branch_coverage_pct: float | None = Field(None, description="Overall branch coverage.")
+    uncovered_lines: list[UncoveredRegion] = Field(
+        default_factory=list, description="Uncovered line regions."
+    )
+    uncovered_branches: list[UncoveredRegion] = Field(
+        default_factory=list, description="Uncovered branches."
+    )
+    suggestions: list[str] = Field(
+        default_factory=list, description="Suggestions for tests to add."
+    )
     raw_summary: str = Field("", description="Short summary text.")
 
 
@@ -89,8 +101,8 @@ class LintIssue(BaseModel):
     """Single lint finding."""
 
     file_path: str = Field(..., description="File path.")
-    line: Optional[int] = Field(None, description="Line number.")
-    column: Optional[int] = Field(None, description="Column number.")
+    line: int | None = Field(None, description="Line number.")
+    column: int | None = Field(None, description="Column number.")
     code: str = Field("", description="Rule or error code.")
     message: str = Field(..., description="Message.")
     severity: str = Field("error", description="One of: error, warning, info.")
@@ -100,7 +112,7 @@ class LintIssue(BaseModel):
 class LintReport(BaseModel):
     """Aggregated lint results from ruff and mypy."""
 
-    issues: List[LintIssue] = Field(default_factory=list, description="All lint issues.")
+    issues: list[LintIssue] = Field(default_factory=list, description="All lint issues.")
     error_count: int = Field(0, description="Number of errors.")
     warning_count: int = Field(0, description="Number of warnings.")
     info_count: int = Field(0, description="Number of info-level issues.")
@@ -114,9 +126,13 @@ class TestQualityReport(BaseModel):
     has_assertions: bool = Field(..., description="Whether the test contains assertions.")
     meaningful_names: bool = Field(..., description="Whether test names follow conventions.")
     no_hardcoded_values: bool = Field(..., description="No obvious hardcoded magic values.")
-    has_setup_teardown: bool = Field(..., description="Uses setup/teardown or fixtures where appropriate.")
-    edge_cases_mentioned: bool = Field(..., description="Hints of edge-case coverage (e.g. empty, None).")
-    issues: List[str] = Field(default_factory=list, description="List of specific issues found.")
+    has_setup_teardown: bool = Field(
+        ..., description="Uses setup/teardown or fixtures where appropriate."
+    )
+    edge_cases_mentioned: bool = Field(
+        ..., description="Hints of edge-case coverage (e.g. empty, None)."
+    )
+    issues: list[str] = Field(default_factory=list, description="List of specific issues found.")
     score_notes: str = Field("", description="Short summary and recommendations.")
     passed: bool = Field(..., description="Overall quality check passed.")
 
@@ -126,7 +142,7 @@ class TestQualityReport(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-def _parse_pytest_summary(stdout: str, stderr: str) -> Dict[str, Any]:
+def _parse_pytest_summary(stdout: str, stderr: str) -> dict[str, Any]:
     """Parse pytest -v output for counts and duration."""
     combined = stdout + "\n" + stderr
     total = passed = failed = errors = skipped = warnings = 0
@@ -164,11 +180,11 @@ def _parse_pytest_summary(stdout: str, stderr: str) -> Dict[str, Any]:
     }
 
 
-def _parse_coverage_terminal(stdout: str) -> Dict[str, Any]:
+def _parse_coverage_terminal(stdout: str) -> dict[str, Any]:
     """Parse coverage report from terminal (e.g. pytest-cov --cov-report=term)."""
-    line_pct: Optional[float] = None
-    branch_pct: Optional[float] = None
-    per_file: List[CoverageSummary] = []
+    line_pct: float | None = None
+    branch_pct: float | None = None
+    per_file: list[CoverageSummary] = []
 
     # TOTAL line: "TOTAL    120   45   62%"
     total_match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", stdout)
@@ -225,10 +241,10 @@ def run_pytest(test_path: str, source_path: str) -> TestRunResult:
         "-q",
     ]
     raw_output = ""
-    last_summary: Dict[str, Any] = {}
-    last_cov: Dict[str, Any] = {}
+    last_summary: dict[str, Any] = {}
+    last_cov: dict[str, Any] = {}
 
-    for attempt in range(FLAKY_RETRY_ATTEMPTS):
+    for _attempt in range(FLAKY_RETRY_ATTEMPTS):
         try:
             proc = subprocess.run(
                 cmd,
@@ -244,15 +260,31 @@ def run_pytest(test_path: str, source_path: str) -> TestRunResult:
             if last_summary.get("failed", 0) == 0 and last_summary.get("errors", 0) == 0:
                 break
         except subprocess.TimeoutExpired:
-            last_summary = {"total": 0, "passed": 0, "failed": 0, "errors": 1, "skipped": 0, "warnings": 0, "duration_seconds": 300.0}
+            last_summary = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 1,
+                "skipped": 0,
+                "warnings": 0,
+                "duration_seconds": 300.0,
+            }
             raw_output = "pytest timed out after 300s"
             break
         except Exception as e:
-            last_summary = {"total": 0, "passed": 0, "failed": 0, "errors": 1, "skipped": 0, "warnings": 0, "duration_seconds": 0.0}
+            last_summary = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 1,
+                "skipped": 0,
+                "warnings": 0,
+                "duration_seconds": 0.0,
+            }
             raw_output = str(e)
             break
 
-    success = (last_summary.get("failed", 0) == 0 and last_summary.get("errors", 0) == 0)
+    success = last_summary.get("failed", 0) == 0 and last_summary.get("errors", 0) == 0
     return TestRunResult(
         total=last_summary.get("total", 0),
         passed=last_summary.get("passed", 0),
@@ -284,7 +316,7 @@ def run_specific_test(test_file: str, test_name: str) -> TestResult:
     duration_seconds = 0.0
     traceback = ""
 
-    for attempt in range(FLAKY_RETRY_ATTEMPTS):
+    for _attempt in range(FLAKY_RETRY_ATTEMPTS):
         try:
             proc = subprocess.run(
                 cmd,
@@ -345,7 +377,19 @@ def generate_coverage_report(source_path: str) -> CoverageReport:
     json_path = out_dir / "coverage.json"
 
     # Run coverage over tests (assume tests/ exists)
-    run_cmd = ["python", "-m", "coverage", "run", "--source", str(source_dir), "-m", "pytest", "tests", "-q", "--tb=no"]
+    run_cmd = [
+        "python",
+        "-m",
+        "coverage",
+        "run",
+        "--source",
+        str(source_dir),
+        "-m",
+        "pytest",
+        "tests",
+        "-q",
+        "--tb=no",
+    ]
     subprocess.run(run_cmd, cwd=cwd, capture_output=True, timeout=300, check=False)
 
     report_cmd = ["python", "-m", "coverage", "report", "--show-missing", "--skip-empty"]
@@ -360,14 +404,14 @@ def generate_coverage_report(source_path: str) -> CoverageReport:
 
     # Parse summary for overall %
     line_pct = 0.0
-    branch_pct: Optional[float] = None
+    branch_pct: float | None = None
     total_match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", raw_summary)
     if total_match:
         line_pct = float(total_match.group(1))
 
-    uncovered_lines: List[UncoveredRegion] = []
-    uncovered_branches: List[UncoveredRegion] = []
-    suggestions: List[str] = []
+    uncovered_lines: list[UncoveredRegion] = []
+    uncovered_branches: list[UncoveredRegion] = []
+    suggestions: list[str] = []
 
     # Per-line missing from "missing" column: "1-5, 10"
     for line in raw_summary.splitlines():
@@ -381,26 +425,30 @@ def generate_coverage_report(source_path: str) -> CoverageReport:
                         part = part.strip()
                         if "-" in part:
                             a, b = part.split("-", 1)
-                            try:
+                            with contextlib.suppress(ValueError):
                                 uncovered_lines.append(
-                                    UncoveredRegion(file_path=file_path, line_start=int(a), line_end=int(b))
+                                    UncoveredRegion(
+                                        file_path=file_path, line_start=int(a), line_end=int(b)
+                                    )
                                 )
-                            except ValueError:
-                                pass
                         else:
-                            try:
-                                uncovered_lines.append(UncoveredRegion(file_path=file_path, line_start=int(part)))
-                            except ValueError:
-                                pass
+                            with contextlib.suppress(ValueError):
+                                uncovered_lines.append(
+                                    UncoveredRegion(file_path=file_path, line_start=int(part))
+                                )
 
     # Suggestions based on uncovered files/lines
     if uncovered_lines:
         files_with_missing = list({u.file_path for u in uncovered_lines})
         suggestions.append(f"Add tests for: {', '.join(files_with_missing[:5])}.")
     if line_pct < 80:
-        suggestions.append("Increase line coverage (e.g. add unit tests for main branches and edge cases).")
+        suggestions.append(
+            "Increase line coverage (e.g. add unit tests for main branches and edge cases)."
+        )
     if not suggestions:
-        suggestions.append("Coverage looks good; consider adding branch coverage for critical paths.")
+        suggestions.append(
+            "Coverage looks good; consider adding branch coverage for critical paths."
+        )
 
     return CoverageReport(
         html_report_path=str(html_path) if (html_path / "index.html").exists() else None,
@@ -421,8 +469,8 @@ def run_lint(source_path: str) -> LintReport:
     if not src.exists():
         src = cwd / "src" / "ai_team"
 
-    issues: List[LintIssue] = []
-    raw_parts: List[str] = []
+    issues: list[LintIssue] = []
+    raw_parts: list[str] = []
 
     # Ruff
     ruff_cmd = ["python", "-m", "ruff", "check", str(src), "--output-format=concise"]
@@ -435,10 +483,24 @@ def run_lint(source_path: str) -> LintReport:
         # "path:line:col: code message"
         m = re.match(r"^([^:]+):(\d+):(\d+):\s*([A-Z]\d+)\s+(.+)", line)
         if m:
-            path, line_no, col, code, msg = m.group(1), int(m.group(2)), int(m.group(3)), m.group(4), m.group(5)
+            path, line_no, col, code, msg = (
+                m.group(1),
+                int(m.group(2)),
+                int(m.group(3)),
+                m.group(4),
+                m.group(5),
+            )
             severity = "warning" if code.startswith("W") or code.startswith("N") else "error"
             issues.append(
-                LintIssue(file_path=path, line=line_no, column=col, code=code, message=msg, severity=severity, tool="ruff")
+                LintIssue(
+                    file_path=path,
+                    line=line_no,
+                    column=col,
+                    code=code,
+                    message=msg,
+                    severity=severity,
+                    tool="ruff",
+                )
             )
 
     # Mypy
@@ -453,7 +515,9 @@ def run_lint(source_path: str) -> LintReport:
                 path, line_no, msg = m.group(1), int(m.group(2)), m.group(3)
                 severity = "info" if "note:" in line else "error"
                 issues.append(
-                    LintIssue(file_path=path, line=line_no, message=msg, severity=severity, tool="mypy")
+                    LintIssue(
+                        file_path=path, line=line_no, message=msg, severity=severity, tool="mypy"
+                    )
                 )
 
     error_count = sum(1 for i in issues if i.severity == "error")
@@ -474,8 +538,13 @@ def validate_test_quality(test_code: str) -> TestQualityReport:
     """
     Check test code for: assertions, meaningful names, no hardcoded values, setup/teardown, edge cases.
     """
-    issues: List[str] = []
-    has_assertions = "assert " in test_code or "assert_" in test_code or "assertEqual" in test_code or "assertTrue" in test_code
+    issues: list[str] = []
+    has_assertions = (
+        "assert " in test_code
+        or "assert_" in test_code
+        or "assertEqual" in test_code
+        or "assertTrue" in test_code
+    )
     if not has_assertions:
         issues.append("No assertions found; test should assert expected behavior.")
 
@@ -492,20 +561,37 @@ def validate_test_quality(test_code: str) -> TestQualityReport:
 
     # Setup/teardown or fixtures
     has_setup_teardown = (
-        "setUp" in test_code or "teardown" in test_code.lower() or "fixture" in test_code.lower() or "@pytest.fixture" in test_code
+        "setUp" in test_code
+        or "teardown" in test_code.lower()
+        or "fixture" in test_code.lower()
+        or "@pytest.fixture" in test_code
     )
     if not has_setup_teardown and len(test_code) > 500:
         issues.append("Long test file may benefit from setup/teardown or fixtures.")
 
     # Edge cases: empty, None, zero, etc.
     edge_cases_mentioned = any(
-        x in test_code.lower() for x in ["empty", "none", "zero", "null", "edge", "boundary", "invalid", "raise", "exception"]
+        x in test_code.lower()
+        for x in [
+            "empty",
+            "none",
+            "zero",
+            "null",
+            "edge",
+            "boundary",
+            "invalid",
+            "raise",
+            "exception",
+        ]
     )
 
     passed = has_assertions and meaningful_names and len(issues) <= 2
     score_notes = (
-        "Quality checks passed." if passed
-        else "Issues: " + "; ".join(issues[:5]) + ". Consider adding assertions, clear names, and edge-case tests."
+        "Quality checks passed."
+        if passed
+        else "Issues: "
+        + "; ".join(issues[:5])
+        + ". Consider adding assertions, clear names, and edge-case tests."
     )
 
     return TestQualityReport(
@@ -531,7 +617,9 @@ class RunPytestInput(BaseModel):
 
 
 class RunSpecificTestInput(BaseModel):
-    test_file: str = Field(..., description="Test file path (e.g. tests/unit/tools/test_test_tools.py).")
+    test_file: str = Field(
+        ..., description="Test file path (e.g. tests/unit/tools/test_test_tools.py)."
+    )
     test_name: str = Field(..., description="Test function name or node id (e.g. test_run_pytest).")
 
 
@@ -561,7 +649,7 @@ class RunPytestTool(BaseTool):
         "Returns total/passed/failed/errors, duration, line and branch coverage, and per-file breakdown. "
         "Flaky tests are retried once."
     )
-    args_schema: Type[BaseModel] = RunPytestInput
+    args_schema: type[BaseModel] = RunPytestInput
 
     def _run(self, test_path: str, source_path: str) -> str:
         result = run_pytest(test_path, source_path)
@@ -576,7 +664,7 @@ class RunSpecificTestTool(BaseTool):
         "Run one test: test_file (e.g. tests/unit/tools/test_test_tools.py) and test_name (e.g. test_run_pytest). "
         "Returns passed/failed, duration, and full traceback on failure. Retries once on failure."
     )
-    args_schema: Type[BaseModel] = RunSpecificTestInput
+    args_schema: type[BaseModel] = RunSpecificTestInput
 
     def _run(self, test_file: str, test_name: str) -> str:
         result = run_specific_test(test_file, test_name)
@@ -591,7 +679,7 @@ class GenerateCoverageReportTool(BaseTool):
         "Generate coverage report for source_path (e.g. src/ai_team). Produces HTML and JSON reports, "
         "lists uncovered lines/branches, and suggests what tests to add."
     )
-    args_schema: Type[BaseModel] = GenerateCoverageReportInput
+    args_schema: type[BaseModel] = GenerateCoverageReportInput
 
     def _run(self, source_path: str) -> str:
         result = generate_coverage_report(source_path)
@@ -606,7 +694,7 @@ class RunLintTool(BaseTool):
         "Run ruff and mypy on source_path (e.g. src/ai_team). Returns list of issues with file, line, code, "
         "message, and severity (error/warning/info)."
     )
-    args_schema: Type[BaseModel] = RunLintInput
+    args_schema: type[BaseModel] = RunLintInput
 
     def _run(self, source_path: str) -> str:
         result = run_lint(source_path)
@@ -621,14 +709,14 @@ class ValidateTestQualityTool(BaseTool):
         "Validate test code (string). Checks: assertions present, meaningful test names, no hardcoded values, "
         "proper setup/teardown, edge cases covered. Returns quality report with issues and recommendations."
     )
-    args_schema: Type[BaseModel] = ValidateTestQualityInput
+    args_schema: type[BaseModel] = ValidateTestQualityInput
 
     def _run(self, test_code: str) -> str:
         result = validate_test_quality(test_code)
         return result.model_dump_json(indent=2)
 
 
-def get_test_tools() -> List[BaseTool]:
+def get_test_tools() -> list[BaseTool]:
     """Return the list of testing tools for the QA agent."""
     return [
         RunPytestTool(),

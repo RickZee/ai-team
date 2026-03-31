@@ -8,12 +8,11 @@ and optional integration with CrewAI knowledge sources (configurable scope per r
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import yaml
-from pydantic import BaseModel, Field
+from typing import Any
 
 import structlog
+import yaml
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +20,7 @@ logger = structlog.get_logger(__name__)
 _KNOWLEDGE_DIR = Path(__file__).resolve().parent / "knowledge"
 
 # Role -> list of topic keys to include in knowledge scope (subset of best_practices + templates)
-DEFAULT_KNOWLEDGE_SCOPES: Dict[str, List[str]] = {
+DEFAULT_KNOWLEDGE_SCOPES: dict[str, list[str]] = {
     "manager": ["python", "api", "devops"],
     "product_owner": ["python", "api", "testing"],
     "architect": ["python", "api", "database", "devops", "security"],
@@ -52,11 +51,11 @@ class KnowledgeBase:
     CrewAI knowledge source integration with configurable scope per agent role.
     """
 
-    def __init__(self, knowledge_dir: Optional[Path] = None) -> None:
+    def __init__(self, knowledge_dir: Path | None = None) -> None:
         self._dir = Path(knowledge_dir) if knowledge_dir else _KNOWLEDGE_DIR
-        self._best_practices: Dict[str, List[str]] = {}
-        self._templates: Dict[str, str] = {}
-        self._items: List[KnowledgeItem] = []
+        self._best_practices: dict[str, list[str]] = {}
+        self._templates: dict[str, str] = {}
+        self._items: list[KnowledgeItem] = []
         self._load()
 
     def _load(self) -> None:
@@ -70,7 +69,9 @@ class KnowledgeBase:
             try:
                 with open(bp_path, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
-                self._best_practices = {k: v for k, v in (data or {}).items() if isinstance(v, list)}
+                self._best_practices = {
+                    k: v for k, v in (data or {}).items() if isinstance(v, list)
+                }
                 logger.debug("best_practices_loaded", topics=list(self._best_practices.keys()))
             except (yaml.YAMLError, OSError) as e:
                 logger.warning("best_practices_load_failed", path=str(bp_path), error=str(e))
@@ -78,7 +79,10 @@ class KnowledgeBase:
             try:
                 with open(tpl_path, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
-                self._templates = {k: (v.strip() if isinstance(v, str) else str(v)) for k, v in (data or {}).items()}
+                self._templates = {
+                    k: (v.strip() if isinstance(v, str) else str(v))
+                    for k, v in (data or {}).items()
+                }
                 logger.debug("templates_loaded", keys=list(self._templates.keys()))
             except (yaml.YAMLError, OSError) as e:
                 logger.warning("templates_load_failed", path=str(tpl_path), error=str(e))
@@ -115,7 +119,7 @@ class KnowledgeBase:
                 )
             )
 
-    def get_best_practices(self, topic: str) -> List[str]:
+    def get_best_practices(self, topic: str) -> list[str]:
         """
         Return the list of best-practice strings for the given topic.
 
@@ -136,7 +140,7 @@ class KnowledgeBase:
         key = (template_type or "").strip().lower()
         return self._templates.get(key, "")
 
-    def search_knowledge(self, query: str, limit: int = 20) -> List[KnowledgeItem]:
+    def search_knowledge(self, query: str, limit: int = 20) -> list[KnowledgeItem]:
         """
         Search knowledge by substring match on title and content (case-insensitive).
 
@@ -145,7 +149,7 @@ class KnowledgeBase:
         if not query or not query.strip():
             return []
         q = query.strip().lower()
-        out: List[KnowledgeItem] = []
+        out: list[KnowledgeItem] = []
         for item in self._items:
             if q in item.title.lower() or q in item.content.lower():
                 out.append(item)
@@ -153,7 +157,7 @@ class KnowledgeBase:
                     break
         return out
 
-    def get_knowledge_source_content(self, scope: Optional[List[str]] = None) -> str:
+    def get_knowledge_source_content(self, scope: list[str] | None = None) -> str:
         """
         Return aggregated text of best practices and templates for the given scope.
 
@@ -161,7 +165,7 @@ class KnowledgeBase:
         template keys. If None, all loaded content is included. Used to build
         a CrewAI StringKnowledgeSource for agent/crew knowledge_sources.
         """
-        parts: List[str] = []
+        parts: list[str] = []
         if scope is None:
             for topic, practices in self._best_practices.items():
                 parts.append(f"## Best practices: {topic}\n")
@@ -186,8 +190,8 @@ class KnowledgeBase:
 
     def get_crewai_knowledge_source(
         self,
-        role: Optional[str] = None,
-        scope: Optional[List[str]] = None,
+        role: str | None = None,
+        scope: list[str] | None = None,
     ) -> Any:
         """
         Return a CrewAI StringKnowledgeSource for the given role or explicit scope.
@@ -203,25 +207,28 @@ class KnowledgeBase:
             return None
         try:
             from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
+
             return StringKnowledgeSource(content=content)
         except ImportError:
-            logger.debug("crewai_knowledge_source_skip", reason="StringKnowledgeSource not available")
+            logger.debug(
+                "crewai_knowledge_source_skip", reason="StringKnowledgeSource not available"
+            )
             return None
 
-    def list_topics(self) -> List[str]:
+    def list_topics(self) -> list[str]:
         """Return loaded best-practice topic keys."""
         return list(self._best_practices.keys())
 
-    def list_template_types(self) -> List[str]:
+    def list_template_types(self) -> list[str]:
         """Return loaded template type keys."""
         return list(self._templates.keys())
 
 
 # Singleton for use across the app
-_knowledge_base: Optional[KnowledgeBase] = None
+_knowledge_base: KnowledgeBase | None = None
 
 
-def get_knowledge_base(knowledge_dir: Optional[Path] = None) -> KnowledgeBase:
+def get_knowledge_base(knowledge_dir: Path | None = None) -> KnowledgeBase:
     """Return the global KnowledgeBase instance (creates one if needed)."""
     global _knowledge_base
     if _knowledge_base is None:

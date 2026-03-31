@@ -212,9 +212,7 @@ class TestMemoryCleanupAndTTL:
             top_k=5,
             project_id=project_id,
         )
-        assert len(results) == 0 or not any(
-            "v1" in str(r.get("data", r)) for r in results
-        )
+        assert len(results) == 0 or not any("v1" in str(r.get("data", r)) for r in results)
 
     def test_apply_retention_returns_deleted_count(self, tmp_path: Path) -> None:
         """Long-term retention deletes entries older than retention_days."""

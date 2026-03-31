@@ -10,18 +10,17 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Literal, Tuple
+from typing import Literal
 
 import structlog
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-
 from ai_team.config.models import (
     ROLE_TOKEN_BUDGETS,
     Environment,
     OpenRouterSettings,
 )
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 logger = structlog.get_logger()
 
@@ -76,7 +75,7 @@ def get_complexity_from_description(description: str) -> ComplexityType:
 def estimate_run_cost(
     settings: OpenRouterSettings,
     complexity: ComplexityType,
-) -> tuple[List[RoleCostRow], float, bool]:
+) -> tuple[list[RoleCostRow], float, bool]:
     """
     Calculate estimated cost per role using token budgets × pricing.
 
@@ -87,7 +86,7 @@ def estimate_run_cost(
         (rows per role, total_cost_usd_with_buffer, within_budget)
     """
     mult = COMPLEXITY_MULTIPLIERS.get(complexity, 1.0)
-    rows: List[RoleCostRow] = []
+    rows: list[RoleCostRow] = []
     total_raw = 0.0
 
     for role, budget in ROLE_TOKEN_BUDGETS.items():
@@ -124,7 +123,7 @@ def estimate_run_cost(
 def display_estimate(
     settings: OpenRouterSettings,
     complexity: ComplexityType,
-    rows: List[RoleCostRow],
+    rows: list[RoleCostRow],
     total_with_buffer: float,
     within_budget: bool,
 ) -> None:
@@ -223,7 +222,7 @@ def run_estimate_and_confirm(
 
 
 def display_compare_costs(
-    env_results: List[Tuple[Environment, List[RoleCostRow], float]],
+    env_results: list[tuple[Environment, list[RoleCostRow], float]],
     complexity: ComplexityType,
 ) -> None:
     """
@@ -246,7 +245,7 @@ def display_compare_costs(
 
     # Build role -> cost per env from first env's row order (all have same roles)
     role_order = [r.role for r in env_results[0][1]]
-    env_costs: List[Tuple[Environment, dict[str, float], float]] = []
+    env_costs: list[tuple[Environment, dict[str, float], float]] = []
     for env, rows, total in env_results:
         by_role = {r.role: r.cost_usd for r in rows}
         env_costs.append((env, by_role, total))

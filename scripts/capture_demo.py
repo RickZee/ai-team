@@ -23,7 +23,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -57,7 +57,7 @@ class TestResults:
 
     passed: int = 0
     failed: int = 0
-    coverage_percent: Optional[float] = None
+    coverage_percent: float | None = None
     raw_stdout: str = ""
     raw_stderr: str = ""
     returncode: int = -1
@@ -76,7 +76,7 @@ class DockerResults:
     """Docker build outcome."""
 
     success: bool = False
-    image_size: Optional[str] = None
+    image_size: str | None = None
     output: str = ""
 
 
@@ -100,16 +100,16 @@ class CaptureResult:
     files_verified: list[str] = field(default_factory=list)
     files_missing: list[str] = field(default_factory=list)
     file_info: list[FileInfo] = field(default_factory=list)
-    test_results: Optional[TestResults] = None
-    lint_results: Optional[LintResults] = None
-    docker_results: Optional[DockerResults] = None
-    smoke_results: Optional[SmokeResults] = None
-    duration_seconds: Optional[float] = None
-    model_used: Optional[str] = None
-    retry_count: Optional[int] = None
-    guardrail_notes: Optional[str] = None
-    failure_stage: Optional[str] = None
-    failure_details: Optional[str] = None
+    test_results: TestResults | None = None
+    lint_results: LintResults | None = None
+    docker_results: DockerResults | None = None
+    smoke_results: SmokeResults | None = None
+    duration_seconds: float | None = None
+    model_used: str | None = None
+    retry_count: int | None = None
+    guardrail_notes: str | None = None
+    failure_stage: str | None = None
+    failure_details: str | None = None
 
 
 def _get_logger() -> structlog.stdlib.BoundLogger:
@@ -127,8 +127,8 @@ def _resolve_output_dir(path: Path) -> Path:
     resolved = path.resolve()
     try:
         resolved.relative_to(REPO_ROOT)
-    except ValueError:
-        raise ValueError(f"Output dir must be under repo root: {REPO_ROOT}")
+    except ValueError as err:
+        raise ValueError(f"Output dir must be under repo root: {REPO_ROOT}") from err
     return resolved
 
 
@@ -301,8 +301,8 @@ def _smoke_test_container(
         return results
 
     try:
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         def get(path: str) -> tuple[int, Any]:
             req = urllib.request.Request(f"{base_url}{path}")
@@ -475,7 +475,7 @@ def _save_failure_artifact(
     output_dir: Path,
     failure_dir: Path,
     result: CaptureResult,
-    run_report: Optional[dict[str, Any]],
+    run_report: dict[str, Any] | None,
     logger: structlog.stdlib.BoundLogger,
 ) -> None:
     """Copy output to failure/ and optionally write GitHub issue template."""
@@ -531,8 +531,8 @@ def _save_failure_artifact(
 def capture_demo(
     output_dir: Path,
     demo_id: str = "01_hello_world",
-    run_report_path: Optional[Path] = None,
-    failure_dir: Optional[Path] = None,
+    run_report_path: Path | None = None,
+    failure_dir: Path | None = None,
     skip_docker: bool = False,
     skip_smoke: bool = False,
 ) -> CaptureResult:
@@ -544,7 +544,7 @@ def capture_demo(
     logger = _get_logger()
     result = CaptureResult(output_dir=output_dir)
     required_files = REQUIRED_FILES_DEMO_01
-    run_report: Optional[dict[str, Any]] = None
+    run_report: dict[str, Any] | None = None
     if run_report_path and run_report_path.is_file():
         run_report = json.loads(run_report_path.read_text(encoding="utf-8"))
         result.duration_seconds = run_report.get("duration_seconds")
@@ -626,9 +626,7 @@ def capture_demo(
     # 5. Smoke test
     if not skip_smoke and result.docker_results and result.docker_results.success:
         logger.info("Smoke testing container")
-        result.smoke_results = _smoke_test_container(
-            CONTAINER_NAME, IMAGE_NAME, SMOKE_PORT
-        )
+        result.smoke_results = _smoke_test_container(CONTAINER_NAME, IMAGE_NAME, SMOKE_PORT)
         if not (
             result.smoke_results.health_ok
             and result.smoke_results.get_items_empty_ok

@@ -48,9 +48,7 @@ class CrewAIBackend:
     ) -> ProjectResult:
         """Execute the CrewAI flow; profile is recorded on the result for observability."""
         raw_monitor = kwargs.get("monitor")
-        monitor: TeamMonitor | None = (
-            raw_monitor if isinstance(raw_monitor, TeamMonitor) else None
-        )
+        monitor: TeamMonitor | None = raw_monitor if isinstance(raw_monitor, TeamMonitor) else None
         if raw_monitor is not None and monitor is None:
             logger.warning(
                 "crewai_backend_invalid_monitor_type",

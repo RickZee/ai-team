@@ -44,4 +44,3 @@ class Scorecard(BaseModel):
     )
     guardrails: list[dict[str, Any]] = Field(default_factory=list)
     kpis: dict[str, Any] = Field(default_factory=dict)
-

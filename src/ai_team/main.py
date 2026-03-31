@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import sys
+from typing import Literal, cast
 
 import structlog
 from ai_team.backends.registry import get_backend
@@ -24,6 +25,7 @@ logger = structlog.get_logger(__name__)
 _ENV_CHOICES = ("dev", "test", "prod")
 _COMPLEXITY_CHOICES = ("simple", "medium", "complex")
 _SUBCOMMANDS = frozenset({"run", "estimate", "compare-costs"})
+_Complexity = Literal["simple", "medium", "complex"]
 
 
 def _preprocess_argv_for_subcommand(argv: list[str]) -> list[str]:
@@ -53,8 +55,9 @@ def _cmd_estimate(env: str, complexity: str) -> int:
     from ai_team.config.models import Environment, OpenRouterSettings
     from pydantic import ValidationError
 
+    os.environ["AI_TEAM_ENV"] = env
     try:
-        settings = OpenRouterSettings(ai_team_env=Environment(env))
+        settings = OpenRouterSettings()
     except ValidationError as e:
         logger.warning("openrouter_not_configured", error=str(e))
         print(
@@ -62,7 +65,7 @@ def _cmd_estimate(env: str, complexity: str) -> int:
             file=sys.stderr,
         )
         return 1
-    comp = complexity  # type: str
+    comp = cast(_Complexity, complexity)
     rows, total_with_buffer, within_budget = estimate_run_cost(settings, comp)
     display_estimate(settings, comp, rows, total_with_buffer, within_budget)
     return 0
@@ -80,8 +83,10 @@ def _cmd_compare_costs(complexity: str) -> int:
     env_results = []
     try:
         for env in (Environment.DEV, Environment.TEST, Environment.PROD):
-            settings = OpenRouterSettings(ai_team_env=env)
-            rows, total_with_buffer, _ = estimate_run_cost(settings, complexity)
+            os.environ["AI_TEAM_ENV"] = str(env.value)
+            settings = OpenRouterSettings()
+            comp = cast(_Complexity, complexity)
+            rows, total_with_buffer, _ = estimate_run_cost(settings, comp)
             env_results.append((env, rows, total_with_buffer))
     except ValidationError as e:
         logger.warning("openrouter_not_configured", error=str(e))
@@ -90,7 +95,7 @@ def _cmd_compare_costs(complexity: str) -> int:
             file=sys.stderr,
         )
         return 1
-    display_compare_costs(env_results, complexity)
+    display_compare_costs(env_results, cast(_Complexity, complexity))
     return 0
 
 
@@ -370,9 +375,7 @@ def main() -> int:
         description = (args.run_description or "").strip()
         resume_thr = (getattr(args, "resume", "") or "").strip()
         if not description and not resume_thr:
-            run_p.error(
-                "Project description is required unless resuming (--resume THREAD_ID)."
-            )
+            run_p.error("Project description is required unless resuming (--resume THREAD_ID).")
         output_mode = "tui" if args.monitor else args.output
         return _cmd_run(
             description=description,

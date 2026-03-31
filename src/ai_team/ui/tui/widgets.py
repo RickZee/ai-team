@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rich.text import Text
 from textual.reactive import reactive
-from textual.widget import Widget
 from textual.widgets import Static
 
 if TYPE_CHECKING:
-    from ai_team.monitor import AgentStatus, GuardrailEvent, LogEntry, Metrics, Phase
+    from ai_team.monitor import AgentStatus, GuardrailEvent, LogEntry, Metrics
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +44,9 @@ class PhasePipeline(Static):
     def render(self) -> Text:
         parts: list[tuple[str, str]] = []
         phase_names = [p[0] for p in PHASE_DISPLAY]
-        current_idx = phase_names.index(self.current_phase) if self.current_phase in phase_names else -1
+        current_idx = (
+            phase_names.index(self.current_phase) if self.current_phase in phase_names else -1
+        )
 
         for i, (key, label) in enumerate(PHASE_DISPLAY):
             icon = PHASE_ICONS.get(key, "")
@@ -56,10 +56,7 @@ class PhasePipeline(Static):
             elif key == self.current_phase and key != "complete":
                 style = "bold yellow"
                 marker = "\u25b6"
-            elif i < current_idx:
-                style = "bold green"
-                marker = "\u2713"
-            elif key == self.current_phase == "complete":
+            elif i < current_idx or key == self.current_phase == "complete":
                 style = "bold green"
                 marker = "\u2713"
             else:
@@ -213,10 +210,12 @@ class MetricsPanel(Static):
         lines: list[Text] = []
 
         def row(label: str, value: str, style: str = "white") -> None:
-            lines.append(Text.assemble(
-                (f"  {label:<20}", "bold"),
-                (f"{value:>8}", style),
-            ))
+            lines.append(
+                Text.assemble(
+                    (f"  {label:<20}", "bold"),
+                    (f"{value:>8}", style),
+                )
+            )
 
         row("Elapsed", m.elapsed_str, "cyan")
         row("Tasks completed", str(m.tasks_completed), "green")

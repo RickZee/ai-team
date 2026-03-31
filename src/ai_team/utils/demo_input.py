@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 
 def load_project_description(demo_dir: Path) -> str:
@@ -23,9 +24,10 @@ def load_project_description(demo_dir: Path) -> str:
         raise FileNotFoundError(
             f"Demo has neither project_description.txt nor input.json: {demo_dir}"
         )
-    data = json.loads(input_file.read_text(encoding="utf-8"))
-    if isinstance(data.get("description"), str) and data["description"].strip():
-        return data["description"].strip()
+    data: dict[str, Any] = json.loads(input_file.read_text(encoding="utf-8"))
+    desc = data.get("description")
+    if isinstance(desc, str) and desc.strip():
+        return desc.strip()
     parts: list[str] = []
     if data.get("project_name"):
         parts.append(str(data["project_name"]))

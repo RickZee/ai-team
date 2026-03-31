@@ -115,14 +115,10 @@ def _wrap_llm_for_crewai(llm: Any) -> Any:
             kwargs_invoke: dict[str, Any] = {}
             if self.stop:
                 kwargs_invoke["stop"] = self.stop
-            result = self._llm.invoke(
-                lc_messages, config=config or None, **kwargs_invoke
-            )
+            result = self._llm.invoke(lc_messages, config=config or None, **kwargs_invoke)
             content = getattr(result, "content", str(result)) or ""
             if not content or not content.strip():
-                result = self._llm.invoke(
-                    lc_messages, config=config or None, **kwargs_invoke
-                )
+                result = self._llm.invoke(lc_messages, config=config or None, **kwargs_invoke)
                 content = getattr(result, "content", str(result)) or ""
             return content
 
@@ -154,11 +150,13 @@ def _patch_create_llm_for_real_openrouter(use_real_llm: bool) -> Any:
     def _create_testing_no_memory(*args: Any, **kwargs: Any) -> Any:
         return _orig_create_testing(*args, **{**kwargs, "memory": False})
 
-    with patch.object(
-        planning_crew_mod, "create_planning_crew", _create_planning_no_memory
-    ), patch.object(
-        development_crew_mod, "create_development_crew", _create_development_no_memory
-    ), patch.object(testing_crew_mod, "create_testing_crew", _create_testing_no_memory):
+    with (
+        patch.object(planning_crew_mod, "create_planning_crew", _create_planning_no_memory),
+        patch.object(
+            development_crew_mod, "create_development_crew", _create_development_no_memory
+        ),
+        patch.object(testing_crew_mod, "create_testing_crew", _create_testing_no_memory),
+    ):
         yield
 
 
@@ -186,7 +184,9 @@ def sample_requirements_document() -> RequirementsDocument:
                 i_want="to list all todos",
                 so_that="I can see my tasks",
                 acceptance_criteria=[
-                    AcceptanceCriterion(description="GET /todos returns 200 and JSON list", testable=True),
+                    AcceptanceCriterion(
+                        description="GET /todos returns 200 and JSON list", testable=True
+                    ),
                 ],
                 priority=MoSCoW.MUST,
                 story_id="US-1",
@@ -196,7 +196,9 @@ def sample_requirements_document() -> RequirementsDocument:
                 i_want="to create a todo",
                 so_that="I can add tasks",
                 acceptance_criteria=[
-                    AcceptanceCriterion(description="POST /todos creates a todo and returns 201", testable=True),
+                    AcceptanceCriterion(
+                        description="POST /todos creates a todo and returns 201", testable=True
+                    ),
                 ],
                 priority=MoSCoW.MUST,
                 story_id="US-2",
@@ -206,7 +208,9 @@ def sample_requirements_document() -> RequirementsDocument:
                 i_want="to delete a todo",
                 so_that="I can remove completed tasks",
                 acceptance_criteria=[
-                    AcceptanceCriterion(description="DELETE /todos/{id} returns 204", testable=True),
+                    AcceptanceCriterion(
+                        description="DELETE /todos/{id} returns 204", testable=True
+                    ),
                 ],
                 priority=MoSCoW.MUST,
                 story_id="US-3",
@@ -246,7 +250,7 @@ def sample_code_files() -> list[CodeFile]:
             path="src/app/main.py",
             content=(
                 "from fastapi import FastAPI\n\napp = FastAPI()\n\n"
-                "@app.get(\"/todos\")\ndef list_todos():\n    return []\n"
+                '@app.get("/todos")\ndef list_todos():\n    return []\n'
             ),
             language="python",
             description="FastAPI app and todo list endpoint",
@@ -257,7 +261,7 @@ def sample_code_files() -> list[CodeFile]:
             content=(
                 "import pytest\nfrom fastapi.testclient import TestClient\n"
                 "from app.main import app\n\nclient = TestClient(app)\n\n"
-                "def test_list_todos():\n    r = client.get(\"/todos\")\n    assert r.status_code == 200\n"
+                'def test_list_todos():\n    r = client.get("/todos")\n    assert r.status_code == 200\n'
             ),
             language="python",
             description="Tests for todo API",

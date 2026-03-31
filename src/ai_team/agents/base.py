@@ -6,22 +6,22 @@ create_llm_for_role (OpenRouter), structlog, memory hooks, guardrails,
 retry logic, token tracking, and health checks.
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 import structlog
 import yaml
-from crewai import Agent, LLM
-
 from ai_team.config.llm_factory import create_llm_for_role
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings
 from ai_team.guardrails import SecurityGuardrails
+from crewai import Agent
 
 logger = structlog.get_logger(__name__)
 
 # Map agents.yaml role keys to settings.get_model_for_role() keys
-ROLE_TO_SETTINGS_KEY: Dict[str, str] = {
+ROLE_TO_SETTINGS_KEY: dict[str, str] = {
     "manager": "manager",
     "product_owner": "product_owner",
     "architect": "architect",
@@ -36,7 +36,7 @@ ROLE_TO_SETTINGS_KEY: Dict[str, str] = {
 T = TypeVar("T")
 
 
-def _load_agents_config() -> Dict[str, Any]:
+def _load_agents_config() -> dict[str, Any]:
     """Load agent definitions from config/agents.yaml."""
     config_path = Path(__file__).resolve().parent.parent / "config" / "agents.yaml"
     if not config_path.exists():
@@ -90,16 +90,16 @@ class BaseAgent(Agent):
         goal: str,
         backstory: str,
         *,
-        llm: Optional[Any] = None,
-        tools: Optional[List[Any]] = None,
+        llm: Any | None = None,
+        tools: list[Any] | None = None,
         verbose: bool = True,
         allow_delegation: bool = False,
         max_iter: int = 15,
         memory: bool = True,
-        before_task: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-        after_task: Optional[Callable[[str, Any], None]] = None,
+        before_task: Callable[[str, dict[str, Any]], None] | None = None,
+        after_task: Callable[[str, Any], None] | None = None,
         guardrail_tools: bool = True,
-        config_path: Optional[Path] = None,
+        config_path: Path | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -160,7 +160,7 @@ class BaseAgent(Agent):
         return object.__getattribute__(self, "_role_name")
 
     @property
-    def token_usage(self) -> Dict[str, int]:
+    def token_usage(self) -> dict[str, int]:
         """Return cumulative token usage for this agent."""
         return dict(object.__getattribute__(self, "_token_usage"))
 
@@ -176,7 +176,7 @@ class BaseAgent(Agent):
             output_tokens=output_tokens,
         )
 
-    def before_task_callback(self, task_id: str, context: Dict[str, Any]) -> None:
+    def before_task_callback(self, task_id: str, context: dict[str, Any]) -> None:
         """Invoke before_task hook for memory persistence. Call from task setup if needed."""
         before_task = object.__getattribute__(self, "_before_task")
         if before_task:
@@ -190,7 +190,7 @@ class BaseAgent(Agent):
             after_task(task_id, output)
         logger.debug("agent_after_task", role_name=self.role_name, task_id=task_id)
 
-    def attach_tools(self, tools: List[Any], guardrail: bool = True) -> None:
+    def attach_tools(self, tools: list[Any], guardrail: bool = True) -> None:
         """Attach tools to this agent (optionally wrapped with guardrails)."""
         settings = get_settings()
         if guardrail and settings.guardrails.security_enabled:
@@ -223,12 +223,12 @@ class BaseAgent(Agent):
 def create_agent(
     role_name: str,
     *,
-    tools: Optional[List[Any]] = None,
-    before_task: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-    after_task: Optional[Callable[[str, Any], None]] = None,
+    tools: list[Any] | None = None,
+    before_task: Callable[[str, dict[str, Any]], None] | None = None,
+    after_task: Callable[[str, Any], None] | None = None,
     guardrail_tools: bool = True,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
 ) -> BaseAgent:
     """
     Factory: create a configured Agent from agents.yaml and settings.

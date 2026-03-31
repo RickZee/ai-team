@@ -51,8 +51,20 @@ class TestRequirementsGuardrail:
             "project_name": "P",
             "description": "D",
             "user_stories": [
-                {"as_a": "u", "i_want": "x", "so_that": "y", "acceptance_criteria": [{"description": "AC1", "testable": True}], "priority": "Must have"},
-                {"as_a": "u", "i_want": "x", "so_that": "y", "acceptance_criteria": [{"description": "AC2", "testable": True}], "priority": "Must have"},
+                {
+                    "as_a": "u",
+                    "i_want": "x",
+                    "so_that": "y",
+                    "acceptance_criteria": [{"description": "AC1", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "x",
+                    "so_that": "y",
+                    "acceptance_criteria": [{"description": "AC2", "testable": True}],
+                    "priority": "Must have",
+                },
             ],
         }
         passed, _ = requirements_guardrail(json.dumps(doc))
@@ -63,9 +75,27 @@ class TestRequirementsGuardrail:
             "project_name": "P",
             "description": "D",
             "user_stories": [
-                {"as_a": "u", "i_want": "x", "so_that": "y", "acceptance_criteria": [{"description": "AC", "testable": True}], "priority": "Must have"},
-                {"as_a": "u", "i_want": "x", "so_that": "y", "acceptance_criteria": [{"description": "AC", "testable": True}], "priority": "Must have"},
-                {"as_a": "u", "i_want": "x", "so_that": "y", "acceptance_criteria": [], "priority": "Must have"},
+                {
+                    "as_a": "u",
+                    "i_want": "x",
+                    "so_that": "y",
+                    "acceptance_criteria": [{"description": "AC", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "x",
+                    "so_that": "y",
+                    "acceptance_criteria": [{"description": "AC", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "x",
+                    "so_that": "y",
+                    "acceptance_criteria": [],
+                    "priority": "Must have",
+                },
             ],
         }
         passed, _ = requirements_guardrail(json.dumps(doc))
@@ -76,9 +106,27 @@ class TestRequirementsGuardrail:
             "project_name": "P",
             "description": "D",
             "user_stories": [
-                {"as_a": "u", "i_want": "a", "so_that": "b", "acceptance_criteria": [{"description": "AC1", "testable": True}], "priority": "Must have"},
-                {"as_a": "u", "i_want": "c", "so_that": "d", "acceptance_criteria": [{"description": "AC2", "testable": True}], "priority": "Should have"},
-                {"as_a": "u", "i_want": "e", "so_that": "f", "acceptance_criteria": [{"description": "AC3", "testable": True}], "priority": "Could have"},
+                {
+                    "as_a": "u",
+                    "i_want": "a",
+                    "so_that": "b",
+                    "acceptance_criteria": [{"description": "AC1", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "c",
+                    "so_that": "d",
+                    "acceptance_criteria": [{"description": "AC2", "testable": True}],
+                    "priority": "Should have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "e",
+                    "so_that": "f",
+                    "acceptance_criteria": [{"description": "AC3", "testable": True}],
+                    "priority": "Could have",
+                },
             ],
         }
         passed, _ = requirements_guardrail(json.dumps(doc))
@@ -89,9 +137,27 @@ class TestRequirementsGuardrail:
             "project_name": "P",
             "description": "D",
             "user_stories": [
-                {"as_a": "u", "i_want": "a", "so_that": "b", "acceptance_criteria": [{"description": "AC1", "testable": True}], "priority": "Must have"},
-                {"as_a": "u", "i_want": "c", "so_that": "d", "acceptance_criteria": [{"description": "AC2", "testable": True}], "priority": "Should have"},
-                {"as_a": "u", "i_want": "e", "so_that": "f", "acceptance_criteria": [{"description": "AC3", "testable": True}], "priority": "Could have"},
+                {
+                    "as_a": "u",
+                    "i_want": "a",
+                    "so_that": "b",
+                    "acceptance_criteria": [{"description": "AC1", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "c",
+                    "so_that": "d",
+                    "acceptance_criteria": [{"description": "AC2", "testable": True}],
+                    "priority": "Should have",
+                },
+                {
+                    "as_a": "u",
+                    "i_want": "e",
+                    "so_that": "f",
+                    "acceptance_criteria": [{"description": "AC3", "testable": True}],
+                    "priority": "Could have",
+                },
             ],
         }
         result = MagicMock()
@@ -105,12 +171,32 @@ class TestRequirementsGuardrail:
             "project_name": "Todo API",
             "description": "REST API for a todo list",
             "user_stories": [
-                {"as_a": "user", "i_want": "list items", "so_that": "I can track work", "acceptance_criteria": [{"description": "AC1", "testable": True}], "priority": "Must have"},
-                {"as_a": "user", "i_want": "add items", "so_that": "I can add tasks", "acceptance_criteria": [{"description": "AC2", "testable": True}], "priority": "Must have"},
-                {"as_a": "user", "i_want": "delete items", "so_that": "I can remove tasks", "acceptance_criteria": [{"description": "AC3", "testable": True}], "priority": "Should have"},
+                {
+                    "as_a": "user",
+                    "i_want": "list items",
+                    "so_that": "I can track work",
+                    "acceptance_criteria": [{"description": "AC1", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "user",
+                    "i_want": "add items",
+                    "so_that": "I can add tasks",
+                    "acceptance_criteria": [{"description": "AC2", "testable": True}],
+                    "priority": "Must have",
+                },
+                {
+                    "as_a": "user",
+                    "i_want": "delete items",
+                    "so_that": "I can remove tasks",
+                    "acceptance_criteria": [{"description": "AC3", "testable": True}],
+                    "priority": "Should have",
+                },
             ],
         }
-        wrapped = "Here are the requirements.\n\n" + json.dumps(doc) + "\n\nWe also need NFRs later."
+        wrapped = (
+            "Here are the requirements.\n\n" + json.dumps(doc) + "\n\nWe also need NFRs later."
+        )
         passed, _ = requirements_guardrail(wrapped)
         assert passed is True
 
@@ -130,9 +216,19 @@ class TestArchitectureGuardrail:
         doc = {
             "system_overview": "A minimal system with one component and one ADR for testing.",
             "components": [{"name": "API", "responsibilities": "Serves requests"}],
-            "technology_stack": [{"name": "Python", "category": "backend", "justification": "Simple"}],
+            "technology_stack": [
+                {"name": "Python", "category": "backend", "justification": "Simple"}
+            ],
             "interface_contracts": [],
-            "adrs": [{"title": "T", "status": "Accepted", "context": "C", "decision": "D", "consequences": "E"}],
+            "adrs": [
+                {
+                    "title": "T",
+                    "status": "Accepted",
+                    "context": "C",
+                    "decision": "D",
+                    "consequences": "E",
+                }
+            ],
             "ascii_diagram": "  [API] --> [Client]  ",
         }
         passed, _ = architecture_guardrail(json.dumps(doc))
@@ -143,12 +239,24 @@ class TestArchitectureGuardrail:
         doc = {
             "system_overview": "A minimal system for testing fallback extraction.",
             "components": [{"name": "API", "responsibilities": "Serves requests"}],
-            "technology_stack": [{"name": "Python", "category": "backend", "justification": "Simple"}],
+            "technology_stack": [
+                {"name": "Python", "category": "backend", "justification": "Simple"}
+            ],
             "interface_contracts": [],
-            "adrs": [{"title": "T", "status": "Accepted", "context": "C", "decision": "D", "consequences": "E"}],
+            "adrs": [
+                {
+                    "title": "T",
+                    "status": "Accepted",
+                    "context": "C",
+                    "decision": "D",
+                    "consequences": "E",
+                }
+            ],
             "ascii_diagram": "  [API] --> [Client]  ",  # long enough for guardrail
         }
-        wrapped = "Here is the architecture.\n\n" + json.dumps(doc) + "\n\nExplanation: we chose Python."
+        wrapped = (
+            "Here is the architecture.\n\n" + json.dumps(doc) + "\n\nExplanation: we chose Python."
+        )
         passed, _ = architecture_guardrail(wrapped)
         assert passed is True
 
@@ -158,31 +266,31 @@ class TestCreatePlanningTasks:
 
     def test_creates_two_tasks(self) -> None:
         agents = {"product_owner": MagicMock(), "architect": MagicMock()}
-        with patch("ai_team.tasks.planning_tasks.Task") as MockTask:
+        with patch("ai_team.tasks.planning_tasks.Task") as mock_task_factory:
             mock_t1, mock_t2 = MagicMock(), MagicMock()
-            MockTask.side_effect = [mock_t1, mock_t2]
+            mock_task_factory.side_effect = [mock_t1, mock_t2]
             tasks, timeouts = create_planning_tasks(agents)
         assert len(tasks) == 2
         assert len(timeouts) == 2
         assert "requirements_gathering" in timeouts
         assert "architecture_design" in timeouts
-        assert MockTask.call_count == 2
+        assert mock_task_factory.call_count == 2
 
     def test_architecture_task_has_context(self) -> None:
         agents = {"product_owner": MagicMock(), "architect": MagicMock()}
-        with patch("ai_team.tasks.planning_tasks.Task") as MockTask:
+        with patch("ai_team.tasks.planning_tasks.Task") as mock_task_factory:
             mock_req, mock_arch = MagicMock(), MagicMock()
-            MockTask.side_effect = [mock_req, mock_arch]
+            mock_task_factory.side_effect = [mock_req, mock_arch]
             tasks, _ = create_planning_tasks(agents)
         assert tasks[0] is mock_req
         assert tasks[1] is mock_arch
         # Second call must have context=[first task]
-        call_kw = MockTask.call_args_list[1][1]
+        call_kw = mock_task_factory.call_args_list[1][1]
         assert call_kw["context"] == [mock_req]
 
     def test_missing_agent_raises(self) -> None:
         agents = {"product_owner": MagicMock()}
-        with patch("ai_team.tasks.planning_tasks.Task") as MockTask:
-            MockTask.return_value = MagicMock()
+        with patch("ai_team.tasks.planning_tasks.Task") as mock_task_factory:
+            mock_task_factory.return_value = MagicMock()
             with pytest.raises(ValueError, match="architect"):
                 create_planning_tasks(agents)

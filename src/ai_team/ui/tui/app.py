@@ -11,36 +11,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import asyncio
+import contextlib
 import json
-import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-
-from rich.text import Text
-from textual import work
-from textual.app import App, ComposeResult
-from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
-from textual.reactive import reactive
-from textual.screen import Screen
-from textual.widgets import (
-    Button,
-    Footer,
-    Header,
-    Input,
-    Label,
-    Log,
-    OptionList,
-    RichLog,
-    Select,
-    Static,
-    TabbedContent,
-    TabPane,
-    TextArea,
-)
 
 from ai_team.ui.tui.widgets import (
     ActivityLog,
@@ -49,6 +24,24 @@ from ai_team.ui.tui.widgets import (
     GuardrailsLog,
     MetricsPanel,
     PhasePipeline,
+)
+from textual import work
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.widgets import (
+    Button,
+    Footer,
+    Header,
+    Input,
+    Label,
+    RichLog,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
 )
 
 CSS_PATH = Path(__file__).parent / "app.tcss"
@@ -203,25 +196,17 @@ class AITeamTUI(App):
         except Exception:
             pass
 
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#agent-table", AgentTable).update_agents(m.agents)
-        except Exception:
-            pass
 
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#metrics-panel", MetricsPanel).update_metrics(m.metrics)
-        except Exception:
-            pass
 
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#activity-log", ActivityLog).update_log(m.log)
-        except Exception:
-            pass
 
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#guardrails-log", GuardrailsLog).update_events(m.guardrail_events)
-        except Exception:
-            pass
 
     # -- Run backend -----------------------------------------------------------
 
@@ -232,7 +217,7 @@ class AITeamTUI(App):
             backend_name = self.query_one("#backend-select", Select).value
             team_name = self.query_one("#team-input", Input).value or "full"
             description = self.query_one("#description-area", TextArea).text
-            complexity = self.query_one("#complexity-select", Select).value
+            complexity = str(self.query_one("#complexity-select", Select).value)
         except Exception:
             return
 
@@ -241,7 +226,7 @@ class AITeamTUI(App):
             return
 
         self.is_running = True
-        self._log_output(f"[cyan]Starting {backend_name} run...[/cyan]")
+        self._log_output(f"[cyan]Starting {backend_name} run ({complexity})...[/cyan]")
 
         try:
             from ai_team.backends.registry import get_backend
@@ -257,7 +242,10 @@ class AITeamTUI(App):
                 self._run_langgraph_stream(backend, description.strip(), profile, monitor)
             else:
                 result = backend.run(
-                    description.strip(), profile, env=None, monitor=monitor,
+                    description.strip(),
+                    profile,
+                    env=None,
+                    monitor=monitor,
                 )
                 self._log_output(json.dumps(result.model_dump(), indent=2, default=str))
 
@@ -282,12 +270,14 @@ class AITeamTUI(App):
 
     def _log_output(self, message: str) -> None:
         """Write to the run output log."""
+
         def _write():
             try:
                 log = self.query_one("#run-output", RichLog)
                 log.write(message)
             except Exception:
                 pass
+
         self.call_from_thread(_write)
 
     # -- Cost estimate ---------------------------------------------------------
@@ -323,7 +313,6 @@ class AITeamTUI(App):
     @work(thread=True, exclusive=True, group="demo")
     def run_demo(self) -> None:
         """Run simulated demo to show dashboard capabilities."""
-        from ai_team.monitor import Phase, TeamMonitor
 
         monitor = self._get_or_create_monitor("Demo: Flask REST API")
         monitor.metrics.start_time = datetime.now()
@@ -346,24 +335,52 @@ class AITeamTUI(App):
 
         try:
             step(lambda: monitor.on_phase_change("intake"), 1.0)
-            step(lambda: monitor.on_log("system", "Received project: Create a Flask REST API", "info"))
+            step(
+                lambda: monitor.on_log(
+                    "system", "Received project: Create a Flask REST API", "info"
+                )
+            )
 
             step(lambda: monitor.on_phase_change("planning"))
-            step(lambda: monitor.on_agent_start("manager", "Coordinating planning phase", agents[0][1]), 1.0)
+            step(
+                lambda: monitor.on_agent_start(
+                    "manager", "Coordinating planning phase", agents[0][1]
+                ),
+                1.0,
+            )
 
-            step(lambda: monitor.on_agent_start("product_owner", "Gathering requirements", agents[1][1]), 1.5)
+            step(
+                lambda: monitor.on_agent_start(
+                    "product_owner", "Gathering requirements", agents[1][1]
+                ),
+                1.5,
+            )
             step(lambda: monitor.on_guardrail("behavioral", "role_adherence", "pass"))
             step(lambda: monitor.on_guardrail("quality", "requirements_completeness", "pass"))
             step(lambda: monitor.on_agent_finish("product_owner", "Requirements gathering"))
 
-            step(lambda: monitor.on_agent_start("architect", "Designing system architecture", agents[2][1]), 2.0)
+            step(
+                lambda: monitor.on_agent_start(
+                    "architect", "Designing system architecture", agents[2][1]
+                ),
+                2.0,
+            )
             step(lambda: monitor.on_guardrail("behavioral", "scope_control", "pass"))
-            step(lambda: monitor.on_guardrail("quality", "architecture_completeness", "warn", "Missing deployment diagram"))
+            step(
+                lambda: monitor.on_guardrail(
+                    "quality", "architecture_completeness", "warn", "Missing deployment diagram"
+                )
+            )
             step(lambda: monitor.on_agent_finish("architect", "Architecture design"))
             step(lambda: monitor.on_agent_finish("manager", "Planning coordination"))
 
             step(lambda: monitor.on_phase_change("development"))
-            step(lambda: monitor.on_agent_start("backend_developer", "Implementing Flask routes: /health, /items", agents[3][1]), 2.0)
+            step(
+                lambda: monitor.on_agent_start(
+                    "backend_developer", "Implementing Flask routes: /health, /items", agents[3][1]
+                ),
+                2.0,
+            )
             step(lambda: monitor.on_guardrail("security", "code_safety", "pass"))
             step(lambda: monitor.on_guardrail("security", "secret_detection", "pass"))
             step(lambda: monitor.on_file_generated("app.py"))
@@ -372,21 +389,40 @@ class AITeamTUI(App):
             step(lambda: monitor.on_guardrail("quality", "code_quality", "pass"))
             step(lambda: monitor.on_agent_finish("backend_developer", "Flask API implementation"))
 
-            step(lambda: monitor.on_agent_start("devops", "Creating Dockerfile and CI config", agents[5][1]), 1.5)
+            step(
+                lambda: monitor.on_agent_start(
+                    "devops", "Creating Dockerfile and CI config", agents[5][1]
+                ),
+                1.5,
+            )
             step(lambda: monitor.on_guardrail("security", "code_safety", "pass"))
             step(lambda: monitor.on_file_generated("Dockerfile"))
             step(lambda: monitor.on_file_generated(".github/workflows/ci.yml"))
             step(lambda: monitor.on_agent_finish("devops", "DevOps setup"))
 
             step(lambda: monitor.on_phase_change("testing"))
-            step(lambda: monitor.on_agent_start("qa_engineer", "Generating test cases", agents[4][1]), 1.5)
+            step(
+                lambda: monitor.on_agent_start(
+                    "qa_engineer", "Generating test cases", agents[4][1]
+                ),
+                1.5,
+            )
             step(lambda: monitor.on_file_generated("test_app.py"))
             step(lambda: monitor.on_guardrail("quality", "test_coverage", "pass"))
             step(lambda: monitor.on_log("qa_engineer", "Running pytest...", "info"), 2.0)
             step(lambda: monitor.on_test_result(passed=8, failed=1))
 
-            step(lambda: monitor.on_retry("qa_engineer", "1 test failed: test_create_item_validation"))
-            step(lambda: monitor.on_agent_start("backend_developer", "Fixing validation in POST /items", agents[3][1]), 1.5)
+            step(
+                lambda: monitor.on_retry(
+                    "qa_engineer", "1 test failed: test_create_item_validation"
+                )
+            )
+            step(
+                lambda: monitor.on_agent_start(
+                    "backend_developer", "Fixing validation in POST /items", agents[3][1]
+                ),
+                1.5,
+            )
             step(lambda: monitor.on_guardrail("security", "code_safety", "pass"))
             step(lambda: monitor.on_agent_finish("backend_developer", "Bug fix: input validation"))
             step(lambda: monitor.on_log("qa_engineer", "Re-running pytest...", "info"), 1.5)
@@ -394,7 +430,12 @@ class AITeamTUI(App):
             step(lambda: monitor.on_agent_finish("qa_engineer", "Test suite"))
 
             step(lambda: monitor.on_phase_change("deployment"))
-            step(lambda: monitor.on_agent_start("devops", "Packaging project with Docker", agents[5][1]), 1.5)
+            step(
+                lambda: monitor.on_agent_start(
+                    "devops", "Packaging project with Docker", agents[5][1]
+                ),
+                1.5,
+            )
             step(lambda: monitor.on_file_generated("docker-compose.yml"))
             step(lambda: monitor.on_guardrail("quality", "docs_validation", "pass"))
             step(lambda: monitor.on_file_generated("README.md"))

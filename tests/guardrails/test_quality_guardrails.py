@@ -50,23 +50,19 @@ def test_code_with_no_error_handling_on_io_fails(task_output_factory: Any) -> No
         "error handling" in s.lower() or "try" in s.lower() or "with" in s.lower()
         for s in result.suggestions
     )
-    assert any(
-        "open" in s.lower() or "I/O" in s or "file" in s.lower()
-        for s in result.suggestions
-    )
+    assert any("open" in s.lower() or "I/O" in s or "file" in s.lower() for s in result.suggestions)
 
 
 def test_code_with_hardcoded_credentials_fails(task_output_factory: Any) -> None:
     """Code with hardcoded credentials should fail."""
     raw = (
-        "api_key = \"sk-1234567890abcdef\"\n"
+        'api_key = "sk-1234567890abcdef"\n'
         "def call_api():\n"
         "    return requests.get(url, headers={'Authorization': api_key})\n"
     )
     result = code_quality_guardrail(raw, "python")
     assert result.passed is False or any(
-        "credential" in s.lower() or "environment" in s.lower()
-        for s in result.suggestions
+        "credential" in s.lower() or "environment" in s.lower() for s in result.suggestions
     )
 
 
@@ -104,8 +100,7 @@ def test_output_with_zero_test_cases_when_tests_expected_fails(
     result = coverage_guardrail(report, min_coverage_threshold=0.8)
     assert result.passed is False
     assert any(
-        "below" in s.lower() or "coverage" in s.lower() or "0%" in s
-        for s in result.suggestions
+        "below" in s.lower() or "coverage" in s.lower() or "0%" in s for s in result.suggestions
     )
 
 
@@ -141,7 +136,7 @@ class _RequiredFieldsModel(BaseModel):
 
 def test_malformed_json_when_json_expected_fails(task_output_factory: Any) -> None:
     """Malformed JSON when JSON expected should fail."""
-    raw = "Here is the result: { name: \"foo\", count: 3 }"  # unquoted keys
+    raw = 'Here is the result: { name: "foo", count: 3 }'  # unquoted keys
     result = output_format_guardrail(raw, _RequiredFieldsModel)
     assert result.status == "fail"
     assert "JSON" in result.message or "json" in result.message
@@ -154,7 +149,12 @@ def test_missing_required_fields_in_structured_output_fails(
     raw = '{"name": "only"}'
     result = output_format_guardrail(raw, _RequiredFieldsModel)
     assert result.status == "fail"
-    assert "format" in result.message.lower() or "match" in result.message.lower() or "validation" in result.message.lower() or "count" in result.message.lower()
+    assert (
+        "format" in result.message.lower()
+        or "match" in result.message.lower()
+        or "validation" in result.message.lower()
+        or "count" in result.message.lower()
+    )
 
 
 def test_valid_structured_output_passes(task_output_factory: Any) -> None:

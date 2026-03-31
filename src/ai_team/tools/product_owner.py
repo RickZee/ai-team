@@ -1,10 +1,8 @@
 """Product Owner agent tools: requirements parsing, user stories, acceptance criteria, prioritization."""
 
 import re
-from typing import List, Tuple
 
 from crewai.tools import tool
-
 
 # ----- Guardrail: reject vague or contradictory requirements -----
 
@@ -22,7 +20,7 @@ CONTRADICTION_PAIRS = [
 ]
 
 
-def _check_vague(text: str) -> List[str]:
+def _check_vague(text: str) -> list[str]:
     """Return list of vague phrase matches."""
     found = []
     for pattern in VAGUE_INDICATORS:
@@ -31,7 +29,7 @@ def _check_vague(text: str) -> List[str]:
     return found
 
 
-def _check_contradictions(text: str) -> List[Tuple[str, str]]:
+def _check_contradictions(text: str) -> list[tuple[str, str]]:
     """Return list of (word1, word2) that appear together and contradict."""
     lower = text.lower()
     found = []
@@ -41,7 +39,7 @@ def _check_contradictions(text: str) -> List[Tuple[str, str]]:
     return found
 
 
-def validate_requirements_guardrail(raw_requirements: str) -> Tuple[bool, str]:
+def validate_requirements_guardrail(raw_requirements: str) -> tuple[bool, str]:
     """
     Guardrail: reject requirements that are too vague or contain contradictions.
     Returns (valid, message). If invalid, message explains the issue.

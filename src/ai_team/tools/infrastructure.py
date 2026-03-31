@@ -6,11 +6,8 @@ Terraform, CloudFormation, IAM policies, cost estimation, and network design.
 All generated IaC is validated against security best practices via guardrails.
 """
 
-from typing import Optional
-
-from crewai.tools import tool
-
 from ai_team.guardrails import SecurityGuardrails
+from crewai.tools import tool
 
 
 def _validate_iac(content: str, iac_type: str = "auto") -> str:
@@ -30,7 +27,7 @@ def _validate_iac(content: str, iac_type: str = "auto") -> str:
 def dockerfile_generator(
     spec: str,
     base_image: str = "python:3.11-slim",
-    port: Optional[int] = 8000,
+    port: int | None = 8000,
     user_name: str = "app",
 ) -> str:
     """Generate a production-ready Dockerfile with multi-stage build, non-root user, and HEALTHCHECK.

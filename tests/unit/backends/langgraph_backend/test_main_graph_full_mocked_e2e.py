@@ -105,9 +105,7 @@ def test_full_mode_retry_loop_then_complete(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(sr, "deployment_subgraph_node", deploy)
 
     g = compile_main_graph(mode="full")
-    final = g.invoke(
-        _base_state("z" * 20), {"configurable": {"thread_id": "e2e-retry"}}
-    )
+    final = g.invoke(_base_state("z" * 20), {"configurable": {"thread_id": "e2e-retry"}})
     assert final.get("current_phase") == "complete"
     assert int(final.get("retry_count") or 0) >= 1
 

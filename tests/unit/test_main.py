@@ -14,9 +14,7 @@ class TestCmdRunOutputMode:
     """_cmd_run passes monitor only when output_mode is 'tui' and backend is crewai."""
 
     @pytest.mark.parametrize("output_mode", ["crewai", "tui"])
-    def test_cmd_run_calls_backend_run_with_expected_monitor(
-        self, output_mode: str
-    ) -> None:
+    def test_cmd_run_calls_backend_run_with_expected_monitor(self, output_mode: str) -> None:
         """CrewAI backend receives monitor=None for crewai, TeamMonitor for tui."""
         pr = ProjectResult(
             backend_name="crewai",

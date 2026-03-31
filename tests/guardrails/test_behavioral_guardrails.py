@@ -60,7 +60,11 @@ def test_manager_output_with_code_implementation_fails(task_output_factory: Any)
     )
     result = role_adherence_guardrail(raw, "manager")
     assert result.status == "fail"
-    assert "manager" in result.message.lower() or "implementation" in result.message.lower() or "coordinate" in result.message.lower()
+    assert (
+        "manager" in result.message.lower()
+        or "implementation" in result.message.lower()
+        or "coordinate" in result.message.lower()
+    )
 
 
 def test_valid_role_appropriate_output_passes(task_output_factory: Any) -> None:
@@ -129,7 +133,11 @@ def test_short_output_with_no_reasoning_indicators_fails(task_output_factory: An
     raw = "Done. Use the new endpoint."
     result = reasoning_guardrail(raw)
     assert result.status == "fail"
-    assert "reasoning" in result.message.lower() or "rationale" in result.message.lower() or "short" in result.message.lower()
+    assert (
+        "reasoning" in result.message.lower()
+        or "rationale" in result.message.lower()
+        or "short" in result.message.lower()
+    )
 
 
 def test_output_with_clear_rationale_statements_passes(task_output_factory: Any) -> None:

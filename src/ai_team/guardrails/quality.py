@@ -11,7 +11,6 @@ from __future__ import annotations
 import ast
 import re
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
 
 from ai_team.config.settings import get_settings
 
@@ -23,7 +22,7 @@ class GuardrailResult:
     passed: bool
     score: int  # 0-100
     message: str
-    suggestions: List[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.score = max(0, min(100, self.score))
@@ -54,7 +53,7 @@ def _cyclomatic_complexity_approx(code: str) -> int:
     return count
 
 
-def _python_naming_issues(code: str) -> List[str]:
+def _python_naming_issues(code: str) -> list[str]:
     """Check Python naming: public functions should be snake_case."""
     issues = []
     for m in PYTHON_PUBLIC_DEF.finditer(code):
@@ -66,7 +65,7 @@ def _python_naming_issues(code: str) -> List[str]:
     return issues
 
 
-def _js_naming_issues(code: str) -> List[str]:
+def _js_naming_issues(code: str) -> list[str]:
     """Check JS naming: functions/vars should be camelCase."""
     issues = []
     for m in JS_CAMEL_CASE.finditer(code):
@@ -85,7 +84,7 @@ def code_quality_guardrail(code: str, language: str = "python") -> GuardrailResu
 
     Returns GuardrailResult with score 0-100 and improvement suggestions.
     """
-    suggestions: List[str] = []
+    suggestions: list[str] = []
     lines = code.strip().splitlines()
     line_count = len(lines)
     language = language.lower()
@@ -95,19 +94,23 @@ def code_quality_guardrail(code: str, language: str = "python") -> GuardrailResu
         suggestions.append(f"File has {line_count} lines; keep under {MAX_FILE_LINES} lines")
 
     # TODO/FIXME/HACK
-    for m in TODO_PATTERNS.finditer(code):
+    for _match in TODO_PATTERNS.finditer(code):
         suggestions.append("Remove or resolve TODO/FIXME/HACK comments before merge")
 
     # File I/O without error handling
     if re.search(r"\bopen\s*\(", code) and "try:" not in code and "with " not in code:
-        suggestions.append("Consider wrapping file I/O in try/except or use 'with open' for error handling.")
+        suggestions.append(
+            "Consider wrapping file I/O in try/except or use 'with open' for error handling."
+        )
 
     # Hardcoded credentials (quality gate; use secret_detection for full scan)
     if re.search(
         r"(?i)(password|api_key|secret)\s*=\s*[\'\"]\S+[\'\"]",
         code,
     ):
-        suggestions.append("Do not hardcode credentials; use environment variables or a secrets manager.")
+        suggestions.append(
+            "Do not hardcode credentials; use environment variables or a secrets manager."
+        )
 
     if language == "python":
         try:
@@ -142,9 +145,8 @@ def code_quality_guardrail(code: str, language: str = "python") -> GuardrailResu
                 if not doc and not node.name.startswith("_"):
                     suggestions.append(f"Add docstring to public function '{node.name}'")
                 # Type hints on public functions
-                if not node.name.startswith("_"):
-                    if node.returns is None and node.args.args:
-                        suggestions.append(f"Add return type hint to '{node.name}'")
+                if not node.name.startswith("_") and node.returns is None and node.args.args:
+                    suggestions.append(f"Add return type hint to '{node.name}'")
 
         suggestions.extend(_python_naming_issues(code))
 
@@ -198,7 +200,7 @@ def code_quality_guardrail(code: str, language: str = "python") -> GuardrailResu
 
 def coverage_guardrail(
     coverage_report: dict,
-    min_coverage_threshold: Optional[float] = None,
+    min_coverage_threshold: float | None = None,
 ) -> GuardrailResult:
     """
     Enforce minimum coverage threshold, flag files with 0% coverage,
@@ -207,7 +209,7 @@ def coverage_guardrail(
     coverage_report: dict with keys such as 'total_coverage' (0-1 or 0-100),
                     'files' (dict of file -> coverage), optionally 'assertions'.
     """
-    suggestions: List[str] = []
+    suggestions: list[str] = []
     threshold = min_coverage_threshold
     if threshold is None:
         try:
@@ -220,7 +222,7 @@ def coverage_guardrail(
     if total is None and "files" in coverage_report:
         files_cov = coverage_report["files"]
         if isinstance(files_cov, dict):
-            vals = [v for v in files_cov.values() if isinstance(v, (int, float))]
+            vals = [v for v in files_cov.values() if isinstance(v, int | float)]
             total = sum(vals) / len(vals) if vals else 0.0
         else:
             total = 0.0
@@ -228,13 +230,11 @@ def coverage_guardrail(
         total = 0.0
 
     # Normalize to 0-1
-    if isinstance(total, (int, float)) and total > 1:
+    if isinstance(total, int | float) and total > 1:
         total = total / 100.0
 
     if total < threshold:
-        suggestions.append(
-            f"Overall coverage {total:.0%} is below minimum {threshold:.0%}"
-        )
+        suggestions.append(f"Overall coverage {total:.0%} is below minimum {threshold:.0%}")
 
     # Flag files with 0% coverage
     files = coverage_report.get("files") or coverage_report.get("file_coverage") or {}
@@ -251,7 +251,9 @@ def coverage_guardrail(
     if isinstance(assertions, list):
         weak = [a for a in assertions if a.get("text") == "assert True" or a.get("weak")]
         if weak:
-            suggestions.append("Replace trivial assertions (e.g. assert True) with meaningful checks")
+            suggestions.append(
+                "Replace trivial assertions (e.g. assert True) with meaningful checks"
+            )
 
     score = int(total * 100) if 0 <= total <= 1 else min(100, max(0, int(total)))
     passed = total >= threshold
@@ -277,7 +279,7 @@ def documentation_guardrail(code: str, docs: str) -> GuardrailResult:
     Verify README exists and is non-empty, all public functions documented,
     and docstring quality: description, parameters, returns, examples.
     """
-    suggestions: List[str] = []
+    suggestions: list[str] = []
 
     # README
     readme_ok = bool(docs and docs.strip())
@@ -322,7 +324,7 @@ def documentation_guardrail(code: str, docs: str) -> GuardrailResult:
 
 
 def architecture_compliance_guardrail(
-    code_files: List[str],
+    code_files: list[str],
     architecture: dict,
 ) -> GuardrailResult:
     """
@@ -334,7 +336,7 @@ def architecture_compliance_guardrail(
       - forbidden_imports: list of import patterns that are not allowed
       - layers: dict mapping layer name to list of allowed prefixes
     """
-    suggestions: List[str] = []
+    suggestions: list[str] = []
 
     allowed = architecture.get("allowed_modules") or architecture.get("layers")
     if isinstance(allowed, dict):
@@ -401,7 +403,7 @@ def dependency_guardrail(requirements: str) -> GuardrailResult:
     flag packages with no recent updates. Known vulnerable packages
     are flagged via pattern list; use pip-audit/safety in CI for full CVE data.
     """
-    suggestions: List[str] = []
+    suggestions: list[str] = []
     lines = [ln.strip() for ln in requirements.strip().splitlines() if ln.strip()]
 
     unpinned = []
@@ -418,9 +420,7 @@ def dependency_guardrail(requirements: str) -> GuardrailResult:
         else:
             m = VERSION_ANY.match(line.split("#")[0].strip())
             if m:
-                suggestions.append(
-                    f"Prefer exact pinning (==) for '{m.group(1)}' in production"
-                )
+                suggestions.append(f"Prefer exact pinning (==) for '{m.group(1)}' in production")
 
     if unpinned:
         suggestions.append(

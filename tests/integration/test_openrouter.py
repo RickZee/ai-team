@@ -38,14 +38,14 @@ class TestModelConfigStructure:
         expected_roles = set(ROLE_TOKEN_BUDGETS.keys())
         for env in Environment:
             role_configs = ENV_MODELS[env]
-            assert set(role_configs.keys()) == expected_roles, (
-                f"Environment {env.value}: role set mismatch"
-            )
+            assert (
+                set(role_configs.keys()) == expected_roles
+            ), f"Environment {env.value}: role set mismatch"
             for role in expected_roles:
                 config = role_configs[role]
-                assert config.model_id.startswith("openrouter/"), (
-                    f"{env.value}/{role}: model_id must be openrouter/..."
-                )
+                assert config.model_id.startswith(
+                    "openrouter/"
+                ), f"{env.value}/{role}: model_id must be openrouter/..."
                 assert config.temperature >= 0 and config.temperature <= 2
                 assert config.max_tokens > 0
 
@@ -55,7 +55,7 @@ class TestPricingDataCompleteness:
 
     def test_pricing_data_completeness(self) -> None:
         """All models have pricing entries."""
-        settings = OpenRouterSettings(OPENROUTER_API_KEY="dummy-for-structure-test")
+        OpenRouterSettings(OPENROUTER_API_KEY="dummy-for-structure-test")
         for env in Environment:
             for role, config in ENV_MODELS[env].items():
                 cost = config.pricing.estimate(1_000, 1_000)
@@ -70,10 +70,8 @@ class TestTokenBudgetsCompleteness:
         """All roles have token budgets."""
         dev_roles = set(ENV_MODELS[Environment.DEV].keys())
         budget_roles = set(ROLE_TOKEN_BUDGETS.keys())
-        assert budget_roles == dev_roles, (
-            "ROLE_TOKEN_BUDGETS must have same roles as ENV_MODELS"
-        )
-        for role, budget in ROLE_TOKEN_BUDGETS.items():
+        assert budget_roles == dev_roles, "ROLE_TOKEN_BUDGETS must have same roles as ENV_MODELS"
+        for _role, budget in ROLE_TOKEN_BUDGETS.items():
             assert "input" in budget and "output" in budget
             assert budget["input"] > 0 and budget["output"] > 0
 
@@ -104,9 +102,9 @@ class TestOpenRouterGated:
         llm = create_llm_for_role(role, settings)
         role_config = settings.get_model_for_role(role)
         assert llm is not None
-        assert getattr(llm, "model", None) == role_config.model_id, (
-            "LLM model must match role config model_id"
-        )
+        assert (
+            getattr(llm, "model", None) == role_config.model_id
+        ), "LLM model must match role config model_id"
         # Factory sets base via env; LiteLLM uses OPENROUTER_API_BASE
         assert os.environ.get("OPENROUTER_API_BASE") == settings.openrouter_api_base
         assert os.environ.get("OPENROUTER_API_KEY") == settings.openrouter_api_key
@@ -133,14 +131,16 @@ class TestOpenRouterGated:
             resp = httpx.post(url, json=payload, headers=headers, timeout=30.0)
         except httpx.RequestError as e:
             pytest.skip(f"OpenRouter request failed: {e}")
-        assert resp.status_code == 200, (
-            f"OpenRouter API returned {resp.status_code}: {resp.text[:500]}"
-        )
+        assert (
+            resp.status_code == 200
+        ), f"OpenRouter API returned {resp.status_code}: {resp.text[:500]}"
         data = resp.json()
         choices = data.get("choices", [])
         assert len(choices) >= 1, "OpenRouter must return at least one choice"
         content = choices[0].get("message", {}).get("content", "")
-        assert isinstance(content, str), "Choice content must be a string (may be empty for some free-tier models)"
+        assert isinstance(
+            content, str
+        ), "Choice content must be a string (may be empty for some free-tier models)"
 
     def test_env_switching(
         self,
@@ -152,12 +152,10 @@ class TestOpenRouterGated:
         dev_manager = ENV_MODELS[Environment.DEV]["manager"].model_id
         prod_manager = ENV_MODELS[Environment.PROD]["manager"].model_id
         test_manager = ENV_MODELS[Environment.TEST]["manager"].model_id
-        assert dev_manager != prod_manager, (
-            "DEV and PROD must use different models for manager"
-        )
-        assert dev_manager != test_manager or test_manager != prod_manager, (
-            "At least two environments must use different manager models"
-        )
+        assert dev_manager != prod_manager, "DEV and PROD must use different models for manager"
+        assert (
+            dev_manager != test_manager or test_manager != prod_manager
+        ), "At least two environments must use different manager models"
         assert "openrouter/" in dev_manager and "openrouter/" in prod_manager
 
     def test_cost_estimation(
@@ -170,7 +168,8 @@ class TestOpenRouterGated:
         settings = OpenRouterSettings(OPENROUTER_API_KEY="dummy")
         for complexity in ("simple", "medium", "complex"):
             rows, total_with_buffer, within_budget = estimate_run_cost(
-                settings, complexity  # type: ignore[arg-type]
+                settings,
+                complexity,  # type: ignore[arg-type]
             )
             assert len(rows) == len(ROLE_TOKEN_BUDGETS)
             assert total_with_buffer > 0

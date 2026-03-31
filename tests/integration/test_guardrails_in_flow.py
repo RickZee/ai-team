@@ -63,7 +63,10 @@ class TestMaxRetryExceededRaisesError:
         with pytest.raises(ValueError) as exc_info:
             state.increment_retry(ProjectPhase.TESTING)
         assert "Retry limit" in str(exc_info.value) or "retry" in str(exc_info.value).lower()
-        assert ProjectPhase.TESTING.value in str(exc_info.value) or "testing" in str(exc_info.value).lower()
+        assert (
+            ProjectPhase.TESTING.value in str(exc_info.value)
+            or "testing" in str(exc_info.value).lower()
+        )
 
     def test_can_retry_false_when_at_max(self) -> None:
         """can_retry(phase) is False when retry count >= max_retries."""
@@ -85,7 +88,9 @@ class TestGuardrailCallbackFiresOnRejection:
         callback = AITeamCallback()
         guardrail_fn = crewai_code_safety_guardrail
         # Result that represents "rejection" (CrewAI passes result from guardrail)
-        fail_result = GuardrailResult(status="fail", message="Dangerous pattern", retry_allowed=True)
+        fail_result = GuardrailResult(
+            status="fail", message="Dangerous pattern", retry_allowed=True
+        )
         callback.on_guardrail_trigger(guardrail_fn, fail_result)
         metrics = callback.get_metrics()
         assert metrics.guardrail_trigger_count

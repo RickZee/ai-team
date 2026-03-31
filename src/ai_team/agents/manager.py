@@ -9,11 +9,11 @@ tracking is maintained via timeline_management and status_reporting, with integr
 to ProjectState when used inside AITeamFlow (phase transitions, status updates).
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 import structlog
-
 from ai_team.agents.base import BaseAgent, create_agent
 from ai_team.tools.manager_tools import get_manager_tools
 
@@ -26,12 +26,12 @@ HUMAN_ESCALATION_CONFIDENCE_THRESHOLD = 0.6
 
 def create_manager_agent(
     *,
-    tools: Optional[Any] = None,
-    before_task: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-    after_task: Optional[Callable[[str, Any], None]] = None,
+    tools: Any | None = None,
+    before_task: Callable[[str, dict[str, Any]], None] | None = None,
+    after_task: Callable[[str, Any], None] | None = None,
     guardrail_tools: bool = True,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
 ) -> BaseAgent:
     """
     Create the Manager agent (Engineering Manager / Project Coordinator).

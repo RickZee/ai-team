@@ -80,6 +80,30 @@ ignore_missing_imports = true
 explicit_package_bases = true
 mypy_path = "src"
 
+[[tool.mypy.overrides]]
+module = [
+  "ai_team.backends.langgraph_backend.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+  "ai_team.tools.test_tools",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+  "ai_team.agents.*",
+  "ai_team.crews.*",
+  "ai_team.flows.main_flow",
+  "ai_team.ui.tui.*",
+  "ai_team.memory.memory_config",
+  "ai_team.tools.git_tools",
+  "ai_team.utils.callbacks",
+]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

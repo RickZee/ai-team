@@ -8,6 +8,11 @@ CrewAI knowledge source with configurable scope per role.
 Initialize via get_memory_manager().initialize(settings.memory) from app config.
 """
 
+from ai_team.memory.knowledge_base import (
+    KnowledgeBase,
+    KnowledgeItem,
+    get_knowledge_base,
+)
 from ai_team.memory.memory_config import (
     EntityStore,
     LongTermStore,
@@ -17,11 +22,6 @@ from ai_team.memory.memory_config import (
     ShortTermStore,
     get_crew_embedder_config,
     get_memory_manager,
-)
-from ai_team.memory.knowledge_base import (
-    KnowledgeBase,
-    KnowledgeItem,
-    get_knowledge_base,
 )
 
 __all__ = [

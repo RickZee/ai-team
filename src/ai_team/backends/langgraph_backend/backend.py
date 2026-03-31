@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import uuid4
 
@@ -17,10 +18,10 @@ from ai_team.backends.langgraph_backend.graphs.main_graph import (
     GraphMode,
     compile_main_graph,
 )
-from ai_team.core.results import ResultsBundle, Scorecard
-from ai_team.core.result import ProjectResult
-from ai_team.core.team_profile import TeamProfile
 from ai_team.config.settings import reload_settings
+from ai_team.core.result import ProjectResult
+from ai_team.core.results import ResultsBundle, Scorecard
+from ai_team.core.team_profile import TeamProfile
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
@@ -267,18 +268,16 @@ class LangGraphBackend:
             "team_profile": profile.name,
             "thread_id": thread_id,
         }
-        try:
+        with contextlib.suppress(Exception):
             b.append_event(
                 {
                     "type": "run_started",
                     "backend": self.name,
                     "team_profile": profile.name,
                     "thread_id": thread_id,
-                    "ts": str(datetime.now(timezone.utc).isoformat()),
+                    "ts": str(datetime.now(UTC).isoformat()),
                 }
             )
-        except Exception:
-            pass
 
         try:
             pg_uri = (os.environ.get("AI_TEAM_LANGGRAPH_POSTGRES_URI") or "").strip()
@@ -295,11 +294,9 @@ class LangGraphBackend:
                         "chunk": chunk,
                     }
                     if monitor is not None and hasattr(monitor, "on_langgraph_update"):
-                        getattr(monitor, "on_langgraph_update")(chunk)
-                    try:
+                        monitor.on_langgraph_update(chunk)
+                    with contextlib.suppress(Exception):
                         b.append_event({"type": "langgraph_update", "chunk": chunk})
-                    except Exception:
-                        pass
                     yield ev
                 snap = g.get_state(config)
                 try:

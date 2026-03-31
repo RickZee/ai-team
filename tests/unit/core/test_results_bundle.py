@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from ai_team.config.settings import reload_settings
 from ai_team.core.results import ResultsBundle
 from ai_team.core.results.models import Scorecard
@@ -58,4 +57,3 @@ def test_record_generated_file_and_manifest(isolated_dirs: tuple[Path, Path]) ->
     assert payload[0]["path"] == "app.py"
     assert payload[0]["bytes"] > 0
     assert isinstance(payload[0]["sha256"], str) and len(payload[0]["sha256"]) == 64
-

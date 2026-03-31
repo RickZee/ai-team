@@ -32,14 +32,14 @@ from ai_team.flows.main_flow import AITeamFlow
 
 def _patch_crewai_llm_for_ollama() -> None:
     """Force CrewAI to use Ollama: patch create_llm and LLM.__new__ (Crew may call LLM() directly)."""
-    from crewai.llm import LLM as CrewAILLM
+    from crewai.llm import LLM as CREWAI_LLM
     from crewai.llms.base_llm import BaseLLM
     from crewai.utilities import llm_utils
 
     _original_create_llm = llm_utils.create_llm
 
     def _create_llm(llm_value: object) -> object:
-        if isinstance(llm_value, (CrewAILLM, BaseLLM)):
+        if isinstance(llm_value, CREWAI_LLM | BaseLLM):
             return llm_value
         if isinstance(llm_value, str):
             if not llm_value.startswith("ollama/"):
@@ -49,15 +49,19 @@ def _patch_crewai_llm_for_ollama() -> None:
             model = getattr(llm_value, "model", None) or getattr(llm_value, "model_name", None)
             base_url = getattr(llm_value, "base_url", None) or ""
             api_base = getattr(llm_value, "api_base", None) or ""
-            if model and isinstance(model, str) and "ollama" not in model.lower():
-                if "11434" in str(base_url) or "11434" in str(api_base):
-                    base = api_base or base_url or "http://localhost:11434"
-                    return CrewAILLM(
-                        model=f"ollama/{model}",
-                        api_base=base,
-                        base_url=base,
-                        timeout=getattr(llm_value, "timeout", None),
-                    )
+            if (
+                model
+                and isinstance(model, str)
+                and "ollama" not in model.lower()
+                and ("11434" in str(base_url) or "11434" in str(api_base))
+            ):
+                base = api_base or base_url or "http://localhost:11434"
+                return CREWAI_LLM(
+                    model=f"ollama/{model}",
+                    api_base=base,
+                    base_url=base,
+                    timeout=getattr(llm_value, "timeout", None),
+                )
         return _original_create_llm(llm_value)
 
     llm_utils.create_llm = _create_llm
@@ -65,7 +69,7 @@ def _patch_crewai_llm_for_ollama() -> None:
     # Crew/hierarchical path may call LLM(model="gpt-4.1-mini") directly; always force Ollama in e2e
     # so every LLM path (including Task Execution Planner) uses LiteLLM → Ollama, not OpenAI.
     # Set a dummy api_key so LiteLLM's client doesn't raise AuthenticationError; api_base sends requests to Ollama.
-    _original_new = CrewAILLM.__new__
+    _original_new = CREWAI_LLM.__new__
 
     def _llm_new(cls: type, model: str, is_litellm: bool = False, **kwargs: Any) -> Any:
         if model and not model.startswith("ollama/"):
@@ -73,12 +77,14 @@ def _patch_crewai_llm_for_ollama() -> None:
             kwargs.setdefault("api_base", "http://localhost:11434")
             kwargs.setdefault("base_url", "http://localhost:11434")
         if model and (model.startswith("ollama/") or "11434" in str(kwargs.get("api_base") or "")):
-            kwargs.setdefault("api_key", "ollama")  # Satisfy LiteLLM client check; Ollama ignores key
+            kwargs.setdefault(
+                "api_key", "ollama"
+            )  # Satisfy LiteLLM client check; Ollama ignores key
             kwargs.setdefault("base_url", kwargs.get("base_url") or "http://localhost:11434")
             kwargs.setdefault("api_base", kwargs.get("api_base") or "http://localhost:11434")
         return _original_new(cls, model, is_litellm=is_litellm, **kwargs)
 
-    CrewAILLM.__new__ = _llm_new
+    CREWAI_LLM.__new__ = _llm_new
 
 
 def _patch_litellm_for_ollama() -> None:
@@ -114,9 +120,9 @@ def _patch_litellm_for_ollama() -> None:
 
     # CrewAI may strip None from params, so LLM instances created without api_base
     # never pass it. Patch CrewAI LLM to inject api_base in _prepare_completion_params.
-    from crewai.llm import LLM as CrewAILLM
+    from crewai.llm import LLM as CREWAI_LLM
 
-    _orig_prepare = CrewAILLM._prepare_completion_params
+    _orig_prepare = CREWAI_LLM._prepare_completion_params
 
     def _prepare_completion_params(self: Any, messages: Any, tools: Any = None) -> dict:
         params = _orig_prepare(self, messages, tools)
@@ -125,7 +131,7 @@ def _patch_litellm_for_ollama() -> None:
             params.setdefault("api_key", "ollama")
         return params
 
-    CrewAILLM._prepare_completion_params = _prepare_completion_params
+    CREWAI_LLM._prepare_completion_params = _prepare_completion_params
 
 
 # Project specification (same as Demo 1)
@@ -137,9 +143,18 @@ PROJECT_SPEC = """Create a simple Flask REST API with:
  - Unit tests with pytest covering all endpoints and edge cases
  - Requirements.txt and Dockerfile"""
 
-DEMO_OUTPUT_DIR = Path(__file__).resolve().parent.parent.parent / "demos" / "01_hello_world" / "output"
-RUN_REPORT_PATH = Path(__file__).resolve().parent.parent.parent / "demos" / "01_hello_world" / "run_report.json"
-FAILURE_REPORT_PATH = Path(__file__).resolve().parent.parent.parent / "demos" / "01_hello_world" / "failure_report.json"
+DEMO_OUTPUT_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "demos" / "01_hello_world" / "output"
+)
+RUN_REPORT_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "demos" / "01_hello_world" / "run_report.json"
+)
+FAILURE_REPORT_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "demos"
+    / "01_hello_world"
+    / "failure_report.json"
+)
 
 REQUIRED_FILES = ["app.py", "test_app.py", "requirements.txt", "Dockerfile"]
 FLASK_PORT = 17542  # Unlikely to conflict
@@ -219,6 +234,7 @@ def test_e2e_hello_world_flask_api() -> None:
     try:
         import crewai.cli.constants as _c
         import crewai.utilities.llm_utils as _u
+
         _c.DEFAULT_LLM_MODEL = "ollama/qwen3:14b"
         _u.DEFAULT_LLM_MODEL = "ollama/qwen3:14b"
     except Exception:
@@ -264,7 +280,9 @@ def test_e2e_hello_world_flask_api() -> None:
     generated_files = state_dump.get("generated_files") or []
     _materialize_generated_files(output_dir, generated_files)
 
-    def save_failure(assertion_failed: str, error_context: dict[str, Any], last_agent: str = "") -> None:
+    def save_failure(
+        assertion_failed: str, error_context: dict[str, Any], last_agent: str = ""
+    ) -> None:
         failure = _failure_report(assertion_failed, error_context, last_agent)
         FAILURE_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
         FAILURE_REPORT_PATH.write_text(json.dumps(failure, indent=2), encoding="utf-8")
@@ -274,7 +292,11 @@ def test_e2e_hello_world_flask_api() -> None:
     if missing:
         save_failure(
             "Output directory contains app.py, test_app.py, requirements.txt, Dockerfile",
-            {"missing_files": missing, "output_dir": str(output_dir), "listed": list(output_dir.iterdir())},
+            {
+                "missing_files": missing,
+                "output_dir": str(output_dir),
+                "listed": list(output_dir.iterdir()),
+            },
         )
         pytest.fail(f"E2E assertion 2 failed: Missing files: {missing}")
 
@@ -335,7 +357,9 @@ def test_e2e_hello_world_flask_api() -> None:
                 "stderr": proc.stderr[-2000:] if proc.stderr else "",
             },
         )
-        pytest.fail(f"E2E assertion 6 failed: pytest exited {proc.returncode}\n{proc.stderr or proc.stdout}")
+        pytest.fail(
+            f"E2E assertion 6 failed: pytest exited {proc.returncode}\n{proc.stderr or proc.stdout}"
+        )
 
     # Assertion 7: Start Flask app and hit /health returns 200
     try:
@@ -343,7 +367,8 @@ def test_e2e_hello_world_flask_api() -> None:
             [
                 sys.executable,
                 "-c",
-                "from app import app; app.run(host='127.0.0.1', port=%d, use_reloader=False)" % FLASK_PORT,
+                "from app import app; app.run(host='127.0.0.1', port=%d, use_reloader=False)"
+                % FLASK_PORT,
             ],
             cwd=output_dir,
             stdout=subprocess.DEVNULL,

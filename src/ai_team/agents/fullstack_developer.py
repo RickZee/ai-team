@@ -6,11 +6,11 @@ that don't need separate frontend/backend agents. Uses DeveloperBase with all
 developer tools (common + backend + frontend).
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import yaml
-
 from ai_team.agents.base import _load_agents_config
 from ai_team.agents.developer_base import DeveloperBase
 from ai_team.tools.developer_tools import get_fullstack_developer_tools
@@ -31,12 +31,12 @@ class FullstackDeveloper(DeveloperBase):
 
 def create_fullstack_developer(
     *,
-    tools: Optional[List[Any]] = None,
-    before_task: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-    after_task: Optional[Callable[[str, Any], None]] = None,
+    tools: list[Any] | None = None,
+    before_task: Callable[[str, dict[str, Any]], None] | None = None,
+    after_task: Callable[[str, Any], None] | None = None,
     guardrail_tools: bool = True,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> FullstackDeveloper:
     """

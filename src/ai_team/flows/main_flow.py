@@ -9,25 +9,32 @@ integration, flow visualization via plot(), and comprehensive logging.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
-from crewai import Flow
-from crewai.flow.flow import listen, router, start
-
 from ai_team.config.model_validation import ModelValidationError, validate_models_before_run
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings, reload_settings
+from ai_team.core.results import ResultsBundle, Scorecard
 from ai_team.flows.error_handling import (
     handle_deployment_error as handle_deployment_error_fn,
+)
+from ai_team.flows.error_handling import (
     handle_development_error as handle_development_error_fn,
+)
+from ai_team.flows.error_handling import (
     handle_planning_error as handle_planning_error_fn,
+)
+from ai_team.flows.error_handling import (
     handle_testing_error as handle_testing_error_fn,
+)
+from ai_team.flows.error_handling import (
     reset_circuit,
 )
 from ai_team.flows.human_feedback import (
@@ -43,12 +50,11 @@ from ai_team.flows.routing import (
 )
 from ai_team.flows.state import ProjectPhase, ProjectState
 from ai_team.models.architecture import ArchitectureDocument
-from ai_team.models.development import CodeFile, DeploymentConfig
-from ai_team.monitor import MonitorCallback, TeamMonitor
 from ai_team.models.requirements import RequirementsDocument
-from ai_team.tools.test_tools import TestRunResult
-from ai_team.core.results import ResultsBundle, Scorecard
+from ai_team.monitor import MonitorCallback, TeamMonitor
 from ai_team.tools.file_tools import write_file as safe_write_file
+from crewai import Flow
+from crewai.flow.flow import listen, router, start
 
 logger = structlog.get_logger()
 
@@ -69,13 +75,14 @@ FLOW_RECURSION_LIMIT = 5000
 # =============================================================================
 
 
-def _extract_json_block(text: str) -> Optional[Dict[str, Any]]:
+def _extract_json_block(text: str) -> dict[str, Any] | None:
     """Extract first JSON object or array from markdown code block or raw text."""
     if not text or not text.strip():
         return None
     # Code block
     if "```" in text:
         import re
+
         match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
         if match:
             try:
@@ -119,7 +126,9 @@ def _persist_state(state: ProjectState) -> None:
     logger.info("state_persisted", path=str(path))
 
 
-def _parse_planning_output(crew_result: Any) -> tuple[Optional[RequirementsDocument], Optional[ArchitectureDocument], bool]:
+def _parse_planning_output(
+    crew_result: Any,
+) -> tuple[RequirementsDocument | None, ArchitectureDocument | None, bool]:
     """
     Extract RequirementsDocument and ArchitectureDocument from Planning Crew output.
 
@@ -128,8 +137,8 @@ def _parse_planning_output(crew_result: Any) -> tuple[Optional[RequirementsDocum
     """
     from ai_team.agents.product_owner import _dict_to_requirements_document
 
-    requirements: Optional[RequirementsDocument] = None
-    architecture: Optional[ArchitectureDocument] = None
+    requirements: RequirementsDocument | None = None
+    architecture: ArchitectureDocument | None = None
     needs_clarification = False
 
     tasks_output = getattr(crew_result, "tasks_output", None) or []
@@ -159,7 +168,9 @@ def _parse_planning_output(crew_result: Any) -> tuple[Optional[RequirementsDocum
         elif data:
             # LLM returned JSON but not architecture (e.g. health-check); use fallback
             architecture = ArchitectureDocument(
-                system_overview=data.get("system_overview", "Architecture could not be parsed (invalid schema)."),
+                system_overview=data.get(
+                    "system_overview", "Architecture could not be parsed (invalid schema)."
+                ),
                 components=[],
                 technology_stack=[],
             )
@@ -202,8 +213,8 @@ class AITeamFlow(Flow[ProjectState]):
 
     def __init__(
         self,
-        feedback_handler: Optional[HumanFeedbackHandler] = None,
-        monitor: Optional[TeamMonitor] = None,
+        feedback_handler: HumanFeedbackHandler | None = None,
+        monitor: TeamMonitor | None = None,
     ) -> None:
         super().__init__()
         self.logger = structlog.get_logger().bind(flow="AITeamFlow")
@@ -222,7 +233,7 @@ class AITeamFlow(Flow[ProjectState]):
         from ai_team.config.models import OpenRouterSettings
         from ai_team.config.token_tracker import TokenTracker
 
-        tracker: Optional[TokenTracker] = None
+        tracker: TokenTracker | None = None
         skip = self.state.metadata.get("skip_estimate") is True
 
         try:
@@ -235,8 +246,7 @@ class AITeamFlow(Flow[ProjectState]):
         # Per-run workspace isolation: tools resolve relative paths under workspace/<project_id>/.
         try:
             os.environ["PROJECT_WORKSPACE_DIR"] = str(
-                Path(get_settings().project.workspace_dir).resolve()
-                / self.state.project_id
+                Path(get_settings().project.workspace_dir).resolve() / self.state.project_id
             )
             reload_settings()
         except Exception:
@@ -263,7 +273,7 @@ class AITeamFlow(Flow[ProjectState]):
                     "project_id": self.state.project_id,
                     "backend": "crewai",
                     "team_profile": meta.team_profile,
-                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "ts": datetime.now(UTC).isoformat(),
                 }
             )
         except Exception:
@@ -271,19 +281,20 @@ class AITeamFlow(Flow[ProjectState]):
 
         if not skip:
             try:
-                from pydantic import ValidationError
-
                 from ai_team.config.cost_estimator import (
                     confirm_and_proceed,
                     display_estimate,
                     estimate_run_cost,
                     get_complexity_from_description,
                 )
+                from pydantic import ValidationError
 
                 or_settings = OpenRouterSettings()
                 if or_settings.show_cost_estimate:
                     desc = (self.state.project_description or "").strip()
-                    complexity = self.state.metadata.get("complexity_override") or get_complexity_from_description(desc)
+                    complexity = self.state.metadata.get(
+                        "complexity_override"
+                    ) or get_complexity_from_description(desc)
                     rows, total_with_buffer, within_budget = estimate_run_cost(
                         or_settings, complexity
                     )
@@ -301,15 +312,9 @@ class AITeamFlow(Flow[ProjectState]):
                     display_estimate(
                         or_settings, complexity, rows, total_with_buffer, within_budget
                     )
-                    if not confirm_and_proceed(
-                        or_settings, complexity, total_with_buffer
-                    ):
-                        self.logger.info(
-                            "cost_confirm_cancelled", reason="user_declined"
-                        )
-                        raise SystemExit(
-                            "Cost estimation declined or over budget. Exiting."
-                        )
+                    if not confirm_and_proceed(or_settings, complexity, total_with_buffer):
+                        self.logger.info("cost_confirm_cancelled", reason="user_declined")
+                        raise SystemExit("Cost estimation declined or over budget. Exiting.")
             except SystemExit:
                 raise
             except (ValidationError, Exception):
@@ -321,7 +326,7 @@ class AITeamFlow(Flow[ProjectState]):
         if tracker is not None:
             try:
                 estimated_rows_raw = self.state.metadata.get("estimated_cost_rows") or []
-                estimated_rows: List[RoleCostRow] = []
+                estimated_rows: list[RoleCostRow] = []
                 for d in estimated_rows_raw:
                     if isinstance(d, dict) and "role" in d and "cost_usd" in d:
                         estimated_rows.append(
@@ -365,7 +370,7 @@ class AITeamFlow(Flow[ProjectState]):
         )
 
     @start()
-    def intake_request(self) -> Dict[str, Any]:
+    def intake_request(self) -> dict[str, Any]:
         """
         Entry point: validate project description and run intake guardrails.
 
@@ -375,7 +380,9 @@ class AITeamFlow(Flow[ProjectState]):
         if self._monitor:
             self._monitor.on_phase_change("intake")
         desc = (self.state.project_description or "").strip()
-        self.logger.info("intake_started", request_length=len(desc), project_id=self.state.project_id)
+        self.logger.info(
+            "intake_started", request_length=len(desc), project_id=self.state.project_id
+        )
 
         try:
             b = self._bundle()
@@ -413,18 +420,18 @@ class AITeamFlow(Flow[ProjectState]):
                 "security", "prompt_injection", "pass" if is_safe else "fail", message or ""
             )
         if not is_safe:
-            self.state.add_error(
-                ProjectPhase.INTAKE, "security_error", message, recoverable=False
-            )
+            self.state.add_error(ProjectPhase.INTAKE, "security_error", message, recoverable=False)
             self.logger.warning("intake_guardrail_failed", reason="prompt_injection")
             return {"status": "rejected", "reason": "prompt_injection"}
 
         # Cost estimation and confirmation run in AITeamFlow.kickoff() before any LLM calls
-        self.state.add_phase_transition(ProjectPhase.INTAKE, ProjectPhase.PLANNING, "Input validated")
+        self.state.add_phase_transition(
+            ProjectPhase.INTAKE, ProjectPhase.PLANNING, "Input validated"
+        )
         return {"status": "success", "request": desc}
 
     @router(intake_request)
-    def route_after_intake(self, intake_result: Dict[str, Any]) -> str:
+    def route_after_intake(self, intake_result: dict[str, Any]) -> str:
         """Route based on intake validation results."""
         status = intake_result.get("status", "unknown")
         if status == "success":
@@ -442,7 +449,7 @@ class AITeamFlow(Flow[ProjectState]):
         return "handle_fatal_error"
 
     @listen("run_planning")
-    def run_planning_crew(self) -> Dict[str, Any]:
+    def run_planning_crew(self) -> dict[str, Any]:
         """Execute PlanningCrew with project description; store requirements and architecture in state."""
         if self._monitor:
             self._monitor.on_phase_change("planning")
@@ -468,8 +475,8 @@ class AITeamFlow(Flow[ProjectState]):
                 task_callback=task_cb,
                 verbose=verbose,
             )
-            self.state.requirements, self.state.architecture, needs_clarification = _parse_planning_output(
-                result
+            self.state.requirements, self.state.architecture, needs_clarification = (
+                _parse_planning_output(result)
             )
             try:
                 b = self._bundle()
@@ -493,10 +500,8 @@ class AITeamFlow(Flow[ProjectState]):
                 ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "Planning completed"
             )
             reset_circuit(self.state, ProjectPhase.PLANNING)
-            try:
+            with contextlib.suppress(Exception):
                 _persist_state(self.state)
-            except Exception:
-                pass
             confidence = 0.5 if needs_clarification else 1.0
             self.logger.info(
                 "planning_complete",
@@ -520,12 +525,12 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "error", "error": err_msg}
 
     @router(run_planning_crew)
-    def route_after_planning(self, planning_result: Dict[str, Any]) -> str:
+    def route_after_planning(self, planning_result: dict[str, Any]) -> str:
         """Route based on planning outcome. Delegates to flows.routing.route_after_planning."""
         return route_after_planning(planning_result, self.state)
-    
+
     @listen("run_development")
-    def run_development_crew(self) -> Dict[str, Any]:
+    def run_development_crew(self) -> dict[str, Any]:
         """Execute DevelopmentCrew with planning outputs; store generated files in state."""
         if self._monitor:
             self._monitor.on_phase_change("development")
@@ -577,10 +582,8 @@ class AITeamFlow(Flow[ProjectState]):
                 ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "Code generated"
             )
             reset_circuit(self.state, ProjectPhase.DEVELOPMENT)
-            try:
+            with contextlib.suppress(Exception):
                 _persist_state(self.state)
-            except Exception:
-                pass
             self.logger.info(
                 "development_complete",
                 files_count=len(self.state.generated_files),
@@ -597,12 +600,12 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "error", "error": err_msg}
 
     @router(run_development_crew)
-    def route_after_development(self, dev_result: Dict[str, Any]) -> str:
+    def route_after_development(self, dev_result: dict[str, Any]) -> str:
         """Route based on development outcome. Delegates to flows.routing.route_after_development."""
         return route_after_development(dev_result, self.state)
 
     @listen("run_testing")
-    def run_testing_crew(self) -> Dict[str, Any]:
+    def run_testing_crew(self) -> dict[str, Any]:
         """Execute TestingCrew with code files; store test results in state."""
         if self._monitor:
             self._monitor.on_phase_change("testing")
@@ -658,10 +661,8 @@ class AITeamFlow(Flow[ProjectState]):
                     ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "Tests passed"
                 )
                 reset_circuit(self.state, ProjectPhase.TESTING)
-                try:
+                with contextlib.suppress(Exception):
                     _persist_state(self.state)
-                except Exception:
-                    pass
                 self.logger.info(
                     "testing_complete",
                     quality_gate_passed=True,
@@ -685,12 +686,12 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "error", "error": err_msg}
 
     @router(run_testing_crew)
-    def route_after_testing(self, test_result: Dict[str, Any]) -> str:
+    def route_after_testing(self, test_result: dict[str, Any]) -> str:
         """Route based on testing outcome. Delegates to flows.routing.route_after_testing."""
         return route_after_testing(test_result, self.state)
 
     @listen("run_deployment")
-    def run_deployment_crew(self) -> Dict[str, Any]:
+    def run_deployment_crew(self) -> dict[str, Any]:
         """Execute DeploymentCrew; package output to output_dir and store deployment config in state."""
         if self._monitor:
             self._monitor.on_phase_change("deployment")
@@ -738,10 +739,8 @@ class AITeamFlow(Flow[ProjectState]):
                 ProjectPhase.DEPLOYMENT, ProjectPhase.COMPLETE, "Deployment configured"
             )
             reset_circuit(self.state, ProjectPhase.DEPLOYMENT)
-            try:
+            with contextlib.suppress(Exception):
                 _persist_state(self.state)
-            except Exception:
-                pass
             self.logger.info("deployment_complete", project_id=self.state.project_id)
             return {"status": "success", "config": self.state.deployment_config}
         except Exception as e:
@@ -754,16 +753,16 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "error", "error": err_msg}
 
     @router(run_deployment_crew)
-    def route_after_deployment(self, deploy_result: Dict[str, Any]) -> str:
+    def route_after_deployment(self, deploy_result: dict[str, Any]) -> str:
         """Route based on deployment outcome. Delegates to flows.routing.route_after_deployment."""
         return route_after_deployment(deploy_result, self.state)
 
     @listen("finalize_project")
-    def finalize_project(self) -> Dict[str, Any]:
+    def finalize_project(self) -> dict[str, Any]:
         """Package outputs, generate summary, persist state, log completion."""
         if self._monitor:
             self._monitor.on_phase_change("complete")
-        self.state.completed_at = datetime.now(timezone.utc)
+        self.state.completed_at = datetime.now(UTC)
         duration = self.state.get_duration()
         duration_seconds = duration.total_seconds()
 
@@ -771,9 +770,7 @@ class AITeamFlow(Flow[ProjectState]):
             "project_id": self.state.project_id,
             "status": "complete",
             "files_generated": len(self.state.generated_files),
-            "tests_passed": (
-                self.state.test_results.passed if self.state.test_results else 0
-            ),
+            "tests_passed": (self.state.test_results.passed if self.state.test_results else 0),
             "duration_seconds": duration_seconds,
         }
         self.logger.info("project_complete", **summary)
@@ -791,7 +788,7 @@ class AITeamFlow(Flow[ProjectState]):
                     [
                         f"# AI-Team run summary ({self.state.project_id})",
                         "",
-                        f"- **status**: complete",
+                        "- **status**: complete",
                         f"- **files_generated**: {len(self.state.generated_files)}",
                         f"- **tests_passed**: {self.state.test_results.passed if self.state.test_results else 0}",
                         f"- **duration_seconds**: {duration_seconds:.1f}",
@@ -813,7 +810,7 @@ class AITeamFlow(Flow[ProjectState]):
         return summary
 
     @listen("request_human_feedback")
-    def request_human_feedback(self) -> Dict[str, Any]:
+    def request_human_feedback(self) -> dict[str, Any]:
         """
         Request clarification/approval from user via HumanFeedbackHandler.
 
@@ -861,12 +858,12 @@ class AITeamFlow(Flow[ProjectState]):
         return {"status": "received", "resume_to": resume_to}
 
     @router(request_human_feedback)
-    def route_after_human_feedback(self, feedback_result: Dict[str, Any]) -> str:
+    def route_after_human_feedback(self, feedback_result: dict[str, Any]) -> str:
         """Resume flow from the step indicated by human feedback (or default)."""
         return feedback_result.get("resume_to", "handle_fatal_error")
 
     @listen("escalate_to_human")
-    def escalate_to_human(self) -> Dict[str, Any]:
+    def escalate_to_human(self) -> dict[str, Any]:
         """
         Escalate persistent test failures to human; use same handler as request_human_feedback.
 
@@ -877,7 +874,9 @@ class AITeamFlow(Flow[ProjectState]):
             self.state.current_phase, ProjectPhase.AWAITING_HUMAN, "Escalated"
         )
         meta = self.state.metadata
-        question = meta.get("feedback_question", "Tests failed multiple times. Retry with feedback or abort?")
+        question = meta.get(
+            "feedback_question", "Tests failed multiple times. Retry with feedback or abort?"
+        )
         context = meta.get("feedback_context") or {}
         options = meta.get("feedback_options") or ["Retry development with feedback", "Abort"]
         default_option = meta.get("feedback_default_option") or "Abort"
@@ -906,12 +905,12 @@ class AITeamFlow(Flow[ProjectState]):
         return {"status": "received", "resume_to": resume_to}
 
     @router(escalate_to_human)
-    def route_after_escalate(self, escalate_result: Dict[str, Any]) -> str:
+    def route_after_escalate(self, escalate_result: dict[str, Any]) -> str:
         """Resume after escalation: retry_development or handle_fatal_error."""
         return escalate_result.get("resume_to", "handle_fatal_error")
 
     @listen("handle_fatal_error")
-    def handle_fatal_error(self) -> Dict[str, Any]:
+    def handle_fatal_error(self) -> dict[str, Any]:
         """Handle unrecoverable errors (e.g. intake rejection). Persist state and transition to ERROR."""
         if self._monitor:
             self._monitor.on_phase_change("error")
@@ -923,14 +922,14 @@ class AITeamFlow(Flow[ProjectState]):
         return {"status": "failed", "errors": [e.model_dump() for e in self.state.errors]}
 
     @listen("handle_planning_error")
-    def handle_planning_error(self) -> Dict[str, Any]:
+    def handle_planning_error(self) -> dict[str, Any]:
         """Handle planning crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         result = handle_planning_error_fn(self.state, error, persist_fn=_persist_state)
         return result
 
     @router(handle_planning_error)
-    def route_after_planning_error(self, handle_result: Dict[str, Any]) -> str:
+    def route_after_planning_error(self, handle_result: dict[str, Any]) -> str:
         """Route after planning error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
             return "run_planning"
@@ -949,45 +948,45 @@ class AITeamFlow(Flow[ProjectState]):
         return "run_development"
 
     @listen("handle_development_error")
-    def handle_development_error(self) -> Dict[str, Any]:
+    def handle_development_error(self) -> dict[str, Any]:
         """Handle development crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         return handle_development_error_fn(self.state, error, persist_fn=_persist_state)
 
     @router(handle_development_error)
-    def route_after_development_error(self, handle_result: Dict[str, Any]) -> str:
+    def route_after_development_error(self, handle_result: dict[str, Any]) -> str:
         """Route after development error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
             return "run_development"
         return "escalate_to_human"
 
     @listen("handle_testing_error")
-    def handle_testing_error(self) -> Dict[str, Any]:
+    def handle_testing_error(self) -> dict[str, Any]:
         """Handle testing crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         return handle_testing_error_fn(self.state, error, persist_fn=_persist_state)
 
     @router(handle_testing_error)
-    def route_after_testing_error(self, handle_result: Dict[str, Any]) -> str:
+    def route_after_testing_error(self, handle_result: dict[str, Any]) -> str:
         """Route after testing error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
             return "run_testing"
         return "escalate_to_human"
 
     @listen("handle_deployment_error")
-    def handle_deployment_error(self) -> Dict[str, Any]:
+    def handle_deployment_error(self) -> dict[str, Any]:
         """Handle deployment crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         return handle_deployment_error_fn(self.state, error, persist_fn=_persist_state)
 
     @router(handle_deployment_error)
-    def route_after_deployment_error(self, handle_result: Dict[str, Any]) -> str:
+    def route_after_deployment_error(self, handle_result: dict[str, Any]) -> str:
         """Route after deployment error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
             return "run_deployment"
         return "escalate_to_human"
 
-    def plot(self, path: Optional[Path] = None) -> Optional[str]:
+    def plot(self, path: Path | None = None) -> str | None:
         """
         Flow visualization: return graph representation or save to file.
 
@@ -1057,11 +1056,11 @@ class AITeamFlow(Flow[ProjectState]):
 
 def run_ai_team(
     project_description: str,
-    monitor: Optional[TeamMonitor] = None,
+    monitor: TeamMonitor | None = None,
     skip_estimate: bool = False,
-    env_override: Optional[str] = None,
-    complexity_override: Optional[str] = None,
-) -> Dict[str, Any]:
+    env_override: str | None = None,
+    complexity_override: str | None = None,
+) -> dict[str, Any]:
     """
     Main entry point to run the AI Team flow.
 

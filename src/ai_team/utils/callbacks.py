@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -30,39 +30,39 @@ class MetricsReport(BaseModel):
     retries, guardrail triggers, and tool call counts.
     """
 
-    task_durations_seconds: Dict[str, float] = Field(
+    task_durations_seconds: dict[str, float] = Field(
         default_factory=dict,
         description="Task key -> duration in seconds (start to complete).",
     )
-    token_usage_per_agent: Dict[str, int] = Field(
+    token_usage_per_agent: dict[str, int] = Field(
         default_factory=dict,
         description="Agent role -> estimated token count (from response length).",
     )
-    retry_counts_per_task: Dict[str, int] = Field(
+    retry_counts_per_task: dict[str, int] = Field(
         default_factory=dict,
         description="Task key -> number of retries.",
     )
-    retry_counts_per_phase: Dict[str, int] = Field(
+    retry_counts_per_phase: dict[str, int] = Field(
         default_factory=dict,
         description="Phase name -> number of retries.",
     )
-    guardrail_trigger_count: Dict[str, int] = Field(
+    guardrail_trigger_count: dict[str, int] = Field(
         default_factory=dict,
         description="Guardrail name -> trigger count.",
     )
-    tool_call_counts_per_agent: Dict[str, int] = Field(
+    tool_call_counts_per_agent: dict[str, int] = Field(
         default_factory=dict,
         description="Agent role -> number of tool calls.",
     )
     task_failure_count: int = Field(default=0, description="Total task failures (on_task_error).")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary of all metrics."""
         return self.model_dump()
 
     def to_table(self) -> str:
         """Return a human-readable table summary of metrics."""
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append("MetricsReport")
         lines.append("-" * 40)
         if self.task_durations_seconds:
@@ -133,9 +133,9 @@ class AITeamCallback:
     def __init__(
         self,
         *,
-        project_id: Optional[str] = None,
-        phase: Optional[str] = None,
-        webhook_url: Optional[str] = None,
+        project_id: str | None = None,
+        phase: str | None = None,
+        webhook_url: str | None = None,
         webhook_enabled: bool = False,
     ) -> None:
         self.project_id = project_id
@@ -143,7 +143,7 @@ class AITeamCallback:
         self.webhook_url = webhook_url
         self.webhook_enabled = bool(webhook_url and webhook_enabled)
         self._lock = threading.Lock()
-        self._task_start_times: Dict[str, float] = {}
+        self._task_start_times: dict[str, float] = {}
         self._metrics = MetricsReport()
         self._log = logger.bind(
             project_id=project_id or "",
@@ -153,10 +153,10 @@ class AITeamCallback:
     def _bind_context(
         self,
         *,
-        agent_role: Optional[str] = None,
-        task_name: Optional[str] = None,
+        agent_role: str | None = None,
+        task_name: str | None = None,
     ) -> structlog.BoundLogger:
-        extra: Dict[str, str] = {}
+        extra: dict[str, str] = {}
         if agent_role is not None:
             extra["agent_role"] = agent_role
         if task_name is not None:
@@ -233,7 +233,9 @@ class AITeamCallback:
     def on_crew_complete(self, crew: Any, output: Any) -> None:
         """Log crew completion with summary; optionally send phase webhook."""
         crew_name = getattr(crew, "name", str(crew))[:60] if crew else "unknown"
-        out_preview = str(output)[:300] + "..." if output and len(str(output)) > 300 else (str(output) or "")
+        out_preview = (
+            str(output)[:300] + "..." if output and len(str(output)) > 300 else (str(output) or "")
+        )
         self._log.info(
             "crew_complete",
             crew=crew_name,
@@ -259,7 +261,7 @@ class AITeamCallback:
         else:
             self._log.info("guardrail_trigger", guardrail=name, status=status, message=msg)
 
-    def record_retry(self, *, task: Optional[str] = None, phase: Optional[str] = None) -> None:
+    def record_retry(self, *, task: str | None = None, phase: str | None = None) -> None:
         """Record a retry for a task and/or phase (call from flow/routing)."""
         with self._lock:
             if task:
@@ -278,17 +280,18 @@ class AITeamCallback:
         with self._lock:
             return self._metrics.model_copy(deep=True)
 
-    def _send_webhook_sync(self, event_type: str, details: Dict[str, Any]) -> None:
+    def _send_webhook_sync(self, event_type: str, details: dict[str, Any]) -> None:
         if not self.webhook_enabled or not self.webhook_url:
             return
         payload = {
             "project_id": self.project_id,
             "event_type": event_type,
             "details": details,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         try:
             import httpx
+
             with httpx.Client(timeout=10) as client:
                 resp = client.post(self.webhook_url, json=payload)
                 if resp.status_code >= 400:
@@ -301,17 +304,18 @@ class AITeamCallback:
         except Exception as e:
             self._log.warning("webhook_post_error", url=self.webhook_url, error=str(e))
 
-    async def _send_webhook_async(self, event_type: str, details: Dict[str, Any]) -> None:
+    async def _send_webhook_async(self, event_type: str, details: dict[str, Any]) -> None:
         if not self.webhook_enabled or not self.webhook_url:
             return
         payload = {
             "project_id": self.project_id,
             "event_type": event_type,
             "details": details,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(self.webhook_url, json=payload)
                 if resp.status_code >= 400:
@@ -346,13 +350,19 @@ class AITeamCallback:
         """Async: log crew kickoff and optionally send webhook (async POST)."""
         crew_name = getattr(crew, "name", str(crew))[:60] if crew else "unknown"
         self._log.info("crew_start", crew=crew_name, event_type="crew_start")
-        await self._send_webhook_async("phase_transition", {"event": "crew_start", "crew": crew_name})
+        await self._send_webhook_async(
+            "phase_transition", {"event": "crew_start", "crew": crew_name}
+        )
 
     async def on_crew_complete_async(self, crew: Any, output: Any) -> None:
         """Async: log crew completion and optionally send webhook (async POST)."""
         crew_name = getattr(crew, "name", str(crew))[:60] if crew else "unknown"
-        out_preview = str(output)[:300] + "..." if output and len(str(output)) > 300 else (str(output) or "")
-        self._log.info("crew_complete", crew=crew_name, output_preview=out_preview, event_type="crew_complete")
+        out_preview = (
+            str(output)[:300] + "..." if output and len(str(output)) > 300 else (str(output) or "")
+        )
+        self._log.info(
+            "crew_complete", crew=crew_name, output_preview=out_preview, event_type="crew_complete"
+        )
         await self._send_webhook_async(
             "phase_transition",
             {"event": "crew_complete", "crew": crew_name, "output_preview": out_preview},
@@ -370,6 +380,7 @@ class AITeamCallback:
         CrewAI may pass (task, output) or a single object; this adapter
         calls on_task_complete with task, agent (from task if present), and output.
         """
+
         def _task_callback(*args: Any, **kwargs: Any) -> None:
             task, agent = None, None
             output = None
@@ -385,4 +396,5 @@ class AITeamCallback:
             if task is not None and hasattr(task, "agent"):
                 agent = getattr(task, "agent", None)
             self.on_task_complete(task, agent, output)
+
         return _task_callback
