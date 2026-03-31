@@ -1,0 +1,5 @@
+{
+  "project_name": "microservices",
+  "description": "Build a microservices system with three services: an API Gateway (Flask, port 8080) that routes requests, a User Service (Flask, port 5001) providing CRUD for users backed by SQLite, and a Notification Service (Flask, port 5002) that sends email notifications via a mock SMTP client. Services communicate via HTTP. Include docker-compose.yml for local orchestration, pytest unit tests per service, requirements.txt per service, and individual Dockerfiles.",
+  "stack": ["Flask", "SQLite", "Docker Compose", "pytest"]
+}

@@ -1,0 +1,5 @@
+{
+  "project_name": "ml_api",
+  "description": "Create a FastAPI inference service that loads a pre-trained scikit-learn model from disk, exposes POST /predict accepting a JSON feature vector and returning a prediction with confidence score, GET /health returning service status and model metadata, and GET /metrics returning request counts and latency percentiles. Include pytest unit tests with a mocked model, requirements.txt, and a Dockerfile.",
+  "stack": ["FastAPI", "scikit-learn", "pytest", "uvicorn"]
+}
