@@ -42,7 +42,32 @@ def _load_agents_config() -> dict[str, Any]:
     if not config_path.exists():
         raise FileNotFoundError(f"Agents config not found: {config_path}")
     with open(config_path, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        data = yaml.safe_load(f) or {}
+    # Self-improvement: append promoted lessons to backstory per role (best-effort).
+    try:
+        from ai_team.memory.lessons import load_role_lessons
+
+        for role_key, block in list(data.items()):
+            if not isinstance(block, dict):
+                continue
+            lessons = load_role_lessons(agent_role=str(role_key))
+            if not lessons:
+                continue
+            backstory = str(block.get("backstory") or "")
+            lesson_text = "\n".join(
+                [f"- {lsn.text.strip()}" for lsn in lessons if lsn.text.strip()]
+            )
+            if lesson_text:
+                block["backstory"] = (
+                    backstory.strip()
+                    + "\n\n"
+                    + "## Lessons from previous runs\n"
+                    + lesson_text
+                    + "\n"
+                )
+    except Exception:
+        pass
+    return data
 
 
 def _wrap_tool_with_guardrail(tool: Any, guardrail_enabled: bool = True) -> Any:

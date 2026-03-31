@@ -47,9 +47,9 @@ def test_langgraph_stream_writes_results_bundle(
     events = list(backend.iter_stream_events("x", profile, thread_id="tid", graph_mode="full"))
     assert any(e.get("type") == "langgraph_done" for e in events)
 
-    run_json = out_root / "tid" / "run.json"
-    state_json = out_root / "tid" / "state.json"
-    events_jsonl = out_root / "tid" / "events.jsonl"
+    run_json = out_root / "runs" / "tid" / "run.json"
+    state_json = out_root / "runs" / "tid" / "state.json"
+    events_jsonl = out_root / "runs" / "tid" / "events.jsonl"
     assert run_json.exists()
     assert state_json.exists()
     assert events_jsonl.exists()

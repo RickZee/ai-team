@@ -394,7 +394,7 @@ ai-team/
 │   ├── models/                   # SHARED: Pydantic output models
 │   ├── memory/                   # SHARED: memory config (each backend may use differently)
 │   ├── utils/                    # SHARED: logging, etc.
-│   ├── ui/                       # SHARED: Gradio UI (calls Backend protocol)
+│   ├── ui/                       # SHARED: src/ai_team/ui/ — Gradio UI (calls Backend protocol)
 │   ├── monitor.py                # SHARED: Rich TUI (adapter per backend for event consumption)
 │   └── main.py                   # UPDATED: --backend {crewai,langgraph} --team {profile} dispatch
 │
@@ -456,7 +456,7 @@ class Backend(Protocol):
 | `guardrails/` | **Keep** | Same logic, called by either backend |
 | `models/` | **Keep** | Unchanged |
 | `memory/` | **Keep** | Each backend wires it differently |
-| `ui/` | **Adapt** | Call `Backend.stream()` instead of framework-specific API |
+| `src/ai_team/ui/` | **Adapt** | Call `Backend.stream()` instead of framework-specific API |
 | `monitor.py` | **Adapt** | Backend-specific event adapters |
 | `main.py` | **Update** | Dispatch to selected backend |
 | `tests/` | **Extend** | Add LangGraph tests + comparison suite |
@@ -608,7 +608,7 @@ class Backend(Protocol):
   - Support `--resume <thread_id>` to resume interrupted runs
   - Keep `--env`, `--skip-estimate`, `--output` flags
 
-- [ ] **T8.2** Update Gradio UI (`ui/app.py`):
+- [ ] **T8.2** Update Gradio UI (`src/ai_team/ui/app.py`):
   - Wire to `graph.stream()` for real-time progress
   - Add human-in-the-loop UI: show interrupt message, accept feedback, resume with `Command(resume=...)`
 

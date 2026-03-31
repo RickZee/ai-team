@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from ai_team.backends.langgraph_backend.agents.prompts import load_agent_prompt
+from ai_team.backends.langgraph_backend.agents.prompts import build_system_prompt
 from ai_team.backends.langgraph_backend.agents.tools import get_langchain_tools_for_role
 from ai_team.backends.langgraph_backend.graphs.langgraph_chat import (
     create_chat_model_for_role,
@@ -48,7 +48,7 @@ def compile_testing_subgraph(
     llm = qa_llm or create_chat_model_for_role(
         "qa_engineer", model_id_override=overrides.get("qa_engineer")
     )
-    prompt = load_agent_prompt("qa_engineer").system_message()
+    prompt = build_system_prompt("qa_engineer")
     tools = get_langchain_tools_for_role("qa_engineer")
     agent = create_react_agent(
         llm,

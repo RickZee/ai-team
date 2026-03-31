@@ -20,7 +20,7 @@ from ai_team.backends.langgraph_backend.graphs.main_graph import (
 )
 from ai_team.config.settings import reload_settings
 from ai_team.core.result import ProjectResult
-from ai_team.core.results import ResultsBundle, Scorecard
+from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
 from ai_team.core.team_profile import TeamProfile
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
@@ -138,10 +138,20 @@ class LangGraphBackend:
             else:
                 g = self._compile_for_run(mode, None)
                 final = g.invoke(initial_state, config)
+            state_dict: dict[str, Any] = final if isinstance(final, dict) else {"state": final}
+            # Self-improvement capture should not depend on result bundle persistence.
+            with contextlib.suppress(Exception):
+                from ai_team.memory.lessons import record_run_failures
+
+                record_run_failures(
+                    run_id=thread_id,
+                    backend=self.name,
+                    team_profile=profile.name,
+                    state=state_dict,
+                )
             try:
                 # Persist final state + derived artifacts.
                 b.write_state(final if isinstance(final, dict) else {"state": final})
-                state_dict: dict[str, Any] = final if isinstance(final, dict) else {"state": final}
                 # Planning artifacts (best-effort).
                 planning_req = state_dict.get("requirements") or {}
                 planning_arch = state_dict.get("architecture") or {}
@@ -159,12 +169,14 @@ class LangGraphBackend:
                         b.write_artifact_text("testing", "ruff.txt", lint_out + "\n")
                     if test_out:
                         b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
-                b.write_scorecard(Scorecard(status="complete"))
+                b.write_scorecard(scorecard_from_langgraph_state(thread_id, state_dict))
             except Exception:
                 pass
             return ProjectResult(
                 backend_name=self.name,
-                success=True,
+                success=bool(
+                    (final.get("current_phase") if isinstance(final, dict) else None) == "complete"
+                ),
                 raw={"state": final, "thread_id": thread_id},
                 team_profile=profile.name,
             )
@@ -208,8 +220,9 @@ class LangGraphBackend:
                 g = self._compile_for_run(mode, None)
                 final = g.invoke(cmd, config)
             try:
-                b.write_state(final if isinstance(final, dict) else {"state": final})
-                b.write_scorecard(Scorecard(status="complete"))
+                final_dict = final if isinstance(final, dict) else {"state": final}
+                b.write_state(final_dict)
+                b.write_scorecard(scorecard_from_langgraph_state(thread_id, final_dict))
             except Exception:
                 pass
             return ProjectResult(
@@ -301,6 +314,15 @@ class LangGraphBackend:
                 snap = g.get_state(config)
                 try:
                     final_state = cast(dict[str, Any], snap.values)
+                    with contextlib.suppress(Exception):
+                        from ai_team.memory.lessons import record_run_failures
+
+                        record_run_failures(
+                            run_id=thread_id,
+                            backend=self.name,
+                            team_profile=profile.name,
+                            state=final_state,
+                        )
                     b.write_state(final_state)
                     # Planning artifacts (best-effort).
                     planning_req = final_state.get("requirements") or {}
@@ -320,7 +342,7 @@ class LangGraphBackend:
                         if test_out:
                             b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                     b.append_event({"type": "langgraph_done"})
-                    b.write_scorecard(Scorecard(status="complete"))
+                    b.write_scorecard(scorecard_from_langgraph_state(thread_id, final_state))
                 except Exception:
                     pass
                 yield {

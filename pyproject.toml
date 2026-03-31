@@ -39,6 +39,8 @@ langgraph-checkpoint-postgres = ">=2.0.0"
 langgraph-supervisor = "^0.0.31"
 huggingface-hub = ">=0.20,<1"
 textual = ">=0.80.0"
+fastapi = ">=0.115.0"
+uvicorn = {version = ">=0.30.0", extras = ["standard"]}
 cryptography = "^46.0.6"
 pillow = "^12.1.1"
 pygments = "^2.20.0"
@@ -63,6 +65,7 @@ types-pyyaml = "^6.0.12.20250915"
 ai-team = "ai_team.main:main"
 ai-team-ui = "ai_team.ui.main:run"
 ai-team-tui = "ai_team.ui.tui.app:main"
+ai-team-web = "ai_team.ui.web.server:main"
 
 [build-system]
 requires = ["poetry-core"]

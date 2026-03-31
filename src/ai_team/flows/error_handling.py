@@ -8,6 +8,7 @@ and structured error reporting with metrics.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from datetime import UTC, datetime
@@ -16,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from ai_team.config.settings import get_settings
 from ai_team.flows.state import ProjectPhase, ProjectState
 from pydantic import BaseModel, Field
 
@@ -229,18 +229,26 @@ def circuit_breaker_should_escalate(state: ProjectState, phase: ProjectPhase) ->
 
 def persist_state_on_error(state: ProjectState, error_info: dict[str, Any] | None = None) -> Path:
     """
-    Save ProjectState to JSON in output_dir on error.
+    Save ProjectState to ``output/runs/<project_id>/state.json`` on error.
     Optionally merge error_info into state.metadata for resume context.
     Returns path to written file.
     """
+    from ai_team.core.results import ResultsBundle, scorecard_from_project_state
+
     if error_info:
         state.metadata["last_error"] = error_info
-    settings = get_settings()
-    out_dir = Path(settings.project.output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{state.project_id}_state.json"
-    data = state.model_dump(mode="json")
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    b = ResultsBundle(state.project_id)
+    b.init_dirs()
+    path = b.write_state(state.model_dump(mode="json"))
+    with contextlib.suppress(Exception):
+        b.write_scorecard(
+            scorecard_from_project_state(
+                state.project_id,
+                state,
+                status="error",
+                backend="crewai",
+            )
+        )
     logger.info("state_persisted_on_error", path=str(path))
     return path
 

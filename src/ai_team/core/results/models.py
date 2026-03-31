@@ -38,9 +38,26 @@ class RunMetadata(BaseModel):
 
 class Scorecard(BaseModel):
     status: Literal["complete", "error", "partial"] = "partial"
+    run_id: str | None = Field(default=None, description="Same as project_id / thread id for this run.")
+    current_phase: str | None = None
+    backend: str | None = None
+    team_profile: str | None = None
+    error_count: int = 0
+    test_passed: bool | None = Field(
+        default=None,
+        description="Whether tests succeeded (CrewAI TestRunResult.success or LangGraph test_results.tests.ok).",
+    )
+    lint_ok: bool | None = Field(
+        default=None,
+        description="Whether lint passed when present (LangGraph test_results.lint.ok).",
+    )
     phases: dict[str, dict[str, Any]] = Field(
         default_factory=dict,
         description="Phase -> {status, details...}",
     )
     guardrails: list[dict[str, Any]] = Field(default_factory=list)
     kpis: dict[str, Any] = Field(default_factory=dict)
+    artifact_paths: dict[str, str] = Field(
+        default_factory=dict,
+        description="Logical name -> path relative to configured project output root (e.g. runs/<id>/state.json).",
+    )
