@@ -23,6 +23,7 @@ concurrency:
 
 env:
   POETRY_VERSION: "2.3.2"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   lint:
