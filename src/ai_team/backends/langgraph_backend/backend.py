@@ -138,7 +138,26 @@ class LangGraphBackend:
                 g = self._compile_for_run(mode, None)
                 final = g.invoke(initial_state, config)
             try:
+                # Persist final state + derived artifacts.
                 b.write_state(final if isinstance(final, dict) else {"state": final})
+                state_dict: dict[str, Any] = final if isinstance(final, dict) else {"state": final}
+                # Planning artifacts (best-effort).
+                planning_req = state_dict.get("requirements") or {}
+                planning_arch = state_dict.get("architecture") or {}
+                if planning_req:
+                    b.write_artifact_json("planning", "requirements.json", planning_req)
+                if planning_arch:
+                    b.write_artifact_json("planning", "architecture.json", planning_arch)
+                # Testing artifacts (best-effort).
+                tr = state_dict.get("test_results") or {}
+                if tr:
+                    b.write_artifact_json("testing", "test_results.json", tr)
+                    lint_out = ((tr.get("lint") or {}).get("output") or "").strip()
+                    test_out = ((tr.get("tests") or {}).get("output") or "").strip()
+                    if lint_out:
+                        b.write_artifact_text("testing", "ruff.txt", lint_out + "\n")
+                    if test_out:
+                        b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                 b.write_scorecard(Scorecard(status="complete"))
             except Exception:
                 pass
@@ -284,7 +303,25 @@ class LangGraphBackend:
                     yield ev
                 snap = g.get_state(config)
                 try:
-                    b.write_state(cast(dict[str, Any], snap.values))
+                    final_state = cast(dict[str, Any], snap.values)
+                    b.write_state(final_state)
+                    # Planning artifacts (best-effort).
+                    planning_req = final_state.get("requirements") or {}
+                    planning_arch = final_state.get("architecture") or {}
+                    if planning_req:
+                        b.write_artifact_json("planning", "requirements.json", planning_req)
+                    if planning_arch:
+                        b.write_artifact_json("planning", "architecture.json", planning_arch)
+                    # Testing artifacts (best-effort).
+                    tr = final_state.get("test_results") or {}
+                    if tr:
+                        b.write_artifact_json("testing", "test_results.json", tr)
+                        lint_out = ((tr.get("lint") or {}).get("output") or "").strip()
+                        test_out = ((tr.get("tests") or {}).get("output") or "").strip()
+                        if lint_out:
+                            b.write_artifact_text("testing", "ruff.txt", lint_out + "\n")
+                        if test_out:
+                            b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                     b.append_event({"type": "langgraph_done"})
                     b.write_scorecard(Scorecard(status="complete"))
                 except Exception:

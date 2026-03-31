@@ -160,10 +160,14 @@ class FileWriterTool(BaseTool):
     ) -> str:
         logger.debug("file_writer", path=path, overwrite=overwrite)
         # Prefer the secure writer (path validation, content scanning).
-        # If overwrite=False and the file exists, we currently still write; overwrite semantics
-        # are handled at a higher level (agents should avoid clobbering unless intended).
-        safe_write_file(path, content)
-        return "OK"
+        # If a write is rejected, return an error string instead of raising so the agent can
+        # recover (e.g., move tests under tests/ rather than crashing the whole subgraph).
+        try:
+            safe_write_file(path, content)
+            return "OK"
+        except Exception as e:
+            logger.warning("file_writer_rejected", path=path, error=str(e))
+            return f"ERROR: {e}"
 
 
 class DependencyResolverTool(BaseTool):
