@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from ai_team.backends.langgraph_backend.agents.prompts import load_agent_prompt
+from ai_team.backends.langgraph_backend.agents.prompts import build_system_prompt
 from ai_team.backends.langgraph_backend.agents.tools import get_langchain_tools_for_role
 from ai_team.backends.langgraph_backend.graphs.langgraph_chat import (
     create_chat_model_for_role,
@@ -64,7 +64,7 @@ def compile_deployment_subgraph(
         return create_chat_model_for_role(role, model_id_override=overrides.get(role))
 
     def _make_agent(role: str) -> CompiledStateGraph:
-        prompt = load_agent_prompt(role).system_message()
+        prompt = build_system_prompt(role)
         tools = get_langchain_tools_for_role(role)
         return create_react_agent(
             _llm_for(role),

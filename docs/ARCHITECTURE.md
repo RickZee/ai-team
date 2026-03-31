@@ -1,6 +1,54 @@
 # Architecture
 
-This document describes the AI Team system architecture: flows, crews, agents, tools, guardrails, and memory. It aligns with the CrewAI-based design and the `AITeamFlow` orchestrator.
+This document describes the AI Team system architecture: flows, crews, agents, tools, guardrails, memory, and UI layers. It aligns with the multi-backend design and the `Backend` protocol.
+
+---
+
+## 0. UI & Monitoring Layer
+
+Three UI interfaces serve different audiences — all integrate through the same `TeamMonitor`, `Backend` protocol, and cost tracking APIs.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                              UI LAYER                                            │
+│                                                                                  │
+│  ┌─────────────────────┐  ┌──────────────────┐  ┌───────────────┐  ┌──────────┐ │
+│  │ Web Dashboard       │  │ Textual TUI      │  │ Rich Monitor  │  │ Gradio   │ │
+│  │ (FastAPI + React)   │  │ (ai-team-tui)    │  │ (--monitor)   │  │ (legacy) │ │
+│  │                     │  │                  │  │               │  │          │ │
+│  │ • REST + WebSocket  │  │ • 3 tabs: Dash,  │  │ • Inline CLI  │  │ • Quick  │ │
+│  │ • Real-time stream  │  │   Run, Compare   │  │   live display│  │   demo   │ │
+│  │ • Compare backends  │  │ • Keyboard nav   │  │ • Phase, log, │  │          │ │
+│  │ • Cost estimation   │  │ • Demo mode      │  │   agents,     │  │          │ │
+│  │ • Agent monitoring  │  │ • Cost estimate  │  │   guardrails  │  │          │ │
+│  └────────┬────────────┘  └────────┬─────────┘  └───────┬───────┘  └────┬─────┘ │
+│           └────────────────────────┼─────────────────────┘               │       │
+│                                    ▼                                     │       │
+│           ┌─────────────────────────────────────────────────┐           │       │
+│           │ TeamMonitor (monitor.py)                        │◄──────────┘       │
+│           │ • Phase tracking    • Agent status table         │                   │
+│           │ • Metrics (tasks, guardrails, tests, files)      │                   │
+│           │ • Activity log      • Guardrail events           │                   │
+│           └──────────────────────┬──────────────────────────┘                   │
+│                                  ▼                                               │
+│           ┌─────────────────────────────────────────────────┐                   │
+│           │ Backend Registry → get_backend("crewai|langgraph")│                   │
+│           │ Cost Estimator → estimate_run_cost(settings, cx)  │                   │
+│           │ Token Tracker → record(), summary(), save_report()│                   │
+│           └─────────────────────────────────────────────────┘                   │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/ai_team/ui/web/server.py` | FastAPI server — REST + WebSocket endpoints |
+| `src/ai_team/ui/web/frontend/` | React + TypeScript + Vite dashboard |
+| `src/ai_team/ui/tui/app.py` | Textual TUI application |
+| `src/ai_team/ui/tui/widgets.py` | Custom Textual widgets (PhasePipeline, AgentTable, etc.) |
+| `src/ai_team/ui/app.py` | Gradio UI (legacy) |
+| `src/ai_team/monitor.py` | TeamMonitor — shared data model for all UIs |
 
 ---
 
@@ -252,14 +300,14 @@ ai-team/
 │   ├── guardrails/       # Guardrail layer
 │   │   └── __init__.py   # Behavioral, Security, Quality + create_full_guardrail_chain
 │   ├── memory/           # Short-term, long-term, entity memory config & access
-│   └── utils/            # Shared helpers
+│   ├── utils/            # Shared helpers
+│   └── ui/               # Gradio (`app.py`), Rich TUI, FastAPI + Vite web (`web/`, `components/`, `pages/`)
 ├── tests/
 │   ├── unit/
 │   ├── integration/
 │   └── e2e/
 ├── docs/                 # ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md
 ├── scripts/              # setup_openrouter.sh, test_models.py, run_demo.py
-├── ui/                   # Gradio app (app.py, components/, pages/)
 └── demos/                # Demo projects (input.json, expected_output.json)
 ```
 

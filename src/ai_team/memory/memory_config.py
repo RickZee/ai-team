@@ -253,6 +253,8 @@ class LongTermStore:
         try:
             yield conn
         finally:
+            with suppress(Exception):
+                conn.commit()
             if self._path != ":memory:":
                 conn.close()
 
@@ -412,6 +414,8 @@ class EntityStore:
         try:
             yield conn
         finally:
+            with suppress(Exception):
+                conn.commit()
             if self._path != ":memory:":
                 conn.close()
 

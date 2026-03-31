@@ -193,11 +193,12 @@ class TestStatePreservation:
     def test_persist_and_load_roundtrip(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from ai_team.flows import error_handling as eh
-
         settings = MagicMock()
         settings.project.output_dir = str(tmp_path)
-        monkeypatch.setattr(eh, "get_settings", lambda: settings)
+        settings.project.workspace_dir = str(tmp_path / "ws")
+        monkeypatch.setattr(
+            "ai_team.core.results.writer.get_settings", lambda: settings
+        )
 
         state = ProjectState(project_id="persist1", current_phase=ProjectPhase.PLANNING)
         state.project_description = "Test project"
@@ -211,11 +212,12 @@ class TestStatePreservation:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Loaded state has consecutive_failures_* reset to 0 so a new run does not inherit old counts."""
-        from ai_team.flows import error_handling as eh
-
         settings = MagicMock()
         settings.project.output_dir = str(tmp_path)
-        monkeypatch.setattr(eh, "get_settings", lambda: settings)
+        settings.project.workspace_dir = str(tmp_path / "ws")
+        monkeypatch.setattr(
+            "ai_team.core.results.writer.get_settings", lambda: settings
+        )
 
         state = ProjectState(project_id="reset1", current_phase=ProjectPhase.PLANNING)
         record_failure(state, ProjectPhase.PLANNING)

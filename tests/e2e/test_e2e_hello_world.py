@@ -273,7 +273,7 @@ def test_e2e_hello_world_flask_api() -> None:
     duration_seconds = time.monotonic() - start
     state_dump = flow.state.model_dump(mode="json")
     project_id = state_dump.get("project_id") or "unknown"
-    output_dir = base_output / project_id
+    output_dir = base_output / "runs" / project_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Materialize generated code files into output_dir (flow only writes deployment package there)

@@ -78,7 +78,7 @@ Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_pr
 | **Enterprise guardrails** | Behavioral (role, scope), security (code safety, PII, secrets), quality (syntax, completeness) |
 | **MCP servers** | Per-team, per-agent MCP tool providers (GitHub, filesystem, Docker, Postgres) |
 | **RAG knowledge** | Static best practices + dynamic project knowledge, scoped per agent role |
-| **Observable** | Rich TUI, Gradio UI, structured logging, cost tracking |
+| **Observable** | Web dashboard (FastAPI + React), Textual TUI, Gradio UI, structured logging, cost tracking |
 
 #### Sample screenshots
 
@@ -98,7 +98,8 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                              CLI / Gradio UI                                 │
+│                         UI Layer (3 interfaces)                               │
+│  Web Dashboard (FastAPI+React) │ Textual TUI │ Gradio │ CLI                  │
 │         --backend crewai | langgraph | claude-sdk    --team <profile>        │
 └──────────────────────────────┬───────────────────────────────────────────────┘
                                ▼
@@ -224,17 +225,72 @@ poetry run python -m ai_team run "Build a minimal Flask API" \
 | `--thread-id` | Resume thread (LangGraph checkpointing) |
 | `--resume` | Resume after human-in-the-loop interrupt |
 
-The Gradio UI (`poetry run ai-team-ui`) supports backend and team selection in the interface.
+All three UI modes (`ai-team-web`, `ai-team-tui`, `ai-team-ui`) support backend and team selection in their interfaces.
 
-## Real-time monitor (TUI)
+## Monitoring & UI
 
-A Rich-based terminal dashboard shows live agent activity, phase progress, guardrail results, and execution metrics. Works with all backends.
+Three UI modes for different audiences — all share the same backend registry, monitor data models, and cost tracking.
+
+### Web Dashboard (FastAPI + React)
+
+A production-grade browser UI with real-time WebSocket streaming, GitHub-dark theme, and side-by-side backend comparison.
+
+```bash
+# Development (hot reload)
+poetry run ai-team-web &                          # FastAPI on :8421
+cd src/ai_team/ui/web/frontend && npm run dev     # React on :5173 (proxies API)
+
+# Production (single server)
+cd src/ai_team/ui/web/frontend && npm run build
+poetry run ai-team-web                            # Serves React build + API on :8421
+```
+
+**Pages:**
+
+| Page | Route | Features |
+|------|-------|----------|
+| Dashboard | `/` | Auto-connects to active runs, real-time phase pipeline, agent table, metrics, activity log, guardrails |
+| Run | `/run` | Backend selector, team profile, complexity, cost estimation, WebSocket streaming |
+| Compare | `/compare` | Runs CrewAI and LangGraph simultaneously with comparison summary table |
+
+**API endpoints:**
+
+| Endpoint | Type | Purpose |
+|----------|------|---------|
+| `GET /api/profiles` | REST | List team profiles |
+| `GET /api/backends` | REST | List backends |
+| `POST /api/estimate` | REST | Cost estimation |
+| `POST /api/demo` | REST | Start demo simulation |
+| `WS /ws/run` | WebSocket | Run backend with real-time event streaming |
+| `WS /ws/monitor/{id}` | WebSocket | Monitor active run (500ms state snapshots) |
+
+### Textual TUI (Terminal)
+
+A Textual-based interactive terminal dashboard with keyboard navigation.
+
+```bash
+poetry run ai-team-tui              # Launch TUI
+poetry run ai-team-tui --demo       # Launch with simulated demo
+```
+
+**Tabs:** Dashboard (`d`), Run (`r`), Compare (`c`), Quit (`q`)
+
+Features: real-time phase pipeline, agent status table, metrics panel, activity log, guardrails panel, cost estimation, backend comparison — all in the terminal.
+
+### Rich Monitor (inline)
+
+The original Rich-based live display, embedded in CLI runs.
 
 ```bash
 poetry run ai-team --monitor "Create a REST API for a todo list"
+python -m ai_team.monitor   # Simulated demo
 ```
 
-To try with simulated activity: `python -m ai_team.monitor`. See the monitor API in `src/ai_team/monitor/`.
+### Gradio UI (legacy)
+
+```bash
+poetry run ai-team-ui   # Gradio on :7860
+```
 
 ## Testing
 
@@ -287,7 +343,7 @@ ai-team/
 │   ├── memory/              # Session and long-term memory
 │   ├── monitor/             # Rich TUI dashboard
 │   ├── utils/               # Shared utilities
-│   └── ui/                  # Gradio app and components
+│   └── ui/                  # Gradio (`app.py`), Rich TUI, FastAPI + Vite web (`web/`)
 ├── tests/
 │   ├── unit/
 │   ├── integration/

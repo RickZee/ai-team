@@ -209,8 +209,8 @@ __marimo__/
 # Archive folder
 .archive/
 
-# ChromaDB persistence (local vector DB; created at runtime)
-data/chroma/
+# All data is local only
+data/
 
 # Docker
 docker-compose.override.yml

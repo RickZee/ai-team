@@ -1281,7 +1281,7 @@ ai-team/
 │   ├── config/                          # SHARED (add claude-agent-sdk model config)
 │   ├── rag/                             # SHARED (knowledge as CLAUDE.md or MCP resources)
 │   ├── mcp/                             # SHARED (MCP client config)
-│   ├── ui/                              # SHARED (wire to Backend.stream())
+│   ├── ui/                              # SHARED: src/ai_team/ui/ (wire to Backend.stream())
 │   └── monitor.py                       # SHARED (consume stream events)
 │
 ├── tests/
@@ -1468,7 +1468,7 @@ ai-team/
   - Add `--budget <usd>` flag for cost limit
   - Display session ID after run for resume capability
 
-- [ ] **T6.2** Update Gradio UI (`ui/app.py`):
+- [ ] **T6.2** Update Gradio UI (`src/ai_team/ui/app.py`):
   - Wire to `ClaudeAgentBackend.stream()` for real-time progress
   - Show `AskUserQuestion` prompts in UI for HITL
   - Display per-phase cost breakdown

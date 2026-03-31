@@ -21,7 +21,7 @@ import structlog
 from ai_team.config.model_validation import ModelValidationError, validate_models_before_run
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings, reload_settings
-from ai_team.core.results import ResultsBundle, Scorecard
+from ai_team.core.results import ResultsBundle, scorecard_from_project_state
 from ai_team.flows.error_handling import (
     handle_deployment_error as handle_deployment_error_fn,
 )
@@ -115,15 +115,13 @@ def _looks_like_architecture(data: Any) -> bool:
 
 
 def _persist_state(state: ProjectState) -> None:
-    """Write state to output_dir as JSON for persistence. Uses project_id in filename."""
-    settings = get_settings()
-    out_dir = Path(settings.project.output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{state.project_id}_state.json"
-    # Serialize; exclude large or non-serializable fields if needed
-    data = state.model_dump(mode="json")
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    logger.info("state_persisted", path=str(path))
+    """Write state under ``output/runs/<project_id>/state.json`` and refresh registry."""
+    try:
+        b = ResultsBundle(state.project_id)
+        path = b.write_state(state.model_dump(mode="json"))
+        logger.info("state_persisted", path=str(path))
+    except Exception as e:
+        logger.warning("state_persistence_failed", error=str(e))
 
 
 def _parse_planning_output(
@@ -253,7 +251,7 @@ class AITeamFlow(Flow[ProjectState]):
             # If settings reload fails, continue with default shared workspace.
             pass
 
-        # Initialize results bundle (output/<project_id>/ + workspace/<project_id>/).
+        # Initialize results bundle (output/runs/<project_id>/ + workspace/<project_id>/).
         try:
             b = ResultsBundle(self.state.project_id)
             meta = b.default_run_metadata(
@@ -731,7 +729,7 @@ class AITeamFlow(Flow[ProjectState]):
             except Exception:
                 # Fall back to legacy location.
                 settings = get_settings()
-                output_dir = Path(settings.project.output_dir) / self.state.project_id
+                output_dir = Path(settings.project.output_dir) / "runs" / self.state.project_id
                 output_dir.mkdir(parents=True, exist_ok=True)
                 package_output(deploy_result, output_dir)
             # DeploymentConfig may be updated from crew if needed; state already has from dev crew
@@ -782,7 +780,16 @@ class AITeamFlow(Flow[ProjectState]):
 
         try:
             b = self._bundle()
-            b.write_state(self.state.model_dump(mode="json"))
+            # Self-improvement capture: persist failure records for learning (no-op on clean runs).
+            with contextlib.suppress(Exception):
+                from ai_team.memory.lessons import record_run_failures
+
+                record_run_failures(
+                    run_id=self.state.project_id,
+                    backend="crewai",
+                    team_profile=str(self.state.metadata.get("team_profile") or "full"),
+                    state=self.state,
+                )
             b.write_summary(
                 "\n".join(
                     [
@@ -796,12 +803,12 @@ class AITeamFlow(Flow[ProjectState]):
                 )
             )
             b.write_scorecard(
-                Scorecard(
+                scorecard_from_project_state(
+                    self.state.project_id,
+                    self.state,
                     status="complete",
-                    kpis={
-                        "files_generated": len(self.state.generated_files),
-                        "duration_seconds": duration_seconds,
-                    },
+                    backend="crewai",
+                    duration_seconds=duration_seconds,
                 )
             )
         except Exception:
@@ -919,6 +926,28 @@ class AITeamFlow(Flow[ProjectState]):
             _persist_state(self.state)
         except Exception as e:
             self.logger.warning("state_persistence_failed", error=str(e))
+        try:
+            b = self._bundle()
+            b.write_scorecard(
+                scorecard_from_project_state(
+                    self.state.project_id,
+                    self.state,
+                    status="error",
+                    backend="crewai",
+                )
+            )
+        except Exception:
+            pass
+        # Self-improvement capture: persist failure records for learning.
+        with contextlib.suppress(Exception):
+            from ai_team.memory.lessons import record_run_failures
+
+            record_run_failures(
+                run_id=self.state.project_id,
+                backend="crewai",
+                team_profile=str(self.state.metadata.get("team_profile") or "full"),
+                state=self.state,
+            )
         return {"status": "failed", "errors": [e.model_dump() for e in self.state.errors]}
 
     @listen("handle_planning_error")
