@@ -103,6 +103,10 @@ class TestWriteFile:
         assert write_file("new.txt", "content") is True
         assert (tmp_workspace / "new.txt").read_text() == "content"
 
+    def test_write_file_rejects_root_level_pytest_file(self, tmp_workspace):
+        with pytest.raises(ValueError, match="root-level pytest file"):
+            write_file("test_scratch.py", "print('nope')\n")
+
     def test_write_file_path_traversal_rejected(self, tmp_workspace):
         with pytest.raises(ValueError, match="Path traversal"):
             write_file("../output/escape.txt", "x")

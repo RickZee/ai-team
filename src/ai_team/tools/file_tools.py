@@ -200,6 +200,19 @@ def write_file(path: str, content: str) -> bool:
     resolved = _resolve_and_validate_path(
         path, allow_new_file=True
     )
+    # Prevent accidental creation of pytest-collected scratch files at workspace root.
+    # Root-level files named "test_*.py" will be collected by pytest and can break runs.
+    settings = get_settings()
+    ws_root = Path(settings.project.workspace_dir).resolve()
+    try:
+        rel = resolved.relative_to(ws_root)
+    except ValueError:
+        rel = None
+    if rel is not None:
+        if resolved.suffix == ".py" and resolved.name.startswith("test_") and len(rel.parts) == 1:
+            raise ValueError(
+                "Refusing to write root-level pytest file. Put tests under tests/ (e.g. tests/test_*.py)."
+            )
     if resolved.exists() and resolved.is_dir():
         _audit_log("write_file", str(resolved), False, "path is a directory")
         raise ValueError(f"Path is a directory: {resolved}")

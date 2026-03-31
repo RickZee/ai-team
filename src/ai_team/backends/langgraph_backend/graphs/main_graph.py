@@ -53,7 +53,7 @@ def _node_human_review_placeholder(state: LangGraphProjectState) -> dict[str, An
 
 def _node_human_review_full(
     state: LangGraphProjectState,
-    _config: RunnableConfig,
+    _config: RunnableConfig | None = None,
 ) -> dict[str, Any]:
     from langgraph.types import interrupt
 
