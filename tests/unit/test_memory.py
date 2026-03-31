@@ -7,15 +7,12 @@ mock embedder, memory cleanup and TTL expiry.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from ai_team.config.settings import MemorySettings
 from ai_team.memory.memory_config import (
     MemoryManager,
-    get_crew_embedder_config,
     OpenRouterChromaEmbeddingFunction,
+    get_crew_embedder_config,
 )
-
 
 # -----------------------------------------------------------------------------
 # MemoryManager ChromaDB storage and retrieval

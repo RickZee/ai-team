@@ -71,6 +71,15 @@ This document describes the AI Team system architecture: flows, crews, agents, t
 | **ProjectState** | Pydantic model holding all flow state: `project_id`, `user_request`, `current_phase`, `requirements`, `architecture`, `generated_files`, `test_results`, `deployment_config`, `errors`, `human_feedback`, `awaiting_human_input`, etc. |
 | **Routing logic** | After each crew step, routers decide the next step (e.g. `run_development`, `request_clarification`, `handle_fatal_error`, `retry_development`, `escalate_test_failures`). Supports human-in-the-loop and error recovery. |
 
+#### 2.1.1 Orchestration backends (CrewAI vs LangGraph)
+
+| Backend | Entry | Role |
+|---------|--------|------|
+| **CrewAI** | `CrewAIBackend` → `run_ai_team` / `AITeamFlow` | Default production path: hierarchical crews, tools, memory, guardrails. |
+| **LangGraph** | `LangGraphBackend` → compiled `StateGraph` (`compile_main_graph`) | Alternative orchestration with the same high-level phases (intake → planning → … → deployment). Supports SQLite/Postgres checkpointing, `graph.stream(..., stream_mode="updates")`, and `Command(resume=...)` after `interrupt()` for HITL. |
+
+Both implement the shared `Backend` protocol and return `ProjectResult`. Team composition and phase lists come from the same `TeamProfile` (`config/team_profiles.yaml`). The CLI selects the backend with `--backend crewai|langgraph`. See ADR-004 and ADR-005 below.
+
 ### 2.2 Crew Layer
 
 | Crew | Purpose | Key agents |
@@ -339,6 +348,34 @@ ai-team/
 - **Traceability:** Manager’s decisions and status updates can be logged and reflected in ProjectState for observability.
 
 **Consequences:** The Manager agent must be capable of task decomposition and routing; it should use tools like task_delegation and status_reporting. Testing and Deployment crews can remain simpler (e.g. single primary agent or small flat crew) since they have fewer concurrent roles.
+
+---
+
+### ADR-004: LangGraph as an alternative orchestration backend
+
+**Status:** Accepted  
+
+**Context:** CrewAI Flows cover the primary multi-crew pipeline. Some workflows benefit from explicit graph semantics, first-class checkpointing, and streamable node updates for CLI/TUI/Gradio.
+
+**Decision:** Add an optional **LangGraph** backend (`LangGraphBackend`) that compiles a main graph with phase-aligned nodes, conditional routing, guardrail nodes, and optional subgraphs for planning/development/testing/deployment.
+
+**Rationale:** Same `ProjectResult` contract; enables `--resume` after interrupts; integrates with existing team profiles without duplicating agent definitions in graph code (subgraph runners consume profile-aware tools).
+
+**Consequences:** Two code paths to maintain; LangGraph subgraphs that call LLMs must stay aligned with CrewAI tool/guardrail behavior. Comparison tooling (`scripts/compare_backends.py`) helps validate parity on demos.
+
+---
+
+### ADR-005: Multi-backend architecture and team profiles
+
+**Status:** Accepted  
+
+**Context:** Users need to swap orchestration engines and team composition without forking the repository.
+
+**Decision:** Centralize backend selection in `get_backend(name)` and team composition in `load_team_profile(team)`. CLI flags: `--backend`, `--team`. Both backends receive the same `TeamProfile` and project description string.
+
+**Rationale:** One configuration surface (`team_profiles.yaml`); demos and comparison scripts exercise both backends with identical inputs.
+
+**Consequences:** New backend features should be reflected in both stacks when parity matters, or documented as backend-specific.
 
 ---
 

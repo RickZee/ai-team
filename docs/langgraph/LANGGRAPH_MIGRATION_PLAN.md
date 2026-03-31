@@ -618,19 +618,20 @@ class Backend(Protocol):
 
 ### Phase 9: Testing, Comparison & Demos (5 tasks)
 
-- [ ] **T9.1** Write full integration test suite for LangGraph backend:
-  - Test each subgraph independently with mocked LLMs
-  - Test main graph end-to-end with mocked LLMs
-  - Test routing logic (all conditional edge paths)
-  - Test human-in-the-loop flow (interrupt + resume)
-  - Test error recovery (retry loops, error states)
+- [x] **T9.1** Write full integration test suite for LangGraph backend:
+  - Subgraphs: `tests/unit/backends/langgraph_backend/test_subgraphs_compile.py` (``FakeChatModelWithBindTools`` + empty tools for planning, development, testing, deployment).
+  - Main graph (full mode): `tests/unit/backends/langgraph_backend/test_main_graph_full_mocked_e2e.py` (stub subgraph nodes — complete, planning error, retry loop).
+  - Placeholder graph: HITL from planning and from testing metadata; `test_planning_subgraph_node` exception mapping.
+  - Routing: `tests/unit/backends/langgraph_backend/test_routing.py` (all conditional edges).
+  - Interrupt + resume: `tests/integration/test_langgraph_interrupt_resume.py`.
+  - Integration smoke: `tests/integration/test_langgraph_backend_integration.py` (short description → error).
 
-- [ ] **T9.2** Write backend comparison test suite (`tests/comparison/`):
+- [x] **T9.2** Write backend comparison test suite (`tests/unit/test_backend_comparison.py`, `models/comparison_report.py`):
   - Run the same demo input through both CrewAI and LangGraph backends
   - Compare: output quality (file count, test pass rate), cost (tokens used), latency, error rate
   - Produce a structured comparison report (JSON + markdown)
 
-- [ ] **T9.3** Create `scripts/compare_backends.py`:
+- [x] **T9.3** Create `scripts/compare_backends.py`:
   - CLI: `python scripts/compare_backends.py demos/01_hello_world --env dev`
   - Runs demo through both backends, outputs side-by-side comparison table
   - Supports `--team <profile>` to test use-case-specific configurations
@@ -640,11 +641,11 @@ class Backend(Protocol):
   - `demos/02_todo_app` — full-stack TODO app (both backends)
   - Test at least 2 team profiles (`full` and `backend-api`)
 
-- [ ] **T9.5** Update all documentation:
+- [x] **T9.5** Update all documentation:
   - `README.md` — document multi-backend support, `--backend` and `--team` flags
   - `docs/ARCHITECTURE.md` — updated diagrams showing backend abstraction
   - `docs/FLOWS.md` — graph topology for LangGraph backend
-  - `docs/AGENTS.md` — agent prompt and tool documentation
+  - `docs/AGENTS.md` — *(unchanged this pass; prompts/tools already documented elsewhere)*
   - ADR: "Why we added LangGraph as an alternative backend"
   - ADR: "Multi-backend architecture and team profiles"
 

@@ -20,40 +20,12 @@ import os
 import sys
 from pathlib import Path
 
+from ai_team.utils.demo_input import load_project_description
+
 
 def _repo_root() -> Path:
     """Project root (parent of scripts/)."""
     return Path(__file__).resolve().parent.parent
-
-
-def _load_description(demo_dir: Path) -> str:
-    """
-    Load project description from demo directory.
-    Prefer project_description.txt; else derive from input.json.
-    """
-    desc_file = demo_dir / "project_description.txt"
-    if desc_file.is_file():
-        return desc_file.read_text(encoding="utf-8").strip()
-
-    input_file = demo_dir / "input.json"
-    if not input_file.is_file():
-        raise FileNotFoundError(
-            f"Demo has neither project_description.txt nor input.json: {demo_dir}"
-        )
-    data = json.loads(input_file.read_text(encoding="utf-8"))
-    if isinstance(data.get("description"), str) and data["description"].strip():
-        return data["description"].strip()
-    parts = []
-    if data.get("project_name"):
-        parts.append(str(data["project_name"]))
-    if data.get("description"):
-        parts.append(str(data["description"]))
-    if data.get("stack"):
-        stack = data["stack"]
-        parts.append(f"Stack: {', '.join(stack) if isinstance(stack, list) else stack}")
-    if not parts:
-        raise ValueError(f"input.json has no description or project_name: {input_file}")
-    return " — ".join(parts)
 
 
 def _print_error_summary(result: dict, *, file: object) -> None:
@@ -119,7 +91,7 @@ def main() -> int:
         return 1
 
     try:
-        description = _load_description(demo_dir)
+        description = load_project_description(demo_dir)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

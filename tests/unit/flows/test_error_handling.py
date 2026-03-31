@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from ai_team.flows.error_handling import (
     CIRCUIT_BREAKER_THRESHOLD,
-    ErrorCategory,
     RETRY_BACKOFF_DELAYS,
+    ErrorCategory,
     apply_retry_backoff,
     build_error_summary_report,
     circuit_breaker_should_escalate,
@@ -32,7 +30,6 @@ from ai_team.flows.error_handling import (
     rollback_last_phase,
 )
 from ai_team.flows.state import ProjectPhase, ProjectState
-
 
 # -----------------------------------------------------------------------------
 # Error classification
@@ -62,6 +59,12 @@ class TestClassifyError:
 
     def test_fatal_critical_security(self) -> None:
         assert classify_error({"error": "Critical security violation"}) == ErrorCategory.FATAL
+
+    def test_fatal_recursion_exhausted(self) -> None:
+        assert (
+            classify_error({"error": "maximum recursion depth exceeded"})
+            == ErrorCategory.FATAL
+        )
 
     def test_recoverable_invalid_output(self) -> None:
         assert classify_error({"error": "Invalid output format"}) == ErrorCategory.RECOVERABLE

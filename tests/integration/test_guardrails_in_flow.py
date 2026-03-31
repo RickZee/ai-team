@@ -6,10 +6,7 @@ guardrail callback on rejection, and flow continuing when guardrails pass.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import pytest
-
 from ai_team.flows.main_flow import AITeamFlow
 from ai_team.flows.state import ProjectPhase, ProjectState
 from ai_team.guardrails.security import (
@@ -19,7 +16,6 @@ from ai_team.guardrails.security import (
     prompt_injection_guardrail,
 )
 from ai_team.utils.callbacks import AITeamCallback
-
 
 # -----------------------------------------------------------------------------
 # Guardrail rejection triggers retry logic

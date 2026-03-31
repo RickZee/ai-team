@@ -1,14 +1,13 @@
 """Unit tests for Product Owner agent, tools, and validation."""
 
 import pytest
-
+from ai_team.agents.base import BaseAgent
 from ai_team.agents.product_owner import (
     create_product_owner_agent,
     get_template_for_project_type,
     requirements_from_agent_output,
     validate_requirements_document,
 )
-from ai_team.agents.base import BaseAgent
 from ai_team.models.requirements import (
     AcceptanceCriterion,
     MoSCoW,

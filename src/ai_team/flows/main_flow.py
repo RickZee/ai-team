@@ -22,7 +22,7 @@ from crewai.flow.flow import listen, router, start
 
 from ai_team.config.model_validation import ModelValidationError, validate_models_before_run
 from ai_team.config.models import OpenRouterSettings
-from ai_team.config.settings import get_settings
+from ai_team.config.settings import get_settings, reload_settings
 from ai_team.flows.error_handling import (
     handle_deployment_error as handle_deployment_error_fn,
     handle_development_error as handle_development_error_fn,
@@ -47,6 +47,8 @@ from ai_team.models.development import CodeFile, DeploymentConfig
 from ai_team.monitor import MonitorCallback, TeamMonitor
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.tools.test_tools import TestRunResult
+from ai_team.core.results import ResultsBundle, Scorecard
+from ai_team.tools.file_tools import write_file as safe_write_file
 
 logger = structlog.get_logger()
 
@@ -230,6 +232,43 @@ class AITeamFlow(Flow[ProjectState]):
         except Exception:
             pass
 
+        # Per-run workspace isolation: tools resolve relative paths under workspace/<project_id>/.
+        try:
+            os.environ["PROJECT_WORKSPACE_DIR"] = str(
+                Path(get_settings().project.workspace_dir).resolve()
+                / self.state.project_id
+            )
+            reload_settings()
+        except Exception:
+            # If settings reload fails, continue with default shared workspace.
+            pass
+
+        # Initialize results bundle (output/<project_id>/ + workspace/<project_id>/).
+        try:
+            b = ResultsBundle(self.state.project_id)
+            meta = b.default_run_metadata(
+                backend="crewai",
+                team_profile=str(self.state.metadata.get("team_profile") or "full"),
+                env=os.environ.get("AI_TEAM_ENV"),
+                argv=list(sys.argv),
+                started_at=self.state.started_at,
+                extra={
+                    "skip_estimate": bool(self.state.metadata.get("skip_estimate") is True),
+                },
+            )
+            b.write_run(meta)
+            b.append_event(
+                {
+                    "type": "run_started",
+                    "project_id": self.state.project_id,
+                    "backend": "crewai",
+                    "team_profile": meta.team_profile,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+        except Exception:
+            pass
+
         if not skip:
             try:
                 from pydantic import ValidationError
@@ -311,6 +350,9 @@ class AITeamFlow(Flow[ProjectState]):
         )
         return result
 
+    def _bundle(self) -> ResultsBundle:
+        return ResultsBundle(self.state.project_id)
+
     def _get_feedback_handler(self) -> HumanFeedbackHandler:
         """Return injected handler or one built from settings (for CLI/UI and timeout)."""
         if self._feedback_handler is not None:
@@ -334,6 +376,20 @@ class AITeamFlow(Flow[ProjectState]):
             self._monitor.on_phase_change("intake")
         desc = (self.state.project_description or "").strip()
         self.logger.info("intake_started", request_length=len(desc), project_id=self.state.project_id)
+
+        try:
+            b = self._bundle()
+            b.write_artifact_text("intake", "prompt.md", f"# Project description\n\n{desc}\n")
+            b.write_artifact_json(
+                "intake",
+                "intake_context.json",
+                {
+                    "max_len": MAX_PROJECT_DESCRIPTION_LENGTH,
+                    "min_len": MIN_PROJECT_DESCRIPTION_LENGTH,
+                },
+            )
+        except Exception:
+            pass
 
         if len(desc) < MIN_PROJECT_DESCRIPTION_LENGTH:
             self.state.add_error(
@@ -415,6 +471,24 @@ class AITeamFlow(Flow[ProjectState]):
             self.state.requirements, self.state.architecture, needs_clarification = _parse_planning_output(
                 result
             )
+            try:
+                b = self._bundle()
+                b.write_artifact_json(
+                    "planning",
+                    "requirements.json",
+                    self.state.requirements.model_dump(mode="json")
+                    if self.state.requirements
+                    else None,
+                )
+                b.write_artifact_json(
+                    "planning",
+                    "architecture.json",
+                    self.state.architecture.model_dump(mode="json")
+                    if self.state.architecture
+                    else None,
+                )
+            except Exception:
+                pass
             self.state.add_phase_transition(
                 ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "Planning completed"
             )
@@ -483,6 +557,22 @@ class AITeamFlow(Flow[ProjectState]):
             self.state.generated_files = code_files
             if deployment_config is not None:
                 self.state.deployment_config = deployment_config
+            try:
+                b = self._bundle()
+                entries = []
+                for cf in code_files:
+                    # Persist to isolated workspace/<project_id>/...
+                    safe_write_file(cf.path, cf.content)
+                    entries.append(
+                        b.record_generated_file(
+                            rel_path=cf.path,
+                            phase="development",
+                            agent_role="developer",
+                        )
+                    )
+                b.write_code_manifest(entries)
+            except Exception:
+                pass
             self.state.add_phase_transition(
                 ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "Code generated"
             )
@@ -540,6 +630,24 @@ class AITeamFlow(Flow[ProjectState]):
                 verbose=verbose,
             )
             self.state.test_results = output.test_run_result
+            try:
+                b = self._bundle()
+                b.write_artifact_json(
+                    "testing",
+                    "test_results.json",
+                    self.state.test_results.model_dump(mode="json")
+                    if self.state.test_results
+                    else None,
+                )
+                b.write_artifact_json(
+                    "testing",
+                    "quality_gate.json",
+                    {
+                        "quality_gate_passed": bool(output.quality_gate_passed),
+                    },
+                )
+            except Exception:
+                pass
             if output.quality_gate_passed and output.test_run_result:
                 if self._monitor and output.test_run_result:
                     self._monitor.on_test_result(
@@ -614,10 +722,17 @@ class AITeamFlow(Flow[ProjectState]):
                 self.state.test_results,
                 product_owner_doc_context=product_owner_context,
             )
-            settings = get_settings()
-            output_dir = Path(settings.project.output_dir) / self.state.project_id
-            output_dir.mkdir(parents=True, exist_ok=True)
-            package_output(deploy_result, output_dir)
+            try:
+                b = self._bundle()
+                deploy_out = b.output_dir / "artifacts" / "deployment"
+                deploy_out.mkdir(parents=True, exist_ok=True)
+                package_output(deploy_result, deploy_out)
+            except Exception:
+                # Fall back to legacy location.
+                settings = get_settings()
+                output_dir = Path(settings.project.output_dir) / self.state.project_id
+                output_dir.mkdir(parents=True, exist_ok=True)
+                package_output(deploy_result, output_dir)
             # DeploymentConfig may be updated from crew if needed; state already has from dev crew
             self.state.add_phase_transition(
                 ProjectPhase.DEPLOYMENT, ProjectPhase.COMPLETE, "Deployment configured"
@@ -627,7 +742,7 @@ class AITeamFlow(Flow[ProjectState]):
                 _persist_state(self.state)
             except Exception:
                 pass
-            self.logger.info("deployment_complete", output_dir=str(output_dir))
+            self.logger.info("deployment_complete", project_id=self.state.project_id)
             return {"status": "success", "config": self.state.deployment_config}
         except Exception as e:
             err_msg = str(e)
@@ -667,6 +782,33 @@ class AITeamFlow(Flow[ProjectState]):
             _persist_state(self.state)
         except Exception as e:
             self.logger.warning("state_persistence_failed", error=str(e))
+
+        try:
+            b = self._bundle()
+            b.write_state(self.state.model_dump(mode="json"))
+            b.write_summary(
+                "\n".join(
+                    [
+                        f"# AI-Team run summary ({self.state.project_id})",
+                        "",
+                        f"- **status**: complete",
+                        f"- **files_generated**: {len(self.state.generated_files)}",
+                        f"- **tests_passed**: {self.state.test_results.passed if self.state.test_results else 0}",
+                        f"- **duration_seconds**: {duration_seconds:.1f}",
+                    ]
+                )
+            )
+            b.write_scorecard(
+                Scorecard(
+                    status="complete",
+                    kpis={
+                        "files_generated": len(self.state.generated_files),
+                        "duration_seconds": duration_seconds,
+                    },
+                )
+            )
+        except Exception:
+            pass
 
         return summary
 
