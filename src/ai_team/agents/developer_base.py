@@ -7,10 +7,9 @@ self-review discipline, code style awareness (PEP8/ESLint), context awareness
 """
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import structlog
-
 from ai_team.agents.base import BaseAgent
 from ai_team.guardrails import QualityGuardrails, SecurityGuardrails
 from ai_team.tools.developer_tools import get_developer_common_tools
@@ -40,8 +39,8 @@ class DeveloperBase(BaseAgent):
         goal: str,
         backstory: str,
         *,
-        tools: Optional[List[Any]] = None,
-        extra_tools: Optional[List[Any]] = None,
+        tools: list[Any] | None = None,
+        extra_tools: list[Any] | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -67,8 +66,12 @@ class DeveloperBase(BaseAgent):
             tools=tools,
             **kwargs,
         )
-        object.__setattr__(self, "_architecture_path", kwargs.get("architecture_path", DEFAULT_ARCHITECTURE_PATH))
-        object.__setattr__(self, "_requirements_path", kwargs.get("requirements_path", DEFAULT_REQUIREMENTS_PATH))
+        object.__setattr__(
+            self, "_architecture_path", kwargs.get("architecture_path", DEFAULT_ARCHITECTURE_PATH)
+        )
+        object.__setattr__(
+            self, "_requirements_path", kwargs.get("requirements_path", DEFAULT_REQUIREMENTS_PATH)
+        )
 
     @property
     def architecture_path(self) -> str:
@@ -80,7 +83,7 @@ class DeveloperBase(BaseAgent):
         """Path to requirements doc for context awareness."""
         return object.__getattribute__(self, "_requirements_path")
 
-    def validate_generated_code(self, content: str) -> Tuple[bool, str]:
+    def validate_generated_code(self, content: str) -> tuple[bool, str]:
         """
         Run code quality and security guardrails on generated code.
 
@@ -111,7 +114,7 @@ class DeveloperBase(BaseAgent):
                 return (False, msg)
         return (True, content)
 
-    def context_instruction(self, workspace_root: Optional[Path] = None) -> str:
+    def context_instruction(self, workspace_root: Path | None = None) -> str:
         """
         Return an instruction string for the agent to read architecture and requirements.
 

@@ -63,7 +63,17 @@ class TestEstimateRunCost:
     def test_returns_rows_and_total(self, mock_settings: MagicMock) -> None:
         rows, total, within = estimate_run_cost(mock_settings, "medium")
         assert len(rows) == len(
-            {"manager", "product_owner", "architect", "backend_developer", "frontend_developer", "fullstack_developer", "cloud_engineer", "devops", "qa_engineer"}
+            {
+                "manager",
+                "product_owner",
+                "architect",
+                "backend_developer",
+                "frontend_developer",
+                "fullstack_developer",
+                "cloud_engineer",
+                "devops",
+                "qa_engineer",
+            }
         )
         assert all(isinstance(r, RoleCostRow) for r in rows)
         assert total > 0

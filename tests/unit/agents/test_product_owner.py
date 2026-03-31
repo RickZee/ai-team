@@ -49,7 +49,10 @@ class TestValidateRequirementsDocument:
                     i_want="to log in",
                     so_that="I can access my account",
                     acceptance_criteria=[
-                        AcceptanceCriterion(description="Given credentials, when valid, then access granted.", testable=True)
+                        AcceptanceCriterion(
+                            description="Given credentials, when valid, then access granted.",
+                            testable=True,
+                        )
                     ],
                     priority=MoSCoW.MUST,
                 )
@@ -64,7 +67,9 @@ class TestValidateRequirementsDocument:
             project_name="P",
             description="D",
             user_stories=[
-                UserStory(as_a="u", i_want="x", so_that="y", acceptance_criteria=[], priority=MoSCoW.MUST)
+                UserStory(
+                    as_a="u", i_want="x", so_that="y", acceptance_criteria=[], priority=MoSCoW.MUST
+                )
             ],
         )
         valid, errors = validate_requirements_document(doc)
@@ -88,7 +93,7 @@ class TestRequirementsFromAgentOutput:
     """Test parsing agent output into RequirementsDocument."""
 
     def test_parse_json_block(self) -> None:
-        raw = '''Some text
+        raw = """Some text
 ```json
 {
   "project_name": "My API",
@@ -108,7 +113,7 @@ class TestRequirementsFromAgentOutput:
   "constraints": []
 }
 ```
-'''
+"""
         doc, errors = requirements_from_agent_output(raw)
         assert doc is not None
         assert doc.project_name == "My API"
@@ -117,7 +122,9 @@ class TestRequirementsFromAgentOutput:
         assert errors == []
 
     def test_fallback_minimal_document(self) -> None:
-        doc, errors = requirements_from_agent_output("Just narrative.", project_name="P", description="D")
+        doc, errors = requirements_from_agent_output(
+            "Just narrative.", project_name="P", description="D"
+        )
         assert doc is not None
         assert doc.project_name == "P"
         assert len(doc.user_stories) == 1
@@ -149,9 +156,11 @@ class TestCreateProductOwnerAgent:
 
         mock_llm = MagicMock()
         mock_llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_product_owner_agent(tools=[], agents_config=minimal_config)
         assert isinstance(agent, BaseAgent)

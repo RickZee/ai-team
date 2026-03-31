@@ -33,7 +33,11 @@ def test_output_containing_os_system_rm_rf_detected_and_fails(task_output_factor
     )
     result = code_safety_guardrail(raw)
     assert result.status == "fail"
-    assert "os.system" in result.message or "dangerous" in result.message.lower() or "root" in result.message.lower()
+    assert (
+        "os.system" in result.message
+        or "dangerous" in result.message.lower()
+        or "root" in result.message.lower()
+    )
     ok, msg = crewai_code_safety_guardrail(task_output_factory(raw))
     assert ok is False
     assert isinstance(msg, str)
@@ -118,7 +122,7 @@ def test_output_containing_password_hardcoded_detected_and_fails(task_output_fac
         '    "user": "app",\n'
         '    "password": "hardcoded123",  # secret pattern matches key=value style\n'
         "}\n"
-        "api_password = \"hardcoded123\"\n"
+        'api_password = "hardcoded123"\n'
     )
     result = secret_detection_guardrail(raw)
     assert result.status == "fail"
@@ -150,7 +154,9 @@ def test_output_containing_ssn_pattern_redacted(task_output_factory: Any) -> Non
     assert result.status == "warn"
     assert result.details and "redacted" in result.details
     assert "123-45-6789" not in result.details["redacted"]
-    assert "REDACTED" in result.details["redacted"] or "SSN" in str(result.details.get("detected", []))
+    assert "REDACTED" in result.details["redacted"] or "SSN" in str(
+        result.details.get("detected", [])
+    )
 
 
 def test_output_containing_credit_card_pattern_redacted(task_output_factory: Any) -> None:

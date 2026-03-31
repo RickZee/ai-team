@@ -1,7 +1,6 @@
 """Pydantic models for Product Owner requirements output."""
 
 from enum import Enum
-from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +17,9 @@ class MoSCoW(str, Enum):
 class AcceptanceCriterion(BaseModel):
     """A single testable acceptance criterion for a user story."""
 
-    description: str = Field(..., description="Testable criterion in Given/When/Then or checklist form")
+    description: str = Field(
+        ..., description="Testable criterion in Given/When/Then or checklist form"
+    )
     testable: bool = Field(default=True, description="Whether the criterion is verifiable")
 
 
@@ -28,7 +29,7 @@ class UserStory(BaseModel):
     as_a: str = Field(..., description="Role or type of user")
     i_want: str = Field(..., description="Capability or feature desired")
     so_that: str = Field(..., description="Benefit or outcome")
-    acceptance_criteria: List[AcceptanceCriterion] = Field(
+    acceptance_criteria: list[AcceptanceCriterion] = Field(
         default_factory=list,
         description="Testable acceptance criteria",
     )
@@ -49,11 +50,17 @@ class RequirementsDocument(BaseModel):
 
     project_name: str = Field(..., description="Name of the project")
     description: str = Field(default="", description="Brief project description")
-    target_users: List[str] = Field(default_factory=list, description="Primary user personas or roles")
-    user_stories: List[UserStory] = Field(default_factory=list, description="User stories with acceptance criteria")
-    non_functional_requirements: List[NonFunctionalRequirement] = Field(
+    target_users: list[str] = Field(
+        default_factory=list, description="Primary user personas or roles"
+    )
+    user_stories: list[UserStory] = Field(
+        default_factory=list, description="User stories with acceptance criteria"
+    )
+    non_functional_requirements: list[NonFunctionalRequirement] = Field(
         default_factory=list,
         description="NFRs for performance, security, scalability",
     )
-    assumptions: List[str] = Field(default_factory=list, description="Assumptions made")
-    constraints: List[str] = Field(default_factory=list, description="Constraints (time, tech, scope)")
+    assumptions: list[str] = Field(default_factory=list, description="Assumptions made")
+    constraints: list[str] = Field(
+        default_factory=list, description="Constraints (time, tech, scope)"
+    )

@@ -9,6 +9,7 @@ import pytest
 # Inject a minimal shim so patch() can attach (Agent 0.80 does not call create_llm).
 try:
     import crewai.agent as _crewai_agent
+
     if not hasattr(_crewai_agent, "core"):
         _crewai_agent.core = types.ModuleType("core")
         _crewai_agent.core.create_llm = lambda llm: llm

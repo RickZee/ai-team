@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, List, Optional, Type
-
-from crewai import Task
+from typing import Any
 
 import structlog
-
 from ai_team.guardrails.quality import coverage_guardrail
 from ai_team.models.qa_models import CodeReviewReport
 from ai_team.tools.test_tools import TestRunResult, validate_test_quality
+from crewai import Task
 
 logger = structlog.get_logger(__name__)
 
@@ -59,7 +57,17 @@ def _test_generation_guardrail(task_output: Any):
         has_assert = "assert " in s or "assert_" in s or "assertEqual" in s
         has_edge = any(
             x in s.lower()
-            for x in ["empty", "none", "zero", "null", "edge", "boundary", "invalid", "exception", "raise"]
+            for x in [
+                "empty",
+                "none",
+                "zero",
+                "null",
+                "edge",
+                "boundary",
+                "invalid",
+                "exception",
+                "raise",
+            ]
         )
         return (has_assert and has_edge, s)
     report = validate_test_quality(test_code)
@@ -100,7 +108,10 @@ def _test_execution_guardrail(task_output: Any):
         total_coverage = data.get("line_coverage_pct")
         if total_coverage is not None:
             total_coverage = total_coverage / 100.0 if total_coverage > 1 else total_coverage
-        coverage_report = {"total_coverage": total_coverage or 0.0, "files": data.get("per_file_coverage", {})}
+        coverage_report = {
+            "total_coverage": total_coverage or 0.0,
+            "files": data.get("per_file_coverage", {}),
+        }
     else:
         # Heuristic: look for "X% coverage" and "passed" / "failed".
         coverage_report = {"total_coverage": 0.0}
@@ -170,7 +181,7 @@ TEST_GENERATION_DESCRIPTION_WITH_INPUTS = (
 
 def test_generation_task(
     qa_agent: Any,
-    context: Optional[List[Task]] = None,
+    context: list[Task] | None = None,
     guardrail_max_retries: int = 3,
     use_input_placeholder: bool = False,
 ) -> Task:
@@ -187,7 +198,9 @@ def test_generation_task(
         CrewAI Task for test generation.
     """
     description = (
-        TEST_GENERATION_DESCRIPTION_WITH_INPUTS if use_input_placeholder else TEST_GENERATION_DESCRIPTION
+        TEST_GENERATION_DESCRIPTION_WITH_INPUTS
+        if use_input_placeholder
+        else TEST_GENERATION_DESCRIPTION
     )
     return Task(
         description=description,
@@ -201,9 +214,9 @@ def test_generation_task(
 
 def test_execution_task(
     qa_agent: Any,
-    context: Optional[List[Task]] = None,
+    context: list[Task] | None = None,
     guardrail_max_retries: int = 3,
-    output_pydantic: Optional[Type[Any]] = None,
+    output_pydantic: type[Any] | None = None,
 ) -> Task:
     """
     Create the test_execution task: run all generated tests and report results.
@@ -230,9 +243,9 @@ def test_execution_task(
 
 def code_review_task(
     qa_agent: Any,
-    context: Optional[List[Task]] = None,
+    context: list[Task] | None = None,
     guardrail_max_retries: int = 3,
-    output_pydantic: Optional[Type[Any]] = None,
+    output_pydantic: type[Any] | None = None,
 ) -> Task:
     """
     Create the code_review task: review all generated code for quality, security, best practices.
@@ -259,9 +272,9 @@ def code_review_task(
 
 def get_testing_tasks(
     qa_agent: Any,
-    backend_implementation_task: Optional[Task] = None,
-    frontend_implementation_task: Optional[Task] = None,
-) -> List[Task]:
+    backend_implementation_task: Task | None = None,
+    frontend_implementation_task: Task | None = None,
+) -> list[Task]:
     """
     Build the full testing task chain: test_generation → test_execution → code_review.
 
@@ -289,7 +302,7 @@ def get_testing_tasks(
 
     t_gen = test_generation_task(qa_agent, context=dev_context if dev_context else None)
     t_exec = test_execution_task(qa_agent, context=[t_gen])
-    review_context: List[Task] = list(dev_context) + [t_exec]
+    review_context: list[Task] = list(dev_context) + [t_exec]
     t_review = code_review_task(qa_agent, context=review_context if review_context else [t_exec])
 
     logger.info(

@@ -96,25 +96,31 @@ def detect_problems(data: dict) -> list[tuple[str, str, str]]:
 
     # Flow in error state
     if phase == "error":
-        problems.append((
-            "CRITICAL",
-            "Flow in error state",
-            f"Phase is 'error' with {error_count} error(s). Flow will not continue until the cause is fixed.",
-        ))
+        problems.append(
+            (
+                "CRITICAL",
+                "Flow in error state",
+                f"Phase is 'error' with {error_count} error(s). Flow will not continue until the cause is fixed.",
+            )
+        )
 
     # High error count
     if error_count >= ERROR_COUNT_CRITICAL:
-        problems.append((
-            "CRITICAL",
-            "Very high error count",
-            f"{error_count} errors recorded. Likely a repeating failure (e.g. wrong API or model).",
-        ))
+        problems.append(
+            (
+                "CRITICAL",
+                "Very high error count",
+                f"{error_count} errors recorded. Likely a repeating failure (e.g. wrong API or model).",
+            )
+        )
     elif error_count >= ERROR_COUNT_WARN and phase == "error":
-        problems.append((
-            "WARN",
-            "Elevated error count",
-            f"{error_count} errors. Check last error message and suggestions below.",
-        ))
+        problems.append(
+            (
+                "WARN",
+                "Elevated error count",
+                f"{error_count} errors. Check last error message and suggestions below.",
+            )
+        )
 
     # Repeated same error
     if errors:
@@ -124,34 +130,42 @@ def detect_problems(data: dict) -> list[tuple[str, str, str]]:
             msg, count = most_common[0], most_common[1]
             if count >= REPEAT_SAME_MESSAGE_MIN:
                 short_msg = (msg[:80] + "…") if len(msg) > 80 else msg
-                problems.append((
-                    "CRITICAL" if count >= 20 else "WARN",
-                    "Same error repeating",
-                    f"Last error repeated {count} time(s): {short_msg}",
-                ))
+                problems.append(
+                    (
+                        "CRITICAL" if count >= 20 else "WARN",
+                        "Same error repeating",
+                        f"Last error repeated {count} time(s): {short_msg}",
+                    )
+                )
 
     # Match last error to known patterns and add suggestion
     if errors:
         last_msg = (errors[-1].get("message") or str(errors[-1])).strip()
         for pattern, label, suggestion in ERROR_PATTERNS:
             if re.search(pattern, last_msg, re.IGNORECASE):
-                problems.append((
-                    "INFO",
-                    f"Likely cause: {label}",
-                    suggestion,
-                ))
+                problems.append(
+                    (
+                        "INFO",
+                        f"Likely cause: {label}",
+                        suggestion,
+                    )
+                )
                 break
 
     # Stuck in planning with many errors (common Ollama misconfig)
-    if phase == "error" and history:
-        last_from = history[-1].get("from_phase") if history else None
-        if last_from == "planning":
-            if not any(p[0] == "INFO" and "Likely cause" in p[1] for p in problems):
-                problems.append((
-                    "INFO",
-                    "Failed during planning",
-                    "Planning crew (Manager, PO, Architect) failed. Often Ollama model/endpoint: ensure Ollama is running and E2E env (OPENAI_API_KEY=ollama, OPENAI_BASE_URL=http://localhost:11434) is set.",
-                ))
+    if (
+        phase == "error"
+        and history
+        and (history[-1].get("from_phase") == "planning")
+        and not any(p[0] == "INFO" and "Likely cause" in p[1] for p in problems)
+    ):
+        problems.append(
+            (
+                "INFO",
+                "Failed during planning",
+                "Planning crew (Manager, PO, Architect) failed. Often Ollama model/endpoint: ensure Ollama is running and E2E env (OPENAI_API_KEY=ollama, OPENAI_BASE_URL=http://localhost:11434) is set.",
+            )
+        )
 
     return problems
 

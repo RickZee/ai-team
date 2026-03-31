@@ -281,20 +281,26 @@ def test_path_security_fail_outside_allowed():
 
 def test_path_security_symlink_outside():
     """Symlink resolving outside allowed dirs should fail."""
-    with tempfile.TemporaryDirectory() as allowed:
-        with tempfile.TemporaryDirectory() as other:
-            link_path = os.path.join(allowed, "link")
-            target = os.path.join(other, "secret")
-            Path(target).write_text("secret")
-            try:
-                os.symlink(target, link_path)
-                r = path_security_guardrail(link_path, allowed_dirs=[allowed])
-                assert r.status == "fail"
-                # Message indicates path/symlink/resolved outside allowed
-                assert "outside" in r.message.lower() or "symlink" in r.message.lower() or "allowed" in r.message.lower()
-            finally:
-                if os.path.lexists(link_path):
-                    os.unlink(link_path)
+    with (
+        tempfile.TemporaryDirectory() as allowed,
+        tempfile.TemporaryDirectory() as other,
+    ):
+        link_path = os.path.join(allowed, "link")
+        target = os.path.join(other, "secret")
+        Path(target).write_text("secret")
+        try:
+            os.symlink(target, link_path)
+            r = path_security_guardrail(link_path, allowed_dirs=[allowed])
+            assert r.status == "fail"
+            # Message indicates path/symlink/resolved outside allowed
+            assert (
+                "outside" in r.message.lower()
+                or "symlink" in r.message.lower()
+                or "allowed" in r.message.lower()
+            )
+        finally:
+            if os.path.lexists(link_path):
+                os.unlink(link_path)
 
 
 def test_path_security_invalid_path():

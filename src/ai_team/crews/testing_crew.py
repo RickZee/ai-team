@@ -9,17 +9,12 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Type
-
-from crewai import Crew, Process
-from crewai import Task
-from pydantic import BaseModel, Field
+from typing import Any
 
 import structlog
-
 from ai_team.agents.qa_engineer import create_qa_engineer
-from ai_team.config.settings import get_settings
 from ai_team.config.llm_factory import get_embedder_config
+from ai_team.config.settings import get_settings
 from ai_team.models.development import CodeFile
 from ai_team.models.qa_models import CodeReviewReport
 from ai_team.tasks.testing_tasks import (
@@ -28,6 +23,8 @@ from ai_team.tasks.testing_tasks import (
     test_generation_task,
 )
 from ai_team.tools.test_tools import TestRunResult
+from crewai import Crew, Process
+from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
@@ -40,11 +37,11 @@ logger = structlog.get_logger(__name__)
 class TestingCrewOutput(BaseModel):
     """Result of the Testing Crew: test run and code review."""
 
-    test_run_result: Optional[TestRunResult] = Field(
+    test_run_result: TestRunResult | None = Field(
         default=None,
         description="Structured test execution result (pass/fail, coverage).",
     )
-    code_review_report: Optional[CodeReviewReport] = Field(
+    code_review_report: CodeReviewReport | None = Field(
         default=None,
         description="Structured code review with findings and severity.",
     )
@@ -52,7 +49,7 @@ class TestingCrewOutput(BaseModel):
         default=False,
         description="True if tests pass, coverage meets threshold, and no critical/high findings.",
     )
-    raw_outputs: List[str] = Field(
+    raw_outputs: list[str] = Field(
         default_factory=list,
         description="Raw task outputs in order [test_gen, test_exec, code_review] for debugging.",
     )
@@ -63,9 +60,9 @@ class TestingCrewOutput(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-def _code_files_to_summary(code_files: List[CodeFile], max_chars: int = 12000) -> str:
+def _code_files_to_summary(code_files: list[CodeFile], max_chars: int = 12000) -> str:
     """Serialize code files for crew input (path + content snippet)."""
-    parts: List[str] = []
+    parts: list[str] = []
     total = 0
     for cf in code_files:
         block = f"--- {cf.path} ({cf.language}) ---\n{cf.content}\n"
@@ -77,13 +74,13 @@ def _code_files_to_summary(code_files: List[CodeFile], max_chars: int = 12000) -
     return "\n".join(parts) if parts else "(no code files provided)"
 
 
-def _parse_task_output_as_model(raw: Any, model: Type[BaseModel]) -> Optional[BaseModel]:
+def _parse_task_output_as_model(raw: Any, model: type[BaseModel]) -> BaseModel | None:
     """Parse task raw output (str or object with .raw) into a Pydantic model."""
-    text: Optional[str] = None
+    text: str | None = None
     if isinstance(raw, str):
         text = raw
     elif hasattr(raw, "raw"):
-        text = getattr(raw, "raw") or ""
+        text = raw.raw or ""
     if not text or not text.strip():
         return None
     text = text.strip()
@@ -101,10 +98,10 @@ def _parse_task_output_as_model(raw: Any, model: Type[BaseModel]) -> Optional[Ba
 
 
 def _quality_gate_passed(
-    test_run_result: Optional[TestRunResult],
-    code_review_report: Optional[CodeReviewReport],
+    test_run_result: TestRunResult | None,
+    code_review_report: CodeReviewReport | None,
     min_line_coverage: float,
-    min_branch_coverage: Optional[float],
+    min_branch_coverage: float | None,
 ) -> bool:
     """Check configurable quality gates: pass/fail and coverage thresholds."""
     if test_run_result is None:
@@ -130,12 +127,12 @@ def _quality_gate_passed(
 
 
 def create_testing_crew(
-    qa_agent: Optional[Any] = None,
-    guardrail_max_retries: Optional[int] = None,
+    qa_agent: Any | None = None,
+    guardrail_max_retries: int | None = None,
     memory: bool = False,
     verbose: bool = False,
-    step_callback: Optional[Any] = None,
-    task_callback: Optional[Any] = None,
+    step_callback: Any | None = None,
+    task_callback: Any | None = None,
 ) -> Crew:
     """
     Build the Testing Crew: sequential process, QA Engineer only.
@@ -184,13 +181,13 @@ def create_testing_crew(
 
 
 def kickoff(
-    code_files: List[CodeFile],
-    qa_agent: Optional[Any] = None,
-    guardrail_max_retries: Optional[int] = None,
+    code_files: list[CodeFile],
+    qa_agent: Any | None = None,
+    guardrail_max_retries: int | None = None,
     memory: bool = False,
     verbose: bool = False,
-    step_callback: Optional[Any] = None,
-    task_callback: Optional[Any] = None,
+    step_callback: Any | None = None,
+    task_callback: Any | None = None,
 ) -> TestingCrewOutput:
     """
     Run the Testing Crew on the given code files from the Development Crew.
@@ -218,23 +215,23 @@ def kickoff(
 
     crew_result = crew.kickoff(inputs=inputs)
 
-    raw_outputs: List[str] = []
+    raw_outputs: list[str] = []
     if getattr(crew_result, "tasks_output", None):
         for out in crew_result.tasks_output:
             raw = out.raw if hasattr(out, "raw") else str(out)
             raw_outputs.append(raw)
     elif hasattr(crew_result, "raw"):
-        raw_outputs.append(getattr(crew_result, "raw") or "")
+        raw_outputs.append(crew_result.raw or "")
 
-    test_run_result: Optional[TestRunResult] = None
-    code_review_report: Optional[CodeReviewReport] = None
+    test_run_result: TestRunResult | None = None
+    code_review_report: CodeReviewReport | None = None
     if len(raw_outputs) >= 2:
         test_run_result = _parse_task_output_as_model(raw_outputs[1], TestRunResult)
     if len(raw_outputs) >= 3:
         code_review_report = _parse_task_output_as_model(raw_outputs[2], CodeReviewReport)
 
     min_line = 0.8
-    min_branch: Optional[float] = None
+    min_branch: float | None = None
     try:
         settings = get_settings()
         min_line = settings.guardrails.test_coverage_min
@@ -261,7 +258,7 @@ def get_feedback(
     *,
     include_review_findings: bool = True,
     max_raw_chars: int = 2000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Format test failures and review findings as actionable feedback for the Development Crew.
 
@@ -277,7 +274,7 @@ def get_feedback(
         failed_count, error_count, line_coverage_pct, raw_output (truncated),
         findings_summary (if include_review_findings).
     """
-    feedback: Dict[str, Any] = {
+    feedback: dict[str, Any] = {
         "message": "",
         "test_failures": False,
         "coverage_shortfall": False,
@@ -287,7 +284,7 @@ def get_feedback(
         "raw_output": "",
         "findings_summary": "",
     }
-    parts: List[str] = []
+    parts: list[str] = []
 
     try:
         min_line = get_settings().guardrails.test_coverage_min
@@ -329,7 +326,9 @@ def get_feedback(
                         f"Recommendation: {f.recommendation or 'N/A'}"
                     )
 
-    feedback["message"] = "\n".join(parts) if parts else "No specific feedback (run tests or review for details)."
+    feedback["message"] = (
+        "\n".join(parts) if parts else "No specific feedback (run tests or review for details)."
+    )
     return feedback
 
 

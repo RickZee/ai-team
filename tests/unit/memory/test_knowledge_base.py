@@ -1,6 +1,5 @@
 """Unit tests for memory.knowledge_base."""
 
-
 import pytest
 import yaml
 from ai_team.memory.knowledge_base import (
@@ -15,17 +14,21 @@ from ai_team.memory.knowledge_base import (
 def temp_knowledge_dir(tmp_path):
     """Create a minimal knowledge dir with best_practices and templates."""
     (tmp_path / "best_practices.yaml").write_text(
-        yaml.dump({
-            "python": ["Use type hints.", "Follow PEP 8."],
-            "api": ["Use REST conventions.", "Return 200 for success."],
-        }),
+        yaml.dump(
+            {
+                "python": ["Use type hints.", "Follow PEP 8."],
+                "api": ["Use REST conventions.", "Return 200 for success."],
+            }
+        ),
         encoding="utf-8",
     )
     (tmp_path / "templates.yaml").write_text(
-        yaml.dump({
-            "pytest": "Pytest template: use fixtures and parametrize.",
-            "readme": "README template: title, install, usage.",
-        }),
+        yaml.dump(
+            {
+                "pytest": "Pytest template: use fixtures and parametrize.",
+                "readme": "README template: title, install, usage.",
+            }
+        ),
         encoding="utf-8",
     )
     return tmp_path

@@ -24,9 +24,7 @@ def _no_tools(_role: str) -> list:
 
 
 class TestPlanningSubgraphFiltering:
-    def test_full_agents_creates_supervisor(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_full_agents_creates_supervisor(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.planning.get_langchain_tools_for_role",
             _no_tools,
@@ -44,9 +42,7 @@ class TestPlanningSubgraphFiltering:
         out = g.invoke(BASE_INPUT)
         assert "messages" in out
 
-    def test_single_worker_creates_react_agent(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_single_worker_creates_react_agent(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.planning.get_langchain_tools_for_role",
             _no_tools,
@@ -71,9 +67,7 @@ class TestPlanningSubgraphFiltering:
         out = g.invoke(BASE_INPUT)
         assert "messages" in out
 
-    def test_agents_none_means_all(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_agents_none_means_all(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.planning.get_langchain_tools_for_role",
             _no_tools,
@@ -93,9 +87,7 @@ class TestPlanningSubgraphFiltering:
 
 
 class TestDevelopmentSubgraphFiltering:
-    def test_backend_only(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_backend_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.development.get_langchain_tools_for_role",
             _no_tools,
@@ -120,9 +112,7 @@ class TestDevelopmentSubgraphFiltering:
         out = g.invoke(BASE_INPUT)
         assert "messages" in out
 
-    def test_two_workers_creates_supervisor(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_two_workers_creates_supervisor(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.development.get_langchain_tools_for_role",
             _no_tools,
@@ -142,9 +132,7 @@ class TestDevelopmentSubgraphFiltering:
 
 
 class TestTestingSubgraphFiltering:
-    def test_qa_present(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_qa_present(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.testing.get_langchain_tools_for_role",
             _no_tools,
@@ -171,9 +159,7 @@ class TestTestingSubgraphFiltering:
 
 
 class TestDeploymentSubgraphFiltering:
-    def test_devops_only(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_devops_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.deployment.get_langchain_tools_for_role",
             _no_tools,
@@ -198,9 +184,7 @@ class TestDeploymentSubgraphFiltering:
         out = g.invoke(BASE_INPUT)
         assert "messages" in out
 
-    def test_both_workers_sequential(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_both_workers_sequential(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.deployment.get_langchain_tools_for_role",
             _no_tools,

@@ -81,7 +81,9 @@ class TestCrewBenchmarks:
                     components=[],
                     technology_stack=[],
                 )
-                token_out = _estimate_tokens(req.model_dump_json()) + _estimate_tokens(arch.model_dump_json())
+                token_out = _estimate_tokens(req.model_dump_json()) + _estimate_tokens(
+                    arch.model_dump_json()
+                )
         finally:
             wall_s = time.perf_counter() - t0
 
@@ -108,10 +110,14 @@ class TestCrewBenchmarks:
         arch = ArchitectureDocument(
             system_overview="Flask API",
             components=[Component(name="API", responsibilities="REST")],
-            technology_stack=[TechnologyChoice(name="Flask", category="backend", justification="Simple")],
+            technology_stack=[
+                TechnologyChoice(name="Flask", category="backend", justification="Simple")
+            ],
         )
         t0 = time.perf_counter()
-        token_in = _estimate_tokens(req.model_dump_json()) + _estimate_tokens(arch.model_dump_json())
+        token_in = _estimate_tokens(req.model_dump_json()) + _estimate_tokens(
+            arch.model_dump_json()
+        )
         token_out = 0
         try:
             if run_real_benchmarks:
@@ -122,7 +128,12 @@ class TestCrewBenchmarks:
                     token_out += _estimate_tokens(getattr(cf, "content", "") or "")
             else:
                 code_files = [
-                    CodeFile(path="app.py", content="from flask import Flask\napp = Flask(__name__)\n", language="python", description="App"),
+                    CodeFile(
+                        path="app.py",
+                        content="from flask import Flask\napp = Flask(__name__)\n",
+                        language="python",
+                        description="App",
+                    ),
                 ]
                 token_out = sum(_estimate_tokens(c.content) for c in code_files)
         finally:
@@ -145,8 +156,18 @@ class TestCrewBenchmarks:
         from ai_team.models.development import CodeFile
 
         code_files = [
-            CodeFile(path="app.py", content="from flask import Flask\napp = Flask(__name__)\n", language="python", description="App"),
-            CodeFile(path="test_app.py", content="import pytest\n", language="python", description="Tests"),
+            CodeFile(
+                path="app.py",
+                content="from flask import Flask\napp = Flask(__name__)\n",
+                language="python",
+                description="App",
+            ),
+            CodeFile(
+                path="test_app.py",
+                content="import pytest\n",
+                language="python",
+                description="Tests",
+            ),
         ]
         t0 = time.perf_counter()
         token_in = sum(_estimate_tokens(c.content) for c in code_files)
@@ -182,13 +203,27 @@ class TestCrewBenchmarks:
         from ai_team.tools.test_tools import TestRunResult
 
         code_files: list[CodeFile] = [
-            CodeFile(path="app.py", content="from flask import Flask\n", language="python", description="App"),
+            CodeFile(
+                path="app.py",
+                content="from flask import Flask\n",
+                language="python",
+                description="App",
+            ),
         ]
         arch = ArchitectureDocument(system_overview="Flask API", components=[], technology_stack=[])
         test_results = TestRunResult(
-            total=5, passed=5, failed=0, errors=0, skipped=0, warnings=0,
-            duration_seconds=1.0, line_coverage_pct=80.0, branch_coverage_pct=None,
-            per_file_coverage=[], raw_output="ok", success=True,
+            total=5,
+            passed=5,
+            failed=0,
+            errors=0,
+            skipped=0,
+            warnings=0,
+            duration_seconds=1.0,
+            line_coverage_pct=80.0,
+            branch_coverage_pct=None,
+            per_file_coverage=[],
+            raw_output="ok",
+            success=True,
         )
         t0 = time.perf_counter()
         token_out = 0
@@ -231,17 +266,25 @@ class TestFullFlowBenchmark:
                 from ai_team.flows.human_feedback import MockHumanFeedbackHandler
                 from ai_team.flows.main_flow import AITeamFlow
 
-                flow = AITeamFlow(feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is"))
+                flow = AITeamFlow(
+                    feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is")
+                )
                 flow.state.project_description = DEMO1_SPEC
                 flow.kickoff()
                 total_s = time.perf_counter() - total_start
                 phase_times["total"] = total_s
                 # Per-phase times: infer from crew benchmarks (run in same session)
                 crews = benchmark_collector.get("crews", {})
-                phase_times["requirements_architecture"] = crews.get("PlanningCrew", {}).get("wall_time_seconds", 0)
-                phase_times["development"] = crews.get("DevelopmentCrew", {}).get("wall_time_seconds", 0)
+                phase_times["requirements_architecture"] = crews.get("PlanningCrew", {}).get(
+                    "wall_time_seconds", 0
+                )
+                phase_times["development"] = crews.get("DevelopmentCrew", {}).get(
+                    "wall_time_seconds", 0
+                )
                 phase_times["qa"] = crews.get("QACrew", {}).get("wall_time_seconds", 0)
-                phase_times["deployment"] = crews.get("DeploymentCrew", {}).get("wall_time_seconds", 0)
+                phase_times["deployment"] = crews.get("DeploymentCrew", {}).get(
+                    "wall_time_seconds", 0
+                )
             else:
                 total_s = time.perf_counter() - total_start
                 phase_times["total"] = total_s
@@ -259,7 +302,13 @@ class TestFullFlowBenchmark:
         benchmark_collector["phase_times_seconds"] = phase_times
 
         # Flag over-budget
-        budgets = {"requirements": 60, "architecture": 120, "development": 240, "qa": 120, "deployment": 60}
+        budgets = {
+            "requirements": 60,
+            "architecture": 120,
+            "development": 240,
+            "qa": 120,
+            "deployment": 60,
+        }
         req_arch = phase_times.get("requirements_architecture", 0)
         if req_arch > budgets["requirements"] + budgets["architecture"]:
             benchmark_collector.setdefault("bottlenecks", []).append(
@@ -299,7 +348,7 @@ class TestBottlenecks:
         ps.print_stats(15)
         report = stream.getvalue()
         # Store summary line for report
-        lines = [l for l in report.splitlines() if l.strip()][:20]
+        lines = [line for line in report.splitlines() if line.strip()][:20]
         benchmark_collector.setdefault("bottlenecks", []).append(
             "Profile (top cumulative): " + "; ".join(lines[:5])
         )
@@ -322,7 +371,16 @@ class TestHardwareProfiles:
         env_name = str(env.value) if env else "dev"
 
         role_models: dict[str, str] = {}
-        for role in ("manager", "product_owner", "architect", "backend_dev", "frontend_dev", "devops", "cloud", "qa"):
+        for role in (
+            "manager",
+            "product_owner",
+            "architect",
+            "backend_dev",
+            "frontend_dev",
+            "devops",
+            "cloud",
+            "qa",
+        ):
             role_models[role] = settings.get_model_for_role(role).model_id
 
         benchmark_collector.setdefault("hardware_profiles", {})["openrouter"] = {

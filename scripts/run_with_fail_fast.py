@@ -23,7 +23,7 @@ import argparse
 import re
 import subprocess
 import sys
-from typing import Pattern
+from re import Pattern
 
 
 def main() -> int:
@@ -76,7 +76,10 @@ def main() -> int:
     # Patterns that trigger fail-fast (in order of check).
     patterns: list[tuple[str, Pattern[str]]] = [
         ("[ERROR] in logs", re.compile(r"\[ERROR\]")),
-        ("Failed to add to long term memory", re.compile(r"Failed to add to long term memory", re.I)),
+        (
+            "Failed to add to long term memory",
+            re.compile(r"Failed to add to long term memory", re.I),
+        ),
     ]
     if args.stop_on_guardrail_block:
         patterns.append(("Guardrail  blocked", re.compile(r"Guardrail\s+blocked")))

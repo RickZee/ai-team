@@ -46,16 +46,16 @@ def too_long() -> None:
     x = 1
 ''' + "\n".join(["    y = 2"] * 55)
 
-BAD_PYTHON_TODO = '''
+BAD_PYTHON_TODO = """
 def work() -> None:
     # TODO: implement later
     pass
-'''
+"""
 
-BAD_PYTHON_NO_DOCSTRING = '''
+BAD_PYTHON_NO_DOCSTRING = """
 def public_func(x: int) -> int:
     return x + 1
-'''
+"""
 
 BAD_PYTHON_NAMING = '''
 def BadCamelCase() -> int:
@@ -185,7 +185,9 @@ class TestArchitectureComplianceGuardrail:
             ["scripts/random_script.py"],
             arch,
         )
-        assert any("outside" in s.lower() or "architecture" in s.lower() for s in result.suggestions)
+        assert any(
+            "outside" in s.lower() or "architecture" in s.lower() for s in result.suggestions
+        )
 
     def test_forbidden_imports(self) -> None:
         arch = {"forbidden_imports": ["legacy/"]}

@@ -7,7 +7,6 @@ from ai_team.backends.langgraph_backend.graphs.subgraph_runners import (
     _cached_planning,
     reset_subgraph_cache,
 )
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from .stub_chat_model import FakeChatModelWithBindTools
 
@@ -26,9 +25,7 @@ def _no_tools(_role: str) -> list:
 
 
 class TestSubgraphCache:
-    def test_same_profile_returns_same_graph(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_same_profile_returns_same_graph(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.planning.get_langchain_tools_for_role",
             _no_tools,
@@ -63,9 +60,7 @@ class TestSubgraphCache:
         g_subset = _cached_planning(subset, overrides)
         assert g_full is not g_subset
 
-    def test_reset_clears_cache(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_reset_clears_cache(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "ai_team.backends.langgraph_backend.graphs.planning.get_langchain_tools_for_role",
             _no_tools,

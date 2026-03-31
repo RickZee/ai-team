@@ -8,14 +8,12 @@ no commits on main/master, branch naming convention enforced.
 
 import re
 from pathlib import Path
-from typing import List
 
 import structlog
+from ai_team.config.llm_factory import complete_with_openrouter
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 from git.repo.fun import is_git_dir
 from pydantic import BaseModel, Field
-
-from ai_team.config.llm_factory import complete_with_openrouter
 
 logger = structlog.get_logger(__name__)
 
@@ -48,9 +46,13 @@ class GitStatus(BaseModel):
     has_staged: bool = Field(..., description="True if there are staged changes")
     has_unstaged: bool = Field(..., description="True if there are unstaged changes")
     has_untracked: bool = Field(..., description="True if there are untracked files")
-    staged_files: List[str] = Field(default_factory=list, description="List of staged file paths")
-    unstaged_files: List[str] = Field(default_factory=list, description="List of unstaged file paths")
-    untracked_files: List[str] = Field(default_factory=list, description="List of untracked file paths")
+    staged_files: list[str] = Field(default_factory=list, description="List of staged file paths")
+    unstaged_files: list[str] = Field(
+        default_factory=list, description="List of unstaged file paths"
+    )
+    untracked_files: list[str] = Field(
+        default_factory=list, description="List of untracked file paths"
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -109,9 +111,7 @@ def _validate_branch_name(branch_name: str) -> None:
     if lower in PROTECTED_BRANCHES:
         raise ValueError(f"Branch name '{branch_name}' is protected; use a feature/fix branch")
     if not BRANCH_NAME_PATTERN.match(branch_name):
-        raise ValueError(
-            "Branch name must follow type/name (e.g. feature/my-feature, fix/bug-123)"
-        )
+        raise ValueError("Branch name must follow type/name (e.g. feature/my-feature, fix/bug-123)")
 
 
 def _validate_conventional_message(message: str) -> None:
@@ -121,7 +121,9 @@ def _validate_conventional_message(message: str) -> None:
     first_line = message.strip().split("\n")[0]
     # Allow: type: msg, type(scope): msg
     if ":" not in first_line:
-        raise ValueError("Commit message should follow conventional format: type(scope): description")
+        raise ValueError(
+            "Commit message should follow conventional format: type(scope): description"
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -151,7 +153,7 @@ def git_init(path: str) -> bool:
         raise
 
 
-def git_add(path: str, files: List[str]) -> bool:
+def git_add(path: str, files: list[str]) -> bool:
     """
     Stage the given files in the repository containing path.
 
@@ -164,14 +166,11 @@ def git_add(path: str, files: List[str]) -> bool:
     resolved = []
     for f in files:
         fp = Path(f)
-        if not fp.is_absolute():
-            fp = repo_root / f
-        else:
-            fp = fp.resolve()
+        fp = repo_root / f if not fp.is_absolute() else fp.resolve()
         try:
             rel = fp.relative_to(repo_root)
-        except ValueError:
-            raise ValueError(f"File {f} is not inside repository {repo_root}")
+        except ValueError as err:
+            raise ValueError(f"File {f} is not inside repository {repo_root}") from err
         if not fp.exists():
             raise FileNotFoundError(f"Path does not exist: {fp}")
         resolved.append(str(rel))
@@ -196,7 +195,9 @@ def git_commit(path: str, message: str) -> str:
     """
     repo = _ensure_repo(_resolve_path(path))
     if _is_protected_branch(repo):
-        logger.warning("git_commit_blocked", branch=_current_branch_name(repo), reason="protected_branch")
+        logger.warning(
+            "git_commit_blocked", branch=_current_branch_name(repo), reason="protected_branch"
+        )
         raise ValueError(
             "Committing directly to main/master is not allowed. Create a feature branch first."
         )
@@ -204,7 +205,12 @@ def git_commit(path: str, message: str) -> str:
     try:
         commit = repo.index.commit(message)
         sha = commit.hexsha[:7]
-        logger.info("git_commit", path=str(repo.working_dir), sha=sha, message_first_line=message.split("\n")[0])
+        logger.info(
+            "git_commit",
+            path=str(repo.working_dir),
+            sha=sha,
+            message_first_line=message.split("\n")[0],
+        )
         return sha
     except GitCommandError as e:
         logger.exception("git_commit_failed", path=str(repo.working_dir), error=str(e))
@@ -227,7 +233,9 @@ def git_branch(path: str, branch_name: str) -> bool:
         logger.info("git_branch", path=str(repo.working_dir), branch=branch_name)
         return True
     except GitCommandError as e:
-        logger.exception("git_branch_failed", path=str(repo.working_dir), branch=branch_name, error=str(e))
+        logger.exception(
+            "git_branch_failed", path=str(repo.working_dir), branch=branch_name, error=str(e)
+        )
         raise
 
 
@@ -249,14 +257,16 @@ def git_diff(path: str) -> str:
             out += "\n--- working tree ---\n" + diff
         if not out:
             out = "(no changes)"
-        logger.debug("git_diff", path=str(repo.working_dir), has_staged=bool(staged), has_unstaged=bool(diff))
+        logger.debug(
+            "git_diff", path=str(repo.working_dir), has_staged=bool(staged), has_unstaged=bool(diff)
+        )
         return out.strip()
     except GitCommandError as e:
         logger.exception("git_diff_failed", path=str(repo.working_dir), error=str(e))
         raise
 
 
-def git_log(path: str, n: int = 10) -> List[CommitInfo]:
+def git_log(path: str, n: int = 10) -> list[CommitInfo]:
     """
     Return the most recent n commits as a list of CommitInfo.
 
@@ -342,7 +352,7 @@ Diff:
     return first
 
 
-def create_pr_description(commits: List[str], changes: List[str]) -> str:
+def create_pr_description(commits: list[str], changes: list[str]) -> str:
     """
     Generate a PR description from a list of commit messages and change summary (OpenRouter).
 

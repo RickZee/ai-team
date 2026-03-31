@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import pytest
-
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 from ai_team.config.settings import reload_settings
 from ai_team.core.team_profile import TeamProfile
@@ -30,7 +29,9 @@ class _DummyGraph:
         return _Snap(values=self._final_state)
 
 
-def test_langgraph_stream_writes_results_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_langgraph_stream_writes_results_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.chdir(tmp_path)
     out_root = tmp_path / "out"
     out_root.mkdir(parents=True, exist_ok=True)
@@ -43,9 +44,7 @@ def test_langgraph_stream_writes_results_bundle(tmp_path: Path, monkeypatch: pyt
     final_state = {"project_id": "tid", "current_phase": "complete"}
     monkeypatch.setattr(backend, "_compile_for_run", lambda mode, cp: _DummyGraph(final_state))
 
-    events = list(
-        backend.iter_stream_events("x", profile, thread_id="tid", graph_mode="full")
-    )
+    events = list(backend.iter_stream_events("x", profile, thread_id="tid", graph_mode="full"))
     assert any(e.get("type") == "langgraph_done" for e in events)
 
     run_json = out_root / "tid" / "run.json"
@@ -57,4 +56,3 @@ def test_langgraph_stream_writes_results_bundle(tmp_path: Path, monkeypatch: pyt
 
     state = json.loads(state_json.read_text(encoding="utf-8"))
     assert state["project_id"] == "tid"
-

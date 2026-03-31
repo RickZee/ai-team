@@ -25,9 +25,7 @@ _KNOWLEDGE = _ROOT / "src" / "ai_team" / "knowledge"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Ingest markdown knowledge into RAG ChromaDB."
-    )
+    parser = argparse.ArgumentParser(description="Ingest markdown knowledge into RAG ChromaDB.")
     parser.add_argument(
         "--reset",
         action="store_true",

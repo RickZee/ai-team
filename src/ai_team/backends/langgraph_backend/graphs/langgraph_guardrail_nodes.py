@@ -226,9 +226,7 @@ def quality_guardrail_node(state: LangGraphSubgraphState) -> dict[str, Any]:
 def retry_wrap_node(state: LangGraphSubgraphState) -> dict[str, Any]:
     """Increment retry counter before re-entering agent subgraph."""
     n = int(state.get("guardrail_retry_count") or 0) + 1
-    logger.info(
-        "guardrail_retry_wrap", attempt=n, max_retries=MAX_SUBGRAPH_GUARDRAIL_RETRIES
-    )
+    logger.info("guardrail_retry_wrap", attempt=n, max_retries=MAX_SUBGRAPH_GUARDRAIL_RETRIES)
     return {"guardrail_retry_count": n}
 
 
@@ -253,7 +251,9 @@ def route_after_behavioral(
 ) -> Literal["security", "retry_wrap", "guardrail_terminal"]:
     last = _last_phase_check(state, "behavioral")
     if not last or last.get("status") != "fail":
-        logger.debug("route_after_behavioral", decision="pass", status=last.get("status") if last else None)
+        logger.debug(
+            "route_after_behavioral", decision="pass", status=last.get("status") if last else None
+        )
         return "security"
     logger.info("route_after_behavioral", decision="fail", message=last.get("message"))
     if not last.get("retry_allowed", True):
@@ -268,7 +268,9 @@ def route_after_security(
 ) -> Literal["quality", "retry_wrap", "guardrail_terminal"]:
     last = _last_phase_check(state, "security")
     if not last or last.get("status") != "fail":
-        logger.debug("route_after_security", decision="pass", status=last.get("status") if last else None)
+        logger.debug(
+            "route_after_security", decision="pass", status=last.get("status") if last else None
+        )
         return "quality"
     logger.info("route_after_security", decision="fail", message=last.get("message"))
     if not last.get("retry_allowed", True):
@@ -283,9 +285,16 @@ def route_after_quality(
 ) -> Literal["retry_wrap", "guardrail_terminal", "__end__"]:
     last = _last_phase_check(state, "quality")
     if not last or last.get("status") != "fail":
-        logger.debug("route_after_quality", decision="pass", status=last.get("status") if last else None)
+        logger.debug(
+            "route_after_quality", decision="pass", status=last.get("status") if last else None
+        )
         return "__end__"
-    logger.info("route_after_quality", decision="fail", message=last.get("message"), details=last.get("details"))
+    logger.info(
+        "route_after_quality",
+        decision="fail",
+        message=last.get("message"),
+        details=last.get("details"),
+    )
     if not last.get("retry_allowed", True):
         return "guardrail_terminal"
     if int(state.get("guardrail_retry_count") or 0) >= MAX_SUBGRAPH_GUARDRAIL_RETRIES:

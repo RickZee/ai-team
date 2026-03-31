@@ -11,24 +11,23 @@ Supports backend-only or frontend-only when architecture indicates a single surf
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
-from crewai import Crew, Process
 import structlog
-
 from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.backend_developer import create_backend_developer
-from ai_team.agents.frontend_developer import create_frontend_developer
 from ai_team.agents.devops_engineer import create_devops_engineer
+from ai_team.agents.frontend_developer import create_frontend_developer
 from ai_team.config.llm_factory import get_embedder_config
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.tasks.development_tasks import (
     create_backend_implementation_task,
-    create_frontend_implementation_task,
     create_devops_configuration_task,
+    create_frontend_implementation_task,
 )
+from crewai import Crew, Process, Task
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +37,7 @@ DEVELOPMENT_MAX_ITERATIONS = 15
 
 def _implementation_tasks_from_architecture(
     architecture: ArchitectureDocument,
-) -> Tuple[bool, bool]:
+) -> tuple[bool, bool]:
     """
     Determine which implementation tasks are needed from the architecture.
 
@@ -50,12 +49,8 @@ def _implementation_tasks_from_architecture(
     include_backend = True
     include_frontend = True
 
-    component_names = " ".join(
-        c.name.lower() for c in architecture.components
-    )
-    stack_cats = " ".join(
-        t.category.lower() for t in architecture.technology_stack
-    )
+    component_names = " ".join(c.name.lower() for c in architecture.components)
+    stack_cats = " ".join(t.category.lower() for t in architecture.technology_stack)
 
     # Backend-only: no frontend/web/ui component or category
     if not any(
@@ -84,7 +79,7 @@ def _build_development_tasks(
     include_frontend: bool,
     architecture: ArchitectureDocument,
     requirements: RequirementsDocument,
-) -> List[Any]:
+) -> list[Any]:
     """
     Build CrewAI Task list for development: backend, frontend (optional), devops.
 
@@ -92,16 +87,14 @@ def _build_development_tasks(
     task descriptions reference {requirements_doc} and {architecture_doc}.
     """
     arch_dict = architecture.model_dump() if architecture else {}
-    req_text = requirements.model_dump_json() if requirements else "{}"
-    arch_text = architecture.model_dump_json() if architecture else "{}"
 
     shared_description_context = (
         " Use the requirements and architecture provided in the crew inputs "
         "(requirements_doc and architecture_doc) as the single source of truth."
     )
 
-    tasks: List[Task] = []
-    context_tasks: List[Task] = []
+    tasks: list[Task] = []
+    context_tasks: list[Task] = []
 
     if include_backend:
         backend_task = create_backend_implementation_task(
@@ -110,9 +103,7 @@ def _build_development_tasks(
             architecture=arch_dict,
         )
         # Inject input references into description for kickoff(inputs=...)
-        backend_task.description = (
-            backend_task.description + shared_description_context
-        )
+        backend_task.description = backend_task.description + shared_description_context
         tasks.append(backend_task)
         context_tasks.append(backend_task)
 
@@ -121,9 +112,7 @@ def _build_development_tasks(
             agent=frontend_agent,
             context=context_tasks,
         )
-        frontend_task.description = (
-            frontend_task.description + shared_description_context
-        )
+        frontend_task.description = frontend_task.description + shared_description_context
         tasks.append(frontend_task)
         context_tasks.append(frontend_task)
 
@@ -131,9 +120,7 @@ def _build_development_tasks(
         agent=devops_agent,
         context=context_tasks,
     )
-    devops_task.description = (
-        devops_task.description + shared_description_context
-    )
+    devops_task.description = devops_task.description + shared_description_context
     tasks.append(devops_task)
 
     return tasks
@@ -141,27 +128,23 @@ def _build_development_tasks(
 
 def _extract_outputs_from_crew_result(
     crew_result: Any,
-) -> Tuple[List[CodeFile], Optional[DeploymentConfig]]:
+) -> tuple[list[CodeFile], DeploymentConfig | None]:
     """
     Extract List[CodeFile] and DeploymentConfig from Crew kickoff result.
 
     CrewAI result has .tasks_output (list of task outputs). We match by
     output_pydantic type: CodeFileList -> CodeFile list; DeploymentConfig -> config.
     """
-    code_files: List[CodeFile] = []
-    deployment_config: Optional[DeploymentConfig] = None
+    code_files: list[CodeFile] = []
+    deployment_config: DeploymentConfig | None = None
 
-    tasks_output = getattr(crew_result, "tasks_output", None) or getattr(
-        crew_result, "tasks", []
-    )
+    tasks_output = getattr(crew_result, "tasks_output", None) or getattr(crew_result, "tasks", [])
     if not tasks_output:
         logger.warning("development_crew_no_tasks_output", result_type=type(crew_result).__name__)
         return code_files, deployment_config
 
     for task_out in tasks_output:
-        out = getattr(task_out, "pydantic", None) or getattr(
-            task_out, "raw", None
-        )
+        out = getattr(task_out, "pydantic", None) or getattr(task_out, "raw", None)
         if out is None:
             continue
         if isinstance(out, CodeFileList):
@@ -242,9 +225,9 @@ def kickoff(
     verbose: bool = True,
     memory: bool = True,
     max_iterations: int = DEVELOPMENT_MAX_ITERATIONS,
-    step_callback: Optional[Any] = None,
-    task_callback: Optional[Any] = None,
-) -> Tuple[List[CodeFile], Optional[DeploymentConfig]]:
+    step_callback: Any | None = None,
+    task_callback: Any | None = None,
+) -> tuple[list[CodeFile], DeploymentConfig | None]:
     """
     Run the Development Crew and return code files and deployment config.
 
@@ -252,9 +235,7 @@ def kickoff(
     When architecture indicates backend-only or frontend-only, only the relevant
     implementation task(s) are included. Returns (list of CodeFile, DeploymentConfig or None).
     """
-    include_backend, include_frontend = _implementation_tasks_from_architecture(
-        architecture
-    )
+    include_backend, include_frontend = _implementation_tasks_from_architecture(architecture)
 
     # Manager agent must have no tools (CrewAI hierarchical requirement).
     architect = create_architect_agent(tools=[])

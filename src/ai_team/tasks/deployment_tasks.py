@@ -8,11 +8,10 @@ test_execution; documentation_generation depends on all previous tasks.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Tuple
-
-from crewai import Task
+from typing import TYPE_CHECKING, Any
 
 from ai_team.guardrails import crewai_code_safety_guardrail, crewai_iac_security_guardrail
+from crewai import Task
 
 if TYPE_CHECKING:
     from crewai import Agent
@@ -21,18 +20,17 @@ if TYPE_CHECKING:
 def _task_output_text(result: Any) -> str:
     """Extract raw text from CrewAI TaskOutput or similar."""
     if hasattr(result, "raw"):
-        return getattr(result, "raw") or ""
+        return result.raw or ""
     if isinstance(result, str):
         return result
     return str(result)
 
 
-def _deployment_package_guardrail(result: Any) -> Tuple[bool, Any]:
+def _deployment_package_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI guardrail: deployment must include health checks and rollback strategy."""
     text = _task_output_text(result).lower()
-    has_health = (
-        "health" in text
-        and ("check" in text or "liveness" in text or "readiness" in text or "probe" in text)
+    has_health = "health" in text and (
+        "check" in text or "liveness" in text or "readiness" in text or "probe" in text
     )
     has_rollback = "rollback" in text or "roll back" in text or "revert" in text
     if not has_health:
@@ -42,7 +40,7 @@ def _deployment_package_guardrail(result: Any) -> Tuple[bool, Any]:
     return (True, result)
 
 
-def _documentation_content_guardrail(result: Any) -> Tuple[bool, Any]:
+def _documentation_content_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI guardrail: documentation must cover installation, usage, API reference."""
     text = _task_output_text(result).lower()
     checks = [
@@ -57,8 +55,8 @@ def _documentation_content_guardrail(result: Any) -> Tuple[bool, Any]:
 
 
 def create_infrastructure_design_task(
-    agent: "Agent",
-    context: List[Task],
+    agent: Agent,
+    context: list[Task],
 ) -> Task:
     """
     Create the infrastructure_design task: design cloud infrastructure for the application.
@@ -77,8 +75,8 @@ def create_infrastructure_design_task(
 
 
 def create_deployment_packaging_task(
-    agent: "Agent",
-    context: List[Task],
+    agent: Agent,
+    context: list[Task],
 ) -> Task:
     """
     Create the deployment_packaging task: package application for deployment with all configs.
@@ -97,8 +95,8 @@ def create_deployment_packaging_task(
 
 
 def create_documentation_generation_task(
-    agent: "Agent",
-    context: List[Task],
+    agent: Agent,
+    context: list[Task],
 ) -> Task:
     """
     Create the documentation_generation task: generate comprehensive project documentation.

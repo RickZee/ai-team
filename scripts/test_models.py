@@ -53,7 +53,10 @@ def main() -> None:
             print(f"OpenRouter OK (env={env}, model={model})")
             print(f"Response: {content[:80]}")
     except httpx.HTTPStatusError as e:
-        print(f"OpenRouter request failed: {e.response.status_code} {e.response.text[:200]}", file=sys.stderr)
+        print(
+            f"OpenRouter request failed: {e.response.status_code} {e.response.text[:200]}",
+            file=sys.stderr,
+        )
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

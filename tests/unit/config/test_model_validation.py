@@ -63,7 +63,10 @@ class TestValidateModelsBeforeRun:
         openrouter_settings: MagicMock,
         memory_settings: MemorySettings,
     ) -> None:
-        models_response = [{"id": "openrouter/openai/gpt-4o-mini"}, {"id": "openai/text-embedding-3-small"}]
+        models_response = [
+            {"id": "openrouter/openai/gpt-4o-mini"},
+            {"id": "openai/text-embedding-3-small"},
+        ]
         req_get = httpx.Request("GET", "https://openrouter.example/api/v1/models")
         req_post = httpx.Request("POST", "https://openrouter.example/api/v1/embeddings")
 
@@ -73,9 +76,7 @@ class TestValidateModelsBeforeRun:
 
         def fake_post(url: str, **kwargs: object) -> httpx.Response:
             assert "embeddings" in url
-            return httpx.Response(
-                200, json={"data": [{"embedding": [0.1]}]}, request=req_post
-            )
+            return httpx.Response(200, json={"data": [{"embedding": [0.1]}]}, request=req_post)
 
         with patch("ai_team.config.model_validation.httpx.Client") as client_cls:
             client = MagicMock()
@@ -103,9 +104,7 @@ class TestValidateModelsBeforeRun:
             return httpx.Response(200, json={"data": models_response}, request=req_get)
 
         def fake_post(url: str, **kwargs: object) -> httpx.Response:
-            return httpx.Response(
-                200, json={"data": [{"embedding": [0.1]}]}, request=req_post
-            )
+            return httpx.Response(200, json={"data": [{"embedding": [0.1]}]}, request=req_post)
 
         with patch("ai_team.config.model_validation.httpx.Client") as client_cls:
             client = MagicMock()
@@ -134,9 +133,7 @@ class TestValidateModelsBeforeRun:
             return httpx.Response(200, json={"data": models_response}, request=req_get)
 
         def fake_post(url: str, **kwargs: object) -> httpx.Response:
-            return httpx.Response(
-                400, text="Model does not exist", request=req_post
-            )
+            return httpx.Response(400, text="Model does not exist", request=req_post)
 
         with patch("ai_team.config.model_validation.httpx.Client") as client_cls:
             client = MagicMock()

@@ -14,10 +14,15 @@ class TestLooksLikeArchitecture:
     """_looks_like_architecture rejects health-check / wrong schema, accepts architecture-like dicts."""
 
     def test_accepts_system_overview(self) -> None:
-        assert _looks_like_architecture({"system_overview": "A REST API.", "components": []}) is True
+        assert (
+            _looks_like_architecture({"system_overview": "A REST API.", "components": []}) is True
+        )
 
     def test_accepts_components_only(self) -> None:
-        assert _looks_like_architecture({"components": [{"name": "API", "responsibilities": "HTTP"}]}) is True
+        assert (
+            _looks_like_architecture({"components": [{"name": "API", "responsibilities": "HTTP"}]})
+            is True
+        )
 
     def test_rejects_health_check(self) -> None:
         assert _looks_like_architecture({"status": "ok", "version": "1.0"}) is False
@@ -45,5 +50,8 @@ class TestParsePlanningOutputRejectsWrongSchema:
         requirements, architecture, needs_clarification = _parse_planning_output(crew_result)
         assert requirements is not None
         assert architecture is not None
-        assert "could not be parsed" in architecture.system_overview or "invalid schema" in architecture.system_overview
+        assert (
+            "could not be parsed" in architecture.system_overview
+            or "invalid schema" in architecture.system_overview
+        )
         assert architecture.components == []

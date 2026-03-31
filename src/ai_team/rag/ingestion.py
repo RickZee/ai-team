@@ -15,9 +15,7 @@ class TextChunk:
     section: str | None = None
 
 
-def chunk_by_markdown_sections(
-    text: str, source_id: str, max_chars: int
-) -> list[TextChunk]:
+def chunk_by_markdown_sections(text: str, source_id: str, max_chars: int) -> list[TextChunk]:
     """Split markdown on ``#`` / ``##`` headings; subdivide long sections by ``max_chars``."""
     lines = text.splitlines()
     chunks: list[TextChunk] = []
@@ -31,9 +29,7 @@ def chunk_by_markdown_sections(
             buf = []
             return
         if len(body) <= max_chars:
-            chunks.append(
-                TextChunk(text=body, source_id=source_id, section=current_title)
-            )
+            chunks.append(TextChunk(text=body, source_id=source_id, section=current_title))
         else:
             for i in range(0, len(body), max_chars):
                 part = body[i : i + max_chars]

@@ -84,7 +84,9 @@ def main() -> int:
     args = parser.parse_args()
 
     repo = _repo_root()
-    demo_dir = (Path(args.demo_path) if Path(args.demo_path).is_absolute() else repo / args.demo_path).resolve()
+    demo_dir = (
+        Path(args.demo_path) if Path(args.demo_path).is_absolute() else repo / args.demo_path
+    ).resolve()
     if not demo_dir.is_dir():
         print(f"Error: Not a directory: {demo_dir}", file=sys.stderr)
         parser.print_help(sys.stderr)

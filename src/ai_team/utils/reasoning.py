@@ -5,7 +5,7 @@ self-reflection prompts, and helpers to integrate with agent backstory prompts.
 """
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 
@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 # 1. Reasoning templates per task type (chain-of-thought)
 # ---------------------------------------------------------------------------
 
-REASONING_TEMPLATES: Dict[str, str] = {
+REASONING_TEMPLATES: dict[str, str] = {
     "requirements_reasoning": (
         "Think step by step: 1) Identify user types, 2) List core features, "
         "3) Define acceptance criteria, 4) Prioritize by business value, 5) Identify risks"
@@ -39,7 +39,7 @@ REASONING_TEMPLATES: Dict[str, str] = {
 # 2. Structured output: response format instructions (appended to prompts)
 # ---------------------------------------------------------------------------
 
-OUTPUT_FORMAT_INSTRUCTIONS: Dict[str, str] = {
+OUTPUT_FORMAT_INSTRUCTIONS: dict[str, str] = {
     "requirements": (
         "Respond with a valid JSON object matching RequirementsDocument: "
         "project_name, description (required—brief top-level project summary in 1–2 sentences), target_users (list), user_stories (list of {as_a, i_want, so_that, "
@@ -71,7 +71,7 @@ OUTPUT_FORMAT_INSTRUCTIONS: Dict[str, str] = {
 }
 
 # JSON schema templates (minimal) for validation/parsing documentation
-JSON_SCHEMA_TEMPLATES: Dict[str, Dict[str, Any]] = {
+JSON_SCHEMA_TEMPLATES: dict[str, dict[str, Any]] = {
     "requirements": {
         "type": "object",
         "required": ["project_name", "description", "user_stories"],
@@ -143,7 +143,7 @@ JSON_SCHEMA_TEMPLATES: Dict[str, Dict[str, Any]] = {
 }
 
 # Map task_type (e.g. requirements_reasoning) to output format key
-TASK_TYPE_TO_OUTPUT_KEY: Dict[str, str] = {
+TASK_TYPE_TO_OUTPUT_KEY: dict[str, str] = {
     "requirements_reasoning": "requirements",
     "architecture_reasoning": "architecture",
     "code_reasoning": "code",
@@ -310,7 +310,7 @@ _JSON_OBJECT_RE = re.compile(r"(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})", re.DOTALL)
 _JSON_ARRAY_RE = re.compile(r"(\[[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*\])", re.DOTALL)
 
 
-def extract_json_from_response(response: str) -> Optional[str]:
+def extract_json_from_response(response: str) -> str | None:
     """
     Extract a JSON string from an LLM response (markdown code block or raw JSON).
 
@@ -338,11 +338,11 @@ def extract_json_from_response(response: str) -> Optional[str]:
     return None
 
 
-def get_reasoning_template(task_type: str) -> Optional[str]:
+def get_reasoning_template(task_type: str) -> str | None:
     """Return the chain-of-thought template for the given task type, or None."""
     return REASONING_TEMPLATES.get(task_type)
 
 
-def get_output_format_instruction(output_key: str) -> Optional[str]:
+def get_output_format_instruction(output_key: str) -> str | None:
     """Return the structured output instruction for the given key (requirements, architecture, code, test)."""
     return OUTPUT_FORMAT_INSTRUCTIONS.get(output_key)

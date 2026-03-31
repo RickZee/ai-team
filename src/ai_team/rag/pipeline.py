@@ -104,9 +104,7 @@ class RAGPipeline:
             try:
                 text = path.read_text(encoding="utf-8")
             except OSError as e:
-                logger.warning(
-                    "rag_ingest_file_read_failed", path=str(path), error=str(e)
-                )
+                logger.warning("rag_ingest_file_read_failed", path=str(path), error=str(e))
                 continue
             rel = str(path.relative_to(root))
             chunks = chunk_file(rel, text, self._config.chunk_size)
@@ -167,9 +165,7 @@ class RAGPipeline:
         try:
             client.delete_collection(self._config.collection_name)
         except Exception:
-            logger.debug(
-                "rag_collection_delete_skipped", name=self._config.collection_name
-            )
+            logger.debug("rag_collection_delete_skipped", name=self._config.collection_name)
         self._collection = None
         _ = self._ensure_collection()
 

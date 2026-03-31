@@ -37,11 +37,7 @@ class TestLangGraphBehavioralNodeAdversarial:
 
     def test_qa_fails_production_code(self) -> None:
         node = make_behavioral_guardrail_node("qa_engineer")
-        out = node(
-            _state_with_ai(
-                "def get_user(user_id: int): return db.query(User).get(user_id)"
-            )
-        )
+        out = node(_state_with_ai("def get_user(user_id: int): return db.query(User).get(user_id)"))
         assert out["guardrail_checks"][-1]["status"] == "fail"
 
     def test_scope_fail_off_scope(self) -> None:
@@ -122,7 +118,5 @@ def add(a: int, b: int) -> int:
 
     def test_skips_prose_stub(self) -> None:
         """Conversational stubs must not fail ``ast.parse`` in quality."""
-        out = quality_guardrail_node(
-            _state_with_ai("Stub assistant reply for testing.")
-        )
+        out = quality_guardrail_node(_state_with_ai("Stub assistant reply for testing."))
         assert out["guardrail_checks"][-1]["status"] == "pass"
