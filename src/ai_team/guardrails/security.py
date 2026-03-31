@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple
-
-from pydantic import BaseModel, Field
+from collections.abc import Callable
+from typing import Any, Literal
 
 from ai_team.config.settings import get_settings
-
+from pydantic import BaseModel, Field
 
 # =============================================================================
 # GUARDRAIL RESULT
@@ -28,7 +27,7 @@ class GuardrailResult(BaseModel):
         description="pass=allowed, fail=block, warn=log but allow"
     )
     message: str = Field(default="", description="Human-readable outcome message")
-    details: Optional[Dict[str, Any]] = Field(
+    details: dict[str, Any] | None = Field(
         default=None,
         description="Extra data (e.g. redacted text, matched patterns, severity)",
     )
@@ -56,12 +55,20 @@ _SEVERITY_WARNING = "warning"
 _SEVERITY_INFO = "info"
 
 # Built-in dangerous patterns: (regex, description, severity)
-_DEFAULT_DANGEROUS_PATTERNS: List[Tuple[str, str, str]] = [
+_DEFAULT_DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"\beval\s*\(", "eval()", _SEVERITY_CRITICAL),
     (r"\bexec\s*\(", "exec()", _SEVERITY_CRITICAL),
     (r"os\.system\s*\(", "os.system()", _SEVERITY_CRITICAL),
-    (r"subprocess\.(run|call|Popen|check_output)\s*\([^)]*shell\s*=\s*True", "subprocess with shell=True", _SEVERITY_CRITICAL),
-    (r"subprocess\.(run|call|Popen|check_output)\s*\([^)]*\)", "subprocess call", _SEVERITY_WARNING),  # may be ok if shell=False
+    (
+        r"subprocess\.(run|call|Popen|check_output)\s*\([^)]*shell\s*=\s*True",
+        "subprocess with shell=True",
+        _SEVERITY_CRITICAL,
+    ),
+    (
+        r"subprocess\.(run|call|Popen|check_output)\s*\([^)]*\)",
+        "subprocess call",
+        _SEVERITY_WARNING,
+    ),  # may be ok if shell=False
     (r"__import__\s*\(", "__import__()", _SEVERITY_CRITICAL),
     (r"\bcompile\s*\(", "compile()", _SEVERITY_CRITICAL),
     (r"\bglobals\s*\(", "globals()", _SEVERITY_WARNING),
@@ -82,9 +89,9 @@ def code_safety_guardrail(code: str) -> GuardrailResult:
     plus built-in patterns. Severity: critical → block, warning → log, info → log.
     """
     settings = get_settings()
-    critical_matches: List[str] = []
-    warning_matches: List[str] = []
-    info_matches: List[str] = []
+    critical_matches: list[str] = []
+    warning_matches: list[str] = []
+    info_matches: list[str] = []
 
     # Configurable patterns from settings (treated as critical if not regex)
     for pattern in settings.guardrails.dangerous_patterns:
@@ -109,7 +116,11 @@ def code_safety_guardrail(code: str) -> GuardrailResult:
         return GuardrailResult(
             status="fail",
             message=f"Code safety violation (critical): {', '.join(set(critical_matches))}",
-            details={"critical": list(set(critical_matches)), "warning": warning_matches, "info": info_matches},
+            details={
+                "critical": list(set(critical_matches)),
+                "warning": warning_matches,
+                "info": info_matches,
+            },
             retry_allowed=True,
         )
     if warning_matches or info_matches:
@@ -119,14 +130,16 @@ def code_safety_guardrail(code: str) -> GuardrailResult:
             details={"warning": warning_matches, "info": info_matches},
             retry_allowed=True,
         )
-    return GuardrailResult(status="pass", message="No dangerous patterns detected.", retry_allowed=True)
+    return GuardrailResult(
+        status="pass", message="No dangerous patterns detected.", retry_allowed=True
+    )
 
 
 # =============================================================================
 # PII REDACTION
 # =============================================================================
 
-_PII_PATTERNS: List[Tuple[str, str]] = [
+_PII_PATTERNS: list[tuple[str, str]] = [
     (r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "EMAIL"),
     (r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", "PHONE"),
     (r"\b\d{3}-\d{2}-\d{4}\b", "SSN"),
@@ -143,7 +156,7 @@ def pii_redaction_guardrail(text: str) -> GuardrailResult:
     Returns both detection result and redacted version in details["redacted"].
     """
     settings = get_settings()
-    patterns_to_use: List[Tuple[str, str]] = list(_PII_PATTERNS)
+    patterns_to_use: list[tuple[str, str]] = list(_PII_PATTERNS)
     for p in settings.guardrails.pii_patterns:
         try:
             re.compile(p)
@@ -152,14 +165,14 @@ def pii_redaction_guardrail(text: str) -> GuardrailResult:
             pass
 
     redacted = text
-    detected: List[str] = []
+    detected: list[str] = []
     for pattern, label in patterns_to_use:
         matches = re.findall(pattern, text, re.IGNORECASE)
         if matches:
             detected.append(f"{label}:{len(matches)}")
             redacted = re.sub(pattern, f"[REDACTED_{label}]", redacted, flags=re.IGNORECASE)
 
-    details: Dict[str, Any] = {"redacted": redacted, "detected": detected}
+    details: dict[str, Any] = {"redacted": redacted, "detected": detected}
     if detected:
         return GuardrailResult(
             status="warn",
@@ -179,7 +192,7 @@ def pii_redaction_guardrail(text: str) -> GuardrailResult:
 # SECRET DETECTION
 # =============================================================================
 
-_SECRET_PATTERNS: List[Tuple[str, str]] = [
+_SECRET_PATTERNS: list[tuple[str, str]] = [
     (r"(?i)(api[_-]?key|apikey)\s*[:=]\s*[\'\"]\S+[\'\"]", "API_KEY"),
     (r"(?i)(password|passwd|pwd)\s*[:=]\s*[\'\"]\S+[\'\"]", "PASSWORD"),
     (r"(?i)(secret|token|auth)\s*[:=]\s*[\'\"]\S+[\'\"]", "SECRET_TOKEN"),
@@ -201,7 +214,7 @@ def secret_detection_guardrail(content: str) -> GuardrailResult:
     Detect hardcoded secrets: API keys, tokens, passwords, connection strings.
     Flags .env-style values that should not appear in code.
     """
-    found: List[str] = []
+    found: list[str] = []
     for pattern, label in _SECRET_PATTERNS:
         if re.search(pattern, content):
             found.append(label)
@@ -220,7 +233,7 @@ def secret_detection_guardrail(content: str) -> GuardrailResult:
 # PROMPT INJECTION
 # =============================================================================
 
-_INJECTION_PATTERNS_HIGH: List[str] = [
+_INJECTION_PATTERNS_HIGH: list[str] = [
     r"ignore\s+(previous|all|above)\s+instructions",
     r"disregard\s+(your|the)\s+(rules|instructions)",
     r"you\s+are\s+now\s+(a|an)\s+",
@@ -232,13 +245,13 @@ _INJECTION_PATTERNS_HIGH: List[str] = [
     r"\[INST\]\s*ignore",
     r"<\|im_end\|>\s*<\|im_start\|>\s*system",
 ]
-_INJECTION_PATTERNS_MEDIUM: List[str] = [
+_INJECTION_PATTERNS_MEDIUM: list[str] = [
     r"override\s+your\s+instructions",
     r"new\s+instructions\s*:",
     r"disregard\s+above",
     r"ignore\s+all\s+above",
 ]
-_INJECTION_PATTERNS_LOW: List[str] = [
+_INJECTION_PATTERNS_LOW: list[str] = [
     r"ignore\s+previous",
     r"new\s+role\s*:",
 ]
@@ -278,7 +291,9 @@ def prompt_injection_guardrail(
                 details={"matched_pattern": pattern},
                 retry_allowed=False,
             )
-    return GuardrailResult(status="pass", message="No prompt injection detected.", retry_allowed=True)
+    return GuardrailResult(
+        status="pass", message="No prompt injection detected.", retry_allowed=True
+    )
 
 
 # =============================================================================
@@ -303,7 +318,7 @@ def _is_system_path(resolved: str) -> bool:
 
 def path_security_guardrail(
     file_path: str,
-    allowed_dirs: Optional[List[str]] = None,
+    allowed_dirs: list[str] | None = None,
 ) -> GuardrailResult:
     """
     Validate file path is within allowed directories. Blocks path traversal,
@@ -361,7 +376,9 @@ def path_security_guardrail(
     resolved_real = _norm(resolved)
     allowed_abs = [_norm(os.path.abspath(d)) for d in allowed_dirs]
 
-    if not any(resolved_real == d or (resolved_real + os.sep).startswith(d + os.sep) for d in allowed_abs):
+    if not any(
+        resolved_real == d or (resolved_real + os.sep).startswith(d + os.sep) for d in allowed_abs
+    ):
         return GuardrailResult(
             status="fail",
             message="Path outside allowed directories.",
@@ -381,16 +398,17 @@ def path_security_guardrail(
 # CREWAI TASK GUARDRAIL ADAPTERS
 # =============================================================================
 
+
 def _task_output_text(result: Any) -> str:
     """Extract raw text from CrewAI TaskOutput or similar."""
     if hasattr(result, "raw"):
-        return getattr(result, "raw") or ""
+        return result.raw or ""
     if isinstance(result, str):
         return result
     return str(result)
 
 
-def crewai_code_safety_guardrail(result: Any) -> Tuple[bool, Any]:
+def crewai_code_safety_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI task guardrail: validate task output with code_safety_guardrail."""
     text = _task_output_text(result)
     r = code_safety_guardrail(text)
@@ -399,7 +417,7 @@ def crewai_code_safety_guardrail(result: Any) -> Tuple[bool, Any]:
     return (True, result)
 
 
-def crewai_pii_guardrail(result: Any) -> Tuple[bool, Any]:
+def crewai_pii_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI task guardrail: redact PII in task output."""
     text = _task_output_text(result)
     r = pii_redaction_guardrail(text)
@@ -410,7 +428,7 @@ def crewai_pii_guardrail(result: Any) -> Tuple[bool, Any]:
     return (True, redacted)
 
 
-def crewai_secret_detection_guardrail(result: Any) -> Tuple[bool, Any]:
+def crewai_secret_detection_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI task guardrail: block output if secrets detected."""
     text = _task_output_text(result)
     r = secret_detection_guardrail(text)
@@ -419,7 +437,7 @@ def crewai_secret_detection_guardrail(result: Any) -> Tuple[bool, Any]:
     return (True, result.raw if hasattr(result, "raw") else text)
 
 
-def crewai_prompt_injection_guardrail(result: Any) -> Tuple[bool, Any]:
+def crewai_prompt_injection_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI task guardrail: validate input (use on user input task output)."""
     text = _task_output_text(result)
     r = prompt_injection_guardrail(text)
@@ -428,7 +446,7 @@ def crewai_prompt_injection_guardrail(result: Any) -> Tuple[bool, Any]:
     return (True, result.raw if hasattr(result, "raw") else text)
 
 
-def crewai_path_security_guardrail(result: Any) -> Tuple[bool, Any]:
+def crewai_path_security_guardrail(result: Any) -> tuple[bool, Any]:
     """CrewAI task guardrail: validate that output is a path within allowed dirs."""
     text = _task_output_text(result).strip()
     r = path_security_guardrail(text)
@@ -438,7 +456,7 @@ def crewai_path_security_guardrail(result: Any) -> Tuple[bool, Any]:
 
 
 # Convenience list for Task(guardrails=[...])
-SECURITY_TASK_GUARDRAILS: List[Callable[[Any], Tuple[bool, Any]]] = [
+SECURITY_TASK_GUARDRAILS: list[Callable[[Any], tuple[bool, Any]]] = [
     crewai_code_safety_guardrail,
     crewai_pii_guardrail,
     crewai_secret_detection_guardrail,

@@ -19,9 +19,7 @@ _CONFIG_NAME = "agents.yaml"
 
 
 def _agents_yaml_path() -> Path:
-    return (
-        Path(__file__).resolve().parent.parent.parent.parent / "config" / _CONFIG_NAME
-    )
+    return Path(__file__).resolve().parent.parent.parent.parent / "config" / _CONFIG_NAME
 
 
 def load_agents_yaml() -> dict[str, Any]:

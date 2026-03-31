@@ -41,9 +41,7 @@ def _nested_config(config: RunnableConfig, suffix: str) -> RunnableConfig:
     return base
 
 
-def _message_delta(
-    seed: list[BaseMessage], out_msgs: list[BaseMessage]
-) -> list[BaseMessage]:
+def _message_delta(seed: list[BaseMessage], out_msgs: list[BaseMessage]) -> list[BaseMessage]:
     """Return messages appended after ``seed`` (subgraph output is typically seed + new)."""
     if len(out_msgs) < len(seed):
         return list(out_msgs)
@@ -137,9 +135,17 @@ def _parse_structured_planning(text: str) -> tuple[dict[str, Any], dict[str, Any
             obj = json.loads(block.strip())
         except json.JSONDecodeError:
             continue
-        if isinstance(obj, dict) and "requirements" in obj and isinstance(obj["requirements"], dict):
+        if (
+            isinstance(obj, dict)
+            and "requirements" in obj
+            and isinstance(obj["requirements"], dict)
+        ):
             req = obj["requirements"]
-        if isinstance(obj, dict) and "architecture" in obj and isinstance(obj["architecture"], dict):
+        if (
+            isinstance(obj, dict)
+            and "architecture" in obj
+            and isinstance(obj["architecture"], dict)
+        ):
             arch = obj["architecture"]
     return req, arch
 

@@ -10,8 +10,9 @@ for automated testing.
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field
@@ -41,25 +42,31 @@ class HumanFeedbackRequest(BaseModel):
         default=FeedbackType.CLARIFICATION,
         description="Category of feedback",
     )
-    context: Dict[str, Any] = Field(default_factory=dict, description="Relevant context (what failed, agent output)")
-    options: List[str] = Field(default_factory=list, description="Structured options (e.g. Confirm, Simplify, Reject)")
-    default_option: Optional[str] = Field(default=None, description="Option to use on timeout")
-    project_id: Optional[str] = Field(default=None, description="Project ID for audit")
+    context: dict[str, Any] = Field(
+        default_factory=dict, description="Relevant context (what failed, agent output)"
+    )
+    options: list[str] = Field(
+        default_factory=list, description="Structured options (e.g. Confirm, Simplify, Reject)"
+    )
+    default_option: str | None = Field(default=None, description="Option to use on timeout")
+    project_id: str | None = Field(default=None, description="Project ID for audit")
 
 
 class HumanFeedbackResult(BaseModel):
     """Parsed human response for injection into agent context."""
 
     raw_response: str = Field(..., description="Original user input")
-    selected_option: Optional[str] = Field(default=None, description="Matched option if any")
+    selected_option: str | None = Field(default=None, description="Matched option if any")
     free_text: str = Field(default="", description="Free-text part of the response")
     feedback_type: FeedbackType = Field(default=FeedbackType.CLARIFICATION)
-    accepted: bool = Field(default=True, description="Whether user accepted/confirmed (for Approval/Override)")
+    accepted: bool = Field(
+        default=True, description="Whether user accepted/confirmed (for Approval/Override)"
+    )
 
 
 def parse_feedback_response(
     response: str,
-    options: List[str],
+    options: list[str],
     feedback_type: FeedbackType = FeedbackType.CLARIFICATION,
 ) -> HumanFeedbackResult:
     """
@@ -70,7 +77,7 @@ def parse_feedback_response(
     accepted from positive/negative wording or option match.
     """
     response = (response or "").strip()
-    selected: Optional[str] = None
+    selected: str | None = None
     for opt in options:
         if opt.strip().lower() == response.lower():
             selected = opt.strip()
@@ -81,9 +88,12 @@ def parse_feedback_response(
         positive = ["yes", "confirm", "allow", "approve", "accept", "ok"]
         negative = ["no", "reject", "deny", "simplify", "disallow"]
         lower = response.lower()
-        if any(n in lower for n in negative) and not any(p in lower for p in positive):
-            accepted = False
-        elif selected and selected.lower() in [n.lower() for n in negative]:
+        if (
+            any(n in lower for n in negative)
+            and not any(p in lower for p in positive)
+            or selected
+            and selected.lower() in [n.lower() for n in negative]
+        ):
             accepted = False
     return HumanFeedbackResult(
         raw_response=response,
@@ -98,7 +108,7 @@ def parse_feedback_response(
 # HumanFeedbackHandler
 # -----------------------------------------------------------------------------
 
-GradioCallback = Callable[[str, Dict[str, Any], List[str]], str]
+GradioCallback = Callable[[str, dict[str, Any], list[str]], str]
 
 
 class HumanFeedbackHandler:
@@ -113,14 +123,14 @@ class HumanFeedbackHandler:
         self,
         timeout_seconds: int = 300,
         default_response: str = "",
-        use_ui_callback: Optional[GradioCallback] = None,
+        use_ui_callback: GradioCallback | None = None,
     ) -> None:
         self.timeout_seconds = max(0, timeout_seconds)
         self.default_response = default_response or ""
-        self._ui_callback: Optional[GradioCallback] = None
+        self._ui_callback: GradioCallback | None = None
         if use_ui_callback is not None:
             self._ui_callback = use_ui_callback
-        self._response_holder: List[str] = []
+        self._response_holder: list[str] = []
         self._response_ready = threading.Event()
 
     def set_gradio_callback(self, callback: GradioCallback) -> None:
@@ -130,12 +140,12 @@ class HumanFeedbackHandler:
     def request_feedback(
         self,
         question: str,
-        context: Dict[str, Any],
-        options: List[str],
+        context: dict[str, Any],
+        options: list[str],
         *,
-        default_option: Optional[str] = None,
+        default_option: str | None = None,
         feedback_type: FeedbackType = FeedbackType.CLARIFICATION,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
     ) -> str:
         """
         Present question to user via Gradio UI or CLI prompt; return response.
@@ -145,7 +155,7 @@ class HumanFeedbackHandler:
         default_option or default_response. Logs all interactions for audit.
         """
         default = default_option if default_option is not None else self.default_response
-        req = HumanFeedbackRequest(
+        HumanFeedbackRequest(
             question=question,
             feedback_type=feedback_type,
             context=context,
@@ -183,8 +193,8 @@ class HumanFeedbackHandler:
     def _request_feedback_cli(
         self,
         question: str,
-        context: Dict[str, Any],
-        options: List[str],
+        context: dict[str, Any],
+        options: list[str],
         default: str,
     ) -> str:
         """Use input() for non-UI usage; optional timeout with default."""
@@ -205,7 +215,7 @@ class HumanFeedbackHandler:
         if self.timeout_seconds <= 0:
             return (input(prompt) or default).strip()
 
-        result: List[str] = [default]
+        result: list[str] = [default]
 
         def read_input() -> None:
             try:
@@ -228,12 +238,12 @@ class HumanFeedbackHandler:
     def request_feedback_structured(
         self,
         question: str,
-        context: Dict[str, Any],
-        options: List[str],
+        context: dict[str, Any],
+        options: list[str],
         *,
-        default_option: Optional[str] = None,
+        default_option: str | None = None,
         feedback_type: FeedbackType = FeedbackType.CLARIFICATION,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
     ) -> HumanFeedbackResult:
         """
         Request feedback and parse into HumanFeedbackResult for injection
@@ -267,20 +277,20 @@ class MockHumanFeedbackHandler(HumanFeedbackHandler):
         self,
         timeout_seconds: int = 0,
         default_response: str = "",
-        preloaded_responses: Optional[List[str]] = None,
+        preloaded_responses: list[str] | None = None,
     ) -> None:
         super().__init__(timeout_seconds=timeout_seconds, default_response=default_response)
-        self.preloaded_responses: List[str] = list(preloaded_responses or [])
+        self.preloaded_responses: list[str] = list(preloaded_responses or [])
 
     def request_feedback(
         self,
         question: str,
-        context: Dict[str, Any],
-        options: List[str],
+        context: dict[str, Any],
+        options: list[str],
         *,
-        default_option: Optional[str] = None,
+        default_option: str | None = None,
         feedback_type: FeedbackType = FeedbackType.CLARIFICATION,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
     ) -> str:
         """Return next preloaded response or default; no actual I/O."""
         logger.info(

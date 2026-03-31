@@ -114,9 +114,7 @@ def compile_planning_subgraph(
         logger.info("planning_subgraph_compiled", workers=active_workers, mode="single_agent")
     else:
         supervisor_prompt = (
-            load_agent_prompt("manager").system_message()
-            + "\n\n"
-            + _STRUCTURED_OUTPUT_INSTRUCTIONS
+            load_agent_prompt("manager").system_message() + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
         )
         workflow = create_supervisor(
             worker_agents,

@@ -51,9 +51,7 @@ class TestFlowStateTransitions:
         """Planning success with confidence ≥ threshold routes to run_development."""
         flow = AITeamFlow()
         flow.state.project_description = "A REST API"
-        flow.state.add_phase_transition(
-            ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok")
         flow.state.requirements = mock_crew_outputs["requirements"]
         flow.state.architecture = mock_crew_outputs["architecture"]
 
@@ -71,9 +69,7 @@ class TestFlowStateTransitions:
     ) -> None:
         """Development success with code files routes to run_testing."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.PLANNING, ProjectPhase.DEVELOPMENT, "ok")
         flow.state.generated_files = mock_crew_outputs["code_files"]
 
         dev_result = {"status": "success", "files": mock_crew_outputs["code_files"]}
@@ -86,9 +82,7 @@ class TestFlowStateTransitions:
     ) -> None:
         """Testing success routes to run_deployment."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok")
 
         test_result = {"status": "success", "results": mock_crew_outputs["test_result_passed"]}
         step = route_after_testing(test_result, flow.state)
@@ -99,9 +93,7 @@ class TestFlowStateTransitions:
     ) -> None:
         """Deployment success routes to finalize_project."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "ok")
 
         deploy_result = {"status": "success"}
         step = route_after_deployment(deploy_result, flow.state)
@@ -142,9 +134,7 @@ class TestRoutingLogicPerPhase:
     ) -> None:
         """Planning with confidence < threshold routes to request_human_feedback."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok")
         flow.state.requirements = mock_crew_outputs["requirements"]
         flow.state.architecture = mock_crew_outputs["architecture"]
 
@@ -200,9 +190,7 @@ class TestFailureRoutingQaFailBackToDev:
     ) -> None:
         """Tests failed and can_retry → route to retry_development."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok")
         flow.state.max_retries = 3
         # retry_counts[testing] = 0, so can_retry is True
         test_result = {
@@ -220,9 +208,7 @@ class TestFailureRoutingQaFailBackToDev:
     ) -> None:
         """Tests failed and max retries exceeded → route to escalate_to_human."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok")
         flow.state.max_retries = 1
         flow.state.retry_counts[ProjectPhase.TESTING.value] = 1  # already at max
         test_result = {
@@ -232,10 +218,7 @@ class TestFailureRoutingQaFailBackToDev:
         step = route_after_testing(test_result, flow.state)
         assert step == "escalate_to_human"
         assert flow.state.current_phase == ProjectPhase.AWAITING_HUMAN or (
-            any(
-                t.to_phase == ProjectPhase.AWAITING_HUMAN
-                for t in flow.state.phase_history
-            )
+            any(t.to_phase == ProjectPhase.AWAITING_HUMAN for t in flow.state.phase_history)
         )
 
 
@@ -253,9 +236,7 @@ class TestHumanEscalationTrigger:
     ) -> None:
         """When routing to escalate_to_human, metadata has feedback_question and options."""
         flow = AITeamFlow()
-        flow.state.add_phase_transition(
-            ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok")
         flow.state.max_retries = 1
         flow.state.retry_counts[ProjectPhase.TESTING.value] = 1
         test_result = {
@@ -279,9 +260,7 @@ class TestHumanEscalationTrigger:
         flow.state.metadata["feedback_resume_to"] = "run_development"
         flow.state.metadata["feedback_type"] = "approval"
         flow.state.metadata["feedback_context"] = {}
-        flow.state.add_phase_transition(
-            ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok"
-        )
+        flow.state.add_phase_transition(ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok")
         result = flow.request_human_feedback()
         assert result.get("resume_to") in ("run_development", "handle_fatal_error")
         assert flow.state.awaiting_human_input is False  # handler resolved it
@@ -325,9 +304,7 @@ class TestFlowCrewVerboseFromMonitor:
         from ai_team.flows.main_flow import AITeamFlow
 
         mock_monitor = MagicMock()
-        with patch(
-            "ai_team.crews.planning_crew.kickoff"
-        ) as mock_planning_kickoff:
+        with patch("ai_team.crews.planning_crew.kickoff") as mock_planning_kickoff:
             mock_planning_kickoff.return_value = "Requirements and architecture output"
             with patch(
                 "ai_team.flows.main_flow._parse_planning_output",
@@ -346,9 +323,7 @@ class TestFlowCrewVerboseFromMonitor:
 
         from ai_team.flows.main_flow import AITeamFlow
 
-        with patch(
-            "ai_team.crews.planning_crew.kickoff"
-        ) as mock_planning_kickoff:
+        with patch("ai_team.crews.planning_crew.kickoff") as mock_planning_kickoff:
             mock_planning_kickoff.return_value = "Requirements and architecture output"
             with patch(
                 "ai_team.flows.main_flow._parse_planning_output",

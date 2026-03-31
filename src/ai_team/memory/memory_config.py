@@ -13,13 +13,12 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
-from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager, suppress
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Literal
 
 import structlog
-
 from ai_team.config.settings import MemorySettings
 
 logger = structlog.get_logger(__name__)
@@ -56,14 +55,14 @@ class OpenRouterChromaEmbeddingFunction:
         """ChromaDB: not a legacy embedding function."""
         return False
 
-    def embed_query(self, input: str | List[str]) -> List[float] | List[List[float]]:
+    def embed_query(self, input: str | list[str]) -> list[float] | list[list[float]]:
         """ChromaDB query path: embed one or more query strings."""
         if isinstance(input, str):
             vectors = self([input])
             return vectors[0] if vectors else []
         return self(input)
 
-    def __call__(self, input: List[str]) -> List[List[float]]:
+    def __call__(self, input: list[str]) -> list[list[float]]:
         """Embed a list of documents. Returns list of embedding vectors."""
         import os
 
@@ -75,7 +74,7 @@ class OpenRouterChromaEmbeddingFunction:
         if not api_key:
             logger.warning("openrouter_embedding_skip", reason="OPENROUTER_API_KEY not set")
             return [[0.0] * 1536 for _ in input]
-        out: List[List[float]] = []
+        out: list[list[float]] = []
         url = f"{self.base_url}/embeddings"
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         for doc in input:
@@ -92,9 +91,7 @@ class OpenRouterChromaEmbeddingFunction:
                     vec = emb[0].get("embedding", []) if emb else []
                     out.append(vec if vec else [0.0] * 1536)
             except Exception as e:
-                logger.warning(
-                    "openrouter_embedding_failed", doc_len=len(doc), error=str(e)
-                )
+                logger.warning("openrouter_embedding_failed", doc_len=len(doc), error=str(e))
                 out.append([0.0] * 1536)
         return out
 
@@ -125,7 +122,7 @@ class ShortTermStore:
         self._embedding_api_base = embedding_api_base
         self._api_key_env = api_key_env
         self._client: Any = None
-        self._ef: Optional[OpenRouterChromaEmbeddingFunction] = None
+        self._ef: OpenRouterChromaEmbeddingFunction | None = None
 
     def _ensure_client(self) -> Any:
         if self._client is None:
@@ -158,7 +155,7 @@ class ShortTermStore:
         project_id: str,
         doc_id: str,
         document: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Store a task output (or any text) for RAG retrieval."""
         if not document:
@@ -178,7 +175,7 @@ class ShortTermStore:
         project_id: str,
         query: str,
         top_k: int = 10,
-    ) -> List[Tuple[str, str, float, Dict[str, Any]]]:
+    ) -> list[tuple[str, str, float, dict[str, Any]]]:
         """Search task outputs by semantic similarity. Returns (id, document, distance, metadata)."""
         coll = self.get_collection(project_id)
         result = coll.query(
@@ -192,7 +189,7 @@ class ShortTermStore:
         docs = result["documents"][0]
         dists = result.get("distances", [[0.0] * len(ids)])[0]
         metadatas = result.get("metadatas", [[{}] * len(ids)])[0]
-        return list(zip(ids, docs, dists, metadatas))
+        return list(zip(ids, docs, dists, metadatas, strict=False))
 
     def delete_collection(self, project_id: str) -> None:
         """Remove project's short-term memory (auto-cleanup after completion)."""
@@ -203,7 +200,9 @@ class ShortTermStore:
             logger.info("short_term_cleanup", project_id=project_id)
         except Exception as e:
             if "does not exist" in str(e).lower() or "not found" in str(e).lower():
-                logger.debug("short_term_cleanup_skip", project_id=project_id, reason="no_collection")
+                logger.debug(
+                    "short_term_cleanup_skip", project_id=project_id, reason="no_collection"
+                )
             else:
                 logger.warning("short_term_cleanup_failed", project_id=project_id, error=str(e))
 
@@ -213,7 +212,7 @@ class ShortTermStore:
 # -----------------------------------------------------------------------------
 
 # Shared in-memory connection so LongTermStore and EntityStore use the same DB
-_shared_memory_conn: Optional[sqlite3.Connection] = None
+_shared_memory_conn: sqlite3.Connection | None = None
 
 
 def _get_sqlite_connection(path: str) -> sqlite3.Connection:
@@ -291,11 +290,11 @@ class LongTermStore:
         self,
         role: str,
         content: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
     ) -> str:
         """Append a conversation turn. Returns row id."""
         row_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._with_conn() as conn:
             conn.execute(
                 "INSERT INTO conversations (id, project_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -305,7 +304,7 @@ class LongTermStore:
 
     def add_metric(self, agent_role: str, model: str, metric_name: str, value: float) -> None:
         """Record an agent performance metric."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._with_conn() as conn:
             conn.execute(
                 "INSERT INTO performance_metrics (agent_role, model, metric_name, value, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -315,7 +314,7 @@ class LongTermStore:
     def add_pattern(self, pattern_type: str, content: str) -> str:
         """Store a learned pattern (e.g. architecture decision, code pattern). Returns id."""
         row_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._with_conn() as conn:
             conn.execute(
                 "INSERT INTO learned_patterns (id, pattern_type, content, created_at) VALUES (?, ?, ?, ?)",
@@ -326,8 +325,8 @@ class LongTermStore:
     def get_recent_conversations(
         self,
         limit: int = 50,
-        project_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch recent conversation turns, optionally filtered by project."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
@@ -344,7 +343,7 @@ class LongTermStore:
             rows = cur.fetchall()
         return [dict(r) for r in rows]
 
-    def get_metrics_summary(self) -> List[Dict[str, Any]]:
+    def get_metrics_summary(self) -> list[dict[str, Any]]:
         """Aggregate performance metrics by role/model for tuning."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
@@ -356,7 +355,9 @@ class LongTermStore:
             rows = cur.fetchall()
         return [dict(r) for r in rows]
 
-    def get_patterns(self, pattern_type: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_patterns(
+        self, pattern_type: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Retrieve learned patterns, optionally by type."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
@@ -375,7 +376,7 @@ class LongTermStore:
 
     def apply_retention(self) -> int:
         """Delete entries older than retention_days. Returns number of rows deleted."""
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=self._retention_days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=self._retention_days)).isoformat()
         deleted = 0
         with self._with_conn() as conn:
             for table in ("conversations", "performance_metrics", "learned_patterns"):
@@ -447,10 +448,10 @@ class EntityStore:
         project_id: str,
         name: str,
         entity_type: str,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> int:
         """Insert or update an entity. Returns entity id."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         attrs_json = json.dumps(attributes or {})
         with self._with_conn() as conn:
             conn.execute(
@@ -475,7 +476,7 @@ class EntityStore:
         from_entity_name: str,
         to_entity_name: str,
         relationship_type: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Record a relationship between two entities by name."""
         with self._with_conn() as conn:
@@ -496,7 +497,7 @@ class EntityStore:
                     reason="entity_not_found",
                 )
                 return
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             meta_json = json.dumps(metadata or {})
             conn.execute(
                 """INSERT INTO entity_relationships (project_id, from_entity_id, to_entity_id, relationship_type, metadata, created_at)
@@ -508,7 +509,7 @@ class EntityStore:
         self,
         project_id: str,
         name: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Look up a single entity by project and name."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
@@ -520,17 +521,15 @@ class EntityStore:
             return None
         d = dict(row)
         if d.get("attributes"):
-            try:
+            with suppress(TypeError, json.JSONDecodeError):
                 d["attributes"] = json.loads(d["attributes"])
-            except (TypeError, json.JSONDecodeError):
-                pass
         return d
 
     def get_entities(
         self,
         project_id: str,
-        entity_type: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        entity_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """List entities for a project, optionally filtered by type."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
@@ -549,36 +548,35 @@ class EntityStore:
         for r in rows:
             d = dict(r)
             if d.get("attributes"):
-                try:
+                with suppress(TypeError, json.JSONDecodeError):
                     d["attributes"] = json.loads(d["attributes"])
-                except (TypeError, json.JSONDecodeError):
-                    pass
             out.append(d)
         return out
 
     def get_relationships(
         self,
         project_id: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return all relationships for a project (from_name, to_name, type, metadata)."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
-            cur = conn.execute("""
+            cur = conn.execute(
+                """
                 SELECT e1.name AS from_name, e2.name AS to_name, r.relationship_type, r.metadata
                 FROM entity_relationships r
                 JOIN entities e1 ON r.from_entity_id = e1.id
                 JOIN entities e2 ON r.to_entity_id = e2.id
                 WHERE r.project_id = ?
-            """, (project_id,))
+            """,
+                (project_id,),
+            )
             rows = cur.fetchall()
         out = []
         for r in rows:
             d = dict(r)
             if d.get("metadata"):
-                try:
+                with suppress(TypeError, json.JSONDecodeError):
                     d["metadata"] = json.loads(d["metadata"])
-                except (TypeError, json.JSONDecodeError):
-                    pass
             out.append(d)
         return out
 
@@ -602,10 +600,10 @@ class MemoryManager:
     """
 
     def __init__(self) -> None:
-        self._settings: Optional[MemorySettings] = None
-        self._short: Optional[ShortTermStore] = None
-        self._long: Optional[LongTermStore] = None
-        self._entity: Optional[EntityStore] = None
+        self._settings: MemorySettings | None = None
+        self._short: ShortTermStore | None = None
+        self._long: LongTermStore | None = None
+        self._entity: EntityStore | None = None
 
     def initialize(self, settings: MemorySettings) -> None:
         """Set up all memory stores from settings."""
@@ -646,9 +644,9 @@ class MemoryManager:
         key: str,
         value: Any,
         memory_type: MemoryType,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         **kwargs: Any,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Write to the appropriate store.
 
@@ -691,7 +689,9 @@ class MemoryManager:
                     )
             # Default: store as conversation
             content = value if isinstance(value, str) else json.dumps(value)
-            return self._long.add_conversation(role="system", content=content, project_id=project_id)
+            return self._long.add_conversation(
+                role="system", content=content, project_id=project_id
+            )
         if memory_type == "entity":
             if not project_id:
                 logger.warning("store_entity_missing_project_id", key=key)
@@ -707,9 +707,9 @@ class MemoryManager:
         self,
         query: str,
         memory_type: MemoryType,
-        top_k: Optional[int] = None,
-        project_id: Optional[str] = None,
-    ) -> List[Any]:
+        top_k: int | None = None,
+        project_id: str | None = None,
+    ) -> list[Any]:
         """
         Search with embeddings (short_term) or get recent (long_term).
         For short_term, project_id is required.
@@ -722,8 +722,7 @@ class MemoryManager:
                 return []
             hits = self._short.search(project_id, query, top_k=k)
             return [
-                {"id": h[0], "document": h[1], "distance": h[2], "metadata": h[3]}
-                for h in hits
+                {"id": h[0], "document": h[1], "distance": h[2], "metadata": h[3]} for h in hits
             ]
         if memory_type == "long_term":
             conv = self._long.get_recent_conversations(limit=k, project_id=project_id)
@@ -734,7 +733,7 @@ class MemoryManager:
         self,
         name: str,
         project_id: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Look up entity info by name and project."""
         if not self.is_initialized or not self._entity:
             return None
@@ -750,9 +749,9 @@ class MemoryManager:
             self._entity.delete_project(project_id)
         logger.info("memory_cleanup", project_id=project_id)
 
-    def export(self, project_id: str) -> Dict[str, Any]:
+    def export(self, project_id: str) -> dict[str, Any]:
         """Dump project-related memory for debugging (short-term snippets + entities + recent convos)."""
-        out: Dict[str, Any] = {
+        out: dict[str, Any] = {
             "project_id": project_id,
             "short_term": [],
             "long_term_conversations": [],
@@ -799,7 +798,7 @@ class MemoryManager:
         return self._long.apply_retention()
 
 
-def get_crew_embedder_config() -> Dict[str, Any]:
+def get_crew_embedder_config() -> dict[str, Any]:
     """
     Build CrewAI embedder config so crew memory uses OpenRouter for embeddings.
 
@@ -812,7 +811,7 @@ def get_crew_embedder_config() -> Dict[str, Any]:
 
 
 # Singleton for use across the app
-_manager: Optional[MemoryManager] = None
+_manager: MemoryManager | None = None
 
 
 def get_memory_manager() -> MemoryManager:

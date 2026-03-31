@@ -1,9 +1,7 @@
 """Templates for common project types used by the Product Owner agent."""
 
-from typing import Dict, List
-
 # Project type key -> list of prompt snippets or section hints for requirements
-PROJECT_TYPE_TEMPLATES: Dict[str, List[str]] = {
+PROJECT_TYPE_TEMPLATES: dict[str, list[str]] = {
     "api": [
         "REST or GraphQL API",
         "Target users: integrators, frontend apps, mobile apps, third-party developers",

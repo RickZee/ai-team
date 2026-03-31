@@ -6,22 +6,21 @@ Imports document/code types from models and tools; defines phase transitions,
 errors, and retry tracking with validators.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
-
-from pydantic import BaseModel, Field, model_validator
 
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.tools.test_tools import TestRunResult
-
+from pydantic import BaseModel, Field, model_validator
 
 # -----------------------------------------------------------------------------
 # Phase and transition models
 # -----------------------------------------------------------------------------
+
 
 class ProjectPhase(str, Enum):
     """Phases of the development lifecycle. No skipping allowed in normal path."""
@@ -39,7 +38,7 @@ class ProjectPhase(str, Enum):
 
 
 # Canonical order for "no skipping" validation (excludes ERROR, AWAITING_HUMAN)
-_PHASE_ORDER: List[ProjectPhase] = [
+_PHASE_ORDER: list[ProjectPhase] = [
     ProjectPhase.INTAKE,
     ProjectPhase.PLANNING,
     ProjectPhase.DEVELOPMENT,
@@ -55,7 +54,7 @@ class PhaseTransition(BaseModel):
     from_phase: ProjectPhase = Field(..., description="Phase before transition")
     to_phase: ProjectPhase = Field(..., description="Phase after transition")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the transition occurred",
     )
     reason: str = Field(default="", description="Optional reason or trigger")
@@ -68,7 +67,7 @@ class ProjectError(BaseModel):
     error_type: str = Field(..., description="Error category or code")
     message: str = Field(..., description="Human-readable message")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the error occurred",
     )
     recoverable: bool = Field(default=True, description="Whether the flow can retry or recover")
@@ -77,6 +76,7 @@ class ProjectError(BaseModel):
 # -----------------------------------------------------------------------------
 # Main flow state
 # -----------------------------------------------------------------------------
+
 
 class ProjectState(BaseModel):
     """
@@ -88,26 +88,46 @@ class ProjectState(BaseModel):
     """
 
     project_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique project UUID")
-    project_description: str = Field(default="", description="User or stakeholder project description")
-    current_phase: ProjectPhase = Field(default=ProjectPhase.INTAKE, description="Current lifecycle phase")
-    requirements: Optional[RequirementsDocument] = Field(default=None, description="Output from planning")
-    architecture: Optional[ArchitectureDocument] = Field(default=None, description="Output from planning")
-    generated_files: List[CodeFile] = Field(default_factory=list, description="Code artifacts from development")
-    test_results: Optional[TestRunResult] = Field(default=None, description="Result of test execution")
-    deployment_config: Optional[DeploymentConfig] = Field(default=None, description="DevOps/deployment output")
-    phase_history: List[PhaseTransition] = Field(default_factory=list, description="History of phase transitions")
-    errors: List[ProjectError] = Field(default_factory=list, description="Errors encountered")
-    retry_counts: Dict[str, int] = Field(default_factory=dict, description="Per-phase retry counts")
+    project_description: str = Field(
+        default="", description="User or stakeholder project description"
+    )
+    current_phase: ProjectPhase = Field(
+        default=ProjectPhase.INTAKE, description="Current lifecycle phase"
+    )
+    requirements: RequirementsDocument | None = Field(
+        default=None, description="Output from planning"
+    )
+    architecture: ArchitectureDocument | None = Field(
+        default=None, description="Output from planning"
+    )
+    generated_files: list[CodeFile] = Field(
+        default_factory=list, description="Code artifacts from development"
+    )
+    test_results: TestRunResult | None = Field(default=None, description="Result of test execution")
+    deployment_config: DeploymentConfig | None = Field(
+        default=None, description="DevOps/deployment output"
+    )
+    phase_history: list[PhaseTransition] = Field(
+        default_factory=list, description="History of phase transitions"
+    )
+    errors: list[ProjectError] = Field(default_factory=list, description="Errors encountered")
+    retry_counts: dict[str, int] = Field(default_factory=dict, description="Per-phase retry counts")
     max_retries: int = Field(default=3, ge=0, description="Maximum retries per phase")
     started_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the flow started",
     )
-    completed_at: Optional[datetime] = Field(default=None, description="When the flow completed (if any)")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata")
+    completed_at: datetime | None = Field(
+        default=None, description="When the flow completed (if any)"
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata")
     # Human-in-the-loop
-    awaiting_human_input: bool = Field(default=False, description="Whether the flow is waiting for user input")
-    human_feedback: Optional[str] = Field(default=None, description="Feedback or clarification from user")
+    awaiting_human_input: bool = Field(
+        default=False, description="Whether the flow is waiting for user input"
+    )
+    human_feedback: str | None = Field(
+        default=None, description="Feedback or clarification from user"
+    )
 
     @model_validator(mode="after")
     def _validate_phase_transitions_in_history(self) -> "ProjectState":
@@ -128,7 +148,7 @@ class ProjectState(BaseModel):
             PhaseTransition(
                 from_phase=from_phase,
                 to_phase=to_phase,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 reason=reason,
             )
         )
@@ -147,7 +167,7 @@ class ProjectState(BaseModel):
                 phase=phase,
                 error_type=error_type,
                 message=message,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 recoverable=recoverable,
             )
         )
@@ -169,12 +189,12 @@ class ProjectState(BaseModel):
 
     def get_duration(self) -> timedelta:
         """Return elapsed time since started_at; if completed_at set, use that as end."""
-        end = self.completed_at or datetime.now(timezone.utc)
+        end = self.completed_at or datetime.now(UTC)
         start = self.started_at
         if start.tzinfo is None:
-            start = start.replace(tzinfo=timezone.utc)
+            start = start.replace(tzinfo=UTC)
         if end.tzinfo is None:
-            end = end.replace(tzinfo=timezone.utc)
+            end = end.replace(tzinfo=UTC)
         return end - start
 
     def to_summary(self) -> str:
@@ -189,9 +209,7 @@ class ProjectState(BaseModel):
         if self.errors:
             parts.append(f"Errors: {len(self.errors)}")
         if self.test_results is not None:
-            parts.append(
-                f"Tests: {self.test_results.passed}/{self.test_results.total} passed"
-            )
+            parts.append(f"Tests: {self.test_results.passed}/{self.test_results.total} passed")
         return " | ".join(str(p) for p in parts)
 
 

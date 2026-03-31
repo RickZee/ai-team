@@ -1,7 +1,5 @@
 """Pydantic models for QA Engineer agent output (TestResult, coverage, bug reports)."""
 
-from typing import List
-
 from pydantic import BaseModel, Field
 
 
@@ -21,7 +19,7 @@ class TestExecutionResult(BaseModel):
     skipped: int = Field(0, description="Number of tests skipped")
     total: int = Field(0, description="Total tests run")
     output: str = Field("", description="Raw test runner output (e.g. pytest stdout)")
-    failed_tests: List[str] = Field(
+    failed_tests: list[str] = Field(
         default_factory=list,
         description="Identifiers or names of failed tests",
     )
@@ -42,7 +40,7 @@ class CoverageReport(BaseModel):
 
     line_coverage: float = Field(0.0, ge=0, le=1, description="Overall line coverage ratio")
     branch_coverage: float = Field(0.0, ge=0, le=1, description="Overall branch coverage ratio")
-    per_file: List[FileCoverage] = Field(
+    per_file: list[FileCoverage] = Field(
         default_factory=list,
         description="Per-file coverage breakdown",
     )
@@ -68,19 +66,19 @@ class TestResult(BaseModel):
     (e.g. minimum coverage threshold, zero critical bugs).
     """
 
-    test_files_generated: List[GeneratedTestFile] = Field(
+    test_files_generated: list[GeneratedTestFile] = Field(
         default_factory=list,
         description="Test files generated (path, content)",
     )
     execution_results: TestExecutionResult = Field(
-        default_factory=TestExecutionResult,
+        default_factory=lambda: TestExecutionResult.model_construct(),
         description="Test execution results (passed, failed, errors)",
     )
     coverage_report: CoverageReport = Field(
-        default_factory=CoverageReport,
+        default_factory=lambda: CoverageReport.model_construct(),
         description="Coverage report (line, branch, per-file breakdown)",
     )
-    bug_reports: List[BugReport] = Field(
+    bug_reports: list[BugReport] = Field(
         default_factory=list,
         description="Bug reports with severity and reproduction steps",
     )
@@ -112,7 +110,7 @@ class CodeReviewReport(BaseModel):
     """Structured code review output: findings with severity for quality and security."""
 
     summary: str = Field("", description="Overall review summary")
-    findings: List[CodeReviewFinding] = Field(
+    findings: list[CodeReviewFinding] = Field(
         default_factory=list,
         description="List of findings with severity",
     )

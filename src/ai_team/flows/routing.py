@@ -45,18 +45,15 @@ Routing diagram (simplified):
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 import structlog
-
 from ai_team.flows.state import ProjectPhase, ProjectState
 
 logger = structlog.get_logger()
 
 
-def _set_escalation_metadata(
-    state: ProjectState, test_result: Dict[str, Any], reason: str
-) -> None:
+def _set_escalation_metadata(state: ProjectState, test_result: dict[str, Any], reason: str) -> None:
     """Set metadata for escalate_to_human so the feedback handler can show context."""
     results = test_result.get("results")
     passed = getattr(results, "passed", None) if results else None
@@ -76,11 +73,12 @@ def _set_escalation_metadata(
     state.metadata["feedback_options"] = ["Retry development with feedback", "Abort"]
     state.metadata["feedback_default_option"] = "Abort"
 
+
 # Confidence below this threshold routes planning to human feedback.
 PLANNING_CONFIDENCE_THRESHOLD = 0.7
 
 
-def route_after_planning(planning_result: Dict[str, Any], state: ProjectState) -> str:
+def route_after_planning(planning_result: dict[str, Any], state: ProjectState) -> str:
     """
     Route after planning crew: run_development, request_human_feedback, or handle_planning_error.
 
@@ -111,9 +109,7 @@ def route_after_planning(planning_result: Dict[str, Any], state: ProjectState) -
 
     if needs_clarification or confidence < PLANNING_CONFIDENCE_THRESHOLD:
         reason = "requirements_ambiguous"
-        state.add_phase_transition(
-            state.current_phase, ProjectPhase.AWAITING_HUMAN, reason
-        )
+        state.add_phase_transition(state.current_phase, ProjectPhase.AWAITING_HUMAN, reason)
         state.metadata["feedback_resume_to"] = "run_development"
         state.metadata["feedback_type"] = "approval"
         state.metadata["feedback_question"] = (
@@ -156,7 +152,7 @@ def route_after_planning(planning_result: Dict[str, Any], state: ProjectState) -
     return "run_development"
 
 
-def route_after_development(dev_result: Dict[str, Any], state: ProjectState) -> str:
+def route_after_development(dev_result: dict[str, Any], state: ProjectState) -> str:
     """
     Route after development crew: run_testing, retry_planning, or handle_development_error.
 
@@ -178,9 +174,7 @@ def route_after_development(dev_result: Dict[str, Any], state: ProjectState) -> 
 
     if dev_result.get("insufficient_architecture", False):
         reason = "architecture_insufficient"
-        state.add_phase_transition(
-            state.current_phase, ProjectPhase.PLANNING, reason
-        )
+        state.add_phase_transition(state.current_phase, ProjectPhase.PLANNING, reason)
         logger.info(
             "routing_after_development",
             decision="retry_planning",
@@ -207,7 +201,7 @@ def route_after_development(dev_result: Dict[str, Any], state: ProjectState) -> 
     return "run_testing"
 
 
-def route_after_testing(test_result: Dict[str, Any], state: ProjectState) -> str:
+def route_after_testing(test_result: dict[str, Any], state: ProjectState) -> str:
     """
     Route after testing crew: run_deployment, retry_development, escalate_to_human, or handle_testing_error.
 
@@ -238,9 +232,7 @@ def route_after_testing(test_result: Dict[str, Any], state: ProjectState) -> str
     # status == "tests_failed"
     if not state.can_retry(ProjectPhase.TESTING):
         reason = "retries_exhausted"
-        state.add_phase_transition(
-            state.current_phase, ProjectPhase.AWAITING_HUMAN, reason
-        )
+        state.add_phase_transition(state.current_phase, ProjectPhase.AWAITING_HUMAN, reason)
         _set_escalation_metadata(state, test_result, reason)
         logger.warning(
             "routing_after_testing",
@@ -253,9 +245,7 @@ def route_after_testing(test_result: Dict[str, Any], state: ProjectState) -> str
     critical = test_result.get("critical_failures", False)
     if critical:
         reason = "critical_test_failures"
-        state.add_phase_transition(
-            state.current_phase, ProjectPhase.AWAITING_HUMAN, reason
-        )
+        state.add_phase_transition(state.current_phase, ProjectPhase.AWAITING_HUMAN, reason)
         _set_escalation_metadata(state, test_result, reason)
         logger.warning(
             "routing_after_testing",
@@ -275,7 +265,7 @@ def route_after_testing(test_result: Dict[str, Any], state: ProjectState) -> str
     return "retry_development"
 
 
-def route_after_deployment(deploy_result: Dict[str, Any], state: ProjectState) -> str:
+def route_after_deployment(deploy_result: dict[str, Any], state: ProjectState) -> str:
     """
     Route after deployment crew: finalize_project or handle_deployment_error.
 

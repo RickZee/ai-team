@@ -39,9 +39,7 @@ class TestPlanningCrewKickoff:
             try:
                 result = kickoff("A simple CLI tool.", verbose=False)
             except (ConverterError, ValidationError) as e:
-                pytest.skip(
-                    f"Real LLM output could not be parsed (try a larger model): {e!s}"
-                )
+                pytest.skip(f"Real LLM output could not be parsed (try a larger model): {e!s}")
             assert result is not None
             assert hasattr(result, "raw")
             assert hasattr(result, "tasks_output")
@@ -55,6 +53,8 @@ class TestPlanningCrewKickoff:
             mock_create.return_value = mock_crew
             result = kickoff("A simple CLI tool.", verbose=False)
             mock_create.assert_called_once()
-            mock_crew.kickoff.assert_called_once_with(inputs={"project_description": "A simple CLI tool."})
+            mock_crew.kickoff.assert_called_once_with(
+                inputs={"project_description": "A simple CLI tool."}
+            )
             assert result is mock_crew_output
             assert result.raw == "Mock planning output"

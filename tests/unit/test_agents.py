@@ -19,12 +19,12 @@ from tests.unit.conftest import identity_llm
 class TestBaseAgentInitializationWithRoles:
     """Test BaseAgent initialization with each role via create_agent."""
 
-    def test_create_agent_manager(
-        self, agents_config_minimal: dict, mock_ollama_llm
-    ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
+    def test_create_agent_manager(self, agents_config_minimal: dict, mock_ollama_llm) -> None:
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm),
+            patch("crewai.agent.core.create_llm", side_effect=identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "manager",
@@ -35,12 +35,12 @@ class TestBaseAgentInitializationWithRoles:
         assert agent.role_name == "manager"
         assert agent.role == "Engineering Manager"
 
-    def test_create_agent_product_owner(
-        self, agents_config_minimal: dict, mock_ollama_llm
-    ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
+    def test_create_agent_product_owner(self, agents_config_minimal: dict, mock_ollama_llm) -> None:
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm),
+            patch("crewai.agent.core.create_llm", side_effect=identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "product_owner",
@@ -53,9 +53,11 @@ class TestBaseAgentInitializationWithRoles:
     def test_create_agent_architect_backend_qa(
         self, agents_config_minimal: dict, mock_ollama_llm
     ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm),
+            patch("crewai.agent.core.create_llm", side_effect=identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             for role_name, expected_role in [
                 ("architect", "Architect"),
@@ -89,15 +91,20 @@ class TestModelAssignmentFromSettings:
     def test_create_agent_calls_get_model_for_role(
         self, agents_config_minimal: dict, mock_ollama_llm
     ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
-        ) as mock_create_llm, patch("crewai.agent.core.create_llm", side_effect=identity_llm):
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch(
+                "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
+            ) as mock_create_llm,
+            patch("crewai.agent.core.create_llm", side_effect=identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent("manager", agents_config=agents_config_minimal, tools=[])
             mock_create_llm.assert_called_once()
             call_args = mock_create_llm.call_args[0]
             assert call_args[0] == "manager"
             from ai_team.config.models import OpenRouterSettings
+
             assert isinstance(call_args[1], OpenRouterSettings)
             assert agent.llm is mock_ollama_llm
 
@@ -108,9 +115,11 @@ class TestGuardrailAttachment:
     def test_guardrail_disabled_tools_not_wrapped(
         self, agents_config_minimal: dict, mock_ollama_llm
     ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm),
+            patch("crewai.agent.core.create_llm", side_effect=identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "manager",
@@ -128,9 +137,11 @@ class TestGuardrailAttachment:
         real_tools = get_file_tools()
         if not real_tools:
             pytest.skip("No file tools available")
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=identity_llm):
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_ollama_llm),
+            patch("crewai.agent.core.create_llm", side_effect=identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = True
             agent = create_agent(
                 "manager",

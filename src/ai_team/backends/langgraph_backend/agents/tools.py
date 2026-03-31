@@ -50,9 +50,7 @@ def get_langchain_tools_for_role(role_key: str) -> list[LangChainBaseTool]:
     """
     if role_key not in _CREW_TOOLS:
         available = ", ".join(sorted(_CREW_TOOLS))
-        raise KeyError(
-            f"Unknown role {role_key!r} for LangGraph tools. Available: {available}"
-        )
+        raise KeyError(f"Unknown role {role_key!r} for LangGraph tools. Available: {available}")
     crew_tools = _CREW_TOOLS[role_key]()
     out = to_langchain_tools(crew_tools)
     from ai_team.rag.config import get_rag_config

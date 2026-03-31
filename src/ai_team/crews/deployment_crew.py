@@ -11,12 +11,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import structlog
-from crewai import Crew, Process, Task
-from pydantic import BaseModel
-
 from ai_team.agents.cloud_engineer import create_cloud_engineer
 from ai_team.agents.devops_engineer import create_devops_engineer
 from ai_team.config.settings import get_settings
@@ -24,13 +21,14 @@ from ai_team.guardrails import crewai_code_safety_guardrail, crewai_iac_security
 from ai_team.tasks.deployment_tasks import (
     create_deployment_packaging_task,
     create_documentation_generation_task,
-    create_infrastructure_design_task,
 )
+from crewai import Crew, Process, Task
+from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
 
 
-def _serialize_architecture(architecture: Union[BaseModel, str]) -> str:
+def _serialize_architecture(architecture: BaseModel | str) -> str:
     """Turn architecture input into a string for task context."""
     if isinstance(architecture, str):
         return architecture
@@ -41,7 +39,7 @@ def _serialize_architecture(architecture: Union[BaseModel, str]) -> str:
     return str(architecture)
 
 
-def _serialize_code_files(code_files: List[Any]) -> str:
+def _serialize_code_files(code_files: list[Any]) -> str:
     """Summarize code files for task context."""
     if not code_files:
         return "(No code files provided)"
@@ -92,8 +90,8 @@ class DeploymentCrew:
     def __init__(
         self,
         verbose: bool = False,
-        step_callback: Optional[Any] = None,
-        task_callback: Optional[Any] = None,
+        step_callback: Any | None = None,
+        task_callback: Any | None = None,
     ) -> None:
         self._cloud = create_cloud_engineer()
         self._devops = create_devops_engineer()
@@ -103,11 +101,11 @@ class DeploymentCrew:
 
     def kickoff(
         self,
-        code_files: List[Any],
-        architecture: Union[Any, str],
+        code_files: list[Any],
+        architecture: Any | str,
         test_results: Any,
         *,
-        product_owner_doc_context: Optional[str] = None,
+        product_owner_doc_context: str | None = None,
     ) -> Any:
         """
         Run the deployment crew with the given code files, architecture, and test results.
@@ -153,8 +151,7 @@ class DeploymentCrew:
         doc_description_extra = ""
         if product_owner_doc_context:
             doc_description_extra = (
-                "\n\nProduct Owner expectations for documentation:\n"
-                f"{product_owner_doc_context}"
+                "\n\nProduct Owner expectations for documentation:\n" f"{product_owner_doc_context}"
             )
 
         task_docs = create_documentation_generation_task(
@@ -184,7 +181,7 @@ class DeploymentCrew:
         return crew.kickoff()
 
     @staticmethod
-    def package_output(crew_result: Any, output_dir: Union[str, Path]) -> Path:
+    def package_output(crew_result: Any, output_dir: str | Path) -> Path:
         """
         Create a clean output directory structure from the crew result.
 
@@ -219,9 +216,7 @@ class DeploymentCrew:
             except (OSError, RuntimeError):
                 continue
         if not under_any:
-            raise ValueError(
-                f"Output path must be under workspace or output dir: {out_str}"
-            )
+            raise ValueError(f"Output path must be under workspace or output dir: {out_str}")
 
         tasks_output = getattr(crew_result, "tasks_output", [])
         if not hasattr(tasks_output, "__iter__"):
@@ -242,7 +237,7 @@ class DeploymentCrew:
 
         output_path.mkdir(parents=True, exist_ok=True)
 
-        for i, (name, subdir) in enumerate(zip(task_names, subdirs)):
+        for i, (name, subdir) in enumerate(zip(task_names, subdirs, strict=False)):
             dir_path = output_path / subdir
             dir_path.mkdir(parents=True, exist_ok=True)
             raw = ""
@@ -275,6 +270,6 @@ class DeploymentCrew:
 __all__ = ["DeploymentCrew", "package_output"]
 
 
-def package_output(crew_result: Any, output_dir: Union[str, Path]) -> Path:
+def package_output(crew_result: Any, output_dir: str | Path) -> Path:
     """Convenience: create deployment package directory from crew result."""
     return DeploymentCrew.package_output(crew_result, output_dir)

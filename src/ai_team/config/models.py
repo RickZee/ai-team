@@ -9,7 +9,6 @@ Controlled by AI_TEAM_ENV; see the config guide for exact model IDs and pricing.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -59,7 +58,7 @@ class RoleModelConfig:
 
 # ── Token budgets per role (medium-complexity project) ──────────────────────
 
-ROLE_TOKEN_BUDGETS: Dict[str, Dict[str, int]] = {
+ROLE_TOKEN_BUDGETS: dict[str, dict[str, int]] = {
     "manager": {"input": 3_000, "output": 2_000},
     "product_owner": {"input": 2_000, "output": 4_000},
     "architect": {"input": 4_000, "output": 6_000},
@@ -85,7 +84,7 @@ _GPT52 = "openrouter/openai/gpt-5.2"
 _GPT53_CODEX = "openrouter/openai/gpt-5.3-codex"
 
 # Pricing per 1M tokens (input, output) — check OpenRouter pricing for latest.
-_PRICES: Dict[str, ModelPricing] = {
+_PRICES: dict[str, ModelPricing] = {
     _DEEPSEEK_V3: ModelPricing(input_per_m=0.25, output_per_m=0.38),
     _DEVSTRAL_2: ModelPricing(input_per_m=0.06, output_per_m=0.22),
     _DEEPSEEK_R1: ModelPricing(input_per_m=0.40, output_per_m=1.75),
@@ -110,7 +109,7 @@ def _role(
     )
 
 
-ENV_MODELS: Dict[Environment, Dict[str, RoleModelConfig]] = {
+ENV_MODELS: dict[Environment, dict[str, RoleModelConfig]] = {
     Environment.DEV: {
         "manager": _role(_DEEPSEEK_V3),
         "product_owner": _role(_DEEPSEEK_V3),
@@ -156,7 +155,13 @@ class OpenRouterSettings(BaseSettings):
         extra="ignore",
     )
 
-    openrouter_api_key: str = Field(description="OpenRouter API key", alias="OPENROUTER_API_KEY")
+    # Default to empty string so tooling (e.g. mypy) doesn't treat it as a required constructor arg.
+    # Runtime code should still validate presence before making real network calls.
+    openrouter_api_key: str = Field(
+        default="",
+        description="OpenRouter API key",
+        alias="OPENROUTER_API_KEY",
+    )
     openrouter_api_base: str = Field(
         default="https://openrouter.ai/api/v1",
         description="OpenRouter API base URL",
@@ -194,7 +199,7 @@ class OpenRouterSettings(BaseSettings):
         alias="OR_APP_NAME",
     )
 
-    def get_models(self) -> Dict[str, RoleModelConfig]:
+    def get_models(self) -> dict[str, RoleModelConfig]:
         """Return role → RoleModelConfig for the current environment."""
         return ENV_MODELS[self.ai_team_env]
 

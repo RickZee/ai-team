@@ -10,10 +10,7 @@ Validates architecture against requirements document for completeness.
 Guardrail: architecture must address all functional and non-functional requirements.
 """
 
-from typing import List, Optional, Tuple
-
 import structlog
-
 from ai_team.agents.base import BaseAgent, create_agent
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.requirements import RequirementsDocument
@@ -33,8 +30,8 @@ ARCHITECTURE_PATTERNS = [
 
 def validate_architecture_against_requirements(
     architecture: ArchitectureDocument,
-    requirements: Optional[RequirementsDocument] = None,
-) -> Tuple[bool, List[str]]:
+    requirements: RequirementsDocument | None = None,
+) -> tuple[bool, list[str]]:
     """
     Guardrail: verify the architecture addresses all functional and non-functional
     requirements. Returns (is_valid, list of missing or weak coverage items).
@@ -42,7 +39,7 @@ def validate_architecture_against_requirements(
     If requirements is None, only structural completeness of the architecture
     is checked (overview, components, stack, interfaces, diagram, ADRs).
     """
-    gaps: List[str] = []
+    gaps: list[str] = []
 
     if not architecture.system_overview or len(architecture.system_overview.strip()) < 20:
         gaps.append("System overview is missing or too brief.")
@@ -70,21 +67,28 @@ def validate_architecture_against_requirements(
             + " ".join(c.responsibilities.lower() for c in architecture.components)
         )
         for us in requirements.user_stories:
-            ref = f"user story '{us.i_want[:50]}...'" if len(us.i_want) > 50 else f"user story '{us.i_want}'"
-            if us.i_want.lower() not in overview_and_resp and us.as_a.lower() not in overview_and_resp:
+            ref = (
+                f"user story '{us.i_want[:50]}...'"
+                if len(us.i_want) > 50
+                else f"user story '{us.i_want}'"
+            )
+            if (
+                us.i_want.lower() not in overview_and_resp
+                and us.as_a.lower() not in overview_and_resp
+            ):
                 gaps.append(f"Functional requirement not clearly addressed: {ref}")
 
         # Non-functional: NFRs should be addressed in stack, ADRs, or deployment
-        nfr_text = " ".join(
-            nfr.description.lower() for nfr in requirements.non_functional_requirements
+        " ".join(nfr.description.lower() for nfr in requirements.non_functional_requirements)
+        adr_and_topology = (
+            " ".join(
+                a.context.lower() + a.decision.lower() + a.consequences.lower()
+                for a in architecture.adrs
+            )
+            + " "
+            + architecture.deployment_topology.lower()
         )
-        adr_and_topology = " ".join(
-            a.context.lower() + a.decision.lower() + a.consequences.lower()
-            for a in architecture.adrs
-        ) + " " + architecture.deployment_topology.lower()
-        stack_text = " ".join(
-            t.justification.lower() for t in architecture.technology_stack
-        )
+        stack_text = " ".join(t.justification.lower() for t in architecture.technology_stack)
         combined = adr_and_topology + " " + stack_text
         for nfr in requirements.non_functional_requirements:
             # Check if NFR category or key terms appear in architecture
@@ -108,7 +112,7 @@ def validate_architecture_against_requirements(
 
 
 def create_architect_agent(
-    tools: Optional[List] = None,
+    tools: list | None = None,
     **kwargs,
 ) -> BaseAgent:
     """

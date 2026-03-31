@@ -14,6 +14,7 @@ from ai_team.config.settings import (
     get_settings,
     reload_settings,
 )
+from pydantic import ValidationError
 
 # -----------------------------------------------------------------------------
 # Pydantic settings loading from env
@@ -52,15 +53,15 @@ class TestSettingsLoadFromEnv:
 
 class TestSettingsValidationErrors:
     def test_guardrail_test_coverage_min_bounds(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             GuardrailSettings(test_coverage_min=1.5)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             GuardrailSettings(test_coverage_min=-0.1)
 
     def test_memory_retention_days_bounds(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             MemorySettings(retention_days=0)
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             MemorySettings(retention_days=5000)
 
 

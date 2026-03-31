@@ -61,10 +61,7 @@ class TestClassifyError:
         assert classify_error({"error": "Critical security violation"}) == ErrorCategory.FATAL
 
     def test_fatal_recursion_exhausted(self) -> None:
-        assert (
-            classify_error({"error": "maximum recursion depth exceeded"})
-            == ErrorCategory.FATAL
-        )
+        assert classify_error({"error": "maximum recursion depth exceeded"}) == ErrorCategory.FATAL
 
     def test_recoverable_invalid_output(self) -> None:
         assert classify_error({"error": "Invalid output format"}) == ErrorCategory.RECOVERABLE
@@ -160,9 +157,7 @@ class TestGetRecoveryAction:
         state = ProjectState(project_id="r4", current_phase=ProjectPhase.TESTING)
         for _ in range(CIRCUIT_BREAKER_THRESHOLD):
             record_failure(state, ProjectPhase.TESTING)
-        action, payload = get_recovery_action(
-            ErrorCategory.RETRYABLE, state, ProjectPhase.TESTING
-        )
+        action, payload = get_recovery_action(ErrorCategory.RETRYABLE, state, ProjectPhase.TESTING)
         assert action == "escalate"
         assert payload.get("reason") == "circuit_breaker"
 
@@ -195,8 +190,11 @@ class TestBackoff:
 class TestStatePreservation:
     """Tests for persist_state_on_error, load_state_from_file, rollback_last_phase."""
 
-    def test_persist_and_load_roundtrip(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_persist_and_load_roundtrip(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from ai_team.flows import error_handling as eh
+
         settings = MagicMock()
         settings.project.output_dir = str(tmp_path)
         monkeypatch.setattr(eh, "get_settings", lambda: settings)
@@ -209,9 +207,12 @@ class TestStatePreservation:
         assert loaded.project_id == state.project_id
         assert loaded.current_phase == state.current_phase
 
-    def test_load_state_resets_consecutive_failures(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_load_state_resets_consecutive_failures(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Loaded state has consecutive_failures_* reset to 0 so a new run does not inherit old counts."""
         from ai_team.flows import error_handling as eh
+
         settings = MagicMock()
         settings.project.output_dir = str(tmp_path)
         monkeypatch.setattr(eh, "get_settings", lambda: settings)

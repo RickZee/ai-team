@@ -6,11 +6,10 @@ and quality gates.
 
 import subprocess
 from pathlib import Path
-from typing import Any, List, Optional
-
-from crewai.tools import tool
+from typing import Any
 
 from ai_team.config.settings import get_settings
+from crewai.tools import tool
 
 # Default minimum coverage for guardrail (generated code >80%)
 QA_MIN_COVERAGE_DEFAULT = 0.8
@@ -65,7 +64,7 @@ def test_generator(file_path: str, content: str) -> str:
 @tool("Run pytest in a directory or on specific paths")
 def test_runner(
     target: str = ".",
-    extra_args: Optional[str] = None,
+    extra_args: str | None = None,
 ) -> str:
     """
     Run pytest in the workspace. Use to execute unit or integration tests.
@@ -82,7 +81,7 @@ def test_runner(
             pass
         else:
             work_dir = work_dir.parent
-    cmd: List[str] = ["pytest", str(work_dir), "-v", "--tb=short"]
+    cmd: list[str] = ["pytest", str(work_dir), "-v", "--tb=short"]
     if extra_args:
         cmd.extend(extra_args.strip().split())
     try:
@@ -188,9 +187,7 @@ def bug_reporter(
     if sev not in ("critical", "high", "medium", "low"):
         sev = "medium"
     summary = (
-        f"Bug recorded: {title}\n"
-        f"Severity: {sev}\n"
-        f"Reproduction: {reproduction_steps}\n"
+        f"Bug recorded: {title}\n" f"Severity: {sev}\n" f"Reproduction: {reproduction_steps}\n"
     )
     if expected_behavior:
         summary += f"Expected: {expected_behavior}\n"
@@ -238,7 +235,7 @@ def lint_runner(path: str = ".") -> str:
         return f"Error running lint: {e}"
 
 
-def get_qa_tools() -> List[Any]:
+def get_qa_tools() -> list[Any]:
     """Return the list of QA tools for the QA Engineer agent."""
     return [
         test_generator,

@@ -69,9 +69,11 @@ class TestCreateAgent:
     def test_create_agent_from_dict_returns_base_agent(
         self, minimal_config: dict, mock_llm
     ) -> None:
-        with patch("ai_team.agents.base.get_settings") as mock_settings, patch(
-            "ai_team.agents.base.create_llm_for_role", return_value=mock_llm
-        ), patch("crewai.agent.core.create_llm", side_effect=_identity_llm):
+        with (
+            patch("ai_team.agents.base.get_settings") as mock_settings,
+            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
+        ):
             mock_settings.return_value.guardrails.security_enabled = False
             agent = create_agent(
                 "manager",
@@ -167,10 +169,12 @@ class TestBaseAgent:
                 llm=mock_llm,
                 tools=[],
             )
-        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
-            with patch("httpx.get") as mock_get:
-                mock_get.return_value.status_code = 200
-                assert agent.health_check() is True
+        with (
+            patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False),
+            patch("httpx.get") as mock_get,
+        ):
+            mock_get.return_value.status_code = 200
+            assert agent.health_check() is True
         mock_get.assert_called_once()
         (url,) = mock_get.call_args[0]
         assert "openrouter" in str(url)

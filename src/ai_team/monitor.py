@@ -704,22 +704,18 @@ class MonitorCallback:
         """CrewAI step_callback handler (receives AgentAction or AgentFinish)."""
         try:
             # CrewAI passes formatted_answer with .output (AgentFinish) or .text (both)
-            text = (
-                str(getattr(step_output, "output", "") or getattr(step_output, "text", ""))
-            )[:100]
+            text = (str(getattr(step_output, "output", "") or getattr(step_output, "text", "")))[
+                :100
+            ]
             agent_role = getattr(step_output, "agent", None)
             if agent_role is not None and hasattr(agent_role, "role"):
                 agent_role = agent_role.role
             role_key = (
-                str(agent_role).lower().replace(" ", "_")
-                if agent_role is not None
-                else "agent"
+                str(agent_role).lower().replace(" ", "_") if agent_role is not None else "agent"
             )
             self.monitor.on_agent_start(role_key, text or "Working...")
         except Exception as e:
-            structlog.get_logger(__name__).warning(
-                "monitor_step_callback_error", error=str(e)
-            )
+            structlog.get_logger(__name__).warning("monitor_step_callback_error", error=str(e))
 
     def on_task(self, task_output: Any) -> None:
         """CrewAI task_callback handler (receives TaskOutput with .agent, .description)."""
@@ -731,9 +727,7 @@ class MonitorCallback:
             task_desc = str(getattr(task_output, "description", ""))[:60]
             self.monitor.on_agent_finish(role_key, task_desc)
         except Exception as e:
-            structlog.get_logger(__name__).warning(
-                "monitor_task_callback_error", error=str(e)
-            )
+            structlog.get_logger(__name__).warning("monitor_task_callback_error", error=str(e))
 
 
 # ---------------------------------------------------------------------------

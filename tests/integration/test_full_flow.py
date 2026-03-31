@@ -130,9 +130,7 @@ class TestPlanningCrewIntegration:
             try:
                 result = planning_crew_kickoff(sample_project_description)
             except (ConverterError, ValidationError) as e:
-                pytest.skip(
-                    f"Real LLM output could not be parsed (try a larger model): {e!s}"
-                )
+                pytest.skip(f"Real LLM output could not be parsed (try a larger model): {e!s}")
             requirements, architecture, needs_clarification = _parse_planning_output(result)
             assert requirements is not None
             assert architecture is not None
@@ -158,9 +156,7 @@ class TestPlanningCrewIntegration:
             )
             assert result is mock_output
 
-        requirements, architecture, needs_clarification = _parse_planning_output(
-            result
-        )
+        requirements, architecture, needs_clarification = _parse_planning_output(result)
         assert requirements is not None
         assert architecture is not None
         assert requirements.project_name == "Todo API"
@@ -183,9 +179,7 @@ class TestPlanningCrewIntegration:
             try:
                 result = planning_crew_kickoff(sample_project_description)
             except (ConverterError, ValidationError) as e:
-                pytest.skip(
-                    f"Real LLM output could not be parsed (try a larger model): {e!s}"
-                )
+                pytest.skip(f"Real LLM output could not be parsed (try a larger model): {e!s}")
             assert result is not None
             assert hasattr(result, "tasks_output") and len(result.tasks_output) >= 2
             requirements, architecture, _ = _parse_planning_output(result)
@@ -206,7 +200,9 @@ class TestPlanningCrewIntegration:
 
             mock_crew.kickoff.assert_called_once()
             call_kw = mock_crew.kickoff.call_args[1]
-            assert call_kw.get("inputs", {}).get("project_description") == sample_project_description
+            assert (
+                call_kw.get("inputs", {}).get("project_description") == sample_project_description
+            )
 
 
 # -----------------------------------------------------------------------------
@@ -330,7 +326,7 @@ class TestTestingCrewIntegration:
             assert isinstance(output.test_run_result.total, int)
             assert isinstance(output.test_run_result.passed, int)
             assert output.test_run_result.line_coverage_pct is None or isinstance(
-                output.test_run_result.line_coverage_pct, (int, float)
+                output.test_run_result.line_coverage_pct, int | float
             )
             assert isinstance(output.quality_gate_passed, bool)
             return
@@ -342,7 +338,9 @@ class TestTestingCrewIntegration:
             task_outs = [
                 MagicMock(raw="test gen output"),
                 MagicMock(raw=passed_result.model_dump_json()),
-                MagicMock(raw='{"summary":"","findings":[],"critical_count":0,"high_count":0,"passed":true}'),
+                MagicMock(
+                    raw='{"summary":"","findings":[],"critical_count":0,"high_count":0,"passed":true}'
+                ),
             ]
             mock_crew.kickoff.return_value = MagicMock(tasks_output=task_outs)
             mock_create.return_value = mock_crew
@@ -373,7 +371,9 @@ class TestFullFlowHappyPath:
         mock_crew_outputs: dict,
     ) -> None:
         """Input: project description; mock all LLM/crew responses; assert phases INTAKE → … → COMPLETE."""
-        flow = AITeamFlow(feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is"))
+        flow = AITeamFlow(
+            feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is")
+        )
         flow.state.project_description = sample_project_description
 
         req = mock_crew_outputs["requirements"]
@@ -418,7 +418,9 @@ class TestFlowRetryOnTestFailure:
         mock_crew_outputs: dict,
     ) -> None:
         """Mock: first test run fails, second succeeds; assert flow retries and completes."""
-        flow = AITeamFlow(feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is"))
+        flow = AITeamFlow(
+            feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is")
+        )
         flow.state.project_description = sample_project_description
 
         req = mock_crew_outputs["requirements"]
@@ -435,7 +437,11 @@ class TestFlowRetryOnTestFailure:
             planning_result={"status": "success", "needs_clarification": False, "confidence": 1.0},
             development_result={"status": "success", "files": code_files},
             testing_results=[
-                {"status": "tests_failed", "results": testing_failed.test_run_result, "output": testing_failed},
+                {
+                    "status": "tests_failed",
+                    "results": testing_failed.test_run_result,
+                    "output": testing_failed,
+                },
                 {"status": "success", "results": test_result_passed},
             ],
             deployment_result={"status": "success", "config": None},
@@ -477,8 +483,16 @@ class TestFlowEscalationOnRepeatedFailure:
             planning_result={"status": "success", "needs_clarification": False, "confidence": 1.0},
             development_result={"status": "success", "files": code_files},
             testing_results=[
-                {"status": "tests_failed", "results": testing_failed.test_run_result, "output": testing_failed},
-                {"status": "tests_failed", "results": testing_failed.test_run_result, "output": testing_failed},
+                {
+                    "status": "tests_failed",
+                    "results": testing_failed.test_run_result,
+                    "output": testing_failed,
+                },
+                {
+                    "status": "tests_failed",
+                    "results": testing_failed.test_run_result,
+                    "output": testing_failed,
+                },
             ],
             deployment_result={"status": "success", "config": None},
         )

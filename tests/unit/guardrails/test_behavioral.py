@@ -151,13 +151,17 @@ def test_reasoning_guardrail_short_no_indicators_fails():
 
 def test_reasoning_guardrail_with_rationale_passes():
     """Output with rationale passes."""
-    result = reasoning_guardrail("We chose Redis because it supports TTL and is already in our stack.")
+    result = reasoning_guardrail(
+        "We chose Redis because it supports TTL and is already in our stack."
+    )
     assert result.status == "pass"
 
 
 def test_reasoning_guardrail_long_passes():
     """Long enough output passes even without keywords."""
-    result = reasoning_guardrail("This is a sufficiently long response that describes the approach in detail. " * 2)
+    result = reasoning_guardrail(
+        "This is a sufficiently long response that describes the approach in detail. " * 2
+    )
     assert result.status == "pass"
 
 
@@ -260,7 +264,11 @@ def test_output_format_guardrail_fail_validation_error():
     mock_output = '{"title": 123}'  # title must be str; count missing has default
     result = output_format_guardrail(mock_output, _SimpleModel)
     assert result.status == "fail"
-    assert "format" in result.message.lower() or "match" in result.message.lower() or "validation" in result.message.lower()
+    assert (
+        "format" in result.message.lower()
+        or "match" in result.message.lower()
+        or "validation" in result.message.lower()
+    )
 
 
 def test_output_format_guardrail_fail_non_json_text():

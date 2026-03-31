@@ -11,10 +11,9 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
 
 # -----------------------------------------------------------------------------
 # Requirements (Planning)
@@ -36,7 +35,7 @@ class UserStory(BaseModel):
     as_a: str = Field(..., description="Role or type of user")
     i_want: str = Field(..., description="Capability or feature desired")
     so_that: str = Field(..., description="Benefit or outcome")
-    acceptance_criteria: List[str] = Field(
+    acceptance_criteria: list[str] = Field(
         ...,
         description="Testable acceptance criteria (Given/When/Then or checklist)",
         min_length=1,
@@ -45,7 +44,7 @@ class UserStory(BaseModel):
 
     @field_validator("acceptance_criteria")
     @classmethod
-    def acceptance_criteria_non_empty_strings(cls, v: List[str]) -> List[str]:
+    def acceptance_criteria_non_empty_strings(cls, v: list[str]) -> list[str]:
         """Ensure each criterion is a non-empty string."""
         for i, c in enumerate(v):
             if not (isinstance(c, str) and c.strip()):
@@ -60,7 +59,7 @@ class NFR(BaseModel):
 
     category: str = Field(..., description="e.g. performance, security, scalability")
     description: str = Field(..., description="Requirement description")
-    metric: Optional[str] = Field(None, description="Measurable metric or target")
+    metric: str | None = Field(None, description="Measurable metric or target")
 
 
 class RequirementsDocument(BaseModel):
@@ -68,27 +67,27 @@ class RequirementsDocument(BaseModel):
 
     project_name: str = Field(..., description="Name of the project")
     description: str = Field(..., description="Brief project description")
-    target_users: List[str] = Field(
+    target_users: list[str] = Field(
         default_factory=list,
         description="Primary user personas or roles",
     )
-    user_stories: List[UserStory] = Field(
+    user_stories: list[UserStory] = Field(
         ...,
         description="User stories with acceptance criteria",
         min_length=3,
     )
-    non_functional_requirements: List[NFR] = Field(
+    non_functional_requirements: list[NFR] = Field(
         default_factory=list,
         description="NFRs for performance, security, scalability",
     )
-    assumptions: List[str] = Field(default_factory=list, description="Assumptions made")
-    constraints: List[str] = Field(
+    assumptions: list[str] = Field(default_factory=list, description="Assumptions made")
+    constraints: list[str] = Field(
         default_factory=list,
         description="Constraints (time, tech, scope)",
     )
 
     @model_validator(mode="after")
-    def at_least_three_user_stories_all_have_acceptance_criteria(self) -> "RequirementsDocument":
+    def at_least_three_user_stories_all_have_acceptance_criteria(self) -> RequirementsDocument:
         """Ensure at least 3 user stories and each has at least one acceptance criterion."""
         stories = self.user_stories
         if len(stories) < 3:
@@ -105,7 +104,7 @@ class RequirementsDocument(BaseModel):
         return self
 
     @classmethod
-    def from_llm_response(cls, raw: Union[str, Dict[str, Any]]) -> "RequirementsDocument":
+    def from_llm_response(cls, raw: str | dict[str, Any]) -> RequirementsDocument:
         """Parse LLM response (JSON string or dict) into RequirementsDocument."""
         return _parse_llm_response(cls, raw, "RequirementsDocument")
 
@@ -141,7 +140,7 @@ class Interface(BaseModel):
     """API or interface with a list of endpoints."""
 
     name: str = Field(..., description="Interface name")
-    endpoints: List[Endpoint] = Field(
+    endpoints: list[Endpoint] = Field(
         default_factory=list,
         description="List of endpoints",
     )
@@ -151,8 +150,8 @@ class Entity(BaseModel):
     """Data model entity with fields and relationships."""
 
     name: str = Field(..., description="Entity name")
-    fields: List[str] = Field(default_factory=list, description="Field names or definitions")
-    relationships: List[str] = Field(
+    fields: list[str] = Field(default_factory=list, description="Field names or definitions")
+    relationships: list[str] = Field(
         default_factory=list,
         description="Relationships to other entities",
     )
@@ -171,19 +170,19 @@ class ArchitectureDocument(BaseModel):
     """Structured architecture document produced by the Architect agent."""
 
     system_overview: str = Field(..., description="High-level description of the system")
-    components: List[Component] = Field(
+    components: list[Component] = Field(
         default_factory=list,
         description="Component list with responsibilities",
     )
-    technology_stack: Dict[str, TechChoice] = Field(
+    technology_stack: dict[str, TechChoice] = Field(
         default_factory=dict,
         description="Technology stack keyed by name, with justification",
     )
-    interfaces: List[Interface] = Field(
+    interfaces: list[Interface] = Field(
         default_factory=list,
         description="API/interfaces with endpoints",
     )
-    data_model: List[Entity] = Field(
+    data_model: list[Entity] = Field(
         default_factory=list,
         description="Data model entities with fields and relationships",
     )
@@ -191,13 +190,13 @@ class ArchitectureDocument(BaseModel):
         default="",
         description="Deployment topology recommendation",
     )
-    adrs: List[ADR] = Field(
+    adrs: list[ADR] = Field(
         default_factory=list,
         description="Architecture Decision Records",
     )
 
     @classmethod
-    def from_llm_response(cls, raw: Union[str, Dict[str, Any]]) -> "ArchitectureDocument":
+    def from_llm_response(cls, raw: str | dict[str, Any]) -> ArchitectureDocument:
         """Parse LLM response (JSON string or dict) into ArchitectureDocument."""
         return _parse_llm_response(cls, raw, "ArchitectureDocument")
 
@@ -207,12 +206,45 @@ class ArchitectureDocument(BaseModel):
 # -----------------------------------------------------------------------------
 
 _FILE_TYPES = Literal["source", "test", "config", "doc"]
-_RECOGNIZED_LANGUAGES = frozenset({
-    "python", "javascript", "typescript", "html", "css", "json", "yaml", "yml",
-    "markdown", "md", "sql", "shell", "bash", "dockerfile", "go", "rust", "java",
-    "kotlin", "swift", "c", "cpp", "csharp", "ruby", "php", "scala", "r", "vue",
-    "svelte", "tsx", "jsx", "xml", "toml", "ini", "txt", "env",
-})
+_RECOGNIZED_LANGUAGES = frozenset(
+    {
+        "python",
+        "javascript",
+        "typescript",
+        "html",
+        "css",
+        "json",
+        "yaml",
+        "yml",
+        "markdown",
+        "md",
+        "sql",
+        "shell",
+        "bash",
+        "dockerfile",
+        "go",
+        "rust",
+        "java",
+        "kotlin",
+        "swift",
+        "c",
+        "cpp",
+        "csharp",
+        "ruby",
+        "php",
+        "scala",
+        "r",
+        "vue",
+        "svelte",
+        "tsx",
+        "jsx",
+        "xml",
+        "toml",
+        "ini",
+        "txt",
+        "env",
+    }
+)
 
 
 class CodeFile(BaseModel):
@@ -225,7 +257,7 @@ class CodeFile(BaseModel):
         ...,
         description="Type of file: source, test, config, or doc",
     )
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list,
         description="Declared dependencies (e.g. imports, packages)",
     )
@@ -266,7 +298,7 @@ class CodeFile(BaseModel):
         return s
 
     @classmethod
-    def from_llm_response(cls, raw: Union[str, Dict[str, Any]]) -> "CodeFile":
+    def from_llm_response(cls, raw: str | dict[str, Any]) -> CodeFile:
         """Parse LLM response (JSON string or dict) into CodeFile."""
         return _parse_llm_response(cls, raw, "CodeFile")
 
@@ -294,14 +326,14 @@ class TestResult(BaseModel):
     skipped: int = Field(0, ge=0, description="Number of tests skipped")
     coverage_line: float = Field(0.0, ge=0.0, le=1.0, description="Line coverage ratio 0–1")
     coverage_branch: float = Field(0.0, ge=0.0, le=1.0, description="Branch coverage ratio 0–1")
-    failures: List[TestFailure] = Field(
+    failures: list[TestFailure] = Field(
         default_factory=list,
         description="List of test failures with error and traceback",
     )
     duration_seconds: float = Field(0.0, ge=0.0, description="Total test run duration in seconds")
 
     @classmethod
-    def from_llm_response(cls, raw: Union[str, Dict[str, Any]]) -> "TestResult":
+    def from_llm_response(cls, raw: str | dict[str, Any]) -> TestResult:
         """Parse LLM response (JSON string or dict) into TestResult."""
         return _parse_llm_response(cls, raw, "TestResult")
 
@@ -317,17 +349,17 @@ class DeploymentConfig(BaseModel):
     dockerfile: str = Field(default="", description="Dockerfile content or path")
     docker_compose: str = Field(default="", description="Docker Compose content or path")
     ci_pipeline: str = Field(default="", description="CI pipeline configuration (e.g. YAML)")
-    environment_variables: Dict[str, str] = Field(
+    environment_variables: dict[str, str] = Field(
         default_factory=dict,
         description="Environment variable definitions",
     )
-    infrastructure: Optional[str] = Field(
+    infrastructure: str | None = Field(
         None,
         description="Terraform or CloudFormation template if applicable",
     )
 
     @classmethod
-    def from_llm_response(cls, raw: Union[str, Dict[str, Any]]) -> "DeploymentConfig":
+    def from_llm_response(cls, raw: str | dict[str, Any]) -> DeploymentConfig:
         """Parse LLM response (JSON string or dict) into DeploymentConfig."""
         return _parse_llm_response(cls, raw, "DeploymentConfig")
 
@@ -348,12 +380,12 @@ class ProjectReport(BaseModel):
     project_id: str = Field(..., description="Project identifier")
     project_name: str = Field(..., description="Project name")
     status: str = Field(..., description="Final status (e.g. complete, failed)")
-    files: List[CodeFile] = Field(
+    files: list[CodeFile] = Field(
         default_factory=list,
         description="Generated code files",
     )
     test_results: TestResult = Field(
-        default_factory=TestResult,
+        default_factory=lambda: TestResult.model_construct(),
         description="Test run results",
     )
     summary: str = Field(default="", description="Executive summary")
@@ -361,13 +393,13 @@ class ProjectReport(BaseModel):
         default_factory=_default_timedelta,
         description="Total duration of the run",
     )
-    agent_metrics: Dict[str, Any] = Field(
+    agent_metrics: dict[str, Any] = Field(
         default_factory=dict,
         description="Per-agent metrics (e.g. tokens, tasks)",
     )
 
     @classmethod
-    def from_llm_response(cls, raw: Union[str, Dict[str, Any]]) -> "ProjectReport":
+    def from_llm_response(cls, raw: str | dict[str, Any]) -> ProjectReport:
         """Parse LLM response (JSON string or dict) into ProjectReport."""
         return _parse_llm_response(cls, raw, "ProjectReport")
 
@@ -377,11 +409,14 @@ class ProjectReport(BaseModel):
 # -----------------------------------------------------------------------------
 
 
+TModel = TypeVar("TModel", bound=BaseModel)
+
+
 def _parse_llm_response(
-    model_class: type[BaseModel],
-    raw: Union[str, Dict[str, Any]],
+    model_class: type[TModel],
+    raw: str | dict[str, Any],
     label: str,
-) -> BaseModel:
+) -> TModel:
     """Parse JSON string or dict into a Pydantic model with clear validation errors."""
     from pydantic import ValidationError
 
@@ -393,16 +428,13 @@ def _parse_llm_response(
             data = json.loads(raw)
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"{label}: Invalid JSON from LLM: {e!s}. "
-                "Ensure the response is valid JSON."
+                f"{label}: Invalid JSON from LLM: {e!s}. " "Ensure the response is valid JSON."
             ) from e
     else:
         data = raw
 
     if not isinstance(data, dict):
-        raise ValueError(
-            f"{label}: Expected a JSON object (dict); got {type(data).__name__}."
-        )
+        raise ValueError(f"{label}: Expected a JSON object (dict); got {type(data).__name__}.")
 
     try:
         return model_class.model_validate(data)
@@ -415,7 +447,7 @@ def _parse_llm_response(
         raise ValueError("\n".join(parts)) from e
 
 
-def get_outputs_json_schema() -> Dict[str, Any]:
+def get_outputs_json_schema() -> dict[str, Any]:
     """Return a combined JSON schema for all task output models in this module."""
     return {
         "RequirementsDocument": RequirementsDocument.model_json_schema(),

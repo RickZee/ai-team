@@ -228,9 +228,9 @@ class TestDeploymentCrewProducesValidDeploymentConfig:
         """Deployment crew receives code files, architecture, test results from prior crews."""
         with patch(
             "ai_team.crews.deployment_crew.DeploymentCrew",
-        ) as MockDeploymentCrew:
+        ) as mock_deployment_crew:
             mock_crew_instance = MagicMock()
-            MockDeploymentCrew.return_value = mock_crew_instance
+            mock_deployment_crew.return_value = mock_crew_instance
             from ai_team.crews import deployment_crew as deployment_crew_mod
 
             crew = deployment_crew_mod.DeploymentCrew(verbose=False)
@@ -294,7 +294,9 @@ class TestCrewToCrewHandoffs:
                 tasks_output=[
                     _task_output_with_raw(""),
                     _task_output_with_raw(sample_test_run_result_passed.model_dump_json()),
-                    _task_output_with_raw('{"summary":"","findings":[],"critical_count":0,"high_count":0,"passed":true}'),
+                    _task_output_with_raw(
+                        '{"summary":"","findings":[],"critical_count":0,"high_count":0,"passed":true}'
+                    ),
                 ],
             )
             mock_create.return_value = mock_crew

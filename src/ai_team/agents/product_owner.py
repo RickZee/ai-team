@@ -8,7 +8,7 @@ and guardrails to reject vague or contradictory requirements.
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ai_team.agents.base import BaseAgent, create_agent
 from ai_team.agents.product_owner_templates import get_template_for_project_type
@@ -24,7 +24,6 @@ from ai_team.tools.product_owner import (
     validate_requirements_guardrail,
 )
 
-
 # ----- Self-validation: completeness, no ambiguous terms, testable criteria -----
 
 AMBIGUOUS_TERMS = re.compile(
@@ -34,9 +33,9 @@ AMBIGUOUS_TERMS = re.compile(
 )
 
 
-def _validation_errors(doc: RequirementsDocument) -> List[str]:
+def _validation_errors(doc: RequirementsDocument) -> list[str]:
     """Run self-validation; return list of error messages (empty if valid)."""
-    errors: List[str] = []
+    errors: list[str] = []
 
     # Completeness
     if not doc.project_name or not doc.description.strip():
@@ -63,7 +62,7 @@ def _validation_errors(doc: RequirementsDocument) -> List[str]:
     return errors
 
 
-def validate_requirements_document(doc: RequirementsDocument) -> Tuple[bool, List[str]]:
+def validate_requirements_document(doc: RequirementsDocument) -> tuple[bool, list[str]]:
     """
     Self-validation: checks completeness, no ambiguous terms, testable criteria.
     Returns (is_valid, list of error messages).
@@ -73,9 +72,9 @@ def validate_requirements_document(doc: RequirementsDocument) -> Tuple[bool, Lis
 
 
 def create_product_owner_agent(
-    tools: Optional[List[Any]] = None,
-    config_path: Optional[Path] = None,
-    agents_config: Optional[Dict[str, Any]] = None,
+    tools: list[Any] | None = None,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
 ) -> BaseAgent:
     """
     Create the Product Owner agent with config from agents.yaml and default tools.
@@ -96,7 +95,7 @@ def create_product_owner_agent(
     )
 
 
-def _extract_json_block(text: str) -> Optional[Dict[str, Any]]:
+def _extract_json_block(text: str) -> dict[str, Any] | None:
     """Extract JSON from a ```json ... ``` or ``` ... ``` block."""
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
@@ -111,15 +110,19 @@ def _extract_json_block(text: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _dict_to_requirements_document(data: Dict[str, Any]) -> Optional[RequirementsDocument]:
+def _dict_to_requirements_document(data: dict[str, Any]) -> RequirementsDocument | None:
     """Build RequirementsDocument from a dict (e.g. parsed JSON)."""
     try:
         stories = []
         for s in data.get("user_stories", []):
             ac_list = [
-                AcceptanceCriterion(description=c.get("description", ""), testable=c.get("testable", True))
+                AcceptanceCriterion(
+                    description=c.get("description", ""), testable=c.get("testable", True)
+                )
                 if isinstance(c, dict)
-                else AcceptanceCriterion(description=getattr(c, "description", ""), testable=getattr(c, "testable", True))
+                else AcceptanceCriterion(
+                    description=getattr(c, "description", ""), testable=getattr(c, "testable", True)
+                )
                 for c in s.get("acceptance_criteria", [])
             ]
             priority_val = s.get("priority", "Must have")
@@ -161,14 +164,13 @@ def requirements_from_agent_output(
     raw_output: str,
     project_name: str = "",
     description: str = "",
-) -> Tuple[Optional[RequirementsDocument], List[str]]:
+) -> tuple[RequirementsDocument | None, list[str]]:
     """
     Parse agent output into a RequirementsDocument.
 
     Tries to extract JSON from a code block or full text, then validates.
     If parsing or validation fails, returns (None, list of errors).
     """
-    errors: List[str] = []
     data = _extract_json_block(raw_output)
     if data:
         doc = _dict_to_requirements_document(data)
@@ -196,7 +198,9 @@ def requirements_from_agent_output(
                 i_want="requirements to be implemented",
                 so_that="the product meets stakeholder needs",
                 acceptance_criteria=[
-                    AcceptanceCriterion(description="Requirements are documented and prioritized.", testable=True)
+                    AcceptanceCriterion(
+                        description="Requirements are documented and prioritized.", testable=True
+                    )
                 ],
                 priority=MoSCoW.MUST,
             )

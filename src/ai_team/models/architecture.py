@@ -1,7 +1,5 @@
 """Pydantic models for Architect agent output (ArchitectureDocument)."""
 
-from typing import List
-
 from pydantic import BaseModel, Field
 
 
@@ -43,15 +41,15 @@ class ArchitectureDocument(BaseModel):
     """Structured architecture document produced by the Architect agent."""
 
     system_overview: str = Field(..., description="High-level description of the system")
-    components: List[Component] = Field(
+    components: list[Component] = Field(
         default_factory=list,
         description="Component list with responsibilities",
     )
-    technology_stack: List[TechnologyChoice] = Field(
+    technology_stack: list[TechnologyChoice] = Field(
         default_factory=list,
         description="Technology stack with justification for each choice",
     )
-    interface_contracts: List[InterfaceContract] = Field(
+    interface_contracts: list[InterfaceContract] = Field(
         default_factory=list,
         description="API/interface contracts between components",
     )
@@ -63,7 +61,7 @@ class ArchitectureDocument(BaseModel):
         default="",
         description="ASCII architecture diagram",
     )
-    adrs: List[ArchitectureDecisionRecord] = Field(
+    adrs: list[ArchitectureDecisionRecord] = Field(
         default_factory=list,
         description="Architecture Decision Records",
     )

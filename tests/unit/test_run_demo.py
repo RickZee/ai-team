@@ -22,64 +22,70 @@ class TestRunDemoOutputMode:
 
     def test_run_demo_crewai_calls_run_ai_team_with_no_monitor(self) -> None:
         """With --output crewai, run_ai_team is called with monitor=None."""
-        with patch("ai_team.flows.main_flow.run_ai_team") as mock_run:
+        with (
+            patch("ai_team.flows.main_flow.run_ai_team") as mock_run,
+            patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--output", "crewai"]),
+            patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
+        ):
             mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
-            with patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--output", "crewai"]):
-                with patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False):
-                    # Import and run main from the script (run from repo root in tests)
-                    import importlib.util
+            # Import and run main from the script (run from repo root in tests)
+            import importlib.util
 
-                    spec = importlib.util.spec_from_file_location(
-                        "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
-                    )
-                    assert spec is not None and spec.loader is not None
-                    run_demo = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(run_demo)
-                    exit_code = run_demo.main()
-            assert exit_code == 0
-            mock_run.assert_called_once()
-            assert mock_run.call_args[1]["monitor"] is None
+            spec = importlib.util.spec_from_file_location(
+                "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
+            )
+            assert spec is not None and spec.loader is not None
+            run_demo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(run_demo)
+            exit_code = run_demo.main()
+        assert exit_code == 0
+        mock_run.assert_called_once()
+        assert mock_run.call_args[1]["monitor"] is None
 
     def test_run_demo_tui_calls_run_ai_team_with_monitor(self) -> None:
         """With --output tui, run_ai_team is called with a TeamMonitor."""
-        with patch("ai_team.flows.main_flow.run_ai_team") as mock_run:
+        with (
+            patch("ai_team.flows.main_flow.run_ai_team") as mock_run,
+            patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--output", "tui"]),
+            patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
+        ):
             mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
-            with patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--output", "tui"]):
-                with patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False):
-                    import importlib.util
+            import importlib.util
 
-                    spec = importlib.util.spec_from_file_location(
-                        "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
-                    )
-                    assert spec is not None and spec.loader is not None
-                    run_demo = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(run_demo)
-                    exit_code = run_demo.main()
-            assert exit_code == 0
-            mock_run.assert_called_once()
-            mon = mock_run.call_args[1]["monitor"]
-            assert mon is not None
-            from ai_team.monitor import TeamMonitor
+            spec = importlib.util.spec_from_file_location(
+                "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
+            )
+            assert spec is not None and spec.loader is not None
+            run_demo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(run_demo)
+            exit_code = run_demo.main()
+        assert exit_code == 0
+        mock_run.assert_called_once()
+        mon = mock_run.call_args[1]["monitor"]
+        assert mon is not None
+        from ai_team.monitor import TeamMonitor
 
-            assert isinstance(mon, TeamMonitor)
+        assert isinstance(mon, TeamMonitor)
 
     def test_run_demo_monitor_flag_calls_run_ai_team_with_monitor(self) -> None:
         """With --monitor (shortcut for tui), run_ai_team is called with a monitor."""
-        with patch("ai_team.flows.main_flow.run_ai_team") as mock_run:
+        with (
+            patch("ai_team.flows.main_flow.run_ai_team") as mock_run,
+            patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--monitor"]),
+            patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
+        ):
             mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
-            with patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--monitor"]):
-                with patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False):
-                    import importlib.util
+            import importlib.util
 
-                    spec = importlib.util.spec_from_file_location(
-                        "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
-                    )
-                    assert spec is not None and spec.loader is not None
-                    run_demo = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(run_demo)
-                    exit_code = run_demo.main()
-            assert exit_code == 0
-            assert mock_run.call_args[1]["monitor"] is not None
+            spec = importlib.util.spec_from_file_location(
+                "run_demo", REPO_ROOT / "scripts" / "run_demo.py"
+            )
+            assert spec is not None and spec.loader is not None
+            run_demo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(run_demo)
+            exit_code = run_demo.main()
+        assert exit_code == 0
+        assert mock_run.call_args[1]["monitor"] is not None
 
 
 class TestRunDemoLoadDescription:

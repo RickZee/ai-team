@@ -11,16 +11,15 @@ from __future__ import annotations
 import json
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
-from rich.console import Console
-from rich.table import Table
-
 from ai_team.config.cost_estimator import RoleCostRow
 from ai_team.config.models import OpenRouterSettings
+from rich.console import Console
+from rich.table import Table
 
 logger = structlog.get_logger(__name__)
 
@@ -67,7 +66,7 @@ class TokenTracker:
     def __init__(self, settings: OpenRouterSettings) -> None:
         self._settings = settings
         self._max_cost = settings.max_cost_per_run
-        self._records: List[UsageRecord] = []
+        self._records: list[UsageRecord] = []
         self._lock = threading.Lock()
         self._hook_registered = False
 
@@ -112,10 +111,10 @@ class TokenTracker:
         """Sum of all record costs; must be called with _lock held."""
         return sum(r.cost_usd for r in self._records)
 
-    def _aggregate_by_role(self) -> Dict[str, Dict[str, Any]]:
+    def _aggregate_by_role(self) -> dict[str, dict[str, Any]]:
         """Aggregate records by role: input_tokens, output_tokens, cost_usd."""
         with self._lock:
-            agg: Dict[str, Dict[str, Any]] = {}
+            agg: dict[str, dict[str, Any]] = {}
             for r in self._records:
                 key = _normalize_role(r.role)
                 if key not in agg:
@@ -127,9 +126,9 @@ class TokenTracker:
 
     def summary(
         self,
-        estimated_rows: Optional[List[RoleCostRow]] = None,
+        estimated_rows: list[RoleCostRow] | None = None,
         *,
-        console: Optional[Console] = None,
+        console: Console | None = None,
     ) -> None:
         """
         Print a Rich table comparing estimated vs actual usage per role.
@@ -154,7 +153,7 @@ class TokenTracker:
         table.add_column("Actual cost (USD)", justify="right", style="green")
 
         # Build set of all roles (estimated + actual)
-        roles_seen: Dict[str, bool] = {}
+        roles_seen: dict[str, bool] = {}
         if estimated_rows:
             for r in estimated_rows:
                 roles_seen[_normalize_role(r.role)] = True
@@ -199,7 +198,7 @@ class TokenTracker:
         )
         out_console.print(table)
 
-    def save_report(self, logs_dir: Optional[Path] = None) -> Path:
+    def save_report(self, logs_dir: Path | None = None) -> Path:
         """
         Save usage report to logs/cost_report_{timestamp}.json.
 
@@ -207,12 +206,12 @@ class TokenTracker:
         """
         logs_path = logs_dir or Path("logs")
         logs_path.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
         path = logs_path / f"cost_report_{timestamp}.json"
 
         agg = self._aggregate_by_role()
-        payload: Dict[str, Any] = {
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        payload: dict[str, Any] = {
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "total_cost_usd": round(self.total_cost, 6),
             "max_cost_per_run": self._max_cost,
             "by_role": {
@@ -252,9 +251,7 @@ class TokenTracker:
                 messages = getattr(context, "messages", []) or []
                 response = getattr(context, "response", None) or ""
                 inp = sum(
-                    _estimate_tokens(
-                        m.get("content", "") if isinstance(m, dict) else str(m)
-                    )
+                    _estimate_tokens(m.get("content", "") if isinstance(m, dict) else str(m))
                     for m in messages
                 )
                 out = _estimate_tokens(response)

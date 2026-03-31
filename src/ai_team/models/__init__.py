@@ -1,6 +1,5 @@
 """Pydantic models for agent outputs and shared state."""
 
-from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.architecture import (
     ArchitectureDecisionRecord,
     ArchitectureDocument,
@@ -8,6 +7,7 @@ from ai_team.models.architecture import (
     InterfaceContract,
     TechnologyChoice,
 )
+from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.qa_models import (
     BugReport,
     CoverageReport,

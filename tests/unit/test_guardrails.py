@@ -74,9 +74,7 @@ class TestBehavioralGuardrailsIsolation:
         assert result.status == "pass"
 
     def test_delegation_guardrail_individual_contributor_fail(self) -> None:
-        result = delegation_guardrail(
-            "backend_developer", "frontend_developer", "Build UI"
-        )
+        result = delegation_guardrail("backend_developer", "frontend_developer", "Build UI")
         assert result.status == "fail"
         assert "delegate" in result.message.lower() or "allowed" in result.message.lower()
 
@@ -221,13 +219,9 @@ class TestGuardrailPassFailSignatures:
         assert SecurityGuardrailResult(status="warn", message="w").should_block() is False
 
     def test_quality_guardrail_result_score_clamped(self) -> None:
-        r = QualityGuardrailResult(
-            passed=True, score=150, message="x", suggestions=[]
-        )
+        r = QualityGuardrailResult(passed=True, score=150, message="x", suggestions=[])
         assert r.score == 100
-        r2 = QualityGuardrailResult(
-            passed=False, score=-10, message="y", suggestions=[]
-        )
+        r2 = QualityGuardrailResult(passed=False, score=-10, message="y", suggestions=[])
         assert r2.score == 0
 
 
