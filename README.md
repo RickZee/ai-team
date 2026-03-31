@@ -84,11 +84,11 @@ Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_pr
 
 Planning output (requirements):
 
-![Sample planning screenshot: requirements](ai-team-work-sample-1.png)
+![Sample planning screenshot: requirements](docs/images/ai-team-work-sample-1.png)
 
 Planning output (architecture):
 
-![Sample planning screenshot: architecture](ai-team-work-sample-2.png)
+![Sample planning screenshot: architecture](docs/images/ai-team-work-sample-2.png)
 
 ## Journey
 
@@ -108,13 +108,13 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 │           stream(description, team, env) → AsyncIterator[StreamEvent]        │
 └──────┬───────────────────────┬───────────────────────┬───────────────────────┘
        ▼                       ▼                       ▼
-┌──────────────┐   ┌───────────────────┐   ┌────────────────────┐
-│   CrewAI     │   │    LangGraph      │   │  Claude Agent SDK  │
-│  Crews+Flows │   │  StateGraph+nodes │   │ Nested subagents   │
+┌──────────────┐   ┌───────────────────┐   ┌─────────────────────┐
+│   CrewAI     │   │    LangGraph      │   │  Claude Agent SDK   │
+│  Crews+Flows │   │  StateGraph+nodes │   │ Nested subagents    │
 │  @start,     │   │  conditional      │   │ session persistence │
-│  @listen,    │   │  edges, subgraphs │   │ hooks, skills,     │
-│  @router     │   │  checkpointing    │   │ extended thinking  │
-└──────┬───────┘   └─────────┬─────────┘   └──────────┬─────────┘
+│  @listen,    │   │  edges, subgraphs │   │ hooks, skills,      │
+│  @router     │   │  checkpointing    │   │ extended thinking   │
+└──────┬───────┘   └─────────┬─────────┘   └──────────┬──────────┘
        └─────────────────────┼─────────────────────────┘
                              ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -186,19 +186,24 @@ Embeddings (crew memory) use `OPENROUTER_EMBEDDING_MODEL` (default: `openai/text
 
 ## Demo projects
 
-| Demo | Description | Input |
-|------|-------------|--------|
-| **01_hello_world** | Minimal Hello World Flask API | `project_name`, `description`, `requirements` (e.g. Flask, pytest) |
-| **02_todo_app** | Full-stack TODO (backend API + frontend) | `project_name`, `description`, `stack` (e.g. Flask, SQLite, HTML/JS) |
+Five ready-to-run scenarios that exercise the full pipeline:
 
-Run a demo (when flow is wired):
+| # | Demo | Description |
+|---|------|-------------|
+| 1 | `01_hello_world` | Minimal Flask REST API — health, items CRUD, pytest, Dockerfile |
+| 2 | `02_todo_app` | Full-stack TODO app — Flask + SQLite backend, HTML/JS frontend |
+| 3 | `03_data_pipeline` | ETL pipeline — CSV ingest, validate/transform, SQLite load, CLI report |
+| 4 | `04_ml_api` | FastAPI ML inference service — scikit-learn model, predict/health/metrics endpoints |
+| 5 | `05_microservices` | Three-service system — API Gateway, User Service, Notification Service + docker-compose |
 
 ```bash
 poetry run python scripts/run_demo.py demos/01_hello_world
-poetry run python scripts/run_demo.py demos/02_todo_app
+poetry run python scripts/run_demo.py demos/02_todo_app --skip-estimate
 ```
 
-Each demo directory contains `project_description.txt` or `input.json`, and optionally `expected_output.json` for validation.
+Each demo directory contains `input.json` with the project spec and `expected_output.json` as an acceptance contract. After a run, `scripts/capture_demo.py` verifies the output and writes `RESULTS.md`.
+
+For the full file layout, schema reference, capture/verification workflow, and instructions for adding new demos, see **[docs/DEMOS.md](docs/DEMOS.md)**.
 
 ### CLI options
 
@@ -287,7 +292,7 @@ ai-team/
 │   ├── unit/
 │   ├── integration/
 │   └── e2e/
-├── demos/                   # 01_hello_world, 02_todo_app
+├── demos/                   # 01_hello_world … 05_microservices (see docs/DEMOS.md)
 ├── docs/
 │   ├── langgraph/           # LangGraph backend plan
 │   ├── claude-agent-sdk/    # Claude Agent SDK backend plan

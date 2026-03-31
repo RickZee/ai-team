@@ -1,0 +1,6 @@
+# Generated per-demo artifacts — written by capture_demo.py and the e2e test.
+# Do not commit these; they reflect a specific local run, not a fixture.
+*/output/
+*/run_report.json
+*/failure_report.json
+*/RESULTS.md

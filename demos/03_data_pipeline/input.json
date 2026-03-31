@@ -1,0 +1,5 @@
+{
+  "project_name": "data_pipeline",
+  "description": "Build a Python ETL data pipeline that ingests CSV files from a local directory, validates and transforms records (type coercion, null handling, deduplication), loads cleaned data into a SQLite database, and exposes a summary report via a CLI command. Include pytest unit tests for each pipeline stage, a requirements.txt, and a Dockerfile.",
+  "stack": ["Python", "SQLite", "pandas", "pytest"]
+}

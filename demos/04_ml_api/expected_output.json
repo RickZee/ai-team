@@ -1,0 +1,5 @@
+{
+  "status": "success",
+  "artifacts": ["app/", "tests/", "requirements.txt", "README.md", "Dockerfile"],
+  "summary": "FastAPI ML inference service generated with predict, health, and metrics endpoints and pytest unit tests."
+}
