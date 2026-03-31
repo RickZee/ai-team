@@ -78,7 +78,30 @@ Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_pr
 | **Enterprise guardrails** | Behavioral (role, scope), security (code safety, PII, secrets), quality (syntax, completeness) |
 | **MCP servers** | Per-team, per-agent MCP tool providers (GitHub, filesystem, Docker, Postgres) |
 | **RAG knowledge** | Static best practices + dynamic project knowledge, scoped per agent role |
+| **Self-improvement reports** | Each run produces a manager report that summarizes failures, references prior lessons, and proposes corrective actions |
 | **Observable** | Web dashboard (FastAPI + React), Textual TUI, Gradio UI, structured logging, cost tracking |
+
+## Self-improvement (failure → lessons → injection)
+
+AI-Team automatically turns run outcomes into actionable feedback:
+
+- **Report**: after each run, the Manager writes a `manager_self_improvement_report.md` (and `.json`) under `output/runs/<run_id>/reports/`.
+- **Learn**: failures are recorded in long-term memory and can be promoted into role-scoped “lessons”.
+- **Inject**: promoted lessons are injected into the next run’s agent prompts (by role) to reduce repeat failures.
+
+See a full example report in [`docs/manager_self_improvement_report.md`](docs/manager_self_improvement_report.md).
+
+Example excerpt:
+
+```md
+## This run: problems observed
+
+1. **GuardrailError** (phase: `testing`): QA Engineer should only write test code, not modify production source.
+
+## Proposed self-improvement actions
+
+- Calibrate behavioral guardrails for QA/testing: reduce false positives when outputs are verbose but still test-scoped; consider role-specific relevance thresholds.
+```
 
 #### Sample screenshots
 
@@ -98,7 +121,7 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                         UI Layer (3 interfaces)                               │
+│                         UI Layer (3 interfaces)                              │
 │  Web Dashboard (FastAPI+React) │ Textual TUI │ Gradio │ CLI                  │
 │         --backend crewai | langgraph | claude-sdk    --team <profile>        │
 └──────────────────────────────┬───────────────────────────────────────────────┘
@@ -116,7 +139,7 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 │  @listen,    │   │  edges, subgraphs │   │ hooks, skills,      │
 │  @router     │   │  checkpointing    │   │ extended thinking   │
 └──────┬───────┘   └─────────┬─────────┘   └──────────┬──────────┘
-       └─────────────────────┼─────────────────────────┘
+       └─────────────────────┼────────────────────────┘
                              ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  SHARED LAYERS                                                               │
@@ -341,9 +364,12 @@ ai-team/
 │   ├── rag/                 # RAG pipeline (static + dynamic + session knowledge)
 │   ├── guardrails/          # Behavioral, security, quality
 │   ├── memory/              # Session and long-term memory
-│   ├── monitor/             # Rich TUI dashboard
+│   ├── monitor.py           # TeamMonitor — shared data model for all UIs
 │   ├── utils/               # Shared utilities
-│   └── ui/                  # Gradio (`app.py`), Rich TUI, FastAPI + Vite web (`web/`)
+│   └── ui/
+│       ├── web/             # FastAPI server + React/TypeScript/Vite dashboard
+│       ├── tui/             # Textual TUI (terminal dashboard)
+│       ├── app.py           # Gradio UI (legacy)
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -380,14 +406,20 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and ADRs |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design — UI layer, flows, crews, agents, tools, guardrails, memory |
 | [FLOWS.md](docs/FLOWS.md) | Orchestration flows (CrewAI and LangGraph) |
 | [AGENTS.md](docs/AGENTS.md) | Agent roles, prompts, model mapping |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [TOOLS.md](docs/TOOLS.md) | Tool specifications |
 | [MEMORY.md](docs/MEMORY.md) | Memory and knowledge management |
+| [DEMOS.md](docs/DEMOS.md) | Demo projects, schema, capture/verification |
+| [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
+| [HARDWARE.md](docs/HARDWARE.md) | Hardware requirements and recommendations |
+| [RESULTS.md](docs/RESULTS.md) | Benchmark results and comparisons |
+| [CREWAI_REFERENCE.md](docs/CREWAI_REFERENCE.md) | CrewAI framework reference |
 | [LangGraph Plan](docs/langgraph/LANGGRAPH_MIGRATION_PLAN.md) | LangGraph backend architecture and tasks |
 | [Claude SDK Plan](docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md) | Claude Agent SDK backend architecture and tasks |
+| [Prompts](docs/prompts/PROMPTS.md) | Prompt templates and tracking |
 | [Journey](docs/journey.md) | Project background and ongoing story |
 
 ## License and acknowledgments
