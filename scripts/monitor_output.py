@@ -69,9 +69,25 @@ ERROR_PATTERNS = [
 
 
 def load_latest_state(output_dir: Path) -> tuple[Path | None, dict | None]:
-    """Return (path, state_dict) for the most recently modified *_state.json."""
+    """Return (path, state_dict) for the latest run.
+
+    Prefers ``output/latest`` + ``output/runs/<id>/state.json``. Falls back to legacy
+    top-level ``*_state.json`` files.
+    """
     if not output_dir.is_dir():
         return None, None
+    latest_file = output_dir / "latest"
+    if latest_file.is_file():
+        first_line = latest_file.read_text(encoding="utf-8").strip().splitlines()
+        run_id = first_line[0].strip() if first_line else ""
+        if run_id:
+            st = output_dir / "runs" / run_id / "state.json"
+            if st.is_file():
+                try:
+                    data = json.loads(st.read_text(encoding="utf-8"))
+                    return st, data
+                except (json.JSONDecodeError, OSError):
+                    return st, None
     state_files = list(output_dir.glob("*_state.json"))
     if not state_files:
         return None, None
@@ -224,7 +240,7 @@ def main() -> int:
         "--output-dir",
         type=Path,
         default=DEFAULT_OUTPUT_DIR,
-        help="Output directory containing *_state.json",
+        help="Project output root (contains runs/, index.json, latest)",
     )
     parser.add_argument(
         "--interval",

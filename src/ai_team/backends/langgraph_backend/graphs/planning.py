@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from ai_team.backends.langgraph_backend.agents.prompts import load_agent_prompt
+from ai_team.backends.langgraph_backend.agents.prompts import build_system_prompt
 from ai_team.backends.langgraph_backend.agents.tools import get_langchain_tools_for_role
 from ai_team.backends.langgraph_backend.graphs.langgraph_chat import (
     create_chat_model_for_role,
@@ -48,7 +48,7 @@ def _make_worker(
     name: str,
     llm: BaseChatModel,
 ) -> CompiledStateGraph:
-    prompt = load_agent_prompt(role_key).system_message() + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
+    prompt = build_system_prompt(role_key) + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
     tools = get_langchain_tools_for_role(role_key)
     return create_react_agent(
         llm,
@@ -114,7 +114,7 @@ def compile_planning_subgraph(
         logger.info("planning_subgraph_compiled", workers=active_workers, mode="single_agent")
     else:
         supervisor_prompt = (
-            load_agent_prompt("manager").system_message() + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
+            build_system_prompt("manager") + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
         )
         workflow = create_supervisor(
             worker_agents,

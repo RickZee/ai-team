@@ -25,5 +25,5 @@ This is a portfolio-grade capstone project. All code must be production-quality,
 
 - `src/ai_team/` — config (settings, agents.yaml, tasks.yaml), agents/, crews/, flows/, tools/, guardrails/, memory/, models/, utils/
 - `tests/` — unit/, integration/, e2e/, performance/, fixtures/
-- `ui/` — Streamlit app and components
+- `src/ai_team/ui/` — Gradio app, Rich TUI, FastAPI + Vite web dashboard
 - `docs/`, `scripts/`, `demos/`, `docker/`, `.github/`

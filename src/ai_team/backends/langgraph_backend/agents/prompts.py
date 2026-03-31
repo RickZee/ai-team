@@ -40,13 +40,22 @@ class AgentPromptBundle(BaseModel):
     goal: str = Field(..., description="What the agent optimizes for.")
     backstory: str = Field(..., description="Persona and behavioral constraints.")
 
-    def system_message(self) -> str:
-        """Single system prompt for ReAct / chat models."""
-        return (
+    def system_message(self, *, lessons: list[str] | None = None) -> str:
+        """Single system prompt for ReAct / chat models (optionally with learned lessons)."""
+        base = (
             f"You are {self.role}.\n\n"
             f"## Goal\n{self.goal.strip()}\n\n"
             f"## Background\n{self.backstory.strip()}\n"
         )
+        lesson_lines = [
+            lesson.strip()
+            for lesson in (lessons or [])
+            if isinstance(lesson, str) and lesson.strip()
+        ]
+        if not lesson_lines:
+            return base
+        bullets = "\n".join([f"- {t}" for t in lesson_lines[:20]])
+        return base + "\n\n" + "## Lessons from previous runs\n" + bullets + "\n"
 
 
 def load_agent_prompt(role_key: str) -> AgentPromptBundle:
@@ -64,6 +73,23 @@ def load_agent_prompt(role_key: str) -> AgentPromptBundle:
         goal=str(block.get("goal", "")),
         backstory=str(block.get("backstory", "")),
     )
+
+
+def build_system_prompt(role_key: str) -> str:
+    """
+    Build the full system prompt for a role, including promoted lessons (if any).
+
+    Lessons are persisted in the long-term SQLite store and loaded at runtime.
+    Failures to load lessons must never break prompt generation.
+    """
+    bundle = load_agent_prompt(role_key)
+    try:
+        from ai_team.memory.lessons import load_role_lessons
+
+        role_lessons = load_role_lessons(agent_role=role_key)
+        return bundle.system_message(lessons=[lsn.text for lsn in role_lessons])
+    except Exception:
+        return bundle.system_message()
 
 
 def list_agent_role_keys() -> list[str]:

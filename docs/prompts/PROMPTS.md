@@ -114,7 +114,7 @@ Create the complete directory structure for the ai-team project:
 - tests/ with unit/, integration/, e2e/ folders, each with __init__.py and conftest.py
 - docs/ with stub markdown files: ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md
 - scripts/ with placeholder scripts: setup_ollama.sh, test_models.py, run_demo.py
-- ui/ with Gradio app structure: app.py, components/, pages/
+- src/ai_team/ui/ with Gradio app structure: app.py, components/, pages/ (plus TUI and web under the same package)
 - demos/ with 01_hello_world/, 02_todo_app/ folders containing input.json and expected_output.json
 
 Include __init__.py files with module docstrings in every Python package.
@@ -1946,7 +1946,7 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ### Prompt 6.1: Generate Gradio UI
 ```
-Create ui/app.py — the main Gradio application:
+Create src/ai_team/ui/app.py — the main Gradio application:
 
 1. Sidebar:
    - Configuration panel: select Ollama models per role (dropdowns)
@@ -1977,14 +1977,14 @@ Create ui/app.py — the main Gradio application:
    - Error details with recovery suggestions
    - Retry button with modified parameters
 
-Import from ui/components/ and ui/pages/ for modularity.
+Import from src/ai_team/ui/components/ and src/ai_team/ui/pages/ for modularity.
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
 ### Prompt 6.2: Generate Project Input Component
 ```
-Create ui/components/project_input.py with a structured input form:
+Create src/ai_team/ui/components/project_input.py with a structured input form:
 
 1. ProjectInputForm Gradio component:
    - Project name (text input, required)
@@ -2015,7 +2015,7 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ### Prompt 6.3: Generate Progress Display Component
 ```
-Create ui/components/progress_display.py with real-time progress tracking:
+Create src/ai_team/ui/components/progress_display.py with real-time progress tracking:
 
 1. PhaseProgressBar component:
    - Horizontal bar showing all phases: Intake → Planning → Development → Testing → Deployment → Complete
@@ -2052,7 +2052,7 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ### Prompt 6.4: Generate Output Display Component
 ```
-Create ui/components/output_display.py with generated project display:
+Create src/ai_team/ui/components/output_display.py with generated project display:
 
 1. FileTreeViewer component:
    - Expandable tree structure showing all generated files
@@ -2397,7 +2397,7 @@ Requirements:
    - Platform: linux/arm64 (AgentCore requires ARM64)
    - No platform-specific binary deps that would break on ARM
 4. Optimization:
-   - .dockerignore: tests/, docs/, demos/, ui/, .git/, __pycache__/
+   - .dockerignore: tests/, docs/, demos/, .git/, __pycache__/, **/node_modules/
    - Layer caching: deps installed before code copy
    - Final image < 500MB target
 5. Health check: HEALTHCHECK CMD python -c "import ai_team; print('ok')"
