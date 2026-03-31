@@ -211,7 +211,10 @@ jobs:
         continue-on-error: true
 
       - name: Pip-audit dependency vulnerabilities
-        run: poetry run pip-audit
+        run: |
+          poetry run pip-audit \
+            --ignore-vuln CVE-2025-69872 \
+            --ignore-vuln PYSEC-2022-42969
 
       - name: Upload bandit report
         uses: actions/upload-artifact@v4

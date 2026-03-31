@@ -52,7 +52,7 @@ def _cmd_estimate(env: str, complexity: str) -> int:
         display_estimate,
         estimate_run_cost,
     )
-    from ai_team.config.models import Environment, OpenRouterSettings
+    from ai_team.config.models import OpenRouterSettings
     from pydantic import ValidationError
 
     os.environ["AI_TEAM_ENV"] = env

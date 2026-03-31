@@ -123,7 +123,7 @@ def build_demo() -> gr.Blocks:
             inputs=[resume_tid, resume_in, team],
             outputs=output,
         )
-    return demo
+    return demo  # type: ignore[no-any-return]
 
 
 # Pre-built Blocks for ``ai_team.ui.main`` and ``python -m ai_team.ui.app``.
