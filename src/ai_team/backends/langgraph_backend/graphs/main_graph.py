@@ -84,6 +84,35 @@ def _node_error(state: LangGraphProjectState) -> dict[str, Any]:
     return {"current_phase": "error"}
 
 
+def _node_manager_report(
+    state: LangGraphProjectState,
+    _config: RunnableConfig | None = None,
+) -> dict[str, Any]:
+    """Final manager step: write self-improvement report (JSON + Markdown) under output/reports."""
+    from ai_team.core.results.writer import ResultsBundle
+    from ai_team.reports.manager_self_improvement import write_manager_self_improvement_report
+
+    meta = dict(state.get("metadata") or {})
+    team = str(meta.get("team_profile") or "full")
+    pid = str(state.get("project_id") or "").strip()
+    if not pid:
+        logger.warning("manager_report_skipped", reason="missing_project_id")
+        return {}
+    try:
+        bundle = ResultsBundle(pid)
+        write_manager_self_improvement_report(
+            bundle,
+            backend="langgraph",
+            team_profile=team,
+            state=state,
+        )
+        meta["manager_self_improvement_report"] = "reports/manager_self_improvement_report.md"
+    except Exception as e:
+        logger.warning("manager_report_failed", error=str(e))
+    phase = str(state.get("current_phase") or "")
+    return {"current_phase": phase, "metadata": meta}
+
+
 def _node_rag_context(state: LangGraphProjectState) -> dict[str, Any]:
     """Inject semantic RAG snippets into ``metadata`` when ``RAG_ENABLED`` is set."""
     from ai_team.rag.config import get_rag_config
@@ -143,6 +172,7 @@ def build_main_graph(
     g.add_node("retry_development", _node_retry_development)
     g.add_node("complete", _node_complete)
     g.add_node("error", _node_error)
+    g.add_node("manager_report", _node_manager_report)
 
     if rag_enabled:
         g.add_node("rag_context", _node_rag_context)
@@ -195,8 +225,9 @@ def build_main_graph(
         route_after_deployment,
         {"complete": "complete", "error": "error"},
     )
-    g.add_edge("complete", END)
-    g.add_edge("error", END)
+    g.add_edge("complete", "manager_report")
+    g.add_edge("error", "manager_report")
+    g.add_edge("manager_report", END)
     return g
 
 
