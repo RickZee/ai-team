@@ -1,0 +1,123 @@
+/* AI-Team TUI Dashboard — Textual CSS */
+
+Screen {
+    background: $surface;
+}
+
+#header-bar {
+    dock: top;
+    height: 3;
+    background: $primary-darken-2;
+    color: $text;
+    text-align: center;
+    padding: 1 2;
+}
+
+#footer-bar {
+    dock: bottom;
+    height: 3;
+    background: $primary-darken-3;
+    color: $text-muted;
+    text-align: center;
+    padding: 1 2;
+}
+
+/* --- Dashboard screen layout --- */
+
+#dashboard-grid {
+    layout: grid;
+    grid-size: 2 3;
+    grid-columns: 3fr 2fr;
+    grid-rows: auto 1fr 1fr;
+    grid-gutter: 1;
+    padding: 1;
+}
+
+#phase-pipeline {
+    column-span: 2;
+    height: 3;
+    border: solid $primary;
+    padding: 0 1;
+}
+
+#agents-panel {
+    border: solid green;
+    padding: 0;
+    height: 100%;
+    overflow-y: auto;
+}
+
+#metrics-panel {
+    border: solid magenta;
+    padding: 0;
+    height: 100%;
+}
+
+#log-panel {
+    border: solid yellow;
+    padding: 0;
+    height: 100%;
+    overflow-y: auto;
+}
+
+#guardrails-panel {
+    border: solid red;
+    padding: 0;
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* --- Run screen --- */
+
+#run-form {
+    padding: 2 4;
+    height: auto;
+}
+
+#run-form Label {
+    margin: 1 0 0 0;
+}
+
+#run-form Input, #run-form Select, #run-form TextArea {
+    margin: 0 0 1 0;
+}
+
+#run-output {
+    border: solid $primary;
+    padding: 1;
+    height: 1fr;
+    overflow-y: auto;
+}
+
+/* --- Compare screen --- */
+
+#compare-grid {
+    layout: grid;
+    grid-size: 2 1;
+    grid-gutter: 1;
+    padding: 1;
+    height: 1fr;
+}
+
+#compare-left, #compare-right {
+    border: solid $primary;
+    padding: 0;
+    overflow-y: auto;
+}
+
+#compare-summary {
+    dock: bottom;
+    height: 12;
+    border: solid cyan;
+    padding: 0;
+}
+
+/* Tabs */
+
+ContentSwitcher {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0;
+}

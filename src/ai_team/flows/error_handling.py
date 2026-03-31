@@ -69,6 +69,10 @@ FATAL_INDICATORS = [
     "fatal",
     "cannot load",
     "not found",
+    # Do not retry planning/crews on Python recursion exhaustion (often worsens or crashes native libs).
+    "maximum recursion depth",
+    "recursionerror",
+    "recursion depth",
 ]
 RECOVERABLE_INDICATORS = [
     "invalid output",

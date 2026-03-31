@@ -13,17 +13,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import pytest
-from crewai import Agent, Crew, Task
-from pydantic import ValidationError as PydanticValidationError
-
 from ai_team.config.settings import MemorySettings, get_settings
 from ai_team.memory import get_crew_embedder_config
 from ai_team.memory.memory_config import MemoryManager
-
+from crewai import Agent, Crew, Task
+from pydantic import ValidationError as PydanticValidationError
 
 # -----------------------------------------------------------------------------
 # MemoryManager wired into before_task / after_task hooks
@@ -52,9 +50,9 @@ class TestMemoryManagerBeforeAfterTaskHooks:
         assert manager.is_initialized
 
         project_id = "hook-test-proj"
-        stored_context: Dict[str, Any] = {}
+        stored_context: dict[str, Any] = {}
 
-        def before_task(task_id: str, context: Dict[str, Any]) -> None:
+        def before_task(task_id: str, context: dict[str, Any]) -> None:
             stored_context["task_id"] = task_id
             stored_context["context"] = context
             # Persist via MemoryManager (short_term keyed by task_id)
@@ -98,7 +96,7 @@ class TestMemoryManagerBeforeAfterTaskHooks:
         manager.initialize(settings)
 
         project_id = "after-task-proj"
-        stored_output: Dict[str, Any] = {}
+        stored_output: dict[str, Any] = {}
 
         def after_task(task_id: str, output: Any) -> None:
             stored_output["task_id"] = task_id

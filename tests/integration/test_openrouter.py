@@ -9,9 +9,9 @@ token budgets completeness.
 from __future__ import annotations
 
 import os
-import pytest
-import httpx
 
+import httpx
+import pytest
 from ai_team.config.cost_estimator import (
     COMPLEXITY_MULTIPLIERS,
     estimate_run_cost,
@@ -24,7 +24,6 @@ from ai_team.config.models import (
     Environment,
     OpenRouterSettings,
 )
-
 
 # -----------------------------------------------------------------------------
 # Non-gated tests (always run)

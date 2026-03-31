@@ -4,7 +4,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from ai_team.tasks.planning_tasks import (
     architecture_guardrail,
     create_planning_tasks,

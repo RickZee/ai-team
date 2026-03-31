@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from ai_team.config.settings import MemorySettings
 from ai_team.memory.memory_config import MemoryManager
 

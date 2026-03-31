@@ -6,7 +6,6 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from ai_team.flows.main_flow import FLOW_RECURSION_LIMIT, run_ai_team
 
 
@@ -17,7 +16,10 @@ class TestRunAiTeamRecursionLimit:
         """After successful kickoff, original recursion limit is restored."""
         old_limit = sys.getrecursionlimit()
         try:
-            with patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class:
+            with (
+                patch("ai_team.flows.main_flow.validate_models_before_run"),
+                patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class,
+            ):
                 mock_flow = MagicMock()
                 mock_flow.kickoff.return_value = None
                 mock_flow.state.model_dump.return_value = {"current_phase": "complete"}
@@ -31,7 +33,10 @@ class TestRunAiTeamRecursionLimit:
         """After kickoff raises, recursion limit is still restored in finally."""
         old_limit = sys.getrecursionlimit()
         try:
-            with patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class:
+            with (
+                patch("ai_team.flows.main_flow.validate_models_before_run"),
+                patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class,
+            ):
                 mock_flow = MagicMock()
                 mock_flow.kickoff.side_effect = RuntimeError("simulated failure")
                 mock_flow_class.return_value = mock_flow
@@ -51,7 +56,10 @@ class TestRunAiTeamRecursionLimit:
 
         old_limit = sys.getrecursionlimit()
         try:
-            with patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class:
+            with (
+                patch("ai_team.flows.main_flow.validate_models_before_run"),
+                patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class,
+            ):
                 mock_flow = MagicMock()
                 mock_flow.kickoff.side_effect = capture_limit_and_raise
                 mock_flow_class.return_value = mock_flow

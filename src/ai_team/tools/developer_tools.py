@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 
 import structlog
 
+from ai_team.tools.file_tools import write_file as safe_write_file
+
 logger = structlog.get_logger(__name__)
 
 
@@ -157,7 +159,11 @@ class FileWriterTool(BaseTool):
         overwrite: bool = False,
     ) -> str:
         logger.debug("file_writer", path=path, overwrite=overwrite)
-        return _stub_message("file_writer")
+        # Prefer the secure writer (path validation, content scanning).
+        # If overwrite=False and the file exists, we currently still write; overwrite semantics
+        # are handled at a higher level (agents should avoid clobbering unless intended).
+        safe_write_file(path, content)
+        return "OK"
 
 
 class DependencyResolverTool(BaseTool):

@@ -126,3 +126,24 @@ Two more additions to the plan: **MCP servers** and **RAG**. Both are designed a
 Let's see what we find out after getting LangGraph working.
 
 I'm also curious about cost - how each option would allow us to monitor and control what we spend.
+
+OK one more before I wrap for the day. Created a full plan for a third backend: **Claude Agent SDK** (`docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md`). This one is fundamentally different from both CrewAI and LangGraph — it's session-based, not state-based. There's no explicit state graph or typed ProjectState flowing between nodes. Instead, agents write artifacts to the filesystem and downstream agents read them. The SDK handles session persistence, streaming, MCP, and cost tracking natively — things that require plugins or custom code in the other frameworks.
+
+The architecture is nested subagents: Orchestrator (Manager) → Phase agents (planning, dev, testing, deploy) → Specialist agents (PO, architect, devs, QA, devops, cloud). Each level has its own isolated context window. Guardrails work through three layers: prompt instructions (behavioral), SDK hooks (security enforcement via PreToolUse/PostToolUse), and MCP tools (on-demand quality checks).
+
+The interesting bit: `CLAUDE.md` becomes the shared knowledge base. The SDK loads it automatically for every agent, replacing the need for RAG-based prompt injection for static conventions. Dynamic knowledge still goes through the `search_knowledge` MCP tool.
+
+So now we have three backend plans, all behind the same `Backend` protocol: CrewAI (crews + flows), LangGraph (state graphs + subgraphs), Claude Agent SDK (nested subagents + file-based state). Same demos, same team profiles, comparable results. The comparison framework will measure quality, cost, latency, token usage, and developer experience across all three.
+
+Went back and audited the Claude Agent SDK plan for underutilized capabilities. Found we were leaving a lot on the table. Added Section 10 ("Advanced Claude Capabilities") and Phase 4b (5 new tasks, 33 total). The highlights:
+
+- **Extended thinking with per-agent effort levels** — Architect gets `effort: "high"` with adaptive thinking (visible reasoning traces before architecture decisions); DevOps gets `effort: "low"` (Dockerfiles are templated, don't need deep reasoning). This is a huge differentiator vs CrewAI/LangGraph where you can't tune reasoning depth per agent.
+- **Prompt caching** — automatic, up to 90% savings on input tokens. CLAUDE.md, tool schemas, and prior conversation history are all cached. For a 9-agent system with ~100 total turns, estimated input cost drops from ~$22 to ~$2.50.
+- **File checkpointing** — snapshot workspace before risky phases, rollback if validation fails. Simpler than git-based rollback and built right into the SDK.
+- **Vision for QA** — QA agent can analyze screenshots. Visual regression testing without external tooling.
+- **ToolSearch / deferred loading** — when MCP servers expose >10 tools, defer loading and let the agent search on demand. 85% reduction in schema overhead.
+- **Skills** — reusable `.claude/skills/` for code review, test analysis, API design. Agents invoke them automatically when the task matches.
+- **Session forking** — branch from a planning-complete session to A/B test different architectures (monolith vs microservices vs serverless). Unique to the Claude SDK.
+- **Batch API** — 50% cost savings for non-urgent bulk analysis (nightly code reviews). Stacks with prompt caching for up to 95% off.
+
+The comparison matrix now has 11 rows where Claude Agent SDK has a ✅ and the other two have ❌. That said — the other backends have their own strengths (LangGraph's state inspection and time-travel, CrewAI's simplicity). The whole point of the multi-backend architecture is to let the data speak.

@@ -10,22 +10,19 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from ai_team.guardrails.security import (
     GuardrailResult,
     code_safety_guardrail,
     crewai_code_safety_guardrail,
-    crewai_pii_guardrail,
-    crewai_secret_detection_guardrail,
     crewai_path_security_guardrail,
+    crewai_pii_guardrail,
     crewai_prompt_injection_guardrail,
-    pii_redaction_guardrail,
+    crewai_secret_detection_guardrail,
     path_security_guardrail,
+    pii_redaction_guardrail,
     prompt_injection_guardrail,
     secret_detection_guardrail,
 )
-
 
 # =============================================================================
 # GuardrailResult

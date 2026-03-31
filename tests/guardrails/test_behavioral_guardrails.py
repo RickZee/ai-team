@@ -8,19 +8,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from ai_team.guardrails.behavioral import (
-    GuardrailResult,
     make_reasoning_guardrail,
     make_role_adherence_guardrail,
     make_scope_control_guardrail,
-    output_format_guardrail,
     reasoning_guardrail,
     role_adherence_guardrail,
     scope_control_guardrail,
 )
-
 
 # -----------------------------------------------------------------------------
 # Role adherence — adversarial

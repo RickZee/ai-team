@@ -12,23 +12,16 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from ai_team.crews import development_crew as development_crew_mod
 from ai_team.crews import planning_crew as planning_crew_mod
 from ai_team.crews import testing_crew as testing_crew_mod
 from ai_team.flows.main_flow import _parse_planning_output
 from ai_team.models.architecture import (
     ArchitectureDocument,
-    Component,
-    TechnologyChoice,
 )
 from ai_team.models.development import CodeFile, DeploymentConfig
 from ai_team.models.requirements import (
-    AcceptanceCriterion,
-    MoSCoW,
     RequirementsDocument,
-    UserStory,
 )
 from ai_team.tools.test_tools import TestRunResult
 

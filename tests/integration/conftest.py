@@ -13,14 +13,13 @@ and do not hang or spike memory.
 
 from __future__ import annotations
 
-import os
 import json
+import os
 from types import SimpleNamespace
-from typing import Any, List
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from ai_team.models.architecture import (
     ArchitectureDocument,
     Component,
@@ -240,7 +239,7 @@ def sample_architecture_document() -> ArchitectureDocument:
 
 
 @pytest.fixture
-def sample_code_files() -> List[CodeFile]:
+def sample_code_files() -> list[CodeFile]:
     """Minimal list of CodeFile with imports and functions."""
     return [
         CodeFile(
@@ -330,7 +329,7 @@ def mock_planning_crew_output(
 
 
 def mock_development_crew_output(
-    code_files: List[CodeFile],
+    code_files: list[CodeFile],
 ) -> MagicMock:
     """Build a mock development crew kickoff result (tuple of code_files, deployment_config)."""
     return code_files, None
@@ -355,7 +354,7 @@ def mock_testing_crew_output(
 def mock_crew_outputs(
     sample_requirements_document: RequirementsDocument,
     sample_architecture_document: ArchitectureDocument,
-    sample_code_files: List[CodeFile],
+    sample_code_files: list[CodeFile],
     sample_test_run_result_passed: TestRunResult,
     sample_test_run_result_failed: TestRunResult,
 ) -> dict[str, Any]:

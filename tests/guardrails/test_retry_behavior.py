@@ -6,10 +6,8 @@ failure context in next attempt, and retry counter reset between tasks/phases.
 from __future__ import annotations
 
 import pytest
-
 from ai_team.flows.state import ProjectPhase, ProjectState
 from ai_team.guardrails.security import code_safety_guardrail, crewai_code_safety_guardrail
-
 
 # -----------------------------------------------------------------------------
 # Guardrail fails once, retry succeeds → task completes

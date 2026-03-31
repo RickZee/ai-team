@@ -4,19 +4,16 @@ validation errors for missing or invalid fields.
 """
 
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from ai_team.config.settings import (
-    Settings,
     GuardrailSettings,
     MemorySettings,
+    Settings,
     get_settings,
     reload_settings,
 )
-
 
 # -----------------------------------------------------------------------------
 # Pydantic settings loading from env

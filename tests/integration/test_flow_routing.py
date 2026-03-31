@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
+from ai_team.flows.human_feedback import MockHumanFeedbackHandler
 from ai_team.flows.main_flow import AITeamFlow
 from ai_team.flows.routing import (
     route_after_deployment,
@@ -18,8 +17,7 @@ from ai_team.flows.routing import (
     route_after_planning,
     route_after_testing,
 )
-from ai_team.flows.state import ProjectPhase, ProjectState
-from ai_team.flows.human_feedback import MockHumanFeedbackHandler
+from ai_team.flows.state import ProjectPhase
 
 
 # Routing is on the flow instance; route_after_intake is a method. Check routing module.
