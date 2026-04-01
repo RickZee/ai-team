@@ -204,8 +204,8 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
 
-      - name: Install bandit and pip-audit
-        run: poetry run pip install bandit pip-audit
+      - name: Install bandit (pip-audit is a Poetry dev dependency)
+        run: poetry run pip install bandit
 
       - name: Bandit security scan
         run: poetry run bandit -r src/ -f json -o bandit-report.json || true
