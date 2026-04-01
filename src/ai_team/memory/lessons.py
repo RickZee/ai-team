@@ -12,7 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from ai_team.config.settings import get_settings
@@ -38,10 +38,13 @@ def _long_term_store() -> LongTermStore:
 def _to_dict(obj: Any) -> dict[str, Any]:
     """Best-effort conversion of Pydantic models or plain dicts to dict."""
     if isinstance(obj, dict):
-        return obj
+        return cast(dict[str, Any], obj)
     dump = getattr(obj, "model_dump", None)
     if callable(dump):
-        return dump(mode="json")
+        raw: Any = dump(mode="json")
+        if isinstance(raw, dict):
+            return cast(dict[str, Any], raw)
+        return {}
     return {}
 
 
@@ -169,9 +172,12 @@ class Lesson:
 
 def _parse_failure_record(row: dict[str, Any]) -> dict[str, Any] | None:
     try:
-        return json.loads(str(row.get("content") or ""))
+        raw: Any = json.loads(str(row.get("content") or ""))
     except Exception:
         return None
+    if isinstance(raw, dict):
+        return cast(dict[str, Any], raw)
+    return None
 
 
 def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str, int]:
