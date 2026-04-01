@@ -35,9 +35,14 @@ def test_record_run_failures_persists_failure_records(tmp_settings: None) -> Non
                 "guardrail": {"phase": "behavioral", "details": {"agent_role": "qa_engineer"}},
             }
         ],
-        "test_results": {"passed": False, "tests": {"returncode": 2, "output": "No module named 'app'"}},
+        "test_results": {
+            "passed": False,
+            "tests": {"returncode": 2, "output": "No module named 'app'"},
+        },
     }
-    n = record_run_failures(run_id="r1", backend="langgraph", team_profile="backend-api", state=state)
+    n = record_run_failures(
+        run_id="r1", backend="langgraph", team_profile="backend-api", state=state
+    )
     assert n == 1
 
     sqlite_path = os.environ["MEMORY_SQLITE_PATH"]
@@ -46,7 +51,9 @@ def test_record_run_failures_persists_failure_records(tmp_settings: None) -> Non
     assert rows
 
 
-def test_extract_lessons_promotes_recurring_failures(tmp_settings: None, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_extract_lessons_promotes_recurring_failures(
+    tmp_settings: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Use the configured sqlite path
     sqlite_path = os.environ["MEMORY_SQLITE_PATH"]
     store = LongTermStore(sqlite_path=sqlite_path, retention_days=7)
@@ -75,7 +82,9 @@ def test_extract_lessons_promotes_recurring_failures(tmp_settings: None, monkeyp
     assert lessons
 
 
-def test_load_role_lessons_filters_by_role(tmp_settings: None, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_role_lessons_filters_by_role(
+    tmp_settings: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     sqlite_path = os.environ["MEMORY_SQLITE_PATH"]
     store = LongTermStore(sqlite_path=sqlite_path, retention_days=7)
     store.add_pattern(
@@ -107,4 +116,3 @@ def test_load_role_lessons_filters_by_role(tmp_settings: None, monkeypatch: pyte
     qa = load_role_lessons(agent_role="qa_engineer", limit=10)
     assert len(qa) == 1
     assert qa[0].agent_role == "qa_engineer"
-

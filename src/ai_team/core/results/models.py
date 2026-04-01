@@ -38,7 +38,9 @@ class RunMetadata(BaseModel):
 
 class Scorecard(BaseModel):
     status: Literal["complete", "error", "partial"] = "partial"
-    run_id: str | None = Field(default=None, description="Same as project_id / thread id for this run.")
+    run_id: str | None = Field(
+        default=None, description="Same as project_id / thread id for this run."
+    )
     current_phase: str | None = None
     backend: str | None = None
     team_profile: str | None = None

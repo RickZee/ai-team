@@ -281,7 +281,9 @@ def scorecard_from_langgraph_state(
         "scorecard_json": f"{RUNS_SUBDIR}/{rid}/reports/scorecard.json",
     }
     if isinstance(tr, dict) and tr:
-        artifact_paths["test_results_json"] = f"{RUNS_SUBDIR}/{rid}/artifacts/testing/test_results.json"
+        artifact_paths["test_results_json"] = (
+            f"{RUNS_SUBDIR}/{rid}/artifacts/testing/test_results.json"
+        )
         if (tr.get("lint") or {}).get("output"):
             artifact_paths["ruff_txt"] = f"{RUNS_SUBDIR}/{rid}/artifacts/testing/ruff.txt"
         if (tr.get("tests") or {}).get("output"):
