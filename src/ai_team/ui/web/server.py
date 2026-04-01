@@ -17,7 +17,7 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 import uvicorn
@@ -27,6 +27,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
+
+ComplexityOption = Literal["simple", "medium", "complex"]
 
 app = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
 
@@ -82,11 +84,11 @@ class RunRequest(BaseModel):
     backend: str = "langgraph"
     profile: str = "full"
     description: str
-    complexity: str = "medium"
+    complexity: ComplexityOption = "medium"
 
 
 class EstimateRequest(BaseModel):
-    complexity: str = "medium"
+    complexity: ComplexityOption = "medium"
 
 
 # ---------------------------------------------------------------------------
