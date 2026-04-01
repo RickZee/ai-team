@@ -12,10 +12,11 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
-import time
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -23,7 +24,6 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
@@ -207,10 +207,8 @@ async def ws_run(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info("ws_client_disconnected")
     except Exception as e:
-        try:
+        with contextlib.suppress(Exception):
             await websocket.send_json({"type": "error", "message": str(e)})
-        except Exception:
-            pass
 
 
 @app.websocket("/ws/monitor/{run_id}")
