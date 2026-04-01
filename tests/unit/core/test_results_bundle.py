@@ -75,15 +75,11 @@ def test_registry_multiple_runs_latest_points_to_most_recent(
 
     out_root, _ws = isolated_dirs
     b_first = ResultsBundle("first-run")
-    b_first.write_run(
-        b_first.default_run_metadata(backend="test", team_profile="a", env=None)
-    )
+    b_first.write_run(b_first.default_run_metadata(backend="test", team_profile="a", env=None))
     b_first.write_state({"n": 1})
     time.sleep(0.02)
     b_second = ResultsBundle("second-run")
-    b_second.write_run(
-        b_second.default_run_metadata(backend="test", team_profile="b", env=None)
-    )
+    b_second.write_run(b_second.default_run_metadata(backend="test", team_profile="b", env=None))
     b_second.write_state({"n": 2})
 
     assert (out_root / "latest").read_text(encoding="utf-8").strip() == "second-run"

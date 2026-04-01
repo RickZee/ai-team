@@ -27,9 +27,7 @@ def monitor() -> object:
     return _load_monitor_module()
 
 
-def test_load_latest_state_prefers_runs_and_latest_file(
-    tmp_path: Path, monitor: object
-) -> None:
+def test_load_latest_state_prefers_runs_and_latest_file(tmp_path: Path, monitor: object) -> None:
     load_latest_state = monitor.load_latest_state
     (tmp_path / "runs" / "abc").mkdir(parents=True)
     state_path = tmp_path / "runs" / "abc" / "state.json"
@@ -46,9 +44,7 @@ def test_load_latest_state_prefers_runs_and_latest_file(
     assert data.get("project_id") == "abc"
 
 
-def test_load_latest_state_legacy_glob_when_no_registry(
-    tmp_path: Path, monitor: object
-) -> None:
+def test_load_latest_state_legacy_glob_when_no_registry(tmp_path: Path, monitor: object) -> None:
     load_latest_state = monitor.load_latest_state
     p = tmp_path / "myproj_state.json"
     p.write_text(json.dumps({"project_id": "myproj", "current_phase": "planning"}))
@@ -57,9 +53,7 @@ def test_load_latest_state_legacy_glob_when_no_registry(
     assert data is not None and data.get("project_id") == "myproj"
 
 
-def test_load_latest_state_returns_none_for_empty_dir(
-    tmp_path: Path, monitor: object
-) -> None:
+def test_load_latest_state_returns_none_for_empty_dir(tmp_path: Path, monitor: object) -> None:
     load_latest_state = monitor.load_latest_state
     assert load_latest_state(tmp_path) == (None, None)
 

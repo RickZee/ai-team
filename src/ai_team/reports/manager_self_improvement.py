@@ -80,7 +80,9 @@ def _fetch_recent_lessons(*, limit: int = 30) -> list[dict[str, Any]]:
     return out
 
 
-def _proposed_actions(errors: list[dict[str, Any]], test_results: dict[str, Any] | None) -> list[str]:
+def _proposed_actions(
+    errors: list[dict[str, Any]], test_results: dict[str, Any] | None
+) -> list[str]:
     actions: list[str] = []
     msgs = " ".join(str(e.get("message") or "") for e in errors).lower()
     if "guardrail" in msgs or any(e.get("type") == "GuardrailError" for e in errors):
@@ -310,7 +312,9 @@ def render_manager_self_improvement_markdown(report: dict[str, Any]) -> str:
     lines.append("### Failure records persisted for this run (long-term store)")
     lines.append("")
     if not fr:
-        lines.append("- None matched this `run_id` in `learned_patterns` (may still be processing).")
+        lines.append(
+            "- None matched this `run_id` in `learned_patterns` (may still be processing)."
+        )
     else:
         lines.append("```json")
         lines.append(json.dumps(fr, indent=2, default=str)[:12000])
