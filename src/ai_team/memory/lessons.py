@@ -73,7 +73,9 @@ def _extract_test_signals(state_like: Any) -> dict[str, Any]:
         "pytest": {
             "ok": (tests.get("ok") if isinstance(tests, dict) else None),
             "returncode": (tests.get("returncode") if isinstance(tests, dict) else None),
-            "output_snippet": ((tests.get("output") or "")[:4000] if isinstance(tests, dict) else ""),
+            "output_snippet": (
+                (tests.get("output") or "")[:4000] if isinstance(tests, dict) else ""
+            ),
         },
     }
 
@@ -194,7 +196,11 @@ def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str
                 str(fr.get("phase") or ""),
                 str(fr.get("error_type") or ""),
                 str(fr.get("message") or "")[:200],
-                str((fr.get("guardrail") or {}).get("phase") if isinstance(fr.get("guardrail"), dict) else ""),
+                str(
+                    (fr.get("guardrail") or {}).get("phase")
+                    if isinstance(fr.get("guardrail"), dict)
+                    else ""
+                ),
             ]
         )
         buckets.setdefault(key, []).append(fr)
@@ -211,7 +217,9 @@ def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str
 
         # Very simple infra heuristic: pytest import/module failures are environment/tooling.
         msg = str(sample.get("message") or "")
-        pytest_out = (((sample.get("test_signals") or {}).get("pytest") or {}).get("output_snippet") or "")
+        pytest_out = ((sample.get("test_signals") or {}).get("pytest") or {}).get(
+            "output_snippet"
+        ) or ""
         is_infra = ("ModuleNotFoundError" in pytest_out) or ("No module named" in pytest_out)
 
         if is_infra:
@@ -310,4 +318,3 @@ def write_infra_backlog(*, path: str = "data/infra_backlog.jsonl", limit: int = 
         lines.append(str(r.get("content") or "").strip())
     p.write_text("\n".join([ln for ln in lines if ln]) + ("\n" if lines else ""), encoding="utf-8")
     return len([ln for ln in lines if ln])
-

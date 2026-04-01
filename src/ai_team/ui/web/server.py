@@ -265,6 +265,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
 
             if isinstance(backend, LangGraphBackend):
                 loop = asyncio.get_event_loop()
+
                 # Run blocking iter_stream_events in executor
                 def _stream():
                     events = []
@@ -274,10 +275,12 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
 
                 events = await loop.run_in_executor(None, _stream)
                 for ev in events:
-                    await ws.send_json({
-                        "type": "event",
-                        "data": json.loads(json.dumps(ev, default=str)),
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "event",
+                            "data": json.loads(json.dumps(ev, default=str)),
+                        }
+                    )
                     monitor_snap = _serialize_monitor(monitor)
                     await ws.send_json({"type": "monitor_update", "data": monitor_snap})
         else:
@@ -286,16 +289,20 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                 None,
                 lambda: backend.run(req.description, profile, env=None, monitor=monitor),
             )
-            await ws.send_json({
-                "type": "result",
-                "data": json.loads(json.dumps(result.model_dump(), default=str)),
-            })
+            await ws.send_json(
+                {
+                    "type": "result",
+                    "data": json.loads(json.dumps(result.model_dump(), default=str)),
+                }
+            )
 
         state.finish_run(run_id, success=True)
-        await ws.send_json({
-            "type": "complete",
-            "data": _serialize_monitor(monitor),
-        })
+        await ws.send_json(
+            {
+                "type": "complete",
+                "data": _serialize_monitor(monitor),
+            }
+        )
 
     except Exception as e:
         state.finish_run(run_id, success=False, error=str(e))
@@ -326,23 +333,45 @@ async def _run_demo_async(run_id: str) -> None:
 
     try:
         await step(lambda: monitor.on_phase_change("intake"), 1.0)
-        await step(lambda: monitor.on_log("system", "Received project: Create a Flask REST API", "info"))
+        await step(
+            lambda: monitor.on_log("system", "Received project: Create a Flask REST API", "info")
+        )
 
         await step(lambda: monitor.on_phase_change("planning"))
-        await step(lambda: monitor.on_agent_start("manager", "Coordinating planning phase", agents[0][1]), 1.0)
-        await step(lambda: monitor.on_agent_start("product_owner", "Gathering requirements", agents[1][1]), 1.5)
+        await step(
+            lambda: monitor.on_agent_start("manager", "Coordinating planning phase", agents[0][1]),
+            1.0,
+        )
+        await step(
+            lambda: monitor.on_agent_start("product_owner", "Gathering requirements", agents[1][1]),
+            1.5,
+        )
         await step(lambda: monitor.on_guardrail("behavioral", "role_adherence", "pass"))
         await step(lambda: monitor.on_guardrail("quality", "requirements_completeness", "pass"))
         await step(lambda: monitor.on_agent_finish("product_owner", "Requirements gathering"))
 
-        await step(lambda: monitor.on_agent_start("architect", "Designing system architecture", agents[2][1]), 2.0)
+        await step(
+            lambda: monitor.on_agent_start(
+                "architect", "Designing system architecture", agents[2][1]
+            ),
+            2.0,
+        )
         await step(lambda: monitor.on_guardrail("behavioral", "scope_control", "pass"))
-        await step(lambda: monitor.on_guardrail("quality", "architecture_completeness", "warn", "Missing deployment diagram"))
+        await step(
+            lambda: monitor.on_guardrail(
+                "quality", "architecture_completeness", "warn", "Missing deployment diagram"
+            )
+        )
         await step(lambda: monitor.on_agent_finish("architect", "Architecture design"))
         await step(lambda: monitor.on_agent_finish("manager", "Planning coordination"))
 
         await step(lambda: monitor.on_phase_change("development"))
-        await step(lambda: monitor.on_agent_start("backend_developer", "Implementing Flask routes", agents[3][1]), 2.0)
+        await step(
+            lambda: monitor.on_agent_start(
+                "backend_developer", "Implementing Flask routes", agents[3][1]
+            ),
+            2.0,
+        )
         await step(lambda: monitor.on_guardrail("security", "code_safety", "pass"))
         await step(lambda: monitor.on_guardrail("security", "secret_detection", "pass"))
         await step(lambda: monitor.on_file_generated("app.py"))
@@ -350,18 +379,31 @@ async def _run_demo_async(run_id: str) -> None:
         await step(lambda: monitor.on_file_generated("config.py"))
         await step(lambda: monitor.on_agent_finish("backend_developer", "Flask API implementation"))
 
-        await step(lambda: monitor.on_agent_start("devops", "Creating Dockerfile and CI config", agents[5][1]), 1.5)
+        await step(
+            lambda: monitor.on_agent_start(
+                "devops", "Creating Dockerfile and CI config", agents[5][1]
+            ),
+            1.5,
+        )
         await step(lambda: monitor.on_file_generated("Dockerfile"))
         await step(lambda: monitor.on_file_generated(".github/workflows/ci.yml"))
         await step(lambda: monitor.on_agent_finish("devops", "DevOps setup"))
 
         await step(lambda: monitor.on_phase_change("testing"))
-        await step(lambda: monitor.on_agent_start("qa_engineer", "Generating test cases", agents[4][1]), 1.5)
+        await step(
+            lambda: monitor.on_agent_start("qa_engineer", "Generating test cases", agents[4][1]),
+            1.5,
+        )
         await step(lambda: monitor.on_file_generated("test_app.py"))
         await step(lambda: monitor.on_guardrail("quality", "test_coverage", "pass"))
         await step(lambda: monitor.on_test_result(passed=8, failed=1))
-        await step(lambda: monitor.on_retry("qa_engineer", "1 test failed: test_create_item_validation"))
-        await step(lambda: monitor.on_agent_start("backend_developer", "Fixing validation", agents[3][1]), 1.5)
+        await step(
+            lambda: monitor.on_retry("qa_engineer", "1 test failed: test_create_item_validation")
+        )
+        await step(
+            lambda: monitor.on_agent_start("backend_developer", "Fixing validation", agents[3][1]),
+            1.5,
+        )
         await step(lambda: monitor.on_agent_finish("backend_developer", "Bug fix"))
         await step(lambda: monitor.on_test_result(passed=9, failed=0))
         await step(lambda: monitor.on_agent_finish("qa_engineer", "Test suite"))

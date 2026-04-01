@@ -196,9 +196,7 @@ class TestStatePreservation:
         settings = MagicMock()
         settings.project.output_dir = str(tmp_path)
         settings.project.workspace_dir = str(tmp_path / "ws")
-        monkeypatch.setattr(
-            "ai_team.core.results.writer.get_settings", lambda: settings
-        )
+        monkeypatch.setattr("ai_team.core.results.writer.get_settings", lambda: settings)
 
         state = ProjectState(project_id="persist1", current_phase=ProjectPhase.PLANNING)
         state.project_description = "Test project"
@@ -215,9 +213,7 @@ class TestStatePreservation:
         settings = MagicMock()
         settings.project.output_dir = str(tmp_path)
         settings.project.workspace_dir = str(tmp_path / "ws")
-        monkeypatch.setattr(
-            "ai_team.core.results.writer.get_settings", lambda: settings
-        )
+        monkeypatch.setattr("ai_team.core.results.writer.get_settings", lambda: settings)
 
         state = ProjectState(project_id="reset1", current_phase=ProjectPhase.PLANNING)
         record_failure(state, ProjectPhase.PLANNING)
