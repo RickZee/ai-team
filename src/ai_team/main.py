@@ -116,10 +116,15 @@ def _cmd_run(
     resume_thread: str = "",
     resume_input: str = "",
     langgraph_mode: str | None = None,
+    claude_budget: float | None = None,
+    fork_session: bool = False,
 ) -> int:
     """Run the AI team flow with optional env and complexity overrides."""
-    if not (resume_thread or "").strip() and not (description or "").strip():
-        return 2  # caller should print usage
+    resume_thr = (resume_thread or "").strip()
+    claude_backends = ("claude-agent-sdk", "claude-sdk")
+    has_desc = bool((description or "").strip())
+    if not resume_thr and not has_desc:
+        return 2
     if env is not None:
         os.environ["AI_TEAM_ENV"] = env
     try:
@@ -127,14 +132,19 @@ def _cmd_run(
     except KeyError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
-    use_tui = output_mode == "tui" and backend_name in ("crewai", "langgraph")
+    use_tui = output_mode == "tui" and backend_name in ("crewai", "langgraph", *claude_backends)
     monitor_obj = TeamMonitor(project_name=project_name) if use_tui else None
     try:
+        import asyncio
+
+        from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
         from ai_team.backends.langgraph_backend.backend import LangGraphBackend
+        from ai_team.config.settings import get_settings
 
         backend = get_backend(backend_name)
+        hitl_default = (get_settings().human_feedback.default_response or "").strip()
 
-        if backend_name == "langgraph" and (resume_thread or "").strip():
+        if backend_name == "langgraph" and resume_thr:
             if not isinstance(backend, LangGraphBackend):
                 print("Error: resume requires LangGraph backend.", file=sys.stderr)
                 return 1
@@ -146,7 +156,7 @@ def _cmd_run(
             if langgraph_mode is not None:
                 resume_kw["graph_mode"] = langgraph_mode
             pr = backend.resume(
-                (resume_thread or "").strip(),
+                resume_thr,
                 resume_input,
                 profile,
                 **resume_kw,
@@ -193,6 +203,46 @@ def _cmd_run(
                     monitor_obj.stop()
             return 0
 
+        if backend_name in claude_backends and (stream or use_tui):
+            if not isinstance(backend, ClaudeAgentBackend):
+                print("Error: internal backend type mismatch.", file=sys.stderr)
+                return 1
+            desc = (
+                description.strip()
+                if has_desc
+                else "Continue the project from the saved Claude session and workspace logs."
+            )
+            if monitor_obj:
+                monitor_obj.start()
+            run_kw_claude: dict[str, object] = {
+                "monitor": monitor_obj if use_tui else None,
+                "skip_estimate": skip_estimate,
+                "complexity_override": complexity,
+            }
+            if thread_id.strip():
+                run_kw_claude["thread_id"] = thread_id.strip()
+            if resume_thr:
+                run_kw_claude["resume_session_id"] = resume_thr
+            if fork_session:
+                run_kw_claude["fork_session"] = True
+            if claude_budget is not None:
+                run_kw_claude["max_budget_usd"] = claude_budget
+            if hitl_default:
+                run_kw_claude["hitl_default_answer"] = hitl_default
+            print_jsonl_claude = stream and not use_tui
+
+            async def _stream_claude() -> None:
+                async for ev in backend.stream(desc, profile, env=env, **run_kw_claude):
+                    if print_jsonl_claude:
+                        print(json.dumps(ev, default=str))
+
+            try:
+                asyncio.run(_stream_claude())
+            finally:
+                if monitor_obj:
+                    monitor_obj.stop()
+            return 0
+
         run_kw = {
             "monitor": monitor_obj,
             "skip_estimate": skip_estimate,
@@ -202,8 +252,22 @@ def _cmd_run(
             run_kw["thread_id"] = thread_id.strip()
         if backend_name == "langgraph" and langgraph_mode is not None:
             run_kw["graph_mode"] = langgraph_mode
+        if backend_name in claude_backends:
+            if resume_thr:
+                run_kw["resume_session_id"] = resume_thr
+            if fork_session:
+                run_kw["fork_session"] = True
+            if claude_budget is not None:
+                run_kw["max_budget_usd"] = claude_budget
+            if hitl_default:
+                run_kw["hitl_default_answer"] = hitl_default
+            if thread_id.strip():
+                run_kw["thread_id"] = thread_id.strip()
+        desc_run = description.strip() if has_desc else ""
+        if not desc_run:
+            desc_run = "Continue from previous run (no new description text provided)."
         pr = backend.run(
-            description.strip(),
+            desc_run,
             profile,
             env=env,
             **run_kw,
@@ -219,6 +283,9 @@ def _cmd_run(
         }
         if backend_name == "langgraph":
             out["thread_id"] = raw.get("thread_id")
+        if backend_name in claude_backends:
+            out["session_id"] = raw.get("session_id")
+            out["workspace"] = raw.get("workspace")
         print(json.dumps(out, indent=2, default=str))
         return 0 if pr.success else 1
     except Exception as e:
@@ -236,9 +303,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--backend",
-        choices=("crewai", "langgraph"),
+        choices=("crewai", "langgraph", "claude-agent-sdk", "claude-sdk"),
         default="crewai",
-        help="Orchestration backend: crewai (default) or langgraph (skeleton graph).",
+        help=(
+            "Orchestration backend: crewai (default), langgraph, or claude-agent-sdk "
+            "(Anthropic Claude Agent SDK)."
+        ),
     )
     parser.add_argument(
         "--team",
@@ -251,9 +321,12 @@ def main() -> int:
     run_p = subparsers.add_parser("run", help="Run the full AI team flow.")
     run_p.add_argument(
         "--backend",
-        choices=("crewai", "langgraph"),
+        choices=("crewai", "langgraph", "claude-agent-sdk", "claude-sdk"),
         default="crewai",
-        help="Orchestration backend: crewai (default) or langgraph (skeleton graph).",
+        help=(
+            "Orchestration backend: crewai (default), langgraph, or claude-agent-sdk "
+            "(requires ANTHROPIC_API_KEY and Claude Code CLI)."
+        ),
     )
     run_p.add_argument(
         "--team",
@@ -307,8 +380,11 @@ def main() -> int:
     run_p.add_argument(
         "--resume",
         default="",
-        metavar="THREAD_ID",
-        help="Resume a LangGraph run from checkpoint (use with --resume-input for HITL).",
+        metavar="SESSION_OR_THREAD_ID",
+        help=(
+            "LangGraph: checkpoint thread id (with --resume-input for HITL). "
+            "claude-agent-sdk: Claude session id to resume (use same --thread-id workspace if set)."
+        ),
     )
     run_p.add_argument(
         "--resume-input",
@@ -318,7 +394,23 @@ def main() -> int:
     run_p.add_argument(
         "--stream",
         action="store_true",
-        help="Stream LangGraph node updates as JSON lines (stdout; use with --backend langgraph).",
+        help=(
+            "Stream events as JSON lines: LangGraph node updates, or Claude Agent SDK stream events."
+        ),
+    )
+    run_p.add_argument(
+        "--claude-budget",
+        "--budget",
+        type=float,
+        default=None,
+        dest="claude_budget",
+        metavar="USD",
+        help="claude-agent-sdk: max_budget_usd cap for the orchestrator query (default: sum of phase budgets). Alias: --budget.",
+    )
+    run_p.add_argument(
+        "--fork-session",
+        action="store_true",
+        help="claude-agent-sdk: fork when resuming (new session id, same transcript fork).",
     )
     run_p.add_argument(
         "--langgraph-mode",
@@ -375,7 +467,9 @@ def main() -> int:
         description = (args.run_description or "").strip()
         resume_thr = (getattr(args, "resume", "") or "").strip()
         if not description and not resume_thr:
-            run_p.error("Project description is required unless resuming (--resume THREAD_ID).")
+            run_p.error(
+                "Project description is required unless resuming (--resume SESSION_OR_THREAD_ID)."
+            )
         output_mode = "tui" if args.monitor else args.output
         return _cmd_run(
             description=description,
@@ -391,6 +485,8 @@ def main() -> int:
             resume_thread=resume_thr,
             resume_input=getattr(args, "resume_input", "") or "",
             langgraph_mode=getattr(args, "langgraph_mode", None),
+            claude_budget=getattr(args, "claude_budget", None),
+            fork_session=bool(getattr(args, "fork_session", False)),
         )
     return 1
 

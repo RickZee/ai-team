@@ -31,14 +31,18 @@ class BackendRunSnapshot(BaseModel):
 
 
 class ComparisonReport(BaseModel):
-    """Side-by-side snapshot for CrewAI vs LangGraph on the same input."""
+    """Side-by-side snapshot for CrewAI vs LangGraph (optional Claude Agent SDK)."""
 
     demo_path: str = Field(..., description="Resolved demo directory path.")
-    description: str = Field(..., description="Project description passed to both backends.")
+    description: str = Field(..., description="Project description passed to each backend.")
     env: str | None = Field(default=None, description="AI_TEAM_ENV override if set.")
-    team_profile: str = Field(..., description="Team profile used for both runs.")
+    team_profile: str = Field(..., description="Team profile used for runs.")
     crewai: BackendRunSnapshot
     langgraph: BackendRunSnapshot
+    claude_agent_sdk: BackendRunSnapshot | None = Field(
+        default=None,
+        description="Optional third backend when comparison includes Claude Agent SDK.",
+    )
 
     def to_markdown(self) -> str:
         """Render a compact markdown table for logs or ``*.md`` artifacts."""
@@ -49,15 +53,33 @@ class ComparisonReport(BaseModel):
             f"- **Team profile:** `{self.team_profile}`",
             f"- **Env:** `{self.env or 'default'}`",
             "",
-            "| Metric | CrewAI | LangGraph |",
-            "|--------|--------|-----------|",
-            f"| Success | {self.crewai.success} | {self.langgraph.success} |",
-            f"| Duration (s) | {self.crewai.duration_sec:.3f} | {self.langgraph.duration_sec:.3f} |",
-            f"| Phase | {self.crewai.current_phase or '—'} | {self.langgraph.current_phase or '—'} |",
-            f"| Generated files | {self.crewai.generated_files_count} | {self.langgraph.generated_files_count} |",
-            f"| Error | {self.crewai.error or '—'} | {self.langgraph.error or '—'} |",
-            "",
         ]
+        if self.claude_agent_sdk is not None:
+            lines.extend(
+                [
+                    "| Metric | CrewAI | LangGraph | Claude Agent SDK |",
+                    "|--------|--------|-----------|------------------|",
+                    f"| Success | {self.crewai.success} | {self.langgraph.success} | {self.claude_agent_sdk.success} |",
+                    f"| Duration (s) | {self.crewai.duration_sec:.3f} | {self.langgraph.duration_sec:.3f} | {self.claude_agent_sdk.duration_sec:.3f} |",
+                    f"| Phase | {self.crewai.current_phase or '—'} | {self.langgraph.current_phase or '—'} | {self.claude_agent_sdk.current_phase or '—'} |",
+                    f"| Generated files | {self.crewai.generated_files_count} | {self.langgraph.generated_files_count} | {self.claude_agent_sdk.generated_files_count} |",
+                    f"| Error | {self.crewai.error or '—'} | {self.langgraph.error or '—'} | {self.claude_agent_sdk.error or '—'} |",
+                    "",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "| Metric | CrewAI | LangGraph |",
+                    "|--------|--------|-----------|",
+                    f"| Success | {self.crewai.success} | {self.langgraph.success} |",
+                    f"| Duration (s) | {self.crewai.duration_sec:.3f} | {self.langgraph.duration_sec:.3f} |",
+                    f"| Phase | {self.crewai.current_phase or '—'} | {self.langgraph.current_phase or '—'} |",
+                    f"| Generated files | {self.crewai.generated_files_count} | {self.langgraph.generated_files_count} |",
+                    f"| Error | {self.crewai.error or '—'} | {self.langgraph.error or '—'} |",
+                    "",
+                ]
+            )
         return "\n".join(lines)
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -86,10 +108,20 @@ def snapshot_from_project_result(
 
     files = state.get("generated_files")
     gen_count = len(files) if isinstance(files, list) else 0
+    if gen_count == 0:
+        raw_files = raw.get("generated_files")
+        if isinstance(raw_files, list):
+            gen_count = len(raw_files)
     phase = state.get("current_phase")
     current_phase = str(phase) if phase is not None else None
+    if current_phase is None and isinstance(raw.get("phases"), list) and raw["phases"]:
+        last = raw["phases"][-1]
+        if isinstance(last, dict) and last.get("phase"):
+            current_phase = str(last["phase"])
 
     thread_id = raw.get("thread_id")
+    if thread_id is None and raw.get("session_id") is not None:
+        thread_id = raw.get("session_id")
     tid = str(thread_id) if thread_id is not None else None
 
     return BackendRunSnapshot(

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Compare CrewAI vs LangGraph on the same demo input (Phase 9).
+Compare CrewAI vs LangGraph (optional Claude Agent SDK) on the same demo input.
 
 Produces JSON (stdout) and optional markdown file.
 
 Usage:
   poetry run python scripts/compare_backends.py demos/01_hello_world --env dev
   poetry run python scripts/compare_backends.py demos/01_hello_world --team backend-api --markdown out.md
+  poetry run python scripts/compare_backends.py demos/01_hello_world --with-claude
 """
 
 from __future__ import annotations
@@ -57,6 +58,11 @@ def main() -> int:
         metavar="PATH",
         help="Write markdown report to PATH in addition to JSON on stdout.",
     )
+    parser.add_argument(
+        "--with-claude",
+        action="store_true",
+        help="Also run the claude-agent-sdk backend (requires ANTHROPIC_API_KEY and Claude Code).",
+    )
     args = parser.parse_args()
 
     repo = _repo_root()
@@ -75,6 +81,7 @@ def main() -> int:
             env=args.env,
             skip_estimate=args.skip_estimate,
             complexity_override=args.complexity,
+            include_claude_agent_sdk=bool(args.with_claude),
         )
     except (FileNotFoundError, ValueError, KeyError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)

@@ -53,6 +53,7 @@ def compare_backends_on_description(
     env: str | None,
     skip_estimate: bool,
     complexity_override: str | None = None,
+    include_claude_agent_sdk: bool = False,
 ) -> ComparisonReport:
     """
     Run CrewAI then LangGraph with identical inputs and return a :class:`ComparisonReport`.
@@ -87,6 +88,23 @@ def compare_backends_on_description(
         complexity_override=complexity_override,
     )
 
+    claude_snap = None
+    if include_claude_agent_sdk:
+        claude_result, claude_dt = _run_one_backend(
+            "claude-agent-sdk",
+            description,
+            profile,
+            env,
+            skip_estimate=skip_estimate,
+            complexity_override=complexity_override,
+        )
+        claude_snap = snapshot_from_project_result(
+            backend_name="claude-agent-sdk",
+            team_profile=team,
+            duration_sec=claude_dt,
+            result=claude_result,
+        )
+
     logger.info(
         "backend_comparison_done",
         crewai_success=crewai_result.success,
@@ -112,6 +130,7 @@ def compare_backends_on_description(
             duration_sec=lg_dt,
             result=lg_result,
         ),
+        claude_agent_sdk=claude_snap,
     )
 
 
@@ -122,6 +141,7 @@ def compare_backends_for_demo_dir(
     env: str | None,
     skip_estimate: bool,
     complexity_override: str | None = None,
+    include_claude_agent_sdk: bool = False,
 ) -> ComparisonReport:
     """Load description from ``demo_dir`` and compare backends."""
     description = load_project_description(demo_dir)
@@ -132,4 +152,5 @@ def compare_backends_for_demo_dir(
         env=env,
         skip_estimate=skip_estimate,
         complexity_override=complexity_override,
+        include_claude_agent_sdk=include_claude_agent_sdk,
     )

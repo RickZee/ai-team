@@ -145,6 +145,13 @@ ENV_MODELS: dict[Environment, dict[str, RoleModelConfig]] = {
     },
 }
 
+# ── Anthropic Messages API (Claude Agent SDK) ─────────────────────────────────
+# The SDK accepts short tokens (sonnet, opus, haiku). Use these full strings when
+# pinning models in team profile overrides or documentation.
+ANTHROPIC_MESSAGES_MODEL_SONNET = "claude-sonnet-4-20250514"
+ANTHROPIC_MESSAGES_MODEL_OPUS = "claude-opus-4-20250514"
+ANTHROPIC_MESSAGES_MODEL_HAIKU = "claude-3-5-haiku-20241022"
+
 
 class OpenRouterSettings(BaseSettings):
     """OpenRouter and environment settings loaded from .env."""
