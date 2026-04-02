@@ -118,7 +118,9 @@ def _merge_mcp_servers(workspace: Path, profile: TeamProfile) -> dict[str, Any]:
                 servers[str(name)] = {
                     "type": "http" if transport == "http" else "sse",
                     "url": str(url),
-                    "headers": {str(k): str(v) for k, v in dict(config.get("headers") or {}).items()},
+                    "headers": {
+                        str(k): str(v) for k, v in dict(config.get("headers") or {}).items()
+                    },
                 }
         except (TypeError, ValueError) as e:
             logger.warning("claude_mcp_server_skip", name=name, error=str(e))
@@ -134,7 +136,9 @@ def _orchestrator_effort(profile: TeamProfile) -> str:
     return "high"
 
 
-def _use_tool_search(profile: TeamProfile, mcp_servers: dict[str, Any], explicit: bool | None) -> bool:
+def _use_tool_search(
+    profile: TeamProfile, mcp_servers: dict[str, Any], explicit: bool | None
+) -> bool:
     if explicit is not None:
         return bool(explicit)
     meta_sdk = profile.metadata.get("claude_agent_sdk")

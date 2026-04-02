@@ -39,7 +39,9 @@ def feed_monitor_from_claude_result(
         fn(session_id, cost_usd, stop_reason)
 
 
-def feed_monitor_from_stream_event(monitor: SupportsClaudeMonitor | None, message: StreamEvent) -> None:
+def feed_monitor_from_stream_event(
+    monitor: SupportsClaudeMonitor | None, message: StreamEvent
+) -> None:
     """Best-effort Rich TUI updates from partial stream events."""
     if monitor is None:
         return
