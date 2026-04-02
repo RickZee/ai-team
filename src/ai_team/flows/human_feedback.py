@@ -1,10 +1,10 @@
 """
 Human-in-the-loop feedback handler for the AI Team flow.
 
-Provides HumanFeedbackHandler for CLI and UI (Gradio) modes, structured
-feedback types (Clarification, Approval, Escalation, Override), configurable
-timeout with default action, and audit logging. Includes MockHumanFeedbackHandler
-for automated testing.
+Provides HumanFeedbackHandler for CLI and UI modes, structured feedback types
+(Clarification, Approval, Escalation, Override), configurable timeout with
+default action, and audit logging. Includes MockHumanFeedbackHandler for
+automated testing.
 """
 
 from __future__ import annotations
@@ -108,7 +108,7 @@ def parse_feedback_response(
 # HumanFeedbackHandler
 # -----------------------------------------------------------------------------
 
-GradioCallback = Callable[[str, dict[str, Any], list[str]], str]
+UICallback = Callable[[str, dict[str, Any], list[str]], str]
 
 
 class HumanFeedbackHandler:
@@ -123,18 +123,18 @@ class HumanFeedbackHandler:
         self,
         timeout_seconds: int = 300,
         default_response: str = "",
-        use_ui_callback: GradioCallback | None = None,
+        use_ui_callback: UICallback | None = None,
     ) -> None:
         self.timeout_seconds = max(0, timeout_seconds)
         self.default_response = default_response or ""
-        self._ui_callback: GradioCallback | None = None
+        self._ui_callback: UICallback | None = None
         if use_ui_callback is not None:
             self._ui_callback = use_ui_callback
         self._response_holder: list[str] = []
         self._response_ready = threading.Event()
 
-    def set_gradio_callback(self, callback: GradioCallback) -> None:
-        """Register a Gradio callback for web UI mode."""
+    def set_ui_callback(self, callback: UICallback) -> None:
+        """Register a UI callback for web or TUI mode."""
         self._ui_callback = callback
 
     def request_feedback(
@@ -148,7 +148,7 @@ class HumanFeedbackHandler:
         project_id: str | None = None,
     ) -> str:
         """
-        Present question to user via Gradio UI or CLI prompt; return response.
+        Present question to user via UI callback or CLI prompt; return response.
 
         Includes context (what failed, what agents produced), structured options
         plus free-text. If timeout_seconds > 0 and no response in time, returns

@@ -670,20 +670,20 @@ class ProjectState(BaseModel):
 
 | Task | Priority | Effort | Dependencies | Files |
 |------|----------|--------|--------------|-------|
-| **T1.1** Create `SpecTask` and `ProjectSpec` Pydantic models | P0 | 1h | — | `src/ai_team/models/spec.py` (new) |
-| **T1.2** Create `InternalPR` Pydantic model | P0 | 30m | — | `src/ai_team/models/spec.py` |
-| **T1.3** Update Product Owner system prompt for EARS requirements.md output | P0 | 1h | — | `config/agents.yaml`, `backends/langgraph_backend/agents/prompts.py` |
-| **T1.4** Update Architect system prompt for design.md output with requirement links | P0 | 1h | — | `config/agents.yaml`, `backends/langgraph_backend/agents/prompts.py` |
-| **T1.5** Update Manager system prompt for tasks.md generation | P0 | 1h | — | `config/agents.yaml`, `backends/langgraph_backend/agents/prompts.py` |
-| **T1.6** Add `tasks.md` parser: markdown → `list[SpecTask]` | P0 | 3h | T1.1 | `src/ai_team/spec/parser.py` (new) |
-| **T1.7** Add spec validation: all requirements covered, no circular deps, valid assignees | P0 | 2h | T1.1, T1.6 | `src/ai_team/spec/validator.py` (new) |
-| **T1.8** Add planning subgraph node for Manager task generation (LangGraph) | P0 | 2h | T1.5 | `backends/langgraph_backend/graphs/planning.py` |
-| **T1.9** Update `PlanningState` with `spec` field | P0 | 30m | T1.1 | `backends/langgraph_backend/graphs/state.py` |
-| **T1.10** Update `LangGraphProjectState` with spec, current_task, completed_tasks fields | P0 | 30m | T1.1 | `backends/langgraph_backend/graphs/state.py` |
-| **T1.11** Update `ProjectState` (Pydantic) with spec fields for CrewAI backend | P0 | 30m | T1.1 | `flows/state.py` |
-| **T1.12** Add Manager task-generation task to CrewAI planning crew | P1 | 2h | T1.5 | `crews/planning_crew.py` |
-| **T1.13** Write spec files to workspace during planning (both backends) | P0 | 1h | T1.8, T1.12 | `backends/langgraph_backend/graphs/subgraph_runners.py`, `flows/main_flow.py` |
-| **T1.14** Unit tests for SpecTask model, parser, validator | P0 | 3h | T1.6, T1.7 | `tests/unit/test_spec_parser.py`, `tests/unit/test_spec_validator.py` |
+| [ ] - **T1.1** Create `SpecTask` and `ProjectSpec` Pydantic models | P0 | 1h | — | `src/ai_team/models/spec.py` (new) |
+| [ ] - **T1.2** Create `InternalPR` Pydantic model | P0 | 30m | — | `src/ai_team/models/spec.py` |
+| [ ] - **T1.3** Update Product Owner system prompt for EARS requirements.md output | P0 | 1h | — | `config/agents.yaml`, `backends/langgraph_backend/agents/prompts.py` |
+| [ ] - **T1.4** Update Architect system prompt for design.md output with requirement links | P0 | 1h | — | `config/agents.yaml`, `backends/langgraph_backend/agents/prompts.py` |
+| [ ] - **T1.5** Update Manager system prompt for tasks.md generation | P0 | 1h | — | `config/agents.yaml`, `backends/langgraph_backend/agents/prompts.py` |
+| [ ] - **T1.6** Add `tasks.md` parser: markdown → `list[SpecTask]` | P0 | 3h | T1.1 | `src/ai_team/spec/parser.py` (new) |
+| [ ] - **T1.7** Add spec validation: all requirements covered, no circular deps, valid assignees | P0 | 2h | T1.1, T1.6 | `src/ai_team/spec/validator.py` (new) |
+| [ ] - **T1.8** Add planning subgraph node for Manager task generation (LangGraph) | P0 | 2h | T1.5 | `backends/langgraph_backend/graphs/planning.py` |
+| [ ] - **T1.9** Update `PlanningState` with `spec` field | P0 | 30m | T1.1 | `backends/langgraph_backend/graphs/state.py` |
+| [ ] - **T1.10** Update `LangGraphProjectState` with spec, current_task, completed_tasks fields | P0 | 30m | T1.1 | `backends/langgraph_backend/graphs/state.py` |
+| [ ] - **T1.11** Update `ProjectState` (Pydantic) with spec fields for CrewAI backend | P0 | 30m | T1.1 | `flows/state.py` |
+| [ ] - **T1.12** Add Manager task-generation task to CrewAI planning crew | P1 | 2h | T1.5 | `crews/planning_crew.py` |
+| [ ] - **T1.13** Write spec files to workspace during planning (both backends) | P0 | 1h | T1.8, T1.12 | `backends/langgraph_backend/graphs/subgraph_runners.py`, `flows/main_flow.py` |
+| [ ] - **T1.14** Unit tests for SpecTask model, parser, validator | P0 | 3h | T1.6, T1.7 | `tests/unit/test_spec_parser.py`, `tests/unit/test_spec_validator.py` |
 
 **Phase 1 total: ~19.5 hours**
 
@@ -691,17 +691,17 @@ class ProjectState(BaseModel):
 
 | Task | Priority | Effort | Dependencies | Files |
 |------|----------|--------|--------------|-------|
-| **T2.1** Create `TaskScheduler` — picks next executable task respecting deps | P0 | 2h | T1.1 | `src/ai_team/spec/scheduler.py` (new) |
-| **T2.2** Create `TaskValidator` — checks acceptance criteria after agent execution | P0 | 3h | T1.1 | `src/ai_team/spec/validator.py` |
-| **T2.3** LangGraph: replace monolithic development subgraph with task loop | P0 | 4h | T2.1 | `backends/langgraph_backend/graphs/development.py`, `backends/langgraph_backend/graphs/main_graph.py` |
-| **T2.4** LangGraph: add `_node_task_scheduler` and `_node_task_validator` nodes | P0 | 2h | T2.1, T2.2 | `backends/langgraph_backend/graphs/main_graph.py` |
-| **T2.5** LangGraph: add conditional edge `_route_after_task` for retry/next/done | P0 | 1h | T2.4 | `backends/langgraph_backend/graphs/routing.py` |
-| **T2.6** LangGraph: route task to correct agent role based on `task.assignee` | P0 | 2h | T2.4 | `backends/langgraph_backend/graphs/development.py` |
-| **T2.7** CrewAI: generate one `Task` per `SpecTask` with dependency context | P1 | 3h | T2.1 | `crews/development_crew.py` |
-| **T2.8** Update `tasks.md` in workspace after each task completes (status, timestamps) | P1 | 1h | T2.3 | `src/ai_team/spec/writer.py` (new) |
-| **T2.9** Update TUI monitor to show task progress (task count, current task, blocked) | P1 | 2h | T2.3 | `src/ai_team/monitor.py` |
-| **T2.10** Unit tests for TaskScheduler (dependency ordering, blocked detection) | P0 | 2h | T2.1 | `tests/unit/test_task_scheduler.py` |
-| **T2.11** Integration test: planning → task generation → task execution loop | P1 | 3h | T2.3 | `tests/integration/test_spec_execution.py` |
+| [ ] - **T2.1** Create `TaskScheduler` — picks next executable task respecting deps | P0 | 2h | T1.1 | `src/ai_team/spec/scheduler.py` (new) |
+| [ ] - **T2.2** Create `TaskValidator` — checks acceptance criteria after agent execution | P0 | 3h | T1.1 | `src/ai_team/spec/validator.py` |
+| [ ] - **T2.3** LangGraph: replace monolithic development subgraph with task loop | P0 | 4h | T2.1 | `backends/langgraph_backend/graphs/development.py`, `backends/langgraph_backend/graphs/main_graph.py` |
+| [ ] - **T2.4** LangGraph: add `_node_task_scheduler` and `_node_task_validator` nodes | P0 | 2h | T2.1, T2.2 | `backends/langgraph_backend/graphs/main_graph.py` |
+| [ ] - **T2.5** LangGraph: add conditional edge `_route_after_task` for retry/next/done | P0 | 1h | T2.4 | `backends/langgraph_backend/graphs/routing.py` |
+| [ ] - **T2.6** LangGraph: route task to correct agent role based on `task.assignee` | P0 | 2h | T2.4 | `backends/langgraph_backend/graphs/development.py` |
+| [ ] - **T2.7** CrewAI: generate one `Task` per `SpecTask` with dependency context | P1 | 3h | T2.1 | `crews/development_crew.py` |
+| [ ] - **T2.8** Update `tasks.md` in workspace after each task completes (status, timestamps) | P1 | 1h | T2.3 | `src/ai_team/spec/writer.py` (new) |
+| [ ] - **T2.9** Update TUI monitor to show task progress (task count, current task, blocked) | P1 | 2h | T2.3 | `src/ai_team/monitor.py` |
+| [ ] - **T2.10** Unit tests for TaskScheduler (dependency ordering, blocked detection) | P0 | 2h | T2.1 | `tests/unit/test_task_scheduler.py` |
+| [ ] - **T2.11** Integration test: planning → task generation → task execution loop | P1 | 3h | T2.3 | `tests/integration/test_spec_execution.py` |
 
 **Phase 2 total: ~25 hours**
 
@@ -709,23 +709,23 @@ class ProjectState(BaseModel):
 
 | Task | Priority | Effort | Dependencies | Files |
 |------|----------|--------|--------------|-------|
-| **T3.1** Create `WorkspaceManager` with per-project isolation | P0 | 3h | — | `src/ai_team/workspace/manager.py` (new) |
-| **T3.2** Create `ProjectWorkspace` model (path, repo, project_id, helpers) | P0 | 1h | T3.1 | `src/ai_team/workspace/manager.py` |
-| **T3.3** Update `file_tools._get_allowed_roots()` for per-project scoping | P0 | 1h | T3.1 | `tools/file_tools.py` |
-| **T3.4** Update `_snapshot_workspace_files()` to scan project-scoped directory | P0 | 1h | T3.1 | `backends/langgraph_backend/graphs/subgraph_runners.py` |
-| **T3.5** Wire workspace creation at run start (both backends) | P0 | 2h | T3.1 | `flows/main_flow.py`, `backends/langgraph_backend/backend.py` |
-| **T3.6** Commit spec files (requirements.md, design.md, tasks.md) after planning | P0 | 1h | T3.5, Phase 1 | `backends/langgraph_backend/graphs/subgraph_runners.py`, `flows/main_flow.py` |
-| **T3.7** Create feature branch per task before agent execution | P0 | 2h | T3.5, Phase 2 | `src/ai_team/workspace/git_workflow.py` (new) |
-| **T3.8** Auto-commit after task completion with conventional message | P0 | 2h | T3.7 | `src/ai_team/workspace/git_workflow.py` |
-| **T3.9** Auto-merge to main after guardrail review passes | P0 | 2h | T3.8 | `src/ai_team/workspace/git_workflow.py` |
-| **T3.10** Create `InternalPR` records in state for each task branch | P1 | 1h | T3.7, T1.2 | `src/ai_team/workspace/git_workflow.py` |
-| **T3.11** QA guardrail review on diff before merge (reuse security + quality guardrails) | P1 | 2h | T3.9 | `src/ai_team/workspace/git_workflow.py`, `guardrails/` |
-| **T3.12** Git tag on successful project completion (v1.0.0) | P2 | 30m | T3.9 | `src/ai_team/workspace/git_workflow.py` |
-| **T3.13** Add `--repo` flag: work on existing repo instead of creating new one | P2 | 2h | T3.1 | `src/ai_team/workspace/manager.py`, CLI |
-| **T3.14** Update `LangGraphProjectState` with workspace_path, current_branch, pull_requests | P0 | 30m | T1.10 | `backends/langgraph_backend/graphs/state.py` |
-| **T3.15** Update `ProjectState` (Pydantic) with git fields | P0 | 30m | T1.11 | `flows/state.py` |
-| **T3.16** Unit tests for WorkspaceManager, git workflow, branch creation | P0 | 3h | T3.1-T3.9 | `tests/unit/test_workspace.py`, `tests/unit/test_git_workflow.py` |
-| **T3.17** Integration test: full project creates repo with clean history | P1 | 3h | all | `tests/integration/test_git_project.py` |
+| [ ] - **T3.1** Create `WorkspaceManager` with per-project isolation | P0 | 3h | — | `src/ai_team/workspace/manager.py` (new) |
+| [ ] - **T3.2** Create `ProjectWorkspace` model (path, repo, project_id, helpers) | P0 | 1h | T3.1 | `src/ai_team/workspace/manager.py` |
+| [ ] - **T3.3** Update `file_tools._get_allowed_roots()` for per-project scoping | P0 | 1h | T3.1 | `tools/file_tools.py` |
+| [ ] - **T3.4** Update `_snapshot_workspace_files()` to scan project-scoped directory | P0 | 1h | T3.1 | `backends/langgraph_backend/graphs/subgraph_runners.py` |
+| [ ] - **T3.5** Wire workspace creation at run start (both backends) | P0 | 2h | T3.1 | `flows/main_flow.py`, `backends/langgraph_backend/backend.py` |
+| [ ] - **T3.6** Commit spec files (requirements.md, design.md, tasks.md) after planning | P0 | 1h | T3.5, Phase 1 | `backends/langgraph_backend/graphs/subgraph_runners.py`, `flows/main_flow.py` |
+| [ ] - **T3.7** Create feature branch per task before agent execution | P0 | 2h | T3.5, Phase 2 | `src/ai_team/workspace/git_workflow.py` (new) |
+| [ ] - **T3.8** Auto-commit after task completion with conventional message | P0 | 2h | T3.7 | `src/ai_team/workspace/git_workflow.py` |
+| [ ] - **T3.9** Auto-merge to main after guardrail review passes | P0 | 2h | T3.8 | `src/ai_team/workspace/git_workflow.py` |
+| [ ] - **T3.10** Create `InternalPR` records in state for each task branch | P1 | 1h | T3.7, T1.2 | `src/ai_team/workspace/git_workflow.py` |
+| [ ] - **T3.11** QA guardrail review on diff before merge (reuse security + quality guardrails) | P1 | 2h | T3.9 | `src/ai_team/workspace/git_workflow.py`, `guardrails/` |
+| [ ] - **T3.12** Git tag on successful project completion (v1.0.0) | P2 | 30m | T3.9 | `src/ai_team/workspace/git_workflow.py` |
+| [ ] - **T3.13** Add `--repo` flag: work on existing repo instead of creating new one | P2 | 2h | T3.1 | `src/ai_team/workspace/manager.py`, CLI |
+| [ ] - **T3.14** Update `LangGraphProjectState` with workspace_path, current_branch, pull_requests | P0 | 30m | T1.10 | `backends/langgraph_backend/graphs/state.py` |
+| [ ] - **T3.15** Update `ProjectState` (Pydantic) with git fields | P0 | 30m | T1.11 | `flows/state.py` |
+| [ ] - **T3.16** Unit tests for WorkspaceManager, git workflow, branch creation | P0 | 3h | T3.1-T3.9 | `tests/unit/test_workspace.py`, `tests/unit/test_git_workflow.py` |
+| [ ] - **T3.17** Integration test: full project creates repo with clean history | P1 | 3h | all | `tests/integration/test_git_project.py` |
 
 **Phase 3 total: ~27.5 hours**
 
@@ -733,12 +733,12 @@ class ProjectState(BaseModel):
 
 | Task | Priority | Effort | Dependencies | Files |
 |------|----------|--------|--------------|-------|
-| **T4.1** Create `GitHubIntegration` class (gh CLI wrapper) | P2 | 3h | T3.1 | `src/ai_team/workspace/github.py` (new) |
-| **T4.2** `create_remote_repo()`: create GitHub repo, add remote | P2 | 1h | T4.1 | `src/ai_team/workspace/github.py` |
-| **T4.3** `push_branch()` and `create_pr()` using `gh` CLI | P2 | 2h | T4.1 | `src/ai_team/workspace/github.py` |
-| **T4.4** Add `--github` flag to CLI: enable GitHub push + PRs | P2 | 1h | T4.1 | CLI |
-| **T4.5** Wire GitHub integration into post-task and post-project hooks | P2 | 2h | T4.3 | `src/ai_team/workspace/git_workflow.py` |
-| **T4.6** Integration test with mock `gh` CLI | P2 | 2h | T4.1-T4.5 | `tests/integration/test_github_integration.py` |
+| [ ] - **T4.1** Create `GitHubIntegration` class (gh CLI wrapper) | P2 | 3h | T3.1 | `src/ai_team/workspace/github.py` (new) |
+| [ ] - **T4.2** `create_remote_repo()`: create GitHub repo, add remote | P2 | 1h | T4.1 | `src/ai_team/workspace/github.py` |
+| [ ] - **T4.3** `push_branch()` and `create_pr()` using `gh` CLI | P2 | 2h | T4.1 | `src/ai_team/workspace/github.py` |
+| [ ] - **T4.4** Add `--github` flag to CLI: enable GitHub push + PRs | P2 | 1h | T4.1 | CLI |
+| [ ] - **T4.5** Wire GitHub integration into post-task and post-project hooks | P2 | 2h | T4.3 | `src/ai_team/workspace/git_workflow.py` |
+| [ ] - **T4.6** Integration test with mock `gh` CLI | P2 | 2h | T4.1-T4.5 | `tests/integration/test_github_integration.py` |
 
 **Phase 4 total: ~11 hours**
 

@@ -80,7 +80,7 @@ Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_pr
 | **MCP servers** | Per-team, per-agent MCP tool providers (GitHub, filesystem, Docker, Postgres) |
 | **RAG knowledge** | Static best practices + dynamic project knowledge, scoped per agent role |
 | **Self-improvement reports** | Each run produces a manager report that summarizes failures, references prior lessons, and proposes corrective actions |
-| **Observable** | Web dashboard (FastAPI + React), Textual TUI, Gradio UI, structured logging, cost tracking |
+| **Observable** | Web dashboard (FastAPI + React), Textual TUI, Rich CLI monitor, structured logging, cost tracking |
 
 ## Self-improvement (failure → lessons → injection)
 
@@ -123,7 +123,7 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                         UI Layer (3 interfaces)                              │
-│  Web Dashboard (FastAPI+React) │ Textual TUI │ Gradio │ CLI                  │
+│  Web Dashboard (FastAPI+React) │ Textual TUI │ Rich CLI Monitor             │
 │         --backend crewai | langgraph | claude-sdk    --team <profile>        │
 └──────────────────────────────┬───────────────────────────────────────────────┘
                                ▼
@@ -187,7 +187,6 @@ For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/G
 | `CODE_QUALITY_MIN_SCORE` | Min quality score (0–1) | `0.7` |
 | `TEST_COVERAGE_MIN` | Min test coverage (0–1) | `0.6` |
 | `MAX_FILE_SIZE_KB` | Max file size for tools (KB) | `500` |
-| `GRADIO_SERVER_PORT` | Gradio UI port | `7860` |
 
 Copy `.env.example` to `.env` and set the API key for your chosen backend. Before each run, a pre-flight check validates configured models. Agent→model mapping and guardrail behavior are documented in [docs/AGENTS.md](docs/AGENTS.md) and [docs/GUARDRAILS.md](docs/GUARDRAILS.md).
 
@@ -249,7 +248,7 @@ poetry run python -m ai_team run "Build a minimal Flask API" \
 | `--thread-id` | Resume thread (LangGraph checkpointing) |
 | `--resume` | Resume after human-in-the-loop interrupt |
 
-All three UI modes (`ai-team-web`, `ai-team-tui`, `ai-team-ui`) support backend and team selection in their interfaces.
+Both `ai-team-web` and `ai-team-tui` support backend and team selection in their interfaces.
 
 ## Monitoring & UI
 
@@ -310,12 +309,6 @@ poetry run ai-team --monitor "Create a REST API for a todo list"
 python -m ai_team.monitor   # Simulated demo
 ```
 
-### Gradio UI (legacy)
-
-```bash
-poetry run ai-team-ui   # Gradio on :7860
-```
-
 ## Testing
 
 ```bash
@@ -370,7 +363,7 @@ ai-team/
 │   └── ui/
 │       ├── web/             # FastAPI server + React/TypeScript/Vite dashboard
 │       ├── tui/             # Textual TUI (terminal dashboard)
-│       ├── app.py           # Gradio UI (legacy)
+│       ├── __init__.py
 ├── tests/
 │   ├── unit/
 │   ├── integration/

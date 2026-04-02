@@ -13,8 +13,8 @@ Three UI interfaces serve different audiences — all integrate through the same
 │                              UI LAYER                                            │
 │                                                                                  │
 │  ┌─────────────────────┐  ┌──────────────────┐  ┌───────────────┐  ┌──────────┐ │
-│  │ Web Dashboard       │  │ Textual TUI      │  │ Rich Monitor  │  │ Gradio   │ │
-│  │ (FastAPI + React)   │  │ (ai-team-tui)    │  │ (--monitor)   │  │ (legacy) │ │
+│  │ Web Dashboard       │  │ Textual TUI      │  │ Rich CLI Monitor             │ │
+│  │ (FastAPI + React)   │  │ (ai-team-tui)    │  │ (--monitor)                  │ │
 │  │                     │  │                  │  │               │  │          │ │
 │  │ • REST + WebSocket  │  │ • 3 tabs: Dash,  │  │ • Inline CLI  │  │ • Quick  │ │
 │  │ • Real-time stream  │  │   Run, Compare   │  │   live display│  │   demo   │ │
@@ -47,7 +47,7 @@ Three UI interfaces serve different audiences — all integrate through the same
 | `src/ai_team/ui/web/frontend/` | React + TypeScript + Vite dashboard |
 | `src/ai_team/ui/tui/app.py` | Textual TUI application |
 | `src/ai_team/ui/tui/widgets.py` | Custom Textual widgets (PhasePipeline, AgentTable, etc.) |
-| `src/ai_team/ui/app.py` | Gradio UI (legacy) |
+| `src/ai_team/ui/web/server.py` | FastAPI web dashboard server |
 | `src/ai_team/monitor.py` | TeamMonitor — shared data model for all UIs |
 
 ---
@@ -331,7 +331,7 @@ State is carried in **ProjectState** through the flow; each crew reads/writes th
 | State & schemas | **Pydantic** | ProjectState, RequirementsDocument, ArchitectureDocument, CodeFile, TestResult, DeploymentConfig. |
 | Short-term memory | **ChromaDB** | Vector store for recent context. |
 | Long-term memory | **SQLite** | Persistent memory store. |
-| UI | **Gradio** | Demo UI for project input, progress, and output. |
+| UI | **Textual** / **FastAPI + React** | Terminal TUI and web dashboard for project input, progress, and output. |
 | Config | **pydantic-settings** | Settings, OpenRouter, guardrails, memory from env. |
 | Logging | **structlog** | Structured logs for flow and agents. |
 
@@ -354,7 +354,7 @@ ai-team/
 │   │   └── __init__.py   # Behavioral, Security, Quality + create_full_guardrail_chain
 │   ├── memory/           # Short-term, long-term, entity memory config & access
 │   ├── utils/            # Shared helpers
-│   └── ui/               # Gradio (`app.py`), Rich TUI, FastAPI + Vite web (`web/`, `components/`, `pages/`)
+│   └── ui/               # Textual TUI (`tui/`), FastAPI + React web dashboard (`web/`)
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -390,7 +390,7 @@ ai-team/
   - Update crew tasks and routers that read/write those fields.
 
 - **Human-in-the-loop**  
-  - Use `awaiting_human_input` and `human_feedback` on ProjectState; route to `request_clarification` or `escalate_*` and resume from `AWAITING_HUMAN` when feedback is provided (e.g. via Gradio or API).
+  - Use `awaiting_human_input` and `human_feedback` on ProjectState; route to `request_clarification` or `escalate_*` and resume from `AWAITING_HUMAN` when feedback is provided (e.g. via web dashboard, TUI, or API).
 
 ---
 
@@ -456,7 +456,7 @@ ai-team/
 
 **Status:** Accepted  
 
-**Context:** CrewAI Flows cover the primary multi-crew pipeline. Some workflows benefit from explicit graph semantics, first-class checkpointing, and streamable node updates for CLI/TUI/Gradio.
+**Context:** CrewAI Flows cover the primary multi-crew pipeline. Some workflows benefit from explicit graph semantics, first-class checkpointing, and streamable node updates for CLI/TUI/web dashboard.
 
 **Decision:** Add an optional **LangGraph** backend (`LangGraphBackend`) that compiles a main graph with phase-aligned nodes, conditional routing, guardrail nodes, and optional subgraphs for planning/development/testing/deployment.
 

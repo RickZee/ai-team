@@ -278,7 +278,7 @@ But **none of these are currently measurable** because quality metrics aren't pe
 | Barrier | Severity | Fix |
 |---------|----------|-----|
 | Must manually run `extract_lessons.py` | High | Auto-extract at startup |
-| No dashboard for lessons/metrics trends | Medium | `scripts/show_metrics.py` or Gradio tab |
+| No dashboard for lessons/metrics trends | Medium | `scripts/show_metrics.py` or web dashboard tab |
 | SQLite only, no team-shared learning | Medium | Optional Postgres + export/import |
 | No documentation of what lessons look like | Low | Add examples to GETTING_STARTED.md |
 | Comparison output too thin to make decisions | High | Extend BackendRunSnapshot |

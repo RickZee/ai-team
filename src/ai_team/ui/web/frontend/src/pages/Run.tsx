@@ -8,7 +8,7 @@ import { useRunWebSocket } from "../hooks/useWebSocket";
 import type { CostEstimate } from "../types";
 
 export function Run() {
-  const [backend, setBackend] = useState("langgraph");
+  const [backend, setBackend] = useState("crewai");
   const [profile, setProfile] = useState("full");
   const [description, setDescription] = useState("");
   const [complexity, setComplexity] = useState("medium");
@@ -46,8 +46,8 @@ export function Run() {
           <div className="form-group">
             <label>Backend</label>
             <select value={backend} onChange={(e) => setBackend(e.target.value)}>
-              <option value="langgraph">LangGraph</option>
               <option value="crewai">CrewAI</option>
+              <option value="langgraph">LangGraph</option>
             </select>
           </div>
           <div className="form-group">

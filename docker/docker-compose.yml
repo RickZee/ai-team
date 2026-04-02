@@ -2,13 +2,11 @@ services:
   app:
     build: .
     ports:
-      - "7860:7860"
+      - "8421:8421"
     volumes:
       - ./output:/app/output
     env_file:
       - .env
-    environment:
-      - GRADIO_SERVER_NAME=0.0.0.0
     networks:
       - aiteam
     depends_on:
