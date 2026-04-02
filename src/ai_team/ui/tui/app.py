@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -80,11 +81,11 @@ class RunPane(Container):
             yield Label("Backend")
             yield Select(
                 [
-                    ("LangGraph", "langgraph"),
                     ("CrewAI", "crewai"),
+                    ("LangGraph", "langgraph"),
                     ("Claude Agent SDK", "claude-agent-sdk"),
                 ],
-                value="langgraph",
+                value=os.environ.get("AI_TEAM_BACKEND", "crewai"),
                 id="backend-select",
             )
             yield Label("Team Profile")
