@@ -150,10 +150,14 @@ class ClaudeAgentBackend:
         raw["phases"] = profile.phases
 
         success = result_msg is not None and not result_msg.is_error
-        err = None if success else (
-            result_msg.stop_reason or "error"
-            if result_msg
-            else "No result message from Claude Agent SDK"
+        err = (
+            None
+            if success
+            else (
+                result_msg.stop_reason or "error"
+                if result_msg
+                else "No result message from Claude Agent SDK"
+            )
         )
 
         if (

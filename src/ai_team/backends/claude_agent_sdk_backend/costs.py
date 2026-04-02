@@ -94,11 +94,11 @@ def cost_comparison_markdown(
     ]
     if ceiling_usd is not None:
         lines.append(f"- **Ceiling:** ${float(ceiling_usd):.4f}")
-        lines.append(f"- **Remaining (by log):** ${remaining_budget_usd(workspace, float(ceiling_usd)):.4f}")
+        lines.append(
+            f"- **Remaining (by log):** ${remaining_budget_usd(workspace, float(ceiling_usd)):.4f}"
+        )
     if crewai_estimate_usd is not None:
         lines.append(f"- **CrewAI estimate (reference):** ${float(crewai_estimate_usd):.4f}")
-        lines.append(
-            f"- **Delta (actual − estimate):** ${actual - float(crewai_estimate_usd):.4f}"
-        )
+        lines.append(f"- **Delta (actual − estimate):** ${actual - float(crewai_estimate_usd):.4f}")
     lines.append("")
     return "\n".join(lines)

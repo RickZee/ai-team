@@ -84,7 +84,9 @@ async def run_orchestrator_with_recovery(
     and appends a short instruction to the user prompt.
     """
     base_turns = max_turns or 50
-    base_budget = float(max_budget_usd) if max_budget_usd is not None else default_total_budget_usd()
+    base_budget = (
+        float(max_budget_usd) if max_budget_usd is not None else default_total_budget_usd()
+    )
     logs: list[str] = []
     last: ResultMessage | None = None
     prompt = description
@@ -127,8 +129,7 @@ async def run_orchestrator_with_recovery(
         if attempt >= recovery_max_attempts or not _recoverable_failure(last):
             return last, logs
         prompt = (
-            description
-            + f"\n\n[System: Attempt {attempt} stopped ({reason}). "
+            description + f"\n\n[System: Attempt {attempt} stopped ({reason}). "
             "Continue with a narrower scope; avoid repeating failed tool patterns.]"
         )
         resume = None
