@@ -124,6 +124,11 @@ async def list_backends():
         "backends": [
             {"name": "crewai", "label": "CrewAI", "streaming": False},
             {"name": "langgraph", "label": "LangGraph", "streaming": True},
+            {
+                "name": "claude-agent-sdk",
+                "label": "Claude Agent SDK",
+                "streaming": True,
+            },
         ]
     }
 
@@ -277,6 +282,24 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
 
                 events = await loop.run_in_executor(None, _stream)
                 for ev in events:
+                    await ws.send_json(
+                        {
+                            "type": "event",
+                            "data": json.loads(json.dumps(ev, default=str)),
+                        }
+                    )
+                    monitor_snap = _serialize_monitor(monitor)
+                    await ws.send_json({"type": "monitor_update", "data": monitor_snap})
+        elif req.backend in ("claude-agent-sdk", "claude-sdk"):
+            from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
+
+            if isinstance(backend, ClaudeAgentBackend):
+                async for ev in backend.stream(
+                    req.description,
+                    profile,
+                    env=None,
+                    monitor=monitor,
+                ):
                     await ws.send_json(
                         {
                             "type": "event",

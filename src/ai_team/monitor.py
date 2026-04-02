@@ -140,6 +140,9 @@ class Metrics:
     tests_passed: int = 0
     tests_failed: int = 0
     token_estimate: int = 0
+    claude_session_id: str = ""
+    claude_cost_usd: float | None = None
+    claude_stop_reason: str = ""
 
     @property
     def elapsed(self) -> timedelta:
@@ -217,6 +220,28 @@ class TeamMonitor:
             self._live.update(self._render())
 
     # -- Event hooks (call these from your flow/callbacks) -------------------
+
+    def on_claude_result(
+        self,
+        session_id: str | None,
+        cost_usd: float | None,
+        stop_reason: str | None = None,
+    ) -> None:
+        """Record Claude Agent SDK session id and spend for the metrics panel."""
+        with self._lock:
+            if session_id:
+                self.metrics.claude_session_id = session_id
+            if cost_usd is not None:
+                self.metrics.claude_cost_usd = cost_usd
+            if stop_reason:
+                self.metrics.claude_stop_reason = stop_reason
+            if session_id or cost_usd is not None:
+                self._add_log(
+                    "claude",
+                    f"session={session_id or '—'} cost=${cost_usd if cost_usd is not None else '—'}",
+                    "info",
+                )
+        self.update()
 
     def on_phase_change(self, phase: str | Phase) -> None:
         """Called when the flow transitions to a new phase."""
@@ -601,6 +626,17 @@ class TeamMonitor:
             table.add_row(
                 "Tests failed",
                 f"[red]{m.tests_failed}[/red]" if m.tests_failed else "[dim]0[/dim]",
+            )
+        if m.claude_session_id or m.claude_cost_usd is not None:
+            table.add_row("─" * 18, "─" * 6)
+            table.add_row(
+                "Claude session",
+                f"[cyan]{m.claude_session_id or '—'}[/cyan]",
+            )
+            cu = m.claude_cost_usd
+            table.add_row(
+                "Claude cost (USD)",
+                f"[cyan]{cu:.4f}[/cyan]" if cu is not None else "[dim]—[/dim]",
             )
 
         return Panel(

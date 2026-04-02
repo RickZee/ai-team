@@ -79,7 +79,11 @@ class RunPane(Container):
         with Vertical(id="run-form"):
             yield Label("Backend")
             yield Select(
-                [("LangGraph", "langgraph"), ("CrewAI", "crewai")],
+                [
+                    ("LangGraph", "langgraph"),
+                    ("CrewAI", "crewai"),
+                    ("Claude Agent SDK", "claude-agent-sdk"),
+                ],
                 value="langgraph",
                 id="backend-select",
             )
@@ -240,6 +244,8 @@ class AITeamTUI(App):
 
             if str(backend_name) == "langgraph":
                 self._run_langgraph_stream(backend, description.strip(), profile, monitor)
+            elif str(backend_name) == "claude-agent-sdk":
+                self._run_claude_agent_sdk_stream(backend, description.strip(), profile, monitor)
             else:
                 result = backend.run(
                     description.strip(),
@@ -267,6 +273,23 @@ class AITeamTUI(App):
         for ev in backend.iter_stream_events(description, profile, monitor=monitor):
             self._log_output(json.dumps(ev, default=str, indent=2))
             self.call_from_thread(self._refresh_dashboard)
+
+    def _run_claude_agent_sdk_stream(self, backend, description, profile, monitor) -> None:
+        """Stream Claude Agent SDK events (async) inside the worker thread."""
+        import asyncio
+
+        from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
+
+        if not isinstance(backend, ClaudeAgentBackend):
+            self._log_output("[red]Expected Claude Agent SDK backend.[/red]")
+            return
+
+        async def _consume() -> None:
+            async for ev in backend.stream(description, profile, env=None, monitor=monitor):
+                self._log_output(json.dumps(ev, default=str, indent=2))
+                self.call_from_thread(self._refresh_dashboard)
+
+        asyncio.run(_consume())
 
     def _log_output(self, message: str) -> None:
         """Write to the run output log."""

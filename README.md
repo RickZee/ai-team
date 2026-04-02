@@ -25,12 +25,12 @@ All backends share the same `Backend` protocol, tools, guardrails, Pydantic mode
 |---------|--------|-------------------|--------------|---------------|
 | **[CrewAI](https://crewai.com)** | Production | Crews + Flows (`@start`, `@listen`, `@router`) | OpenRouter | Simple setup, hierarchical process, built-in delegation |
 | **[LangGraph](https://langchain-ai.github.io/langgraph/)** | Production | StateGraph with nodes + conditional edges | OpenRouter | Explicit routing, checkpointing, time-travel, state inspection |
-| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Planned | Nested subagents + session persistence | Anthropic API | Extended thinking, prompt caching (90% savings), file rollback, vision, native MCP |
+| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Available | Nested subagents + session persistence | Anthropic API | Extended thinking, prompt caching, file rollback, native MCP, streaming |
 
 ```bash
-ai-team --backend crewai      "Build a REST API"   # CrewAI (default)
-ai-team --backend langgraph   "Build a REST API"   # LangGraph
-ai-team --backend claude-sdk  "Build a REST API"   # Claude Agent SDK (planned)
+ai-team --backend crewai            "Build a REST API"   # CrewAI (default)
+ai-team --backend langgraph         "Build a REST API"   # LangGraph
+ai-team --backend claude-agent-sdk  "Build a REST API"   # Claude Agent SDK (ANTHROPIC_API_KEY + Claude Code)
 ```
 
 ### Backend comparison
@@ -39,9 +39,10 @@ Run the same demo through multiple backends and compare:
 
 ```bash
 python scripts/compare_backends.py demos/01_hello_world --env dev
+python scripts/compare_backends.py demos/01_hello_world --env dev --with-claude
 ```
 
-Produces a side-by-side report: output quality, cost, latency, token usage, error rate.
+Produces a side-by-side report: output quality, cost, latency, token usage, error rate. Use `--with-claude` to include the Claude Agent SDK (requires `ANTHROPIC_API_KEY`).
 
 ### Future backends
 
@@ -357,7 +358,7 @@ ai-team/
 │   │   ├── registry.py      # Backend discovery and instantiation
 │   │   ├── crewai_backend/  # CrewAI: crews, flows, agents, state
 │   │   ├── langgraph_backend/  # LangGraph: graphs, nodes, routing, subgraphs
-│   │   └── claude_sdk_backend/ # Claude Agent SDK (planned): subagents, hooks, skills
+│   │   └── claude_agent_sdk_backend/  # Claude Agent SDK: orchestrator, subagents, hooks, MCP
 │   ├── agents/              # Shared agent definitions
 │   ├── tools/               # File, code, git, test tools
 │   ├── mcp/                 # MCP server configs and adapters

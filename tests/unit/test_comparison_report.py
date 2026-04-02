@@ -10,6 +10,29 @@ from ai_team.models.comparison_report import (
 )
 
 
+def test_snapshot_from_project_result_claude_raw() -> None:
+    """Claude backend stores generated_files and session_id on raw payload."""
+    pr = ProjectResult(
+        backend_name="claude-agent-sdk",
+        success=True,
+        raw={
+            "generated_files": ["a.py", "b.py"],
+            "session_id": "claude-sess-1",
+            "phases": [{"phase": "planning", "status": "completed"}],
+        },
+        team_profile="full",
+    )
+    snap = snapshot_from_project_result(
+        backend_name="claude-agent-sdk",
+        team_profile="full",
+        duration_sec=0.5,
+        result=pr,
+    )
+    assert snap.generated_files_count == 2
+    assert snap.thread_id == "claude-sess-1"
+    assert snap.current_phase == "planning"
+
+
 def test_snapshot_from_project_result_langgraph_state() -> None:
     """LangGraph raw uses ``state`` + ``thread_id``."""
     pr = ProjectResult(

@@ -24,7 +24,7 @@ Created the initial plans and prompts. Opus 4.5 created very nicely designed bui
 
 The problem was - I started running them in cursor only to realize that Claude didn't really do a good job:
 
-![See missing prompts screenshot](feb-14-missing-prompts.png)
+![See missing prompts screenshot](images/feb-14-missing-prompts.png)
 
 So now I have gaps in implementation and need to start from scratch.
 
