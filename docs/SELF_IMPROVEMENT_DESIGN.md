@@ -100,7 +100,7 @@ finally:
 - `scripts/show_runs.py` — CLI to list/filter/export run records
 - `scripts/show_metrics.py` — aggregate metrics from run records
 - `ComparisonReport.from_run_records()` — comparison uses stored records instead of live-only snapshots
-- Gradio UI — future dashboard tab
+- Web dashboard / TUI — future metrics tab
 
 ### Files to Modify
 

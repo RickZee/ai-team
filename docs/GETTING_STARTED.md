@@ -64,11 +64,11 @@ poetry run pytest tests/unit -v
    poetry run python -m ai_team.main "Create a minimal Hello World Flask API"
    ```
 
-3. **Optional: run the Gradio UI**
+3. **Optional: run the web dashboard or TUI**
    ```bash
-   poetry run ai-team-ui
+   poetry run ai-team-web   # FastAPI + React on http://127.0.0.1:8421
+   poetry run ai-team-tui   # Textual terminal UI
    ```
-   Then open the URL shown (default `http://127.0.0.1:7860`).
 
 4. **Run a demo** (when the flow is wired to the demo runner):
    ```bash

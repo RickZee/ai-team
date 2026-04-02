@@ -16,7 +16,7 @@ Orchestration can run on **CrewAI** (`AITeamFlow`) or **LangGraph** (`compile_ma
   - `placeholder` — lightweight nodes (no subgraph LLM calls); suitable for fast tests and smoke runs.
   - `full` — planning/development/testing/deployment nodes delegate to compiled subgraphs.
 - **Persistence:** SQLite checkpointer by default; optional Postgres via `AI_TEAM_LANGGRAPH_POSTGRES_URI`.
-- **HITL:** In `full` mode, `human_review` may call `interrupt()`; resume with `Command(resume=...)` and the same `thread_id` (see CLI `--resume` / Gradio resume fields).
+- **HITL:** In `full` mode, `human_review` may call `interrupt()`; resume with `Command(resume=...)` and the same `thread_id` (see CLI `--resume` / web dashboard resume).
 
 ```text
 START → intake → [rag_context?] → planning ⇄ human_review → development
