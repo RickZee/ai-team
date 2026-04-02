@@ -32,7 +32,7 @@ Three UI interfaces serve different audiences — all integrate through the same
 │           └──────────────────────┬──────────────────────────┘                   │
 │                                  ▼                                               │
 │           ┌─────────────────────────────────────────────────┐                   │
-│           │ Backend Registry → get_backend("crewai|langgraph")│                   │
+│           │ Backend Registry → get_backend("crewai|langgraph|claude-agent-sdk")│  │
 │           │ Cost Estimator → estimate_run_cost(settings, cx)  │                   │
 │           │ Token Tracker → record(), summary(), save_report()│                   │
 │           └─────────────────────────────────────────────────┘                   │
@@ -119,14 +119,67 @@ Three UI interfaces serve different audiences — all integrate through the same
 | **ProjectState** | Pydantic model holding all flow state: `project_id`, `user_request`, `current_phase`, `requirements`, `architecture`, `generated_files`, `test_results`, `deployment_config`, `errors`, `human_feedback`, `awaiting_human_input`, etc. |
 | **Routing logic** | After each crew step, routers decide the next step (e.g. `run_development`, `request_clarification`, `handle_fatal_error`, `retry_development`, `escalate_test_failures`). Supports human-in-the-loop and error recovery. |
 
-#### 2.1.1 Orchestration backends (CrewAI vs LangGraph)
+#### 2.1.1 Orchestration backends (CrewAI, LangGraph, Claude Agent SDK)
 
 | Backend | Entry | Role |
 |---------|--------|------|
 | **CrewAI** | `CrewAIBackend` → `run_ai_team` / `AITeamFlow` | Default production path: hierarchical crews, tools, memory, guardrails. |
 | **LangGraph** | `LangGraphBackend` → compiled `StateGraph` (`compile_main_graph`) | Alternative orchestration with the same high-level phases (intake → planning → … → deployment). Supports SQLite/Postgres checkpointing, `graph.stream(..., stream_mode="updates")`, and `Command(resume=...)` after `interrupt()` for HITL. |
+| **Claude Agent SDK** | `ClaudeAgentBackend` → `orchestrator.run_orchestrator` / `iter_orchestrator_messages` | Single top-level `query()` with nested **subagents** (phase coordinators + specialists). State is **workspace files** + **Claude session** transcript; OpenRouter is not used—Anthropic API + Claude Code CLI. |
 
-Both implement the shared `Backend` protocol and return `ProjectResult`. Team composition and phase lists come from the same `TeamProfile` (`config/team_profiles.yaml`). The CLI selects the backend with `--backend crewai|langgraph`. See ADR-004 and ADR-005 below.
+Both implement the shared `Backend` protocol and return `ProjectResult`. Team composition and phase lists come from the same `TeamProfile` (`config/team_profiles.yaml`). The CLI selects the backend with `--backend crewai|langgraph|claude-agent-sdk`. See ADR-004, ADR-005, ADR-006, and ADR-007 below.
+
+**Comparison (orchestration shape).**
+
+| | **CrewAI** | **LangGraph** | **Claude Agent SDK** |
+|--|------------|---------------|----------------------|
+| **Primary state** | `ProjectState` in Flow | Checkpointed graph state | Session transcript + files under workspace |
+| **Resume** | Flow rerun / new run | Thread id + `Command(resume=...)` | `session_id` + optional fork |
+| **HITL** | Flow flags / human_feedback | `interrupt()` | `AskUserQuestion` + optional `can_use_tool` default answer |
+| **Tool guardrails** | CrewAI tasks + Python guardrails | Nodes + shared guardrail helpers | SDK **hooks** (Pre/Post tool) + MCP tools |
+
+#### 2.1.2 Claude Agent SDK backend (diagram)
+
+Implementation lives under `src/ai_team/backends/claude_agent_sdk_backend/` (`backend.py`, `orchestrator.py`, `agents/`, `hooks/`, `tools/mcp_server.py`). The orchestrator builds `ClaudeAgentOptions` (system prompt + repo `CLAUDE.md` + `docs/CLAUDE_PROFILE.md`), registers the in-process **ai_team_tools** MCP server (guardrails, pytest, RAG), and streams or runs until a `ResultMessage`.
+
+```mermaid
+flowchart TB
+  subgraph entry [Caller]
+    REG["get_backend('claude-agent-sdk')"]
+    BE["ClaudeAgentBackend"]
+  end
+
+  subgraph orch [Orchestration]
+    RO["run_orchestrator / iter_orchestrator_messages"]
+    Q["claude_agent_sdk.query()"]
+    OPT["ClaudeAgentOptions\n(agents, hooks, mcp_servers, cwd)"]
+  end
+
+  subgraph nested [Nested subagents]
+    OA["Orchestrator prompt\n(Manager)"]
+    PA["planning-agent, development-agent, …"]
+    SP["Specialists\n(product-owner, architect, …)"]
+  end
+
+  subgraph sidecar [Enforcement and observability]
+    H["Hooks:\nPreToolUse security\nPostToolUse quality + audit\nSubagentStart/Stop audit"]
+    MCP["MCP ai_team_tools\nrun_guardrails, tests, RAG, …"]
+  end
+
+  subgraph fs [Workspace as state]
+    W["docs/ · src/ · tests/\nlogs/*.jsonl"]
+  end
+
+  REG --> BE --> RO --> Q
+  Q --> OPT
+  OPT --> OA --> PA --> SP
+  SP --> W
+  OPT --> H
+  OPT --> MCP
+  MCP --> W
+```
+
+For operator steps (env vars, budget, recovery), see [docs/claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md) and [docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md](claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md).
 
 ### 2.2 Crew Layer
 
@@ -419,11 +472,39 @@ ai-team/
 
 **Context:** Users need to swap orchestration engines and team composition without forking the repository.
 
-**Decision:** Centralize backend selection in `get_backend(name)` and team composition in `load_team_profile(team)`. CLI flags: `--backend`, `--team`. Both backends receive the same `TeamProfile` and project description string.
+**Decision:** Centralize backend selection in `get_backend(name)` and team composition in `load_team_profile(team)`. CLI flags: `--backend`, `--team`. CrewAI, LangGraph, and Claude Agent SDK backends receive the same `TeamProfile` and project description string.
 
 **Rationale:** One configuration surface (`team_profiles.yaml`); demos and comparison scripts exercise both backends with identical inputs.
 
 **Consequences:** New backend features should be reflected in both stacks when parity matters, or documented as backend-specific.
+
+---
+
+### ADR-006: Claude Agent SDK backend — session transcript vs typed graph state
+
+**Status:** Accepted  
+
+**Context:** CrewAI Flows and LangGraph keep **structured application state** (`ProjectState`, checkpoint tuples) that UIs and tests can inspect. The Claude Agent SDK instead runs a **long-lived agent session** with tool calls and optional nested subagents; Anthropic does not expose the same graph-shaped state model.
+
+**Decision:** Treat the **Claude session** (plus optional resume/fork) as the continuity mechanism, and the **workspace directory** (`docs/`, `src/`, `tests/`, `logs/`) as the **durable handoff surface** between phases—mirroring the file-based pattern already used for crew outputs. Map the same `TeamProfile` into `AgentDefinition` subagents; do not require `ProjectState` inside the SDK path.
+
+**Rationale:** Aligns with how the SDK is designed to work (orchestrator delegates via the `Agent` tool; specialists have isolated contexts). Avoids maintaining a parallel state machine that would fight the session transcript. Enables resume with `session_id` and cost/session logs in JSONL for observability.
+
+**Consequences:** Feature parity with LangGraph HITL differs (`interrupt()` vs `AskUserQuestion` / `can_use_tool`). Comparison scripts and UIs must read Claude outcomes from `ProjectResult.raw` and workspace artifacts, not from a shared Pydantic flow state. Document backend-specific flags in the Claude runbook.
+
+---
+
+### ADR-007: Hooks as guardrails — PreToolUse / PostToolUse / subagent audit
+
+**Status:** Accepted  
+
+**Context:** Prompt-only instructions can be ignored under pressure; CrewAI/LangGraph use task guardrails and Python validators. The Claude Agent SDK exposes **hooks** that run around tool use and subagent lifecycle.
+
+**Decision:** Register **PreToolUse** hooks for path/shell patterns (block traversal, sensitive paths, risky `Bash`), **PostToolUse** hooks for lightweight quality signals (e.g. TODO markers in new Python), and **append-only JSONL audit** hooks for tool events plus **SubagentStart** / **SubagentStop**. Keep heavy checks available via the **MCP** `run_guardrails` and related tools so agents can opt in per file.
+
+**Rationale:** Hooks provide **deterministic enforcement** on every matching tool call without waiting for an LLM to self-correct. Subagent audit aids debugging multi-agent sessions. Splitting “always-on” hooks vs “on-demand” MCP avoids redundant work and keeps hook latency low.
+
+**Consequences:** Hook matchers must be maintained when Claude Code adds or renames tools. Behavior is not identical to CrewAI `GuardrailResult` tasks—document differences in tests and the Claude SDK plan. False positives in PostToolUse may require tuning or allow-lists over time.
 
 ---
 

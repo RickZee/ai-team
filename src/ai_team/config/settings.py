@@ -145,6 +145,17 @@ class CallbackSettings(BaseSettings):
     )
 
 
+class AnthropicAgentSdkSettings(BaseSettings):
+    """Anthropic direct API (Claude Agent SDK backend); separate from OpenRouter."""
+
+    model_config = SettingsConfigDict(env_prefix="ANTHROPIC_", extra="ignore")
+
+    api_key: str = Field(
+        default="",
+        description="API key for Claude Agent SDK / Anthropic Messages API (maps to ANTHROPIC_API_KEY).",
+    )
+
+
 class HumanFeedbackSettings(BaseSettings):
     """Human-in-the-loop feedback: timeout and default when no response."""
 
@@ -189,7 +200,7 @@ class Settings(BaseSettings):
     """
     Root settings class. Loads from .env by default; supports creation from YAML.
 
-    Nested models: guardrails, memory, logging, project, callback, human_feedback.
+    Nested models: guardrails, memory, logging, project, callback, human_feedback, anthropic.
     """
 
     model_config = SettingsConfigDict(
@@ -216,6 +227,10 @@ class Settings(BaseSettings):
     human_feedback: HumanFeedbackSettings = Field(
         default_factory=HumanFeedbackSettings, description="Human-in-the-loop feedback config"
     )
+    anthropic: AnthropicAgentSdkSettings = Field(
+        default_factory=AnthropicAgentSdkSettings,
+        description="Anthropic API for claude-agent-sdk backend",
+    )
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Settings":
@@ -238,6 +253,7 @@ class Settings(BaseSettings):
             ("project", ProjectSettings),
             ("callback", CallbackSettings),
             ("human_feedback", HumanFeedbackSettings),
+            ("anthropic", AnthropicAgentSdkSettings),
         ]:
             if name in data and isinstance(data[name], dict):
                 kwargs[name] = model_class.model_validate(data[name])  # type: ignore[attr-defined]

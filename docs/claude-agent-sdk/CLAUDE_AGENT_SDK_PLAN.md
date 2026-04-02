@@ -1305,8 +1305,8 @@ ai-team/
 | `backends/registry.py` | **Update** | Add `claude-agent-sdk` case |
 | `tools/` | **Unchanged** | Wrapped via custom MCP server |
 | `guardrails/` | **Unchanged** | Called from hooks and MCP tools |
-| `config/models.py` | **Update** | Add Claude model IDs for direct API |
-| `config/settings.py` | **Update** | Add `ANTHROPIC_API_KEY` env var |
+| `config/models.py` | **Deferred** | Claude direct API model IDs (optional; SDK uses aliases / full IDs from profile) |
+| `config/settings.py` | **Partial** | `ANTHROPIC_API_KEY` documented in `.env.example`; orchestrator reads `os.environ` — not yet on root `Settings` |
 | `main.py` | **Update** | Add `claude-agent-sdk` to `--backend` choices |
 | `CLAUDE.md` | **New** | Project conventions loaded by all SDK agents |
 | `.claude/settings.json` | **New** | Hook configuration for SDK agents |
@@ -1315,56 +1315,64 @@ ai-team/
 
 ## 12. Implementation Tasks
 
+**Status legend:** `[x]` = delivered in repo (sub-bullets note gaps). `[ ]` = not implemented or only a stub.
+
 ### Phase 0: Setup & Dependencies (3 tasks)
 
-- [ ] **T0.1** Add `claude-agent-sdk` to `pyproject.toml`:
+- [x] **T0.1** Add `claude-agent-sdk` to `pyproject.toml`:
   - `claude-agent-sdk >= 0.1.0` (or `@anthropic-ai/claude-agent-sdk` for TS)
   - `anthropic >= 0.40.0` (if needed as transitive dep)
   - Add `ANTHROPIC_API_KEY` to `.env.example` and settings
+  - *Gap:* `ANTHROPIC_API_KEY` is documented in `.env.example` and read via `os.environ` in the orchestrator; not yet a nested field on root `Settings` in `config/settings.py`.
 
-- [ ] **T0.2** Update `backends/registry.py`:
+- [x] **T0.2** Update `backends/registry.py`:
   - Add `claude-agent-sdk` case to `get_backend()`
   - Update CLI `--backend` choices in `main.py`
+  - *Note:* Alias `claude-sdk` also resolves to the same backend.
 
-- [ ] **T0.3** Create `CLAUDE.md` at project root:
+- [x] **T0.3** Create `CLAUDE.md` at project root:
   - Project conventions (code style, testing standards, security rules)
   - Agent behavioral constraints (loaded via `settingSources=["project"]`)
   - This replaces the "system prompt preamble" — all agents inherit it
+  - *Note:* Orchestrator also appends a `CLAUDE.md` excerpt into `system_prompt` and uses `add_dirs` to the repo root; not only `setting_sources`.
 
 ### Phase 1: Agent Definitions & Prompts (4 tasks)
 
-- [ ] **T1.1** Create `backends/claude_agent_sdk_backend/agents/prompts.py`:
+- [x] **T1.1** Create `backends/claude_agent_sdk_backend/agents/prompts.py`:
   - System prompts for all 9 agent roles (orchestrator + 8 specialists)
   - Include behavioral guardrails directly in prompts (role adherence, output format)
   - Parameterized with `{profile_name}`, `{agent_list}`, `{max_retries}`, etc.
 
-- [ ] **T1.2** Create `backends/claude_agent_sdk_backend/agents/definitions.py`:
+- [x] **T1.2** Create `backends/claude_agent_sdk_backend/agents/definitions.py`:
   - `AgentDefinition` objects for all specialist agents
   - Phase agent definitions (planning, development, testing, deployment)
   - Orchestrator configuration
 
-- [ ] **T1.3** Create `backends/claude_agent_sdk_backend/agents/builder.py`:
+- [x] **T1.3** Create `backends/claude_agent_sdk_backend/agents/builder.py`:
   - `build_agent_definitions(profile: TeamProfile) -> dict[str, AgentDefinition]`
   - Filter agents by profile
   - Apply model overrides from profile
   - Build phase agents with only active specialists
 
-- [ ] **T1.4** Write unit tests for agent builder:
+- [x] **T1.4** Write unit tests for agent builder:
   - Test each profile produces correct agent hierarchy
   - Test model overrides are applied
   - Test missing agents are excluded from phase agents
+  - *Gap:* `tests/unit/backends/test_claude_agent_sdk_builder.py` covers representative profiles, not an exhaustive matrix of every `team_profiles.yaml` entry.
 
 ### Phase 2: Custom MCP Tools & Permissions (3 tasks)
 
-- [ ] **T2.1** Create `backends/claude_agent_sdk_backend/tools/mcp_server.py`:
+- [x] **T2.1** Create `backends/claude_agent_sdk_backend/tools/mcp_server.py`:
   - Wrap existing guardrails as MCP tools: `run_guardrails`, `validate_code_safety`
   - Wrap test runner: `run_project_tests`
   - Bundle into `create_sdk_mcp_server()`
+  - *Extra:* `search_knowledge` MCP tool (RAG) included.
 
-- [ ] **T2.2** Create `backends/claude_agent_sdk_backend/tools/permissions.py`:
+- [x] **T2.2** Create `backends/claude_agent_sdk_backend/tools/permissions.py`:
   - Tool permission lists per agent role
   - `get_allowed_tools(role: str) -> list[str]`
   - `get_disallowed_tools(role: str) -> list[str]` (e.g., Bash blocked for Architect)
+  - *Gap:* `get_disallowed_tools()` not implemented; architect omits Bash via allow-list only.
 
 - [ ] **T2.3** Write unit tests for MCP tool server:
   - Test each tool with mock inputs
@@ -1373,151 +1381,170 @@ ai-team/
 
 ### Phase 3: Hooks (Guardrails & Audit) (3 tasks)
 
-- [ ] **T3.1** Create `backends/claude_agent_sdk_backend/hooks/security.py`:
+- [x] **T3.1** Create `backends/claude_agent_sdk_backend/hooks/security.py`:
   - `PreToolUse` hook: block writes to `.env`, credentials, paths with `..`
   - `PreToolUse` hook: block dangerous Bash commands (eval, exec, rm -rf /)
   - Return `permissionDecision: "deny"` with reason
 
-- [ ] **T3.2** Create `backends/claude_agent_sdk_backend/hooks/quality.py`:
+- [x] **T3.2** Create `backends/claude_agent_sdk_backend/hooks/quality.py`:
   - `PostToolUse` hook: scan written Python files for TODO/FIXME/NotImplementedError
   - Return `systemMessage` warning agent to replace placeholders
   - `PostToolUse` hook: validate generated JSON files are parseable
 
-- [ ] **T3.3** Create `backends/claude_agent_sdk_backend/hooks/audit.py`:
+- [x] **T3.3** Create `backends/claude_agent_sdk_backend/hooks/audit.py`:
   - Log all tool calls to `workspace/logs/audit.jsonl`
   - Track subagent start/stop events
   - Non-blocking (async)
+  - *Gap:* Pre/Post tool events only; subagent start/stop not logged here (would need `SubagentStart`/`SubagentStop` hooks).
 
 ### Phase 4: Backend Implementation (4 tasks)
 
-- [ ] **T4.1** Create `backends/claude_agent_sdk_backend/orchestrator.py`:
+- [x] **T4.1** Create `backends/claude_agent_sdk_backend/orchestrator.py`:
   - `run_orchestrator(description, profile, workspace) -> ResultMessage`
   - Build orchestrator prompt from template + profile
   - Configure `ClaudeAgentOptions` with agents, tools, hooks, MCP servers, budget
   - Execute `query()` and collect `ResultMessage`
   - Handle `error_max_turns`, `error_max_budget_usd`, `error_during_execution`
+  - *Gap:* No explicit retry/resume loops on those error subtypes; SDK/CLI surfaces failures via `ResultMessage`.
 
-- [ ] **T4.2** Create `backends/claude_agent_sdk_backend/backend.py`:
+- [x] **T4.2** Create `backends/claude_agent_sdk_backend/backend.py`:
   - `ClaudeAgentBackend(Backend)` with `run()` and `stream()`
   - `run()`: setup workspace → run orchestrator → collect artifacts → return `ProjectResult`
   - `stream()`: yield `StreamEvent` messages from `query(include_partial_messages=True)`
 
-- [ ] **T4.3** Create `backends/claude_agent_sdk_backend/costs.py`:
+- [x] **T4.3** Create `backends/claude_agent_sdk_backend/costs.py`:
   - Per-phase budget management
   - Cost logging to `workspace/logs/costs.jsonl`
   - Budget remaining calculation for resume scenarios
   - Cost comparison report generation
+  - *Gap:* Default phase budget table + `append_cost_log()` after orchestrator; no “remaining budget” calculator or standalone comparison report generator.
 
-- [ ] **T4.4** Create `backends/claude_agent_sdk_backend/streaming.py`:
+- [x] **T4.4** Create `backends/claude_agent_sdk_backend/streaming.py`:
   - `StreamEvent` → monitor/UI event adapter
   - Track subagent invocations from `content_block_start` events
   - Map to `TeamMonitor` API (phase changes, agent starts/finishes)
+  - *Gap:* Maps Agent tool starts and text deltas to `on_agent_start` / `on_log`; no dedicated phase/cost widgets in `monitor.py`.
 
 ### Phase 4b: Advanced Claude Capabilities (5 tasks)
 
-- [ ] **T4b.1** Configure extended thinking per agent:
+- [x] **T4b.1** Configure extended thinking per agent:
   - Set `thinking={"type": "adaptive"}` + `output_config={"effort": "high"}` for Orchestrator and Architect
   - Set `output_config={"effort": "medium"}` for PO, Backend Dev, QA
   - Set `output_config={"effort": "low"}` for DevOps, Cloud (templated work)
   - Capture thinking blocks in `workspace/logs/reasoning.jsonl` for audit
   - Make effort levels configurable in `team_profiles.yaml` `model_overrides`
+  - *Gap:* Orchestrator uses `thinking` + `effort`; per-agent effort via `AgentDefinition.effort` and `metadata.claude_agent_sdk.effort` — not `model_overrides`. No `reasoning.jsonl` capture.
 
 - [ ] **T4b.2** Enable file checkpointing for rollback:
   - Set `enable_file_checkpointing=True` on orchestrator options
   - Snapshot before each phase (planning, development, testing, deployment)
   - On phase validation failure: `rewind_files(checkpoint)` then retry
   - Instruct agents to use Write/Edit (not Bash) for file modifications (Bash changes aren't tracked)
+  - *Note:* `enable_file_checkpointing` exists as a `run()`/`stream()` kwargs passthrough only; no phase snapshots or `rewind_files` orchestration.
 
-- [ ] **T4b.3** Create `.claude/skills/` for reusable capabilities:
+- [x] **T4b.3** Create `.claude/skills/` for reusable capabilities:
   - `code-review/SKILL.md` — security, performance, style review
   - `test-analysis/SKILL.md` — analyze test failures, propose fixes
   - `api-design/SKILL.md` — REST API design following OpenAPI patterns
   - `dependency-audit/SKILL.md` — check for vulnerable/outdated dependencies
   - Enable skills via `setting_sources=["project"]` + `Skill` in `allowed_tools`
+  - *Gap:* Skills files exist; `Skill` is added to orchestrator `allowed_tools` only when `metadata.claude_agent_sdk.enable_skills` is true — not default `setting_sources`.
 
-- [ ] **T4b.4** Enable ToolSearch for deferred MCP tool loading:
+- [x] **T4b.4** Enable ToolSearch for deferred MCP tool loading:
   - Add `ToolSearch` to `allowed_tools` for agents using MCP servers
   - Mark MCP tool schemas with `defer_loading: true` when >10 tools per server
   - Test that agents discover and invoke deferred tools correctly
+  - *Note:* `ToolSearch` is appended when `metadata.claude_agent_sdk.use_tool_search` is true or when there are ≥3 MCP servers. `defer_loading` on schemas is not applied (SDK `sdk` MCP config shape).
 
-- [ ] **T4b.5** Add vision capability to QA agent:
+- [x] **T4b.5** Add vision capability to QA agent:
   - Update QA agent definition with multi-modal prompt
   - Add screenshot capture workflow (Bash: playwright/puppeteer screenshot)
   - QA agent reads images via `Read` tool and analyzes UI
   - Visual findings included in `test_report.md`
+  - *Gap:* Prompt instructs multimodal use of image paths; automated Playwright screenshot workflow not wired.
 
 ### Phase 5: Session Management & Recovery (2 tasks)
 
-- [ ] **T5.1** Implement session management:
+- [x] **T5.1** Implement session management:
   - Save `session_id` in `workspace/logs/session.json` after each phase
   - `--resume <session_id>` reads last session and continues
   - `--fork` creates a branch from an existing session
   - Calculate remaining budget on resume
+  - *Gap:* `session.json` written after successful orchestrator completion; CLI uses `--resume` + `--fork-session` + `resume_session_id` / `fork_session` kwargs. No per-phase session persistence or remaining-budget math.
 
-- [ ] **T5.2** Implement error recovery:
+- [x] **T5.2** Implement error recovery:
   - On `error_max_turns`: resume with higher limit and feedback
   - On `error_max_budget_usd`: save state, report partial results
   - On `error_during_execution`: log error, retry phase (max 3 times)
   - On unrecoverable: return `ProjectResult(success=False, error=...)`
+  - *Note:* `recovery_max_attempts` > 1 uses `run_orchestrator_with_recovery` (wider turns/budget, prompt nudge). Enable via backend kwarg; each attempt logged to `costs.jsonl` as `orchestrator_recovery_attempt`.
 
 ### Phase 6: UI & CLI Integration (3 tasks)
 
-- [ ] **T6.1** Update `main.py` CLI:
+- [x] **T6.1** Update `main.py` CLI:
   - Add `claude-agent-sdk` to `--backend` choices
   - Add `--resume <session_id>` and `--fork` flags
   - Add `--budget <usd>` flag for cost limit
   - Display session ID after run for resume capability
+  - *Note:* Budget flags: `--claude-budget` and alias `--budget`. `FEEDBACK_DEFAULT_RESPONSE` / human feedback default is passed as `hitl_default_answer` for `AskUserQuestion` auto-answer when set. Reuses `--resume` for Claude session id when using this backend.
 
-- [ ] **T6.2** Update Gradio UI (`src/ai_team/ui/app.py`):
+- [x] **T6.2** Update Gradio UI (`src/ai_team/ui/app.py`):
   - Wire to `ClaudeAgentBackend.stream()` for real-time progress
   - Show `AskUserQuestion` prompts in UI for HITL
   - Display per-phase cost breakdown
   - Show session ID for resume
+  - *Gap:* Streaming JSON log; HITL questions not surfaced as dedicated UI widgets. Run end shows a short **Claude summary** (session_id, cost_usd, stop_reason) after the event log.
 
-- [ ] **T6.3** Update Rich TUI (`monitor.py`):
+- [x] **T6.3** Update Rich TUI (`monitor.py`):
   - Consume `StreamEvent` messages from Claude Agent SDK
   - Map to existing TUI panels (phase progress, agent activity, guardrails)
   - Show real-time cost counter
+  - *Note:* `TeamMonitor.on_claude_result` + metrics rows for Claude session id and cost when `ResultMessage` arrives during stream.
 
 ### Phase 7: RAG & Knowledge Integration (2 tasks)
 
-- [ ] **T7.1** Wire RAG knowledge into Claude Agent SDK:
+- [x] **T7.1** Wire RAG knowledge into Claude Agent SDK:
   - **Option A**: Curate static knowledge into `CLAUDE.md` sections (loaded via `settingSources`)
   - **Option B**: Expose `search_knowledge` as MCP tool (same as LangGraph backend)
   - **Option C**: MCP resource server that serves knowledge documents on demand
   - Implement at least Options A + B
 
-- [ ] **T7.2** Configure CLAUDE.md per team profile:
+- [x] **T7.2** Configure CLAUDE.md per team profile:
   - Generate profile-specific CLAUDE.md at runtime
   - Include relevant best practices based on profile's `rag.knowledge_topics`
   - Include project conventions, security rules, output format requirements
+  - *Note:* `workspace/docs/CLAUDE_PROFILE.md` is generated per run (`write_profile_claude_context`); orchestrator system prompt references it. Repo `CLAUDE.md` excerpt still merged from inferrred repo root.
 
 ### Phase 8: Testing & Comparison (4 tasks)
 
-- [ ] **T8.1** Write integration tests for Claude Agent SDK backend:
+- [x] **T8.1** Write integration tests for Claude Agent SDK backend:
   - Test agent builder with all profiles
   - Test hooks (security block, quality warning, audit logging)
   - Test MCP tool server
   - Test orchestrator with mocked `query()` (mock `ResultMessage` returns)
   - Test session resume and fork
+  - *Gap:* No automated resume/fork tests. MCP server config + costs/workspace helpers + subagent audit covered in unit tests.
 
-- [ ] **T8.2** Add to backend comparison suite:
+- [x] **T8.2** Add to backend comparison suite:
   - Add `claude-agent-sdk` to `scripts/compare_backends.py`
   - Run same demos through all 3 backends
   - Compare: output quality, cost, latency, token usage, error rate
+  - *Note:* Opt-in via `--with-claude`; `ComparisonReport` includes optional `claude_agent_sdk` snapshot.
 
 - [ ] **T8.3** Run demos against real Anthropic API:
   - `demos/01_hello_world` (all 3 backends)
   - `demos/02_todo_app` (all 3 backends)
   - Test at least 2 team profiles (`full` and `backend-api`)
   - Document cost per backend per demo
+  - *Note:* Steps and artifact paths: [RUNBOOK.md](RUNBOOK.md).
 
-- [ ] **T8.4** Update documentation:
+- [x] **T8.4** Update documentation:
   - `README.md` — add `claude-agent-sdk` to backend list
   - `docs/ARCHITECTURE.md` — add Claude Agent SDK backend diagram
   - ADR: "Claude Agent SDK backend: session-based vs state-based orchestration"
   - ADR: "Hooks as guardrails: PreToolUse/PostToolUse patterns"
   - Update comparison table with all 3 backends
+  - *Note:* `docs/ARCHITECTURE.md` §2.1.1–2.1.2: three-backend table, comparison matrix, Mermaid diagram. **ADR-006** (session + workspace vs typed state), **ADR-007** (hooks + MCP split). README backend table already listed Claude Agent SDK; repo tree line updated to `claude_agent_sdk_backend/`.
 
 ---
 
