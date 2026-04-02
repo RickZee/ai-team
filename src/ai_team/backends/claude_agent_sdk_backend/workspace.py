@@ -142,8 +142,7 @@ def collect_deployment_hints(workspace: Path) -> dict[str, Any]:
     gh = workspace / ".github" / "workflows"
     if gh.is_dir():
         hints["github_workflows"] = [
-            str(x.relative_to(workspace)).replace("\\", "/")
-            for x in gh.glob("*.yml")
+            str(x.relative_to(workspace)).replace("\\", "/") for x in gh.glob("*.yml")
         ]
     infra = workspace / "infrastructure"
     if infra.is_dir():
