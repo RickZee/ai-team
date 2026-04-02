@@ -147,3 +147,58 @@ Went back and audited the Claude Agent SDK plan for underutilized capabilities. 
 - **Batch API** — 50% cost savings for non-urgent bulk analysis (nightly code reviews). Stacks with prompt caching for up to 95% off.
 
 The comparison matrix now has 11 rows where Claude Agent SDK has a ✅ and the other two have ❌. That said — the other backends have their own strengths (LangGraph's state inspection and time-travel, CrewAI's simplicity). The whole point of the multi-backend architecture is to let the data speak.
+
+## Mar 30
+
+Shipped a full web UI. Not a quick Streamlit thing — a proper FastAPI backend with a React/Vite frontend, WebSocket streaming for live agent updates, a phase pipeline view, a guardrail panel, and a backend comparison page. ~3,500 lines in one commit. Also moved Docker files to `docker/`, cleaned up the repo layout.
+
+**Why not Streamlit?** We started with a Rich TUI (still works, great for SSH), then a Gradio prototype. But once the system had multiple backends, team profiles, and real-time streaming from agents, we needed something that could handle WebSocket connections, show a live phase pipeline, and let you compare runs side-by-side. FastAPI + React with Vite was the pragmatic choice — we already had the API shape from the CLI, and Vite's dev experience is hard to argue with.
+
+**The big architectural insight here:** the UI is a pure consumer. It reads from the same `events.jsonl` and `run.json` files that the CLI produces. Zero coupling to the orchestration layer. Any backend (CrewAI, LangGraph, future Claude SDK) writes the same event format, and the UI just renders it. If you're building a multi-backend system, design your observation layer first.
+
+Alongside the UI, wired up the memory system properly. `memory/lessons.py` is the core: it captures failure records into SQLite at the end of every run, clusters recurring patterns by `(pattern_type, clustering_key)`, and promotes them into lessons that get injected into agent system prompts at the start of the next run. Both backends consume lessons from the same `LongTermStore` — CrewAI appends them to agent backstories, LangGraph injects them as a `## Lessons` section in system prompts.
+
+Also added `scripts/extract_lessons.py` to promote patterns manually (more on this in a sec — spoiler: manual is the wrong design for an autonomous system).
+
+The self-improvement loop is real now, not just a diagram in a doc.
+
+**Takeaway for builders:** the hardest part of self-improvement isn't the ML — it's the plumbing. Getting failure data out of a run, into a durable store, clustered into patterns, and back into prompts in a way that works across backends and doesn't break when something goes wrong... that's 80% of the work. Every lesson-related call is wrapped in `try/except` or `contextlib.suppress(Exception)` — a broken lesson system should never break a run.
+
+## Apr 1
+
+Actually ran a demo end-to-end and watched the self-improvement loop close.
+
+Here's what happened: LangGraph run `3ebc3d3a` (backend-api team, hello_world demo) failed in the testing phase. The backend developer's retry response contained full source code in its message body — `app.py`, `Dockerfile`, the works, all in markdown code blocks. The QA agent received this as input, and the behavioral guardrail flagged it: *"QA Engineer should only write test code, not modify production source"* (9 violations, relevance 36% below the 50% threshold). Classic false positive — the QA agent wasn't *writing* production code, it was *reading* a message that contained production code.
+
+The system captured the failure, persisted it to the long-term store, and pattern-matched it against previous runs. The lesson system promoted it: *"Avoid guardrail violations: Recurring failure detected. Phase: testing. Error: GuardrailError."*
+
+Then the manager agent wrote a self-improvement report — not a log dump, but an actual narrative: which failures occurred, what prior lessons were relevant, and concrete next steps (retry with enforced role boundaries, adjust guardrail thresholds, review workspace layout, incorporate the promoted lesson).
+
+**This is the loop working.** Failure → structured capture → pattern clustering → lesson promotion → prompt injection → manager narrative → actionable proposals. Closed in 3 runs.
+
+**What we learned about guardrails:** behavioral guardrails that score agent output against task scope are powerful, but they need role-specific tuning. A QA agent that *receives* production code in its input context is not the same as a QA agent that *writes* production code. The guardrail can't see the difference because it's doing content analysis, not provenance tracking. This is the kind of nuance you only discover by running real demos, not by unit testing guardrails in isolation.
+
+One catch: lesson extraction still requires running `scripts/extract_lessons.py` manually between runs. For an "autonomous" system, that's a contradiction. The fix is trivial — call `extract_lessons(threshold=2)` at the start of every run, one SQLite query, zero LLM calls, ~1ms. It's on the list.
+
+Also added a Cursor pre-push skill (`.cursor/skills/pre-push-ruff/SKILL.md`) that auto-runs `ruff check` before any push or PR. Small investment, catches lint issues before they hit CI.
+
+Stepped back from building and did a proper audit of the self-improvement mechanism. Not "does it work on the happy path" but "could an organization actually deploy this and trust it to improve over time?"
+
+**The good:** the capture → extract → inject chain is genuinely working. Both backends write failure records to the same SQLite store. Lessons get promoted and injected. The manager's self-improvement report (run `3ebc3d3a`) is a real proof point — it references prior lessons, identifies the root cause, and proposes calibration. The whole system degrades gracefully: every lesson-related call is wrapped so that a broken lesson store never breaks a run. These are hard things to get right, and they're done.
+
+**The gaps that would block production use:**
+
+1. **Lesson extraction is manual.** The loop is open by default. An org deploys this, runs it 50 times, and unless someone remembers to run `scripts/extract_lessons.py` between runs, zero learning happens. The feature looks implemented but is effectively dormant. Fix: auto-extract at run startup, gated by `AI_TEAM_SI_AUTO_EXTRACT=true` (default on).
+
+2. **No lesson deduplication.** Run the extract script twice, you get every lesson twice. Over time, agent prompts bloat with duplicate instructions. At 50 tokens per lesson × 20 duplicates × 9 agents, that's ~9,000 wasted prompt tokens per run. Fix: upsert semantics — check `(pattern_type, clustering_key)` before insert, increment `occurrences` on match, cap at `max_lessons_per_role=10` with LRU eviction.
+
+3. **Quality metrics are never persisted.** The `performance_metrics` table exists in the schema. It has zero writers. The code quality guardrail computes a 0-100 score, the coverage guardrail computes pass/fail — these scores evaporate after the run. There is no way to answer "is the system getting better over time?" Fix: write metrics at the end of each phase, expose via `scripts/show_metrics.py`.
+
+4. **Backend comparison is too thin.** The project claims to be a "framework comparison platform" but `BackendRunSnapshot` only captures: success/fail, wall-clock time, final phase, file count. You can't say "LangGraph produces better code than CrewAI" or "Claude SDK is 40% cheaper" based on a boolean and a stopwatch. Fix: extend the snapshot with token counts, cost estimates, quality scores, per-phase timing, retry counts, and require 5+ runs per backend per demo for statistical significance.
+
+5. **No feedback on lesson quality.** Lessons are promoted based on occurrence count only. A lesson that fires 5 times but never actually prevents the failure keeps getting injected forever. Fix: track effectiveness — if a lesson is present and the same failure recurs 3+ times, mark it ineffective and stop injecting.
+
+The full audit is in `docs/SELF_IMPROVEMENT_AUDIT.md` (maturity scorecard, risk assessment, ROI model, 12 prioritized improvements). The implementation blueprint is in `docs/SELF_IMPROVEMENT_DESIGN.md` (schemas, pseudocode, file-by-file change list).
+
+**The meta-lesson:** building a self-improvement loop is deceptively easy to demo and deceptively hard to productionize. The flashy part — "agents learn from failures!" — takes a weekend. The boring parts — deduplication, TTL, effectiveness tracking, budget enforcement, observability — take weeks and are the difference between a portfolio demo and something an org would actually trust. We're honest about where we are: the critical path from here to production-ready is roughly 30 hours of implementation, with auto-extract + dedup + metrics persistence being the first 6.
+
