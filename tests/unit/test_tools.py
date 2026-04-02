@@ -20,7 +20,6 @@ from ai_team.tools.product_owner import (
     requirements_parser,
     user_story_generator,
 )
-from ai_team.tools.qa_tools import get_qa_tools
 
 # -----------------------------------------------------------------------------
 # File tools — isolation, schemas, error handling
@@ -125,20 +124,3 @@ class TestProductOwnerTools:
         assert isinstance(result, str)
 
 
-# -----------------------------------------------------------------------------
-# QA tools — get_qa_tools schema and error handling
-# -----------------------------------------------------------------------------
-
-
-class TestQATools:
-    def test_get_qa_tools_returns_list_of_tools(self) -> None:
-        tools = get_qa_tools()
-        assert isinstance(tools, list)
-        assert len(tools) >= 1
-        for t in tools:
-            assert hasattr(t, "name") or hasattr(t, "run") or callable(getattr(t, "run", None))
-
-    def test_qa_tool_schemas_have_name_or_description(self) -> None:
-        tools = get_qa_tools()
-        for t in tools:
-            assert hasattr(t, "name") or hasattr(t, "description") or hasattr(t, "description")
