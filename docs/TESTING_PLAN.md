@@ -116,7 +116,7 @@ All tests use `tmp_path` fixture. A `git_repo` fixture initializes a temp repo w
 | [x] - **T1.11** EntityStore: upsert, relationships, deletion | `tests/unit/memory/test_entity_store.py` | `memory/memory_config.py` | ~12 | 2h |
 | [x] - **T1.12** ShortTermStore: add, search, delete (mock ChromaDB) | `tests/unit/memory/test_short_term_store.py` | `memory/memory_config.py` | ~8 | 1.5h |
 | [x] - **T1.13** MemoryManager: initialize, store/retrieve dispatch, cleanup, export | `tests/unit/memory/test_memory_manager_full.py` | `memory/memory_config.py` | ~15 | 2h |
-| [ ] - **T1.14** Lessons: record_run_failures, extract_lessons, load_role_lessons, dedup, infra backlog | `tests/unit/memory/test_lessons_comprehensive.py` | `memory/lessons.py` | ~20 | 3h |
+| [x] - **T1.14** Lessons: record_run_failures, extract_lessons, load_role_lessons, dedup, infra backlog | `tests/unit/memory/test_lessons_comprehensive.py` | `memory/lessons.py` | ~20 | 3h |
 
 **T1.10 — LongTermStore details:**
 
@@ -169,8 +169,8 @@ class TestLongTermStoreSchema:
 | Task | File to Create | Module Under Test | Test Count | Effort |
 |------|---------------|-------------------|------------|--------|
 | [x] - **T2.1** ProjectState: field defaults, phase lifecycle helpers, retry logic, serialization | `tests/unit/flows/test_project_state.py` | `flows/state.py` | ~15 | 2h |
-| [ ] - **T2.2** LangGraphProjectState: TypedDict + reducer behavior with add_messages | `tests/unit/backends/langgraph_backend/test_state_schema.py` | `backends/langgraph_backend/graphs/state.py` | ~8 | 1.5h |
-| [ ] - **T2.3** Pydantic models: CodeFile, DeploymentConfig, RequirementsDocument, ArchitectureDocument, QAModels | `tests/unit/models/test_pydantic_models.py` | `models/*.py` | ~20 | 2h |
+| [x] - **T2.2** LangGraphProjectState: TypedDict + reducer behavior with add_messages | `tests/unit/backends/langgraph_backend/test_state_schema.py` | `backends/langgraph_backend/graphs/state.py` | ~8 | 1.5h |
+| [x] - **T2.3** Pydantic models: CodeFile, DeploymentConfig, RequirementsDocument, ArchitectureDocument, QAModels | `tests/unit/models/test_pydantic_models.py` | `models/*.py` | ~20 | 2h |
 | [ ] - **T2.4** ComparisonReport: to_markdown (2-backend and 3-backend), snapshot_from_project_result edge cases | `tests/unit/models/test_comparison_report_extended.py` | `models/comparison_report.py` | ~10 | 1.5h |
 
 ### 2B. Agent Factory Tests
