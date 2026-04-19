@@ -65,6 +65,7 @@ Not every project needs all 9 agents. Select a profile with `--team`:
 | `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering |
 | `prototype` | Architect, Fullstack Dev, QA | Quick prototype |
 | `infra-only` | Architect, DevOps, Cloud | IaC / CI-CD only |
+| `research-optimizer` | Optimizer | Karpathy AutoOptimizer Loop (see below) |
 
 Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_profiles.yaml) and work identically across all backends.
 
@@ -80,6 +81,7 @@ Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_pr
 | **MCP servers** | Per-team, per-agent MCP tool providers (GitHub, filesystem, Docker, Postgres) |
 | **RAG knowledge** | Static best practices + dynamic project knowledge, scoped per agent role |
 | **Self-improvement reports** | Each run produces a manager report that summarizes failures, references prior lessons, and proposes corrective actions |
+| **AutoOptimizer Loop** | Karpathy-style autonomous edit→run→measure→keep/revert loop for iterative code optimization |
 | **Observable** | Web dashboard (FastAPI + React), Textual TUI, Rich CLI monitor, structured logging, cost tracking |
 
 ## Self-improvement (failure → lessons → injection)
@@ -91,6 +93,48 @@ AI-Team automatically turns run outcomes into actionable feedback:
 - **Inject**: promoted lessons are injected into the next run’s agent prompts (by role) to reduce repeat failures.
 
 See a full example report in [`docs/manager_self_improvement_report.md`](docs/manager_self_improvement_report.md).
+
+## AutoOptimizer Loop (Karpathy-style)
+
+Inspired by Andrej Karpathy's overnight experiment runs, the AutoOptimizer Loop is a tight autonomous cycle that iteratively improves a target metric (e.g. test pass rate, requests/sec, latency) on any workspace:
+
+1. **Snapshot** — records current workspace state
+2. **Edit** — agent proposes and applies ONE focused change
+3. **Measure** — runs the evaluation command and reads the metric
+4. **Keep or revert** — commits winning changes to a dedicated branch; restores snapshot on regression
+5. **Learn** — ingests an experiment lesson into RAG so the next iteration builds on what worked
+
+```bash
+# Run 20 optimization experiments, budget $2
+ai-team optimize ./workspace/todo-api \
+  --metric demos/06_karpathy_optimization/metric.yaml \
+  --budget 2.00 \
+  --max-experiments 20
+
+# Full options
+ai-team optimize ./workspace/my-app \
+  --metric metric.yaml \
+  --strategy strategy.md \
+  --backend claude-agent-sdk \
+  --team research-optimizer \
+  --budget 5.00 \
+  --max-experiments 50 \
+  --branch optimize/my-run \
+  --editable src/ lib/
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--metric` | Path to `metric.yaml` (name, evaluation_command, direction) | required |
+| `--strategy` | Path to a Markdown hints file for the optimizer agent | — |
+| `--backend` | Backend to use | `claude-agent-sdk` |
+| `--team` | Team profile | `research-optimizer` |
+| `--budget` | Total USD budget across all experiments | `10.0` |
+| `--max-experiments` | Max iterations | `50` |
+| `--branch` | Git branch for winning commits | `optimize/karpathy-loop` |
+| `--editable` | Paths the agent may edit (informational; enforced via prompt) | `src/` |
+
+Results land in `logs/experiments.jsonl` inside the workspace. See [`demos/06_karpathy_optimization/`](demos/06_karpathy_optimization/) for a ready-to-run example and [`docs/EVALS.md`](docs/EVALS.md) for eval methodology.
 
 Example excerpt:
 
@@ -187,6 +231,13 @@ For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/G
 | `CODE_QUALITY_MIN_SCORE` | Min quality score (0–1) | `0.7` |
 | `TEST_COVERAGE_MIN` | Min test coverage (0–1) | `0.6` |
 | `MAX_FILE_SIZE_KB` | Max file size for tools (KB) | `500` |
+| `OPTIMIZER_MAX_EXPERIMENTS` | Default max iterations for AutoOptimizer | `50` |
+| `OPTIMIZER_BUDGET_USD` | Default total budget (USD) | `10.0` |
+| `OPTIMIZER_TIMEOUT_PER_EXPERIMENT` | Per-experiment timeout (seconds) | `300` |
+| `OPTIMIZER_MIN_IMPROVEMENT_PCT` | Min improvement % to keep a commit | `0.5` |
+| `OPTIMIZER_MAX_BUDGET_PER_EXPERIMENT_USD` | Per-experiment budget cap | `1.0` |
+| `OPTIMIZER_MAX_TURNS_PER_EXPERIMENT` | Max agent turns per experiment | `40` |
+| `OPTIMIZER_DEFAULT_BACKEND` | Default backend for optimizer | `claude-agent-sdk` |
 
 Copy `.env.example` to `.env` and set the API key for your chosen backend. Before each run, a pre-flight check validates configured models. Agent→model mapping and guardrail behavior are documented in [docs/AGENTS.md](docs/AGENTS.md) and [docs/GUARDRAILS.md](docs/GUARDRAILS.md).
 
@@ -210,7 +261,7 @@ Embeddings (crew memory) use `OPENROUTER_EMBEDDING_MODEL` (default: `openai/text
 
 ## Demo projects
 
-Five ready-to-run scenarios that exercise the full pipeline:
+Six ready-to-run scenarios that exercise the full pipeline:
 
 | # | Demo | Description |
 |---|------|-------------|
@@ -219,10 +270,17 @@ Five ready-to-run scenarios that exercise the full pipeline:
 | 3 | `03_data_pipeline` | ETL pipeline — CSV ingest, validate/transform, SQLite load, CLI report |
 | 4 | `04_ml_api` | FastAPI ML inference service — scikit-learn model, predict/health/metrics endpoints |
 | 5 | `05_microservices` | Three-service system — API Gateway, User Service, Notification Service + docker-compose |
+| 6 | `06_karpathy_optimization` | AutoOptimizer Loop — iterative metric-driven optimization with keep/revert and RAG lessons |
 
 ```bash
 poetry run python scripts/run_demo.py demos/01_hello_world
 poetry run python scripts/run_demo.py demos/02_todo_app --skip-estimate
+
+# Demo 06: AutoOptimizer Loop
+ai-team optimize demos/06_karpathy_optimization/workspace \
+  --metric demos/06_karpathy_optimization/metric.yaml \
+  --strategy demos/06_karpathy_optimization/strategy.md \
+  --budget 2.00
 ```
 
 Each demo directory contains `input.json` with the project spec and `expected_output.json` as an acceptance contract. After a run, `scripts/capture_demo.py` verifies the output and writes `RESULTS.md`.
@@ -231,10 +289,19 @@ For the full file layout, schema reference, capture/verification workflow, and i
 
 ### CLI options
 
+The CLI has two top-level subcommands: `run` (build a project) and `optimize` (AutoOptimizer Loop).
+
 ```bash
+# Build subcommand (default)
 poetry run python -m ai_team run "Build a minimal Flask API" \
   --backend langgraph --team backend-api --env dev --skip-estimate
+
+# Optimize subcommand
+ai-team optimize ./workspace/my-app \
+  --metric metric.yaml --budget 2.00 --max-experiments 20
 ```
+
+**`run` flags:**
 
 | Flag | Description |
 |------|-------------|
@@ -247,6 +314,19 @@ poetry run python -m ai_team run "Build a minimal Flask API" \
 | `--stream` | JSON lines streaming (LangGraph) |
 | `--thread-id` | Resume thread (LangGraph checkpointing) |
 | `--resume` | Resume after human-in-the-loop interrupt |
+
+**`optimize` flags:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--metric` | Path to metric YAML (name, evaluation_command, direction) | required |
+| `--strategy` | Path to Markdown strategy hints file | — |
+| `--backend` | Backend for the optimizer agent | `claude-agent-sdk` |
+| `--team` | Team profile | `research-optimizer` |
+| `--budget` | Total USD budget | `10.0` |
+| `--max-experiments` | Max iterations | `50` |
+| `--branch` | Git branch for winning commits | `optimize/karpathy-loop` |
+| `--editable` | Paths the agent may edit | `src/` |
 
 Both `ai-team-web` and `ai-team-tui` support backend and team selection in their interfaces.
 
@@ -347,6 +427,7 @@ ai-team/
 ├── src/ai_team/
 │   ├── core/                # Backend protocol, ProjectResult, TeamProfile loader
 │   ├── config/              # Settings, agents.yaml, team_profiles.yaml, models.py
+│   │   └── optimizer_settings.py  # OPTIMIZER_* env var config
 │   ├── backends/
 │   │   ├── registry.py      # Backend discovery and instantiation
 │   │   ├── crewai_backend/  # CrewAI: crews, flows, agents, state
@@ -358,6 +439,11 @@ ai-team/
 │   ├── rag/                 # RAG pipeline (static + dynamic + session knowledge)
 │   ├── guardrails/          # Behavioral, security, quality
 │   ├── memory/              # Session and long-term memory
+│   ├── optimizers/          # AutoOptimizer Loop
+│   │   ├── loop.py          # KarpathyLoop — main state machine
+│   │   ├── metric.py        # MetricConfig, extract_metric, load_metric_config
+│   │   ├── experiment_log.py  # ExperimentRecord, append/load/summarise
+│   │   └── git_reset.py     # git_reset_hard, git_stash helpers
 │   ├── monitor.py           # TeamMonitor — shared data model for all UIs
 │   ├── utils/               # Shared utilities
 │   └── ui/
@@ -368,11 +454,14 @@ ai-team/
 │   ├── unit/
 │   ├── integration/
 │   └── e2e/
-├── demos/                   # 01_hello_world … 05_microservices (see docs/DEMOS.md)
+├── evals/
+│   ├── scenarios/           # JSON scenario specs (hello-world, todo-api, devops, iac, qa, security, arch)
+│   └── role_evals/          # Role-specific eval modules (optimizer, devops, iac, qa, security, arch)
+├── demos/                   # 01_hello_world … 06_karpathy_optimization (see docs/DEMOS.md)
 ├── docs/
 │   ├── langgraph/           # LangGraph backend plan
 │   ├── claude-agent-sdk/    # Claude Agent SDK backend plan
-│   └── *.md                 # ARCHITECTURE, AGENTS, FLOWS, GUARDRAILS, TOOLS, MEMORY
+│   └── *.md                 # ARCHITECTURE, AGENTS, FLOWS, GUARDRAILS, TOOLS, MEMORY, EVALS
 └── scripts/                 # setup, run_demo, compare_backends
 ```
 
@@ -407,6 +496,7 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 | [TOOLS.md](docs/TOOLS.md) | Tool specifications |
 | [MEMORY.md](docs/MEMORY.md) | Memory and knowledge management |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema, capture/verification |
+| [EVALS.md](docs/EVALS.md) | Eval methodology, role-specific evals, LLM judges, April 2026 benchmark landscape |
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
 | [HARDWARE.md](docs/HARDWARE.md) | Hardware requirements and recommendations |
 | [RESULTS.md](docs/RESULTS.md) | Benchmark results and comparisons |
