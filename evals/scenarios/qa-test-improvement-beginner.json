@@ -1,0 +1,21 @@
+{
+  "id": "qa-test-improvement-beginner",
+  "role": "qa",
+  "description": "The src/calculator.py module has minimal test coverage. Write a comprehensive pytest test suite that achieves ≥80% statement coverage and ≥60% branch coverage. Cover all edge cases including divide-by-zero, negative factorial, and floating-point precision. All tests must pass.",
+  "difficulty": "beginner",
+  "expected": {
+    "files": ["tests/test_calculator.py"],
+    "test_pass_rate_min": 1.0,
+    "statement_coverage_min": 0.80,
+    "branch_coverage_min": 0.60,
+    "acceptance_criteria": [
+      "Tests pass with no failures",
+      "Statement coverage ≥80% (ULT benchmark baseline: 45%)",
+      "Branch coverage ≥60% (ULT benchmark baseline: 30%)",
+      "Divide-by-zero edge case tested",
+      "Negative factorial edge case tested"
+    ]
+  },
+  "budget_usd_max": 0.15,
+  "timeout_seconds": 120
+}
