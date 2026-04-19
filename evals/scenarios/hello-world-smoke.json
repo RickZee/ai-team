@@ -1,0 +1,19 @@
+{
+  "id": "hello-world-smoke",
+  "role": "backend",
+  "description": "Create a minimal Flask REST API with GET /health returning {status: ok} and GET /hello returning {message: Hello, World!}. Include one pytest test and a Dockerfile.",
+  "difficulty": "smoke",
+  "expected": {
+    "files": ["src/app.py", "tests/test_app.py", "Dockerfile"],
+    "test_pass_rate_min": 1.0,
+    "has_dockerfile": true,
+    "acceptance_criteria": [
+      "GET /health returns {status: ok}",
+      "GET /hello returns a greeting",
+      "Tests pass",
+      "Dockerfile builds"
+    ]
+  },
+  "budget_usd_max": 0.05,
+  "timeout_seconds": 120
+}

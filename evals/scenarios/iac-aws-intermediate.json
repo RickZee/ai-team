@@ -1,0 +1,18 @@
+{
+  "id": "iac-aws-intermediate",
+  "role": "cloud",
+  "description": "Write Terraform to provision: a VPC with public and private subnets, an ECS Fargate cluster running a single container, an RDS PostgreSQL instance in the private subnet, and an Application Load Balancer. Use variables for environment-specific values. Produce outputs.tf and a rough cost estimate.",
+  "difficulty": "intermediate",
+  "expected": {
+    "required_resources": ["aws_vpc", "aws_ecs_cluster", "aws_db_instance", "aws_lb"],
+    "files": ["main.tf", "variables.tf", "outputs.tf"],
+    "acceptance_criteria": [
+      "No hardcoded credentials",
+      "RDS is in private subnet only",
+      "ALB forwards to ECS service",
+      "Cost estimate is provided"
+    ]
+  },
+  "budget_usd_max": 0.50,
+  "timeout_seconds": 300
+}

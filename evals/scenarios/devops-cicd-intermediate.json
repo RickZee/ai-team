@@ -1,0 +1,17 @@
+{
+  "id": "devops-cicd-intermediate",
+  "role": "devops",
+  "description": "Given an existing Flask app in src/, produce: a GitHub Actions workflow with lint, test, and Docker build jobs; a production-ready Dockerfile with non-root user and health check; a docker-compose.yml for local dev; and a Prometheus metrics config. Do not rewrite the application code.",
+  "difficulty": "intermediate",
+  "expected": {
+    "files": [".github/workflows/ci.yml", "Dockerfile", "docker-compose.yml"],
+    "acceptance_criteria": [
+      "CI workflow runs tests on every push",
+      "Dockerfile uses a non-root user",
+      "Health check is configured in the container",
+      "At least one observability artifact is produced"
+    ]
+  },
+  "budget_usd_max": 0.40,
+  "timeout_seconds": 240
+}

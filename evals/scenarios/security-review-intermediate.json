@@ -1,0 +1,20 @@
+{
+  "id": "security-review-intermediate",
+  "role": "security",
+  "description": "Review the code in src/ for security vulnerabilities. Produce docs/security_report.md with each finding: file, line number, severity (critical/high/medium/low), CWE ID, and recommended fix. Then produce fixed versions of all vulnerable files.",
+  "difficulty": "intermediate",
+  "expected": {
+    "files": ["docs/security_report.md"],
+    "acceptance_criteria": [
+      "SQL injection detected and fixed (CWE-89)",
+      "Command injection detected and fixed (CWE-78)",
+      "Hardcoded credential detected (CWE-798)",
+      "Path traversal detected and fixed (CWE-22)",
+      "Insecure deserialization detected (CWE-502)",
+      "Report includes severity ratings and CWE IDs",
+      "Recall ≥80% of seeded vulnerabilities (RealVuln LLM baseline: 83-95%)"
+    ]
+  },
+  "budget_usd_max": 0.35,
+  "timeout_seconds": 200
+}

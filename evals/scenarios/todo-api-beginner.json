@@ -1,0 +1,20 @@
+{
+  "id": "todo-api-beginner",
+  "role": "backend",
+  "description": "Build a REST API for a todo list with CRUD operations: GET /todos returns list, POST /todos creates item, PUT /todos/{id} updates item, DELETE /todos/{id} removes item. Use Flask + SQLite. Include pytest tests, requirements.txt, and Dockerfile.",
+  "difficulty": "beginner",
+  "expected": {
+    "files": ["src/app.py", "tests/test_app.py", "requirements.txt", "Dockerfile"],
+    "test_pass_rate_min": 0.8,
+    "has_dockerfile": true,
+    "acceptance_criteria": [
+      "GET /todos returns list",
+      "POST /todos creates item",
+      "DELETE /todos/{id} removes item",
+      "Tests cover all endpoints",
+      "Dockerfile builds successfully"
+    ]
+  },
+  "budget_usd_max": 0.30,
+  "timeout_seconds": 300
+}

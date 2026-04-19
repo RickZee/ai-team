@@ -1,0 +1,18 @@
+{
+  "id": "architecture-planning-intermediate",
+  "role": "architect",
+  "description": "A startup needs a SaaS platform for team project management: user auth, project/task CRUD, real-time notifications, file attachments, and a REST API for mobile clients. Expected load: 10k users, 100 concurrent. Budget: AWS, keep costs under $500/month. Produce a requirements document and architecture document with technology choices, component diagram, and ADRs.",
+  "difficulty": "intermediate",
+  "expected": {
+    "files": ["docs/requirements.md", "docs/architecture.md"],
+    "acceptance_criteria": [
+      "Functional and non-functional requirements both covered",
+      "Technology choices include rationale",
+      "Architecture addresses the stated scale (10k users, 100 concurrent)",
+      "Cost constraint acknowledged in design",
+      "At least one ADR produced"
+    ]
+  },
+  "budget_usd_max": 0.30,
+  "timeout_seconds": 180
+}
