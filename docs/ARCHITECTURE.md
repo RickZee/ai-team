@@ -353,15 +353,23 @@ ai-team/
 │   ├── guardrails/       # Guardrail layer
 │   │   └── __init__.py   # Behavioral, Security, Quality + create_full_guardrail_chain
 │   ├── memory/           # Short-term, long-term, entity memory config & access
+│   ├── optimizers/       # AutoOptimizer Loop (Karpathy-style edit→run→measure→keep/revert)
+│   │   ├── loop.py       # KarpathyLoop, LoopConfig, LoopResult
+│   │   ├── metric.py     # MetricConfig, extract_metric, load_metric_config
+│   │   ├── experiment_log.py  # ExperimentRecord, append/load/summarise (JSONL)
+│   │   └── git_reset.py  # git_reset_hard, git_stash helpers
 │   ├── utils/            # Shared helpers
 │   └── ui/               # Textual TUI (`tui/`), FastAPI + React web dashboard (`web/`)
 ├── tests/
 │   ├── unit/
 │   ├── integration/
 │   └── e2e/
-├── docs/                 # ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md
+├── evals/
+│   ├── scenarios/        # JSON scenario specs (hello-world, todo-api, devops, iac, qa, security, arch)
+│   └── role_evals/       # Role-specific eval modules + optimizer eval
+├── docs/                 # ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md, EVALS.md
 ├── scripts/              # setup_openrouter.sh, test_models.py, run_demo.py
-└── demos/                # Demo projects (input.json, expected_output.json)
+└── demos/                # Demo projects 01–06 (input.json, expected_output.json)
 ```
 
 ---

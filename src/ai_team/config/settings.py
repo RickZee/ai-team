@@ -12,6 +12,8 @@ import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from ai_team.config.optimizer_settings import OptimizerSettings
+
 
 class GuardrailSettings(BaseSettings):
     """
@@ -231,6 +233,10 @@ class Settings(BaseSettings):
         default_factory=AnthropicAgentSdkSettings,
         description="Anthropic API for claude-agent-sdk backend",
     )
+    optimizer: OptimizerSettings = Field(
+        default_factory=OptimizerSettings,
+        description="Karpathy AutoOptimizer loop config",
+    )
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Settings":
@@ -254,6 +260,7 @@ class Settings(BaseSettings):
             ("callback", CallbackSettings),
             ("human_feedback", HumanFeedbackSettings),
             ("anthropic", AnthropicAgentSdkSettings),
+            ("optimizer", OptimizerSettings),
         ]:
             if name in data and isinstance(data[name], dict):
                 kwargs[name] = model_class.model_validate(data[name])  # type: ignore[attr-defined]

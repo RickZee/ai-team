@@ -1,0 +1,47 @@
+# Metric definition for the Karpathy AutoOptimizer loop.
+#
+# evaluation_command is run inside the workspace directory after each edit.
+# The last line of stdout must be the metric value (a float), OR
+# set json_key to extract a value from JSON stdout.
+#
+# This config measures pytest pass rate — cheap, always available, no load tester needed.
+# Swap evaluation_command for a locust/wrk benchmark once the API is running.
+
+name: test_pass_rate
+direction: maximize
+success_threshold: 1.0
+timeout: 60
+
+# Simple: run pytest and extract pass fraction from the last output line.
+# Script at scripts/bench_pass_rate.py handles the parsing.
+evaluation_command: "python -m pytest tests/ --tb=no -q --no-header 2>/dev/null | python -c \"
+import sys, re
+out = sys.stdin.read()
+m = re.search(r'(\\d+) passed', out)
+total_m = re.findall(r'(\\d+) (?:passed|failed|error)', out)
+if m and total_m:
+    passed = int(m.group(1))
+    total = sum(int(x) for x in total_m)
+    print(f'{passed/total:.4f}' if total else '0.0')
+else:
+    print('0.0')
+\""
+
+# --- Alternative: RPS benchmark via wrk (uncomment when service is running) ---
+# name: requests_per_second
+# direction: maximize
+# success_threshold: 500
+# timeout: 90
+# evaluation_command: >
+#   wrk -t2 -c10 -d10s http://localhost:5000/todos 2>/dev/null
+#   | grep 'Requests/sec'
+#   | awk '{print $2}'
+#
+# --- Alternative: pytest + coverage score ---
+# name: coverage_score
+# direction: maximize
+# success_threshold: 0.85
+# timeout: 90
+# evaluation_command: >
+#   python -m pytest tests/ --cov=src --cov-report=json --tb=no -q 2>/dev/null;
+#   python -c "import json; d=json.load(open('coverage.json')); print(d['totals']['percent_covered']/100)"

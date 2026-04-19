@@ -13,6 +13,7 @@ The `demos/` folder contains self-contained project scenarios used to exercise a
 | 3 | `03_data_pipeline` | ETL pipeline — CSV ingest, validate/transform, SQLite load, CLI report |
 | 4 | `04_ml_api` | FastAPI ML inference service — scikit-learn model, predict/health/metrics endpoints |
 | 5 | `05_microservices` | Three-service system — API Gateway, User Service, Notification Service + docker-compose |
+| 6 | `06_karpathy_optimization` | AutoOptimizer Loop — iterative metric-driven optimization with keep/revert and RAG lesson injection |
 
 ---
 
@@ -92,6 +93,34 @@ poetry run python scripts/run_demo.py demos/01_hello_world --monitor
 # Run with log monitoring (stops on first runtime error)
 ./scripts/monitor_demo.sh demos/01_hello_world
 ```
+
+### Demo 06 — AutoOptimizer Loop
+
+Demo 06 uses the `ai-team optimize` subcommand rather than `scripts/run_demo.py`:
+
+```bash
+# Seed a workspace with the slow calculator (or bring your own)
+cp -r demos/06_karpathy_optimization/workspace ./workspace/demo-06   # if workspace is committed
+# Or point at any existing workspace:
+
+ai-team optimize ./workspace/demo-06 \
+  --metric demos/06_karpathy_optimization/metric.yaml \
+  --strategy demos/06_karpathy_optimization/strategy.md \
+  --backend claude-agent-sdk \
+  --budget 2.00 \
+  --max-experiments 10
+
+# Results are written to ./workspace/demo-06/logs/experiments.jsonl
+```
+
+The demo ships with:
+
+| File | Purpose |
+|------|---------|
+| `demos/06_karpathy_optimization/input.json` | Workspace description (for reference) |
+| `demos/06_karpathy_optimization/metric.yaml` | `test_pass_rate` metric via pytest |
+| `demos/06_karpathy_optimization/strategy.md` | Prioritised optimization hints for the agent |
+| `demos/06_karpathy_optimization/expected_output.json` | Acceptance contract (min 1 experiment, no regression) |
 
 ## Capturing and verifying demo output
 
