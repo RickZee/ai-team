@@ -16,12 +16,13 @@ Exit code 0 = all evals passed. Non-zero = at least one failed.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ WORKSPACE_DIR = REPO_ROOT / "workspace"
 # ---------------------------------------------------------------------------
 # Check primitives
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class CheckResult:
@@ -69,9 +71,7 @@ def check_no_loop(state: dict, run_id: str) -> CheckResult:
             f"project_complete appeared {count}x (want 1)",
         )
     count = sum(
-        1
-        for line in audit.read_text().splitlines()
-        if line.strip() and "project_complete" in line
+        1 for line in audit.read_text().splitlines() if line.strip() and "project_complete" in line
     )
     return CheckResult(
         "no_completion_loop",
@@ -80,24 +80,27 @@ def check_no_loop(state: dict, run_id: str) -> CheckResult:
     )
 
 
-def check_artifacts_exist(state: dict, run_id: str, expected_artifact_hints: list[str]) -> list[CheckResult]:
+def check_artifacts_exist(
+    state: dict, run_id: str, expected_artifact_hints: list[str]
+) -> list[CheckResult]:
     """Check generated_files in state contain expected name fragments."""
     generated = state.get("generated_files") or []
     generated_paths = [f.get("path", "") if isinstance(f, dict) else str(f) for f in generated]
     results = []
     for hint in expected_artifact_hints:
         found = any(hint.lower() in p.lower() for p in generated_paths)
-        results.append(CheckResult(
-            f"artifact:{hint}",
-            found,
-            f"generated_files={[p for p in generated_paths]}" if not found else "",
-        ))
+        results.append(
+            CheckResult(
+                f"artifact:{hint}",
+                found,
+                f"generated_files={generated_paths!r}" if not found else "",
+            )
+        )
     return results
 
 
 def _materialize_workspace(run_id: str, state: dict) -> Path:
     """Write generated_files from state to a temp dir under workspace for pytest."""
-    import tempfile
     ws_base = WORKSPACE_DIR / run_id / "_eval_materialized"
     ws_base.mkdir(parents=True, exist_ok=True)
     generated = state.get("generated_files") or []
@@ -140,16 +143,21 @@ def check_workspace_tests_pass(run_id: str, state: dict | None = None) -> CheckR
 
     try:
         cmd = [
-            sys.executable, "-m", "pytest", str(ws),
-            "--tb=short", "-q", "--no-header",
+            sys.executable,
+            "-m",
+            "pytest",
+            str(ws),
+            "--tb=short",
+            "-q",
+            "--no-header",
             f"--rootdir={ws}",
             "--ignore-glob=**/node_modules/**",
         ]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=env, cwd=str(ws))
         passed = r.returncode == 0
-        out = (r.stdout + r.stderr)
+        out = r.stdout + r.stderr
         # Extract last 3 lines for summary
-        lines = [l for l in out.splitlines() if l.strip()]
+        lines = [line for line in out.splitlines() if line.strip()]
         detail = "\n".join(lines[-3:]) if not passed else (lines[-1] if lines else "")
         return CheckResult("workspace_tests_pass", passed, detail)
     except subprocess.TimeoutExpired:
@@ -163,7 +171,9 @@ def check_cost_under(state: dict, threshold_usd: float) -> CheckResult:
     if cost is None:
         return CheckResult("cost_under_threshold", True, "cost not tracked (skip)")
     passed = cost <= threshold_usd
-    return CheckResult("cost_under_threshold", passed, f"cost=${cost:.4f}, threshold=${threshold_usd:.2f}")
+    return CheckResult(
+        "cost_under_threshold", passed, f"cost=${cost:.4f}, threshold=${threshold_usd:.2f}"
+    )
 
 
 def check_has_generated_files(state: dict) -> CheckResult:
@@ -224,17 +234,13 @@ def check_content(state: dict, run_id: str, content_checks: dict[str, str]) -> l
     """Search for expected strings across all generated file contents in state."""
     results = []
     generated = state.get("generated_files") or []
-    all_content = "\n".join(
-        f.get("content", "") if isinstance(f, dict) else "" for f in generated
-    )
+    all_content = "\n".join(f.get("content", "") if isinstance(f, dict) else "" for f in generated)
     # Also search workspace files
     ws = WORKSPACE_DIR / run_id
     if ws.exists():
         for py_file in ws.rglob("*.py"):
-            try:
+            with contextlib.suppress(OSError):
                 all_content += "\n" + py_file.read_text()
-            except Exception:
-                pass
     for needle, label in content_checks.items():
         found = needle in all_content
         results.append(CheckResult(f"content:{needle!r}", found, label if not found else ""))
@@ -244,6 +250,7 @@ def check_content(state: dict, run_id: str, content_checks: dict[str, str]) -> l
 # ---------------------------------------------------------------------------
 # Eval runner
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class EvalResult:
@@ -271,10 +278,11 @@ def run_demo_eval(
     skip_estimate: bool,
     timeout_seconds: int,
 ) -> EvalResult:
-    demo_dir = DEMOS_DIR / f"{demo_id}_*"
     matches = sorted(DEMOS_DIR.glob(f"{demo_id}_*"))
     if not matches:
-        return EvalResult(demo_id, backend, team or "auto", 0, error=f"Demo dir not found: {demo_id}_*")
+        return EvalResult(
+            demo_id, backend, team or "auto", 0, error=f"Demo dir not found: {demo_id}_*"
+        )
     demo_path = matches[0]
 
     # Resolve team from input.json if not overridden
@@ -287,10 +295,15 @@ def run_demo_eval(
             actual_team = "smoke"
 
     cmd = [
-        "uv", "run", "python", "scripts/run_demo.py",
+        "uv",
+        "run",
+        "python",
+        "scripts/run_demo.py",
         str(demo_path),
-        "--backend", backend,
-        "--team", actual_team,
+        "--backend",
+        backend,
+        "--team",
+        actual_team,
     ]
     if skip_estimate:
         cmd.append("--skip-estimate")
@@ -310,7 +323,9 @@ def run_demo_eval(
         duration = time.monotonic() - t0
     except subprocess.TimeoutExpired:
         duration = time.monotonic() - t0
-        return EvalResult(demo_id, backend, actual_team, duration, error=f"Timed out after {timeout_seconds}s")
+        return EvalResult(
+            demo_id, backend, actual_team, duration, error=f"Timed out after {timeout_seconds}s"
+        )
     except Exception as e:
         duration = time.monotonic() - t0
         return EvalResult(demo_id, backend, actual_team, duration, error=str(e))
@@ -320,7 +335,9 @@ def run_demo_eval(
         result = json.loads(r.stdout)
     except Exception:
         snippet = r.stderr[-800:] if r.stderr else r.stdout[-800:]
-        return EvalResult(demo_id, backend, actual_team, duration, error=f"No JSON output. stderr: {snippet}")
+        return EvalResult(
+            demo_id, backend, actual_team, duration, error=f"No JSON output. stderr: {snippet}"
+        )
 
     state = result.get("state") or {}
     run_id = state.get("project_id", "")
@@ -377,7 +394,9 @@ def print_report(results: list[EvalResult], *, use_json: bool) -> None:
     print()
     for r in results:
         status = PASS if r.passed else FAIL
-        print(f"{status} demo {r.demo}  backend={r.backend}  team={r.team}  {r.duration_seconds:.0f}s  run={r.run_id or '—'}")
+        print(
+            f"{status} demo {r.demo}  backend={r.backend}  team={r.team}  {r.duration_seconds:.0f}s  run={r.run_id or '—'}"
+        )
         if r.error:
             print(f"   ERROR: {r.error}")
         for c in r.checks:
@@ -387,28 +406,49 @@ def print_report(results: list[EvalResult], *, use_json: bool) -> None:
     print()
     total = len(results)
     passed = sum(1 for r in results if r.passed)
-    print(f"{'All passed' if passed == total else f'{passed}/{total} passed'} ({total - passed} failed)")
+    print(
+        f"{'All passed' if passed == total else f'{passed}/{total} passed'} ({total - passed} failed)"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Agentic eval harness for ai-team demos.")
-    parser.add_argument("--demo", nargs="+", default=["00"], metavar="N",
-                        help="Demo ID(s) to run, e.g. 00 01 (default: 00)")
-    parser.add_argument("--backend", default="crewai",
-                        choices=("crewai", "langgraph", "claude-agent-sdk"),
-                        help="Backend (default: crewai)")
-    parser.add_argument("--team", default=None,
-                        help="Team profile override (default: from input.json or 'smoke')")
-    parser.add_argument("--timeout", type=int, default=1200,
-                        help="Per-demo timeout seconds (default: 1200). Smoke profile phases sum to 780s; set higher for full team.")
-    parser.add_argument("--skip-estimate", action="store_true", default=True,
-                        help="Skip cost estimate prompt (default: True)")
-    parser.add_argument("--json", action="store_true", dest="use_json",
-                        help="Output machine-readable JSON")
+    parser.add_argument(
+        "--demo",
+        nargs="+",
+        default=["00"],
+        metavar="N",
+        help="Demo ID(s) to run, e.g. 00 01 (default: 00)",
+    )
+    parser.add_argument(
+        "--backend",
+        default="crewai",
+        choices=("crewai", "langgraph", "claude-agent-sdk"),
+        help="Backend (default: crewai)",
+    )
+    parser.add_argument(
+        "--team", default=None, help="Team profile override (default: from input.json or 'smoke')"
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=1200,
+        help="Per-demo timeout seconds (default: 1200). Smoke profile phases sum to 780s; set higher for full team.",
+    )
+    parser.add_argument(
+        "--skip-estimate",
+        action="store_true",
+        default=True,
+        help="Skip cost estimate prompt (default: True)",
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="use_json", help="Output machine-readable JSON"
+    )
     args = parser.parse_args()
 
     results = []

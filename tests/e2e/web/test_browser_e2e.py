@@ -79,10 +79,14 @@ class TestWebUiDashboardRuns:
     ) -> None:
         """Empty dashboard shows Go to Run + Launch Demo (when no runs in session)."""
         page.goto(browser_base_url)
+        if page.get_by_test_id("dashboard-active").is_visible(timeout=2_000):
+            pytest.skip("Dashboard showing a run (session-scoped server has prior runs)")
+        if page.locator(".run-list-item").count() > 0:
+            pytest.skip("Dashboard has prior runs in session-scoped server")
         empty = page.get_by_test_id("dashboard-empty")
-        if not empty.is_visible(timeout=5_000):
-            pytest.skip("Dashboard not empty (prior runs in session-scoped server)")
-        expect(page.get_by_text("Go to Run")).to_be_visible()
+        if not empty.is_visible(timeout=3_000):
+            pytest.skip("Dashboard not empty (session-scoped server)")
+        expect(page.get_by_role("link", name="Go to Run")).to_be_visible()
         expect(page.get_by_test_id("dashboard-demo")).to_be_visible()
 
     def test_dashboard_demo_via_api_deep_link(self, page: Page, browser_base_url: str) -> None:
@@ -100,9 +104,9 @@ class TestWebUiComparePage:
     def test_compare_form_renders(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/compare")
         expect(page.get_by_test_id("compare-submit")).to_be_visible()
-        expect(page.get_by_text("CrewAI")).to_be_visible()
-        expect(page.get_by_text("LangGraph")).to_be_visible()
-        expect(page.get_by_text("Claude Agent SDK")).to_be_visible()
+        expect(page.get_by_role("heading", name="CrewAI")).to_be_visible()
+        expect(page.get_by_role("heading", name="LangGraph")).to_be_visible()
+        expect(page.get_by_role("heading", name="Claude Agent SDK")).to_be_visible()
         expect(page.get_by_test_id("compare-crewai-col")).to_be_visible()
         expect(page.get_by_test_id("compare-langgraph-col")).to_be_visible()
         expect(page.get_by_test_id("compare-claude-col")).to_be_visible()

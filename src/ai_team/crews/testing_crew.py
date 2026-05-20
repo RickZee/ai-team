@@ -33,6 +33,7 @@ logger = structlog.get_logger(__name__)
 # Pytest stdout fallback parser
 # -----------------------------------------------------------------------------
 
+
 def _extract_test_result_from_pytest_stdout(raw_outputs: list[str]) -> TestRunResult | None:
     """
     Scan all raw task outputs for embedded pytest stdout and build a TestRunResult.
@@ -83,7 +84,10 @@ def _extract_test_result_from_pytest_stdout(raw_outputs: list[str]) -> TestRunRe
 
     logger.info(
         "test_result_parsed_from_stdout_fallback",
-        total=total, passed=passed, failed=failed, line_coverage_pct=line_pct,
+        total=total,
+        passed=passed,
+        failed=failed,
+        line_coverage_pct=line_pct,
     )
     return TestRunResult(
         total=total,
