@@ -21,8 +21,9 @@ from typing import Any, Literal
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -169,7 +170,7 @@ async def get_run(run_id: str):
     """Get run details including monitor state."""
     run = state.runs.get(run_id)
     if not run:
-        return {"error": "Run not found"}, 404
+        raise HTTPException(status_code=404, detail="Run not found")
 
     monitor = state.monitors.get(run_id)
     monitor_data = _serialize_monitor(monitor) if monitor else None
@@ -502,17 +503,50 @@ def _serialize_monitor(monitor) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Frontend (SPA) — client-side routes need index.html fallback
+# ---------------------------------------------------------------------------
+
+_FRONTEND_REGISTERED = False
+
+
+def register_frontend(app: FastAPI, frontend_dist: Path | None = None) -> None:
+    """Serve the Vite build and fall back to ``index.html`` for React Router paths."""
+    global _FRONTEND_REGISTERED
+    if _FRONTEND_REGISTERED:
+        return
+    dist = frontend_dist or (Path(__file__).parent / "frontend" / "dist")
+    index = dist / "index.html"
+    if not index.exists():
+        return
+
+    assets_dir = dist / "assets"
+    if assets_dir.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(assets_dir)),
+            name="frontend_assets",
+        )
+
+    @app.get("/{spa_path:path}", include_in_schema=False)
+    async def spa_catchall(spa_path: str) -> FileResponse:
+        if spa_path.startswith("api") or spa_path.startswith("ws"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        target = dist / spa_path
+        if target.is_file():
+            return FileResponse(target)
+        return FileResponse(index)
+
+    _FRONTEND_REGISTERED = True
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 
 def run_server(port: int = 8421, host: str = "0.0.0.0") -> None:
     """Run the FastAPI server."""
-    # Serve React build if it exists
-    frontend_dist = Path(__file__).parent / "frontend" / "dist"
-    if frontend_dist.exists():
-        app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
-
+    register_frontend(app)
     uvicorn.run(app, host=host, port=port)
 
 

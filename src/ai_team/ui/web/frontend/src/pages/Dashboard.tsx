@@ -32,7 +32,7 @@ export function Dashboard() {
 
   if (!monitor) {
     return (
-      <div className="dashboard-empty">
+      <div className="dashboard-empty" data-testid="dashboard-empty">
         <h2>No Active Run</h2>
         <p>Start a run from the Run tab, or launch a demo to see the dashboard in action.</p>
       </div>
@@ -40,7 +40,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="dashboard">
+    <div className="dashboard" data-testid="dashboard-active">
       <div className="dashboard-header">
         <PhasePipeline phase={monitor.phase} />
       </div>

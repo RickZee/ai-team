@@ -48,7 +48,12 @@ export function Compare() {
             rows={3}
           />
         </div>
-        <button className="btn-primary" onClick={handleCompare} disabled={isRunning}>
+        <button
+          className="btn-primary"
+          onClick={handleCompare}
+          disabled={isRunning}
+          data-testid="compare-submit"
+        >
           {isRunning ? "Comparing..." : "Run Both Backends"}
         </button>
       </div>

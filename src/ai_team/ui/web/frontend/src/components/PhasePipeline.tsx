@@ -14,7 +14,7 @@ export function PhasePipeline({ phase }: { phase: string }) {
   const idx = PHASES.indexOf(phase as (typeof PHASES)[number]);
 
   return (
-    <div className="phase-pipeline">
+    <div className="phase-pipeline" data-testid="phase-pipeline">
       {PHASES.map((p, i) => {
         let cls = "phase-step";
         if (phase === "error") cls += " phase-dim";

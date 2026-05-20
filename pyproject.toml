@@ -68,6 +68,7 @@ isort = "^5.13.0"
 flask = "^3.1.3"
 types-pyyaml = "^6.0.12.20250915"
 pip-audit = "^2.10.0"
+pytest-playwright = "^0.8.0"
 
 [tool.poetry.scripts]
 ai-team = "ai_team.main:main"
@@ -132,6 +133,8 @@ markers = [
     "slow: slow tests (e.g. real LLM or long runs); exclude with -m 'not slow'.",
     "timeout: per-test timeout (pytest-timeout).",
     "performance: performance benchmark tests; record timings and write benchmark_results.json.",
+    "web_e2e: Web dashboard E2E (demo/mock; no LLM cost).",
+    "browser_e2e: Playwright browser E2E (requires built frontend).",
 ]
 
 [tool.coverage.run]
