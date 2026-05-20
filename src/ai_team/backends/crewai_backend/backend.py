@@ -62,6 +62,7 @@ class CrewAIBackend:
                 skip_estimate=bool(kwargs.get("skip_estimate", False)),
                 env_override=env,
                 complexity_override=kwargs.get("complexity_override"),
+                team_profile=profile.name,
             )
             enriched = {
                 **payload,

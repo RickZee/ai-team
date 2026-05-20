@@ -3,11 +3,13 @@
 Run an ai-team demo with DEV configuration (OpenRouter dev tier).
 
 Loads the project description from the demo directory (project_description.txt
-or input.json), sets AI_TEAM_ENV=dev, and invokes the full flow.
+or input.json), optional ``team_profile`` from input.json, sets AI_TEAM_ENV=dev,
+and invokes the flow.
 
 Usage:
     poetry run python scripts/run_demo.py demos/01_hello_world
-    poetry run python scripts/run_demo.py demos/02_todo_app [--skip-estimate] [--monitor]
+    poetry run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
+    poetry run python scripts/run_demo.py demos/02_todo_app [--skip-estimate] [--monitor] [--team backend-api]
 
 Requires OPENROUTER_API_KEY in the environment (e.g. from .env).
 """
@@ -20,7 +22,7 @@ import os
 import sys
 from pathlib import Path
 
-from ai_team.utils.demo_input import load_project_description
+from ai_team.utils.demo_input import load_demo_input, resolve_team_profile
 
 
 def _repo_root() -> Path:
@@ -51,6 +53,62 @@ def _print_error_summary(result: dict, *, file: object) -> None:
         print("\n".join(lines), file=file)
 
 
+def _run_success(result: dict) -> bool:
+    if result.get("success") is False:
+        return False
+    state = result.get("state") or {}
+    return state.get("current_phase") == "complete"
+
+
+def _run_crewai(
+    description: str,
+    *,
+    team: str,
+    monitor: object | None,
+    skip_estimate: bool,
+) -> dict:
+    from ai_team.flows.main_flow import run_ai_team
+
+    return run_ai_team(
+        description,
+        monitor=monitor,
+        skip_estimate=skip_estimate,
+        env_override="dev",
+        team_profile=team,
+    )
+
+
+def _run_backend(
+    description: str,
+    *,
+    backend_name: str,
+    team: str,
+    monitor: object | None,
+    skip_estimate: bool,
+) -> dict:
+    from ai_team.backends.registry import get_backend
+    from ai_team.core.team_profile import load_team_profile
+
+    profile = load_team_profile(team)
+    backend = get_backend(backend_name)
+    pr = backend.run(
+        description,
+        profile,
+        env="dev",
+        monitor=monitor,
+        skip_estimate=skip_estimate,
+    )
+    raw = pr.raw
+    return {
+        "backend": pr.backend_name,
+        "team_profile": pr.team_profile,
+        "success": pr.success,
+        "error": pr.error,
+        "result": raw.get("result"),
+        "state": raw.get("state"),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run an ai-team demo with DEV configuration (OpenRouter dev tier).",
@@ -64,6 +122,17 @@ def main() -> int:
         "--skip-estimate",
         action="store_true",
         help="Bypass cost estimation and confirmation (e.g. for CI).",
+    )
+    parser.add_argument(
+        "--backend",
+        default="crewai",
+        choices=("crewai", "langgraph", "claude-agent-sdk"),
+        help="Orchestration backend (default: crewai). Use langgraph for profile-aware lean crews.",
+    )
+    parser.add_argument(
+        "--team",
+        default=None,
+        help="Team profile (overrides team_profile in input.json; default: full or input.json).",
     )
     parser.add_argument(
         "--output",
@@ -93,14 +162,14 @@ def main() -> int:
         return 1
 
     try:
-        description = load_project_description(demo_dir)
-    except (FileNotFoundError, ValueError) as e:
+        demo = load_demo_input(demo_dir)
+        team = resolve_team_profile(demo_dir, cli_team=args.team)
+    except (FileNotFoundError, ValueError, KeyError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
     os.environ["AI_TEAM_ENV"] = "dev"
 
-    from ai_team.flows.main_flow import run_ai_team
     from ai_team.monitor import TeamMonitor
 
     use_tui = args.output == "tui" or args.monitor
@@ -108,16 +177,24 @@ def main() -> int:
     monitor = TeamMonitor(project_name=project_name) if use_tui else None
 
     try:
-        result = run_ai_team(
-            description,
-            monitor=monitor,
-            skip_estimate=args.skip_estimate,
-            env_override="dev",
-        )
+        if args.backend == "crewai":
+            result = _run_crewai(
+                demo.description,
+                team=team,
+                monitor=monitor,
+                skip_estimate=args.skip_estimate,
+            )
+        else:
+            result = _run_backend(
+                demo.description,
+                backend_name=args.backend,
+                team=team,
+                monitor=monitor,
+                skip_estimate=args.skip_estimate,
+            )
         _print_error_summary(result, file=sys.stderr)
         print(json.dumps(result, indent=2, default=str))
-        state = result.get("state") or {}
-        return 0 if state.get("current_phase") == "complete" else 1
+        return 0 if _run_success(result) else 1
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

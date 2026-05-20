@@ -133,6 +133,7 @@ def create_testing_crew(
     verbose: bool = False,
     step_callback: Any | None = None,
     task_callback: Any | None = None,
+    min_coverage_pct: float | None = None,
 ) -> Crew:
     """
     Build the Testing Crew: sequential process, QA Engineer only.
@@ -155,7 +156,7 @@ def create_testing_crew(
         guardrail_max_retries=retries,
         use_input_placeholder=True,
     )
-    t_exec = test_execution_task(agent, context=[t_gen], guardrail_max_retries=retries)
+    t_exec = test_execution_task(agent, context=[t_gen], guardrail_max_retries=retries, min_coverage_pct=min_coverage_pct)
     t_review = code_review_task(
         agent,
         context=[t_gen, t_exec],
@@ -188,6 +189,7 @@ def kickoff(
     verbose: bool = False,
     step_callback: Any | None = None,
     task_callback: Any | None = None,
+    min_coverage_pct: float | None = None,
 ) -> TestingCrewOutput:
     """
     Run the Testing Crew on the given code files from the Development Crew.
@@ -209,6 +211,7 @@ def kickoff(
         verbose=verbose,
         step_callback=step_callback,
         task_callback=task_callback,
+        min_coverage_pct=min_coverage_pct,
     )
     code_files_summary = _code_files_to_summary(code_files)
     inputs = {"code_files_summary": code_files_summary}

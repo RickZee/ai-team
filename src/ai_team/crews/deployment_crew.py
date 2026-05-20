@@ -28,15 +28,22 @@ from pydantic import BaseModel
 logger = structlog.get_logger(__name__)
 
 
+_MAX_CONTEXT_CHARS = 3000  # cap per-section to avoid context overflow on small models
+
+
 def _serialize_architecture(architecture: BaseModel | str) -> str:
-    """Turn architecture input into a string for task context."""
+    """Turn architecture input into a string for task context (capped to avoid overflow)."""
     if isinstance(architecture, str):
-        return architecture
-    if hasattr(architecture, "model_dump_json"):
-        return architecture.model_dump_json(indent=2)
-    if hasattr(architecture, "json"):
-        return architecture.json(indent=2)
-    return str(architecture)
+        text = architecture
+    elif hasattr(architecture, "model_dump_json"):
+        text = architecture.model_dump_json(indent=2)
+    elif hasattr(architecture, "json"):
+        text = architecture.json(indent=2)
+    else:
+        text = str(architecture)
+    if len(text) > _MAX_CONTEXT_CHARS:
+        text = text[:_MAX_CONTEXT_CHARS] + "\n... [truncated for context limit]"
+    return text
 
 
 def _serialize_code_files(code_files: list[Any]) -> str:
@@ -62,10 +69,7 @@ def _serialize_test_results(test_results: Any) -> str:
     """Turn test results into a string for task context."""
     if test_results is None:
         return "(No test results provided)"
-    if isinstance(test_results, str):
-        return test_results
-    if hasattr(test_results, "model_dump_json"):
-        return test_results.model_dump_json(indent=2)
+    # Prefer a concise summary over full JSON dump to avoid context overflow.
     if hasattr(test_results, "execution_results"):
         er = test_results.execution_results
         parts = [
@@ -74,9 +78,17 @@ def _serialize_test_results(test_results: Any) -> str:
             f"Total: {getattr(er, 'total', '?')}",
         ]
         if getattr(er, "output", None):
-            parts.append(f"Output:\n{er.output[:2000]}")
+            parts.append(f"Output:\n{er.output[:500]}")
         return "\n".join(parts)
-    return str(test_results)
+    if isinstance(test_results, str):
+        text = test_results
+    elif hasattr(test_results, "model_dump_json"):
+        text = test_results.model_dump_json(indent=2)
+    else:
+        text = str(test_results)
+    if len(text) > _MAX_CONTEXT_CHARS:
+        text = text[:_MAX_CONTEXT_CHARS] + "\n... [truncated]"
+    return text
 
 
 class DeploymentCrew:

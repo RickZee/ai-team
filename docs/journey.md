@@ -117,7 +117,7 @@ So, next for us: exploring LangGraph. LangGraph gives us explicit graph-based or
 
 I'm **not** ripping out CrewAI. Instead I want to evaluate a multi-backend architecture. Both orchestration frameworks live behind a common `Backend` protocol. Same shared tools, guardrails, models, config. Pick your backend at runtime: `--backend crewai` or `--backend langgraph`. This lets us run the exact same demo through both and compare output quality, cost, and latency side by side.
 
-Also added **team profiles** — not every project needs all 8 agents. A `--team backend-api` flag spins up only Manager, PO, Architect, Backend Dev, QA, and DevOps. Skip the frontend. A `--team prototype` flag skips formal planning entirely and goes straight to Architect → Fullstack Dev → QA. This works across both backends.
+Also added **team profiles** — not every project needs all 8 agents. A `--team backend-api` flag spins up only Manager, PO, Architect, Backend Dev, QA, and DevOps (no frontend specialists). A `--team prototype` flag uses Architect, Fullstack Dev, and QA across intake → planning → development → testing. LangGraph and Claude Agent SDK backends honor the profile roster; CrewAI records the profile in metadata while full-crew parity is still catching up. See [TEAM_PROFILES.md](TEAM_PROFILES.md).
 
 The architecture is also designed for future frameworks: AutoGen, Claude Agent SDK, AWS Bedrock Agents, Strands — each would just be another `Backend` implementation.
 
@@ -154,7 +154,7 @@ Shipped a full web UI. Not a quick Streamlit thing — a proper FastAPI backend 
 
 **Why not Streamlit?** We started with a Rich TUI (still works, great for SSH), then a Gradio prototype. But once the system had multiple backends, team profiles, and real-time streaming from agents, we needed something that could handle WebSocket connections, show a live phase pipeline, and let you compare runs side-by-side. FastAPI + React with Vite was the pragmatic choice — we already had the API shape from the CLI, and Vite's dev experience is hard to argue with.
 
-**The big architectural insight here:** the UI is a pure consumer. It reads from the same `events.jsonl` and `run.json` files that the CLI produces. Zero coupling to the orchestration layer. Any backend (CrewAI, LangGraph, future Claude SDK) writes the same event format, and the UI just renders it. If you're building a multi-backend system, design your observation layer first.
+**The big architectural insight here:** the UI is a thin consumer of a shared observation API. The FastAPI server holds in-memory `TeamMonitor` state and exposes it over REST (`/api/runs`, `/api/runs/{id}`) and WebSocket (`/ws/run`, `/ws/monitor/{id}`). CLI runs also write `events.jsonl` under workspace output, but the dashboard streams live snapshots from the server rather than tailing those files today.
 
 Alongside the UI, wired up the memory system properly. `memory/lessons.py` is the core: it captures failure records into SQLite at the end of every run, clusters recurring patterns by `(pattern_type, clustering_key)`, and promotes them into lessons that get injected into agent system prompts at the start of the next run. Both backends consume lessons from the same `LongTermStore` — CrewAI appends them to agent backstories, LangGraph injects them as a `## Lessons` section in system prompts.
 
@@ -202,3 +202,81 @@ The full audit is in `docs/SELF_IMPROVEMENT_AUDIT.md` (maturity scorecard, risk 
 
 **The meta-lesson:** building a self-improvement loop is deceptively easy to demo and deceptively hard to productionize. The flashy part — "agents learn from failures!" — takes a weekend. The boring parts — deduplication, TTL, effectiveness tracking, budget enforcement, observability — take weeks and are the difference between a portfolio demo and something an org would actually trust. We're honest about where we are: the critical path from here to production-ready is roughly 30 hours of implementation, with auto-extract + dedup + metrics persistence being the first 6.
 
+## May 22
+
+Goal: run demo 00 (hello world) end-to-end with `--team smoke --backend crewai`. First ever successful complete run. Took 11 attempts and most of a day.
+
+### The runs
+
+Runs 1–4 predated this session (previous context window). They stalled or failed in testing, left 4 zombie background monitor tasks sitting there burning attention but not tokens — harness cleans up across sessions, the tasks themselves were already dead.
+
+Runs 5–10 were the core troubleshooting loop. Each one surfaced a different failure mode, usually in the testing or deployment phase. The pattern: 20–40 minutes to get to the failure point, then fix, rerun, next bug.
+
+Run 11 succeeded: `--team smoke`, planning → development → testing → finalize_project (deployment skipped by profile), 10/10 tests passed, `project_complete status=complete files_generated=2 project_id=b15985e2`. Total wall-clock time was inflated to ~6 hours because the run sat in testing while other fixes were being developed in parallel — actual execution was much shorter.
+
+### Bugs found and fixed
+
+**1. Security guardrail false positive (runs 5–6)**
+
+The QA agent was calling `run_pytest`, which returns coverage output including tracebacks. `guarded_run()` in `base.py` was validating both inputs *and* outputs against a security pattern list. The pattern `exec(` matched pytest traceback lines — harmless observational data, not executable code. The agent received `"Guardrail blocked output: Security violation: Dynamic code execution"` and halted.
+
+Fix: removed output validation from `guarded_run()`. Input validation stays (attacker-controlled input can try to smuggle dangerous patterns into tool calls). Tool output is read-only observational data and should never be blocked this way.
+
+**2. deepseek-v3 empty responses (runs 5–8)**
+
+`cloud_engineer` and `qa_engineer` were assigned `deepseek-v3` in the DEV environment model config. Both returned `"Invalid response from LLM call - None or empty"` — the `deployment_packaging` task (large context: architecture JSON + all generated code + test results) and the `code_review` task both triggered it.
+
+Two-part fix:
+- Added `num_retries=3` and `request_timeout=120` to every LLM constructor in `llm_factory.py`.
+- Switched `cloud_engineer` and `qa_engineer` to `devstral-2512` in `config/models.py`. The deployment crew context overflow was separately addressed by capping `_serialize_architecture()` and `_serialize_test_results()` to 3,000 chars each.
+
+**3. QA over-generating tests (runs 7–8)**
+
+After fixing the empty responses, QA started running. But the generated test suite included `test_add_invalid_inputs` — a test expecting `TypeError` from `add(a, b)`, which doesn't validate types. It never validated types. So 2 tests failed every run, blocking the coverage guardrail.
+
+Fix: updated `TEST_GENERATION_DESCRIPTION` to explicitly say "Only test for exceptions or type errors if the implementation explicitly raises them — do NOT add defensive type-checking tests for functions that do not validate input types." This is a prompt engineering fix, but it's the right level — the guardrail can't know what the implementation does, but the task description can tell the agent what to expect.
+
+**4. Team profile never passed from backend to flow (runs 1–10, root cause)**
+
+This was the most consequential bug. `CrewAIBackend.run()` called `run_ai_team()` without the `team_profile` argument. Every single run — regardless of `--team smoke`, `--team prototype`, anything — executed with the `"full"` profile. The `smoke` profile skipping deployment was never honored. Every run tried to run `deployment_packaging`, which then hit the empty response bug on `cloud_engineer`, which caused the failure we were chasing for runs 5–10.
+
+The fix is a one-liner: `team_profile=profile.name` added to the `run_ai_team()` call in `backends/crewai_backend/backend.py`. The bug was invisible because nothing logged a mismatch — `run_ai_team()` defaulted silently to "full". Added a `routing_after_testing_profile_check` debug log to make this class of mismatch visible in the future.
+
+**5. Frontend a11y guardrail false positives**
+
+The frontend implementation guardrail checked every output file for `aria-*` and `@media`/`flex`/`grid` patterns. `package.json`, `.env`, and markdown files never contain these patterns — so the guardrail always failed for projects that didn't generate UI components.
+
+Fix: scoped checks to `_UI_EXTENSIONS = {".css", ".html", ".jsx", ".tsx", ".js", ".ts", ".vue", ".svelte"}` and matching language tags. Non-UI projects (backend-only, infra-only) skip the checks entirely.
+
+**6. Coverage threshold hardcoded at 80% regardless of profile**
+
+`smoke` profile sets `min_coverage_pct: 0` — a smoke test shouldn't fail on coverage. But `_test_execution_guardrail` was a module-level constant using `MIN_COVERAGE_THRESHOLD = 0.8`. The profile setting was read into state metadata but never reached the guardrail.
+
+Fix: replaced the constant with `_make_test_execution_guardrail(threshold)` factory pattern. `min_coverage_pct` is now threaded from profile YAML → flow metadata → `testing_crew.kickoff()` → `test_execution_task()` → guardrail closure.
+
+### Architecture improvements shipped
+
+**Smoke profile** (`config/team_profiles.yaml`): 3-agent team (architect, backend_developer, qa_engineer), phases = [planning, development, testing], `min_coverage_pct: 0`, `max_complexity: simple`, `phase_timeouts_seconds` for each phase. No frontend, no deployment.
+
+**Phase timeouts** (`flows/main_flow.py`): `phase_timeout()` context manager using `threading.Timer` + `signal.SIGALRM`. Each phase has a configurable wall-clock limit from the profile. If exceeded, raises `PhaseTimeoutError` instead of hanging indefinitely. Critical for CI and unattended runs.
+
+**LLM observability hooks** (`config/llm_observability.py`): new module, registers `register_before_llm_call_hook` / `register_after_llm_call_hook` globally (idempotent). Logs agent role, model, iteration count before each call; logs empty responses as errors. This is what would have caught the deepseek-v3 empty response issue immediately on the first run.
+
+**Profile-aware deployment routing** (`flows/routing.py`): `route_after_testing` now loads the team profile and checks whether `"deployment"` is in `profile.phases`. If not, routes directly to `finalize_project`. Previously it always routed to `run_deployment`.
+
+### Architecture review
+
+Did a thorough review of the CrewAI backend design. Found 16 issues. Three were fixed today (above). Remaining 13 are documented but not yet addressed:
+
+- Human feedback not injected into retry crew context (Finding #3) — retries have no memory of what the human said
+- Test failure feedback not passed to dev crew on retry (Finding #4) — dev crew reruns from scratch, not from failure context
+- `infra-only` profile still runs dev+testing phases (Finding #5) — profile phase filtering only applies at routing, not crew construction
+- Race condition with `PROJECT_WORKSPACE_DIR` env var (Finding #7) — concurrent runs share a global env var for workspace path
+- `retry_planning` listener unreachable from error handler (Finding #9) — error paths never trigger it
+- Planning outputs matched by index not name (Finding #10) — if task order changes, wrong outputs get consumed
+
+The race condition (#7) and feedback gaps (#3, #4) are the most operationally dangerous. The others are correctness issues that only surface on edge-case profiles.
+
+### Post-completion anomaly
+
+After Run 11 succeeded and `project_complete` fired, the log kept emitting `project_complete` roughly every minute. `current_phase` in state showed `"deployment"` despite deployment being skipped. Something in the flow is re-triggering after completion — likely a `@listen` on `finalize_project` that loops back, or the CrewAI Flow event loop not stopping after the terminal state. Not investigated yet; the run produces correct output so it's cosmetic for now, but it would be a real problem for cost tracking in production.

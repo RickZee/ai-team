@@ -12,7 +12,9 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import signal
 import sys
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -61,6 +63,52 @@ logger = structlog.get_logger()
 # Reasonable max length for project description (guardrail)
 MAX_PROJECT_DESCRIPTION_LENGTH = 50_000
 MIN_PROJECT_DESCRIPTION_LENGTH = 10
+
+
+class PhaseTimeoutError(RuntimeError):
+    """Raised when a phase exceeds its configured wall-clock budget."""
+
+
+@contextlib.contextmanager
+def phase_timeout(phase: str, seconds: int | None):
+    """
+    Context manager: raise PhaseTimeoutError if phase takes longer than `seconds`.
+    Uses a background thread + threading.Event so it works in sync (non-async) code.
+    No-op when seconds is None or <= 0.
+    """
+    if not seconds or seconds <= 0:
+        yield
+        return
+
+    timer_fired = threading.Event()
+
+    def _fire():
+        timer_fired.set()
+        logger.error("phase_timeout_exceeded", phase=phase, limit_seconds=seconds)
+        # Raise in main thread via signal only on main thread; otherwise set event
+        # and let the caller check. We use SIGALRM on Unix.
+        try:
+            signal.raise_signal(signal.SIGALRM)
+        except (AttributeError, OSError):
+            pass  # Windows or non-main thread; caller handles via event
+
+    timer = threading.Timer(seconds, _fire)
+    old_handler = None
+
+    def _sigalrm_handler(signum, frame):
+        raise PhaseTimeoutError(f"Phase '{phase}' exceeded {seconds}s wall-clock limit")
+
+    try:
+        if hasattr(signal, "SIGALRM"):
+            old_handler = signal.signal(signal.SIGALRM, _sigalrm_handler)
+        timer.start()
+        yield timer_fired
+    except PhaseTimeoutError:
+        raise
+    finally:
+        timer.cancel()
+        if hasattr(signal, "SIGALRM") and old_handler is not None:
+            signal.signal(signal.SIGALRM, old_handler)
 
 # Root cause of RecursionError: CrewAI Flow executes steps recursively. In flow.py,
 # _execute_start_method() -> _execute_listeners() -> _execute_single_listener() ->
@@ -219,6 +267,29 @@ class AITeamFlow(Flow[ProjectState]):
         self._feedback_handler = feedback_handler
         self._monitor = monitor
 
+    def _phase_timeout_seconds(self, phase: str) -> int | None:
+        """Return per-phase wall-clock limit from team profile metadata, or None."""
+        try:
+            from ai_team.core.team_profile import load_team_profile
+            profile_name = self.state.metadata.get("team_profile", "full")
+            profile = load_team_profile(profile_name)
+            timeouts = (profile.metadata or {}).get("phase_timeouts_seconds", {})
+            val = timeouts.get(phase)
+            return int(val) if val else None
+        except Exception:
+            return None
+
+    def _profile_metadata_float(self, key: str) -> float | None:
+        """Return a float value from team profile metadata, or None if absent/invalid."""
+        try:
+            from ai_team.core.team_profile import load_team_profile
+            profile_name = self.state.metadata.get("team_profile", "full")
+            profile = load_team_profile(profile_name)
+            val = (profile.metadata or {}).get(key)
+            return float(val) if val is not None else None
+        except Exception:
+            return None
+
     def kickoff(self, *args: Any, **kwargs: Any) -> Any:
         """
         Run cost estimation and confirmation at pipeline start, then execute the flow.
@@ -238,6 +309,12 @@ class AITeamFlow(Flow[ProjectState]):
             or_settings = OpenRouterSettings()
             tracker = TokenTracker(or_settings)
             tracker.register_crewai_hook()
+        except Exception:
+            pass
+
+        try:
+            from ai_team.config.llm_observability import register_llm_observability_hooks
+            register_llm_observability_hooks()
         except Exception:
             pass
 
@@ -467,12 +544,13 @@ class AITeamFlow(Flow[ProjectState]):
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
                 verbose = False  # avoid CrewAI's live status output; use our TUI only
-            result = planning_crew_kickoff(
-                self.state.project_description or "",
-                step_callback=step_cb,
-                task_callback=task_cb,
-                verbose=verbose,
-            )
+            with phase_timeout("planning", self._phase_timeout_seconds("planning")):
+                result = planning_crew_kickoff(
+                    self.state.project_description or "",
+                    step_callback=step_cb,
+                    task_callback=task_cb,
+                    verbose=verbose,
+                )
             self.state.requirements, self.state.architecture, needs_clarification = (
                 _parse_planning_output(result)
             )
@@ -514,9 +592,11 @@ class AITeamFlow(Flow[ProjectState]):
                 "confidence": confidence,
             }
         except Exception as e:
+            import traceback as _tb
             err_msg = str(e)
-            self.logger.error("planning_failed", error=err_msg)
-            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            tb = _tb.format_exc()
+            self.logger.error("planning_failed", error=err_msg, traceback=tb)
+            self.state.metadata["last_crew_error"] = {"error": err_msg, "stack_trace": tb}
             if self._monitor:
                 self._monitor.on_agent_error("planning", err_msg)
                 self._monitor.on_log("planning", err_msg[:200], "error")
@@ -550,13 +630,14 @@ class AITeamFlow(Flow[ProjectState]):
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
                 verbose = False  # avoid CrewAI's live status output; use our TUI only
-            code_files, deployment_config = development_crew_kickoff(
-                self.state.requirements,
-                self.state.architecture,
-                step_callback=step_cb,
-                task_callback=task_cb,
-                verbose=verbose,
-            )
+            with phase_timeout("development", self._phase_timeout_seconds("development")):
+                code_files, deployment_config = development_crew_kickoff(
+                    self.state.requirements,
+                    self.state.architecture,
+                    step_callback=step_cb,
+                    task_callback=task_cb,
+                    verbose=verbose,
+                )
             self.state.generated_files = code_files
             if deployment_config is not None:
                 self.state.deployment_config = deployment_config
@@ -589,9 +670,11 @@ class AITeamFlow(Flow[ProjectState]):
             )
             return {"status": "success", "files": self.state.generated_files}
         except Exception as e:
+            import traceback as _tb
             err_msg = str(e)
-            self.logger.error("development_failed", error=err_msg)
-            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            tb = _tb.format_exc()
+            self.logger.error("development_failed", error=err_msg, traceback=tb)
+            self.state.metadata["last_crew_error"] = {"error": err_msg, "stack_trace": tb}
             if self._monitor:
                 self._monitor.on_agent_error("development", err_msg)
                 self._monitor.on_log("development", err_msg[:200], "error")
@@ -624,12 +707,14 @@ class AITeamFlow(Flow[ProjectState]):
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
-            output = testing_crew_kickoff(
-                self.state.generated_files,
-                step_callback=step_cb,
-                task_callback=task_cb,
-                verbose=verbose,
-            )
+            with phase_timeout("testing", self._phase_timeout_seconds("testing")):
+                output = testing_crew_kickoff(
+                    self.state.generated_files,
+                    step_callback=step_cb,
+                    task_callback=task_cb,
+                    verbose=verbose,
+                    min_coverage_pct=self._profile_metadata_float("min_coverage_pct"),
+                )
             self.state.test_results = output.test_run_result
             try:
                 b = self._bundle()
@@ -675,9 +760,11 @@ class AITeamFlow(Flow[ProjectState]):
             )
             return {"status": "tests_failed", "results": output.test_run_result, "output": output}
         except Exception as e:
+            import traceback as _tb
             err_msg = str(e)
-            self.logger.error("testing_failed", error=err_msg)
-            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            tb = _tb.format_exc()
+            self.logger.error("testing_failed", error=err_msg, traceback=tb)
+            self.state.metadata["last_crew_error"] = {"error": err_msg, "stack_trace": tb}
             if self._monitor:
                 self._monitor.on_agent_error("testing", err_msg)
                 self._monitor.on_log("testing", err_msg[:200], "error")
@@ -715,12 +802,13 @@ class AITeamFlow(Flow[ProjectState]):
             product_owner_context = None
             if self.state.requirements:
                 product_owner_context = self.state.requirements.description
-            deploy_result = crew.kickoff(
-                self.state.generated_files,
-                self.state.architecture,
-                self.state.test_results,
-                product_owner_doc_context=product_owner_context,
-            )
+            with phase_timeout("deployment", self._phase_timeout_seconds("deployment")):
+                deploy_result = crew.kickoff(
+                    self.state.generated_files,
+                    self.state.architecture,
+                    self.state.test_results,
+                    product_owner_doc_context=product_owner_context,
+                )
             try:
                 b = self._bundle()
                 deploy_out = b.output_dir / "artifacts" / "deployment"
@@ -742,9 +830,11 @@ class AITeamFlow(Flow[ProjectState]):
             self.logger.info("deployment_complete", project_id=self.state.project_id)
             return {"status": "success", "config": self.state.deployment_config}
         except Exception as e:
+            import traceback as _tb
             err_msg = str(e)
-            self.logger.error("deployment_failed", error=err_msg)
-            self.state.metadata["last_crew_error"] = {"error": err_msg}
+            tb = _tb.format_exc()
+            self.logger.error("deployment_failed", error=err_msg, traceback=tb)
+            self.state.metadata["last_crew_error"] = {"error": err_msg, "stack_trace": tb}
             if self._monitor:
                 self._monitor.on_agent_error("deployment", err_msg)
                 self._monitor.on_log("deployment", err_msg[:200], "error")
@@ -1111,6 +1201,7 @@ def run_ai_team(
     skip_estimate: bool = False,
     env_override: str | None = None,
     complexity_override: str | None = None,
+    team_profile: str | None = None,
 ) -> dict[str, Any]:
     """
     Main entry point to run the AI Team flow.
@@ -1120,10 +1211,16 @@ def run_ai_team(
     If skip_estimate is True, cost estimation is bypassed (e.g. for CI/CD pipelines).
     If env_override is set (dev/test/prod), AI_TEAM_ENV is set for this run.
     If complexity_override is set (simple/medium/complex), cost estimation uses it instead of inferring.
+    If team_profile is set, it is stored in state metadata (see ``config/team_profiles.yaml``).
     Returns the final result and full state dump.
     """
     if env_override is not None:
         os.environ["AI_TEAM_ENV"] = env_override
+    profile_name = "full"
+    if team_profile is not None and team_profile.strip():
+        from ai_team.core.team_profile import load_team_profile
+
+        profile_name = load_team_profile(team_profile.strip()).name
     try:
         validate_models_before_run(OpenRouterSettings(), get_settings().memory)
     except ModelValidationError as e:
@@ -1137,6 +1234,7 @@ def run_ai_team(
         flow = AITeamFlow(monitor=monitor)
         flow.state.project_description = project_description
         flow.state.metadata["skip_estimate"] = skip_estimate
+        flow.state.metadata["team_profile"] = profile_name
         if complexity_override is not None:
             flow.state.metadata["complexity_override"] = complexity_override
         result = flow.kickoff()

@@ -41,6 +41,7 @@ class TestRunDemoOutputMode:
         assert exit_code == 0
         mock_run.assert_called_once()
         assert mock_run.call_args[1]["monitor"] is None
+        assert mock_run.call_args[1]["team_profile"] == "full"
 
     def test_run_demo_tui_calls_run_ai_team_with_monitor(self) -> None:
         """With --output tui, run_ai_team is called with a TeamMonitor."""

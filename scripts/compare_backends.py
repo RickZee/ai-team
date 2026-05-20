@@ -38,8 +38,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--team",
-        default="full",
-        help="Team profile from config/team_profiles.yaml (default: full).",
+        default=None,
+        help="Team profile (overrides team_profile in input.json; default: full or input.json).",
     )
     parser.add_argument(
         "--skip-estimate",

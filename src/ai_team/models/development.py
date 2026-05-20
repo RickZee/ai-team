@@ -1,6 +1,6 @@
 """Pydantic models for development-phase outputs (code files, deployment config)."""
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field
 
 
 class CodeFile(BaseModel):
@@ -13,10 +13,14 @@ class CodeFile(BaseModel):
     has_tests: bool = Field(default=False, description="Whether the file has associated tests")
 
 
-class CodeFileList(RootModel[list[CodeFile]]):
-    """Wrapper for task output that is a list of CodeFile (CrewAI output_pydantic)."""
+class CodeFileList(BaseModel):
+    """Wrapper for task output that is a list of CodeFile (CrewAI output_pydantic).
 
-    pass
+    Uses a named field (not RootModel) to avoid CrewAI's JSON encoder bug where
+    it calls .items() on a list root, causing AttributeError.
+    """
+
+    files: list[CodeFile] = Field(default_factory=list, description="List of generated code files")
 
 
 class DeploymentConfig(BaseModel):

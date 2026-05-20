@@ -10,6 +10,7 @@ via guardrail execution).
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Sequence
 from typing import Any
@@ -38,7 +39,7 @@ def _task_output_to_code_files(result: Any) -> list[tuple[str, str, str]]:
 
     if pydantic_out is not None:
         if isinstance(pydantic_out, CodeFileList):
-            for item in pydantic_out.root:
+            for item in pydantic_out.files:
                 files.append((item.path, item.content, item.language))
             return files
         if isinstance(pydantic_out, list):
@@ -47,12 +48,31 @@ def _task_output_to_code_files(result: Any) -> list[tuple[str, str, str]]:
                     files.append((item.path, item.content, item.language))
             return files
 
-    # Fallback: try to parse raw as list of code file descriptions (e.g. JSON-like)
+    # Fallback: try to parse raw as JSON list of code file dicts
     if raw and isinstance(raw, str) and raw.strip():
-        # Minimal heuristic: look for path/content-like blocks (caller may use output_pydantic)
         logger.warning(
             "development_tasks guardrail received raw output; pydantic preferred", raw_len=len(raw)
         )
+        # Strip markdown code fences if present
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
+            cleaned = re.sub(r"\n?```$", "", cleaned)
+        try:
+            parsed = json.loads(cleaned)
+            items = parsed if isinstance(parsed, list) else parsed.get("files", [])
+            for item in items:
+                if isinstance(item, dict) and "path" in item and "content" in item:
+                    files.append((item["path"], item["content"], item.get("language", "python")))
+            if files:
+                logger.info(
+                    "development_tasks guardrail parsed raw json fallback",
+                    file_count=len(files),
+                )
+        except (json.JSONDecodeError, AttributeError, TypeError) as exc:
+            logger.warning(
+                "development_tasks guardrail raw json parse failed", error=str(exc)
+            )
     return files
 
 
@@ -110,7 +130,10 @@ def _backend_implementation_guardrail(
             return (False, f"Architecture compliance: {feedback}")
 
     logger.info("backend_implementation guardrail passed", file_count=len(code_files))
-    return (True, result)
+    # Return raw string so CrewAI calls _export_output() and sets task_output.pydantic.
+    # If we return the TaskOutput object directly, CrewAI skips pydantic re-parsing.
+    raw = getattr(result, "raw", None)
+    return (True, raw if raw is not None else result)
 
 
 def _frontend_implementation_guardrail(result: Any):
@@ -133,8 +156,23 @@ def _frontend_implementation_guardrail(result: Any):
         r"aria-|role\s*=\s*[\"']|alt\s*=\s*[\"']|tabindex|aria-label",
         re.IGNORECASE,
     )
+    # Only check markup/style files — package.json, .env, .md etc. never have aria-/flex
+    _UI_EXTENSIONS = {".css", ".html", ".htm", ".jsx", ".tsx", ".js", ".ts", ".vue", ".svelte"}
 
-    for path, content, _ in code_files:
+    ui_files = [
+        (path, content, lang)
+        for path, content, lang in code_files
+        if any(path.lower().endswith(ext) for ext in _UI_EXTENSIONS)
+        or lang in {"css", "html", "javascript", "typescript", "jsx", "tsx"}
+    ]
+
+    # If no UI files at all, skip — non-UI project accidentally routed through frontend crew
+    if not ui_files:
+        logger.info("frontend_implementation guardrail skipped", reason="no_ui_files")
+        raw = getattr(result, "raw", None)
+        return (True, raw if raw is not None else result)
+
+    for path, content, _ in ui_files:
         if not responsive_patterns.search(content):
             msg = f"{path}: Add responsive design (e.g. @media, flex/grid, viewport)."
             logger.warning("frontend_implementation guardrail failed", path=path, reason=msg)
@@ -145,7 +183,8 @@ def _frontend_implementation_guardrail(result: Any):
             return (False, msg)
 
     logger.info("frontend_implementation guardrail passed", file_count=len(code_files))
-    return (True, result)
+    raw = getattr(result, "raw", None)
+    return (True, raw if raw is not None else result)
 
 
 def _devops_configuration_guardrail(result: Any):
@@ -155,12 +194,28 @@ def _devops_configuration_guardrail(result: Any):
     """
     logger.info("devops_configuration guardrail started")
     pydantic_out = getattr(result, "pydantic", None)
+    cfg: DeploymentConfig | None = None
     if pydantic_out is not None and isinstance(pydantic_out, DeploymentConfig):
         cfg = pydantic_out
     else:
-        msg = "DevOps configuration must produce a DeploymentConfig (Dockerfile, compose, CI pipeline)."
-        logger.warning("devops_configuration guardrail failed", reason=msg)
-        return (False, msg)
+        # Fallback: try to parse raw JSON output into DeploymentConfig
+        raw = getattr(result, "raw", None) or (result if isinstance(result, str) else None)
+        if raw and isinstance(raw, str) and raw.strip():
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
+                cleaned = re.sub(r"\n?```$", "", cleaned)
+            try:
+                data = json.loads(cleaned)
+                if isinstance(data, dict):
+                    cfg = DeploymentConfig(**{k: v for k, v in data.items() if k in DeploymentConfig.model_fields})
+                    logger.info("devops_configuration guardrail parsed raw json fallback")
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                logger.warning("devops_configuration guardrail raw json parse failed", error=str(exc))
+        if cfg is None:
+            msg = "DevOps configuration must produce a DeploymentConfig (Dockerfile, compose, CI pipeline)."
+            logger.warning("devops_configuration guardrail failed", reason=msg)
+            return (False, msg)
 
     if not (cfg.dockerfile or cfg.docker_compose):
         msg = "DeploymentConfig must include at least a Dockerfile or docker-compose content."
@@ -172,7 +227,8 @@ def _devops_configuration_guardrail(result: Any):
         return (False, msg)
 
     logger.info("devops_configuration guardrail passed")
-    return (True, result)
+    raw = getattr(result, "raw", None)
+    return (True, raw if raw is not None else result)
 
 
 def create_backend_implementation_task(
@@ -198,8 +254,18 @@ def create_backend_implementation_task(
         return _backend_implementation_guardrail(result, architecture=architecture)
 
     return Task(
-        description="Implement backend code based on architecture and requirements. Produce source files, tests, and configs that pass lint, have docstrings, and follow the architecture.",
-        expected_output="List of CodeFile objects with source, tests, and configs.",
+        description=(
+            "Implement ONLY what is specified in the requirements and architecture below. "
+            "Do not add features, frameworks, or files not listed. "
+            "Produce source files and tests that pass lint, have docstrings, and strictly follow the architecture.\n\n"
+            "REQUIREMENTS:\n{requirements_doc}\n\n"
+            "ARCHITECTURE:\n{architecture_doc}"
+        ),
+        expected_output=(
+            'JSON object with a "files" key containing a list of CodeFile objects. '
+            'Example: {"files": [{"path": "src/app.py", "content": "...", "language": "python", '
+            '"description": "...", "has_tests": false}]}'
+        ),
         agent=agent,
         context=list(context) if context else [],
         output_pydantic=CodeFileList,
@@ -225,8 +291,18 @@ def create_frontend_implementation_task(
         CrewAI Task configured for frontend implementation.
     """
     return Task(
-        description="Implement frontend UI based on architecture and backend APIs. Produce components that are responsive and accessible.",
-        expected_output="List of CodeFile objects for frontend components (HTML/CSS/JS or framework components).",
+        description=(
+            "Implement ONLY the frontend components specified in the requirements and architecture below. "
+            "Do not add pages, features, or dependencies not listed. "
+            "Produce responsive, accessible components.\n\n"
+            "REQUIREMENTS:\n{requirements_doc}\n\n"
+            "ARCHITECTURE:\n{architecture_doc}"
+        ),
+        expected_output=(
+            'JSON object with a "files" key containing a list of CodeFile objects. '
+            'Example: {"files": [{"path": "src/App.jsx", "content": "...", "language": "javascript", '
+            '"description": "...", "has_tests": false}]}'
+        ),
         agent=agent,
         context=list(context) if context else [],
         output_pydantic=CodeFileList,

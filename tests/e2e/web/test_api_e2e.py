@@ -176,3 +176,83 @@ class TestWebApiRunNotFound:
     def test_get_missing_run_returns_404(self, web_http_client: httpx.Client) -> None:
         r = web_http_client.get("/api/runs/does-not-exist-xyz")
         assert r.status_code == 404
+
+
+class TestWebApiRunsCatalog:
+    def test_list_runs_includes_assignment_and_started_at(
+        self, web_http_client: httpx.Client
+    ) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run(
+            "e2e-list",
+            "langgraph",
+            "full",
+            "E2E assignment: build a widget",
+        )
+        runs = web_http_client.get("/api/runs").json()["runs"]
+        row = next(r for r in runs if r["run_id"] == "e2e-list")
+        assert row["description"] == "E2E assignment: build a widget"
+        assert row["started_at"]
+
+    def test_get_run_returns_full_assignment(self, web_http_client: httpx.Client) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run(
+            "e2e-get",
+            "crewai",
+            "full",
+            "Full assignment text for detail view",
+        )
+        r = web_http_client.get("/api/runs/e2e-get")
+        assert r.status_code == 200
+        assert r.json()["description"] == "Full assignment text for detail view"
+
+
+class TestWebApiResume:
+    def test_resume_rejects_non_awaiting_run(self, web_http_client: httpx.Client) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("e2e-r1", "langgraph", "full", "E2E resume test")
+        web_server.state.runs["e2e-r1"]["status"] = "complete"
+        r = web_http_client.post("/api/runs/e2e-r1/resume", json={"feedback": "approved"})
+        assert r.status_code == 400
+
+    def test_resume_rejects_non_langgraph_backend(self, web_http_client: httpx.Client) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("e2e-r2", "crewai", "full", "E2E crewai")
+        web_server.state.set_awaiting_human("e2e-r2", {"phase": "awaiting_human"})
+        r = web_http_client.post("/api/runs/e2e-r2/resume", json={"feedback": "ok"})
+        assert r.status_code == 400
+
+
+class TestWebApiMockedHitlWebSocket:
+    def test_ws_run_sends_hitl_required_without_complete(self, web_client: TestClient) -> None:
+        async def _hitl_execute(ws, run_id: str, req) -> None:  # noqa: ANN001
+            from ai_team.ui.web import server as web_server
+
+            web_server.state.set_awaiting_human(run_id, {"phase": "awaiting_human"})
+            await ws.send_json(
+                {
+                    "type": "hitl_required",
+                    "data": {"phase": "awaiting_human", "run_id": run_id},
+                }
+            )
+
+        with (
+            patch("ai_team.ui.web.server._execute_run", side_effect=_hitl_execute),
+            web_client.websocket_connect("/ws/run") as ws,
+        ):
+            ws.send_json(
+                {
+                    "backend": "langgraph",
+                    "profile": "full",
+                    "description": "HITL mock",
+                    "complexity": "simple",
+                }
+            )
+            assert ws.receive_json()["type"] == "run_started"
+            msg = ws.receive_json()
+            assert msg["type"] == "hitl_required"
+            assert msg["data"]["phase"] == "awaiting_human"

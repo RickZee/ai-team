@@ -1,0 +1,6 @@
+{
+  "project_name": "smoke_test",
+  "description": "Write a single Python function called add(a, b) that returns a + b. Include one pytest test that calls add(1, 2) and asserts the result is 3. Output: calc.py and test_calc.py only.",
+  "requirements": ["pytest"],
+  "team_profile": "prototype"
+}

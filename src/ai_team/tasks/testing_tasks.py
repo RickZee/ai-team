@@ -75,54 +75,57 @@ def _test_generation_guardrail(task_output: Any):
     return (passed, s)
 
 
-def _test_execution_guardrail(task_output: Any):
+def _make_test_execution_guardrail(min_coverage: float = MIN_COVERAGE_THRESHOLD):
     """
-    Guardrail: minimum 80% coverage, zero critical failures.
-    Parses JSON or summary from task output and runs coverage_guardrail.
-    Returns (passed, str) so CrewAI never gets TaskOutput.
+    Factory: return a CrewAI guardrail callable that enforces `min_coverage` (0-1).
+    Use this instead of the bare `_test_execution_guardrail` so per-profile coverage
+    thresholds (e.g. smoke: 0) are respected.
     """
-    s = _task_output_to_str(task_output)
-    if not s or not s.strip():
-        return (False, "Test execution guardrail: empty output.")
-    # Try to parse as TestRunResult-like JSON.
-    try:
-        # May be wrapped in markdown code block.
-        raw = s.strip()
-        json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
-        if json_match:
-            raw = json_match.group(1)
-        data = json.loads(raw) if raw.strip().startswith("{") else None
-    except json.JSONDecodeError:
-        data = None
+    def _guardrail(task_output: Any):
+        s = _task_output_to_str(task_output)
+        if not s or not s.strip():
+            return (False, "Test execution guardrail: empty output.")
+        try:
+            raw = s.strip()
+            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+            if json_match:
+                raw = json_match.group(1)
+            data = json.loads(raw) if raw.strip().startswith("{") else None
+        except json.JSONDecodeError:
+            data = None
 
-    if data:
-        failed = int(data.get("failed", 0))
-        errors = int(data.get("errors", 0))
-        if failed > 0 or errors > 0:
-            return (False, f"Test execution guardrail: {failed} failed, {errors} errors.")
-        line_pct = data.get("line_coverage_pct")
-        if line_pct is not None:
-            cov_ratio = line_pct / 100.0 if line_pct > 1 else line_pct
-            return (cov_ratio >= MIN_COVERAGE_THRESHOLD, s)
-        # Build dict for coverage_guardrail.
-        total_coverage = data.get("line_coverage_pct")
-        if total_coverage is not None:
-            total_coverage = total_coverage / 100.0 if total_coverage > 1 else total_coverage
-        coverage_report = {
-            "total_coverage": total_coverage or 0.0,
-            "files": data.get("per_file_coverage", {}),
-        }
-    else:
-        # Heuristic: look for "X% coverage" and "passed" / "failed".
-        coverage_report = {"total_coverage": 0.0}
-        pct_match = re.search(r"(\d+(?:\.\d+)?)\s*%\s*coverage", s, re.IGNORECASE)
-        if pct_match:
-            coverage_report["total_coverage"] = float(pct_match.group(1)) / 100.0
-        if re.search(r"\d+\s+failed|\d+\s+error", s, re.IGNORECASE):
-            return (False, "Test execution guardrail: failures or errors in output.")
+        if data:
+            failed = int(data.get("failed", 0))
+            errors = int(data.get("errors", 0))
+            if failed > 0 or errors > 0:
+                return (False, f"Test execution guardrail: {failed} failed, {errors} errors.")
+            line_pct = data.get("line_coverage_pct")
+            if line_pct is not None:
+                cov_ratio = line_pct / 100.0 if line_pct > 1 else line_pct
+                return (cov_ratio >= min_coverage, s)
+            total_coverage = data.get("line_coverage_pct")
+            if total_coverage is not None:
+                total_coverage = total_coverage / 100.0 if total_coverage > 1 else total_coverage
+            coverage_report = {
+                "total_coverage": total_coverage or 0.0,
+                "files": data.get("per_file_coverage", {}),
+            }
+        else:
+            coverage_report = {"total_coverage": 0.0}
+            pct_match = re.search(r"(\d+(?:\.\d+)?)\s*%\s*coverage", s, re.IGNORECASE)
+            if pct_match:
+                coverage_report["total_coverage"] = float(pct_match.group(1)) / 100.0
+            if re.search(r"\d+\s+failed|\d+\s+error", s, re.IGNORECASE):
+                return (False, "Test execution guardrail: failures or errors in output.")
 
-    result = coverage_guardrail(coverage_report, min_coverage_threshold=MIN_COVERAGE_THRESHOLD)
-    return (result.passed, s)
+        result = coverage_guardrail(coverage_report, min_coverage_threshold=min_coverage)
+        return (result.passed, s)
+
+    return _guardrail
+
+
+# Default guardrail instance (80% threshold) — used when no profile override.
+_test_execution_guardrail = _make_test_execution_guardrail(MIN_COVERAGE_THRESHOLD)
 
 
 def _code_review_guardrail(task_output: Any):
@@ -168,14 +171,19 @@ def _code_review_guardrail(task_output: Any):
 
 
 TEST_GENERATION_DESCRIPTION = (
-    "Generate comprehensive tests for all code files. Cover unit and integration tests, "
-    "meaningful assertions, and edge cases (empty, None, invalid input, exceptions)."
+    "Generate comprehensive tests for all code files. Cover unit and integration tests "
+    "with meaningful assertions. Test edge cases that the implementation actually handles "
+    "(e.g. boundary values, zero, negative numbers). "
+    "Only test for exceptions or type errors if the implementation explicitly raises them — "
+    "do NOT add defensive type-checking tests for functions that do not validate input types."
 )
 
 TEST_GENERATION_DESCRIPTION_WITH_INPUTS = (
     "Generate comprehensive tests for the following code files:\n\n{code_files_summary}\n\n"
-    "Cover unit and integration tests, meaningful assertions, and edge cases "
-    "(empty, None, invalid input, exceptions)."
+    "Cover unit and integration tests with meaningful assertions. Test edge cases that the "
+    "implementation actually handles (e.g. boundary values, zero, negative numbers). "
+    "Only test for exceptions or type errors if the implementation explicitly raises them — "
+    "do NOT add defensive type-checking tests for functions that do not validate input types."
 )
 
 
@@ -217,6 +225,7 @@ def test_execution_task(
     context: list[Task] | None = None,
     guardrail_max_retries: int = 3,
     output_pydantic: type[Any] | None = None,
+    min_coverage_pct: float | None = None,
 ) -> Task:
     """
     Create the test_execution task: run all generated tests and report results.
@@ -226,16 +235,26 @@ def test_execution_task(
         context: Optional list of tasks (e.g. test_generation) for context.
         guardrail_max_retries: Max retries when guardrail fails. Default 3.
         output_pydantic: Optional Pydantic model for structured output (e.g. TestRunResult).
+        min_coverage_pct: Override minimum coverage threshold (0-100). None = use default (80%).
 
     Returns:
         CrewAI Task for test execution.
     """
+    if min_coverage_pct is not None:
+        # Convert 0-100 → 0-1 if needed, then create profile-specific guardrail.
+        threshold = min_coverage_pct / 100.0 if min_coverage_pct > 1 else min_coverage_pct
+        guardrail = _make_test_execution_guardrail(threshold)
+        logger.info("test_execution_task_coverage_override", threshold=threshold)
+    else:
+        guardrail = _test_execution_guardrail
+
+    cov_str = f"{int((min_coverage_pct or MIN_COVERAGE_THRESHOLD * 100))}%"
     return Task(
         description="Run all generated tests and report results. Use run_pytest (or equivalent) with coverage. Report pass/fail counts, duration, and line and branch coverage.",
         agent=qa_agent,
         context=context or [],
-        expected_output="TestRunResult with pass/fail counts, coverage percentage, and raw output. Ensure zero critical failures and minimum 80% line coverage.",
-        guardrail=_test_execution_guardrail,
+        expected_output=f"TestRunResult with pass/fail counts, coverage percentage, and raw output. Ensure zero critical failures and minimum {cov_str} line coverage.",
+        guardrail=guardrail,
         guardrail_max_retries=guardrail_max_retries,
         output_pydantic=output_pydantic or TestRunResult,
     )

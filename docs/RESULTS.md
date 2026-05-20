@@ -3,7 +3,7 @@
 Each `ai-team` run produces:
 
 - An **isolated working directory**: `workspace/<project_id>/`
-- A **self-contained immutable results bundle**: `output/<project_id>/`
+- A **self-contained immutable results bundle**: `output/runs/<project_id>/`
 
 This is designed to mirror a real engineering organization: requirements, architecture, decisions, code, tests, QA reports, deployment artifacts, and traceability are all preserved per run.
 
@@ -18,7 +18,8 @@ workspace/
     └── ...                       # additional project files
 
 output/
-└── <project_id>/
+└── runs/
+    └── <project_id>/
     ├── run.json                  # run metadata (backend, team, env, models, CLI args)
     ├── state.json                # final state (CrewAI ProjectState or LangGraphProjectState)
     ├── events.jsonl              # streaming events / monitor updates (append-only)
