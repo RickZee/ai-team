@@ -161,3 +161,28 @@ class TestValidateModelsBeforeRun:
         ):
             validate_models_before_run(openrouter_settings, memory_settings)
             client_cls.assert_not_called()
+
+    def test_skips_embedding_when_memory_disabled(
+        self,
+        openrouter_settings: MagicMock,
+    ) -> None:
+        memory_settings = MemorySettings(
+            embedding_model="openai/text-embedding-3-small",
+            memory_enabled=False,
+        )
+        models_response = [{"id": "openrouter/openai/gpt-4o-mini"}]
+        req_get = httpx.Request("GET", "https://openrouter.example/api/v1/models")
+
+        def fake_get(url: str, **kwargs: object) -> httpx.Response:
+            return httpx.Response(200, json={"data": models_response}, request=req_get)
+
+        with patch("ai_team.config.model_validation.httpx.Client") as client_cls:
+            client = MagicMock()
+            client.get = fake_get
+            client.__enter__ = MagicMock(return_value=client)
+            client.__exit__ = MagicMock(return_value=False)
+            client_cls.return_value = client
+
+            validate_models_before_run(openrouter_settings, memory_settings)
+
+        client_cls.return_value.post.assert_not_called()

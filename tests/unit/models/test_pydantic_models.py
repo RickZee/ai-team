@@ -76,9 +76,9 @@ class TestDevelopmentModels:
         )
         assert cf.has_tests is False
 
-    def test_code_file_list_root(self) -> None:
+    def test_code_file_list_files(self) -> None:
         lst = CodeFileList(
-            root=[
+            files=[
                 CodeFile(
                     path="b.py",
                     content="",
@@ -87,7 +87,7 @@ class TestDevelopmentModels:
                 )
             ]
         )
-        assert len(lst.root) == 1
+        assert len(lst.files) == 1
 
     def test_deployment_config_optional_strings(self) -> None:
         dc = DeploymentConfig()

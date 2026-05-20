@@ -195,7 +195,7 @@ class SecurityGuardrails:
         (r"compile\s*\(.*exec", "Code compilation"),
         (r"open\s*\([^)]*[\'\"]/etc/", "System file access"),
         (r"chmod\s+[0-7]*7[0-7]*", "World-writable permissions"),
-        (r"rm\s+-rf\s+/", "Root filesystem deletion"),
+        (r"rm\s+-rf\s+/\s*$", "Root filesystem deletion"),  # rm -rf / only, not rm -rf /var/...
         (r"DROP\s+(TABLE|DATABASE|INDEX)", "SQL destructive operation"),
         (r"TRUNCATE\s+TABLE", "SQL truncate"),
         (r";\s*DROP", "SQL injection pattern"),

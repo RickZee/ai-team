@@ -14,7 +14,7 @@ from ai_team.models.comparison_report import (
     ComparisonReport,
     snapshot_from_project_result,
 )
-from ai_team.utils.demo_input import load_project_description
+from ai_team.utils.demo_input import load_project_description, resolve_team_profile
 
 logger = structlog.get_logger(__name__)
 
@@ -137,7 +137,7 @@ def compare_backends_on_description(
 def compare_backends_for_demo_dir(
     demo_dir: Path,
     *,
-    team: str,
+    team: str | None,
     env: str | None,
     skip_estimate: bool,
     complexity_override: str | None = None,
@@ -145,10 +145,11 @@ def compare_backends_for_demo_dir(
 ) -> ComparisonReport:
     """Load description from ``demo_dir`` and compare backends."""
     description = load_project_description(demo_dir)
+    resolved_team = resolve_team_profile(demo_dir, cli_team=team)
     return compare_backends_on_description(
         description=description,
         demo_path=demo_dir,
-        team=team,
+        team=resolved_team,
         env=env,
         skip_estimate=skip_estimate,
         complexity_override=complexity_override,

@@ -23,13 +23,15 @@ Not every project needs all 8 agents. A **team profile** defines which agents, t
 
 | Profile | Agents included | Use case |
 |---------|----------------|----------|
-| `full` (default) | All 8 agents, all 4 subgraphs | Full software project end-to-end |
+| `full` (default) | All agents, all standard phases | Full software project end-to-end |
 | `backend-api` | Manager, PO, Architect, Backend Dev, QA, DevOps | REST API / microservice (no frontend) |
-| `frontend-app` | Manager, PO, Architect, Frontend Dev, QA, DevOps | SPA / static site (no backend) |
-| `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering (no deployment) |
-| `prototype` | Architect, Fullstack Dev, QA | Quick prototype — skip planning formality |
-| `infra-only` | Architect, DevOps, Cloud | IaC / CI-CD only — no app code |
-| `custom` | User-defined via config | Any subset of agents and phases |
+| `frontend-app` | Manager, PO, Architect, Frontend Dev, QA, DevOps | SPA / static site |
+| `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering (no deployment phase) |
+| `prototype` | Architect, Fullstack Dev, QA | Minimal crew — intake through testing |
+| `infra-only` | Architect, DevOps, Cloud | IaC / CI-CD only — no app development |
+| `research-optimizer` | Optimizer | AutoOptimizer loop (`optimize` phase) |
+
+See [TEAM_PROFILES.md](../TEAM_PROFILES.md) for the full catalog (phases, RAG, backend parity).
 
 Team profiles are defined in `config/team_profiles.yaml` and selected via `--team <profile>` CLI flag. Each profile specifies:
 - Which agents to instantiate

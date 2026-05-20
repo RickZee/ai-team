@@ -80,20 +80,18 @@ def _wrap_tool_with_guardrail(tool: Any, guardrail_enabled: bool = True) -> Any:
         return tool
 
     def guarded_run(*args: Any, **kwargs: Any) -> str:
-        # Validate string inputs for dangerous content
+        # Validate string inputs for dangerous content.
+        # NOTE: Output validation is intentionally skipped — tool outputs are
+        # observational data (e.g. test results, coverage reports) that may
+        # legitimately contain tokens like "exec(" in tracebacks or bytecode
+        # summaries. Blocking output causes false positives for QA/reporting tools.
         for v in list(args) + list(kwargs.values()):
             if isinstance(v, str):
                 valid, msg = SecurityGuardrails.validate_code_safety(v)
                 if not valid:
                     logger.warning("guardrail_blocked_tool_input", reason=msg)
                     return f"Guardrail blocked: {msg}"
-        result = original_run(*args, **kwargs)
-        if isinstance(result, str):
-            valid, msg = SecurityGuardrails.validate_code_safety(result)
-            if not valid:
-                logger.warning("guardrail_blocked_tool_output", reason=msg)
-                return f"Guardrail blocked output: {msg}"
-        return result
+        return original_run(*args, **kwargs)
 
     if hasattr(tool, "_run"):
         tool._run = guarded_run

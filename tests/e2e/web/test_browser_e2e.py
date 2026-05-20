@@ -15,6 +15,7 @@ class TestWebUiNavigation:
         expect(page.get_by_test_id("nav-dashboard")).to_be_visible()
         expect(page.get_by_test_id("nav-run")).to_be_visible()
         expect(page.get_by_test_id("nav-compare")).to_be_visible()
+        expect(page.get_by_test_id("nav-artifacts")).to_be_visible()
 
     def test_navigate_run_and_compare(self, page: Page, browser_base_url: str) -> None:
         page.goto(browser_base_url)
@@ -57,7 +58,7 @@ class TestWebUiRunFormValidation:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-description").fill("")
         # Run still clickable but handleRun no-ops; verify empty state
-        expect(page.get_by_test_id("run-submit")).to_be_enabled()
+        expect(page.get_by_test_id("run-submit")).to_be_disabled()
         expect(page.get_by_test_id("run-description")).to_have_value("")
 
     def test_claude_backend_option_present(self, page: Page, browser_base_url: str) -> None:
@@ -67,9 +68,63 @@ class TestWebUiRunFormValidation:
         assert any("Claude" in label for label in labels)
 
 
+class TestWebUiDashboardRuns:
+    def test_demo_shows_assignment_in_run_list(self, page: Page, browser_base_url: str) -> None:
+        page.goto(f"{browser_base_url}/run")
+        page.get_by_test_id("run-demo").click()
+        expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
+        expect(page.locator(".run-list-assignment").first).to_contain_text("Demo: Flask REST API")
+        expect(page.get_by_test_id("run-summary-card")).to_be_visible(timeout=90_000)
+
+    def test_dashboard_empty_state_has_launch_demo_cta(
+        self, page: Page, browser_base_url: str
+    ) -> None:
+        """Empty dashboard shows Go to Run + Launch Demo (when no runs in session)."""
+        page.goto(browser_base_url)
+        empty = page.get_by_test_id("dashboard-empty")
+        if not empty.is_visible(timeout=5_000):
+            pytest.skip("Dashboard not empty (prior runs in session-scoped server)")
+        expect(page.get_by_text("Go to Run")).to_be_visible()
+        expect(page.get_by_test_id("dashboard-demo")).to_be_visible()
+
+    def test_dashboard_demo_via_api_deep_link(
+        self, page: Page, browser_base_url: str
+    ) -> None:
+        """Dashboard demo flow: POST /api/demo then open /runs/{id}."""
+        import httpx
+
+        with httpx.Client(base_url=browser_base_url, timeout=30.0) as client:
+            run_id = client.post("/api/demo").json()["run_id"]
+        page.goto(f"{browser_base_url}/runs/{run_id}")
+        expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
+        expect(page.locator(".run-list-assignment").first).to_contain_text("Demo: Flask REST API")
+
+
 class TestWebUiComparePage:
     def test_compare_form_renders(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/compare")
         expect(page.get_by_test_id("compare-submit")).to_be_visible()
         expect(page.get_by_text("CrewAI")).to_be_visible()
         expect(page.get_by_text("LangGraph")).to_be_visible()
+        expect(page.get_by_text("Claude Agent SDK")).to_be_visible()
+        expect(page.get_by_test_id("compare-crewai-col")).to_be_visible()
+        expect(page.get_by_test_id("compare-langgraph-col")).to_be_visible()
+        expect(page.get_by_test_id("compare-claude-col")).to_be_visible()
+
+    def test_compare_submit_disabled_without_description(
+        self, page: Page, browser_base_url: str
+    ) -> None:
+        page.goto(f"{browser_base_url}/compare")
+        expect(page.get_by_test_id("compare-submit")).to_be_disabled()
+
+    def test_compare_demo_starts_three_columns(
+        self, page: Page, browser_base_url: str
+    ) -> None:
+        page.goto(f"{browser_base_url}/compare")
+        page.get_by_test_id("compare-demo").click()
+        expect(page.get_by_test_id("compare-crewai-col")).to_be_visible()
+        expect(page.get_by_test_id("compare-langgraph-col")).to_be_visible()
+        expect(page.get_by_test_id("compare-claude-col")).to_be_visible()
+        expect(page.get_by_test_id("phase-pipeline").first).to_be_visible(
+            timeout=90_000
+        )

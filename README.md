@@ -65,11 +65,12 @@ Not every project needs all 9 agents. Select a profile with `--team`:
 | `backend-api` | Manager, PO, Architect, Backend Dev, QA, DevOps | REST API / microservice |
 | `frontend-app` | Manager, PO, Architect, Frontend Dev, QA, DevOps | SPA / static site |
 | `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering |
-| `prototype` | Architect, Fullstack Dev, QA | Quick prototype |
+| `prototype` | Architect, Fullstack Dev, QA | Minimal design → build → test |
 | `infra-only` | Architect, DevOps, Cloud | IaC / CI-CD only |
 | `research-optimizer` | Optimizer | Karpathy AutoOptimizer Loop (see below) |
 
-Profiles are defined in [`config/team_profiles.yaml`](src/ai_team/config/team_profiles.yaml) and work identically across all backends.
+Canonical reference (agents, phases, backend parity, demos): **[docs/TEAM_PROFILES.md](docs/TEAM_PROFILES.md)**.  
+Source: [`src/ai_team/config/team_profiles.yaml`](src/ai_team/config/team_profiles.yaml).
 
 ## Key features
 
@@ -354,20 +355,35 @@ poetry run ai-team-web                            # Serves React build + API on 
 
 | Page | Route | Features |
 |------|-------|----------|
-| Dashboard | `/` | Auto-connects to active runs, real-time phase pipeline, agent table, metrics, activity log, guardrails |
-| Run | `/run` | Backend selector, team profile, complexity, cost estimation, WebSocket streaming |
-| Compare | `/compare` | Runs CrewAI and LangGraph simultaneously with comparison summary table |
+| Dashboard | `/`, `/runs/:id` | Run sidebar, live monitor, run summary on complete, artifact preview, HITL panel |
+| Run | `/run` | Launch form, cost estimate, auto-handoff to Dashboard when run starts |
+| Compare | `/compare` | Parallel backends, pre-flight cost consent, demo compare ($0), comparison summary |
+| Artifacts | `/artifacts` | Unified run picker, file tree, tests, architecture, ZIP download |
+
+See [docs/WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) for user journeys and UX notes.
 
 **API endpoints:**
 
 | Endpoint | Type | Purpose |
 |----------|------|---------|
+| `GET /api/health` | REST | Server health check |
 | `GET /api/profiles` | REST | List team profiles |
 | `GET /api/backends` | REST | List backends |
 | `POST /api/estimate` | REST | Cost estimation |
+| `GET /api/runs` | REST | List runs (in-memory session) |
+| `GET /api/runs/{id}` | REST | Run detail + monitor snapshot |
+| `POST /api/runs/{id}/resume` | REST | Resume LangGraph HITL (human feedback) |
 | `POST /api/demo` | REST | Start demo simulation |
+| `GET /api/registry/runs` | REST | List disk-backed runs (artifacts) |
+| `GET /api/projects/{id}/tree` | REST | Artifact file tree (`root=workspace` or `bundle`) |
+| `GET /api/projects/{id}/file` | REST | File content for preview |
+| `GET /api/projects/{id}/tests` | REST | Test results JSON |
+| `GET /api/projects/{id}/architecture` | REST | Architecture summary |
+| `GET /api/projects/{id}/download.zip` | REST | Download workspace ZIP |
 | `WS /ws/run` | WebSocket | Run backend with real-time event streaming |
 | `WS /ws/monitor/{id}` | WebSocket | Monitor active run (500ms state snapshots) |
+
+The React app uses same-origin `/api` and `/ws` (Vite proxies in dev; production serves UI and API from one port).
 
 ### Textual TUI (Terminal)
 

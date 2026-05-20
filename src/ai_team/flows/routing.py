@@ -212,6 +212,26 @@ def route_after_testing(test_result: dict[str, Any], state: ProjectState) -> str
     """
     status = test_result.get("status", "unknown")
     if status == "success":
+        # Check if team profile includes deployment phase; skip if not.
+        team_profile_name = state.metadata.get("team_profile", "full")
+        logger.info("routing_after_testing_profile_check", team_profile=team_profile_name, metadata_keys=list(state.metadata.keys()))
+        try:
+            from ai_team.core.team_profile import load_team_profile
+            profile = load_team_profile(team_profile_name)
+            skip_deployment = "deployment" not in profile.phases
+        except Exception as _e:
+            logger.warning("routing_profile_load_failed", profile=team_profile_name, error=str(_e))
+            skip_deployment = False
+
+        if skip_deployment:
+            logger.info(
+                "routing_after_testing",
+                decision="finalize_project",
+                reason="deployment_skipped_by_profile",
+                team_profile=team_profile_name,
+            )
+            return "finalize_project"
+
         logger.info(
             "routing_after_testing",
             decision="run_deployment",

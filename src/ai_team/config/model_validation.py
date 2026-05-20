@@ -141,16 +141,20 @@ def validate_models_before_run(
             if mid not in available:
                 missing.append(mid)
 
-    # Embedding model
-    embedding_model = memory_settings.embedding_model
-    embed_base = memory_settings.embedding_api_base or api_base
-    try:
-        _validate_embedding_model(embed_base, api_key, embedding_model)
-    except ModelValidationError:
-        missing.append(embedding_model)
-    except httpx.HTTPError as e:
-        logger.warning("model_validation_embed_failed", error=str(e), model=embedding_model)
-        missing.append(embedding_model)
+    # Embedding model (only when memory is enabled — avoids blocking runs with a dead embed key)
+    if memory_settings.memory_enabled:
+        embedding_model = memory_settings.embedding_model
+        embed_base = memory_settings.embedding_api_base or api_base
+        try:
+            _validate_embedding_model(embed_base, api_key, embedding_model)
+        except ModelValidationError:
+            missing.append(embedding_model)
+        except httpx.HTTPError as e:
+            logger.warning("model_validation_embed_failed", error=str(e), model=embedding_model)
+            missing.append(embedding_model)
+    else:
+        embedding_model = memory_settings.embedding_model
+        logger.info("model_validation_embed_skipped", reason="memory_disabled")
 
     if missing:
         raise ModelValidationError(

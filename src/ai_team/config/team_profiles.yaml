@@ -55,6 +55,21 @@ profiles:
       - qa_engineer
     phases: [intake, planning, development, testing]
 
+  smoke:
+    # Minimal smoke test: plan → code → test. No deployment.
+    # Use for CI smoke checks and end-to-end pipeline validation.
+    agents:
+      - architect
+      - backend_developer
+      - qa_engineer
+    phases: [planning, development, testing]
+    min_coverage_pct: 0          # no coverage gate for smoke
+    max_complexity: simple
+    phase_timeouts_seconds:
+      planning: 180
+      development: 300
+      testing: 300
+
   infra-only:
     agents:
       - architect

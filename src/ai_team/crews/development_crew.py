@@ -11,6 +11,8 @@ Supports backend-only or frontend-only when architecture indicates a single surf
 
 from __future__ import annotations
 
+import json
+import re
 from typing import Any
 
 import structlog
@@ -67,6 +69,15 @@ def _implementation_tasks_from_architecture(
     ):
         include_backend = False
         logger.info("development_crew_frontend_only", reason="no backend in architecture")
+
+    # Fallback: if both are False (e.g. pure library / script / CLI with no web layer),
+    # treat as backend-only so at least one implementation task runs.
+    if not include_backend and not include_frontend:
+        include_backend = True
+        logger.info(
+            "development_crew_fallback_backend",
+            reason="architecture has no web surface; defaulting to backend task",
+        )
 
     return include_backend, include_frontend
 
@@ -144,20 +155,68 @@ def _extract_outputs_from_crew_result(
         return code_files, deployment_config
 
     for task_out in tasks_output:
-        out = getattr(task_out, "pydantic", None) or getattr(task_out, "raw", None)
-        if out is None:
-            continue
-        if isinstance(out, CodeFileList):
-            for item in out.root:
-                code_files.append(item)
-        elif isinstance(out, list):
-            for item in out:
-                if isinstance(item, CodeFile):
+        pydantic_out = getattr(task_out, "pydantic", None)
+        raw_out = getattr(task_out, "raw", None)
+
+        if pydantic_out is not None:
+            if isinstance(pydantic_out, CodeFileList):
+                for item in pydantic_out.files:
                     code_files.append(item)
-        elif isinstance(out, DeploymentConfig):
-            deployment_config = out
-        elif isinstance(out, CodeFile):
-            code_files.append(out)
+            elif isinstance(pydantic_out, list):
+                for item in pydantic_out:
+                    if isinstance(item, CodeFile):
+                        code_files.append(item)
+            elif isinstance(pydantic_out, DeploymentConfig):
+                deployment_config = pydantic_out
+            elif isinstance(pydantic_out, CodeFile):
+                code_files.append(pydantic_out)
+        elif raw_out and isinstance(raw_out, str) and raw_out.strip():
+            # Fallback: parse raw JSON output into typed models
+            cleaned = raw_out.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
+                cleaned = re.sub(r"\n?```$", "", cleaned)
+            try:
+                data = json.loads(cleaned)
+                if isinstance(data, dict):
+                    if "files" in data and isinstance(data["files"], list):
+                        # CodeFileList format: {"files": [...]}
+                        for item_data in data["files"]:
+                            if isinstance(item_data, dict) and "path" in item_data:
+                                code_files.append(CodeFile(**{
+                                    k: v for k, v in item_data.items()
+                                    if k in CodeFile.model_fields
+                                }))
+                        logger.info(
+                            "development_crew raw json CodeFileList fallback",
+                            file_count=len(code_files),
+                        )
+                    elif any(k in data for k in ("dockerfile", "docker_compose", "ci_cd_config")):
+                        # DeploymentConfig format
+                        deployment_config = DeploymentConfig(**{
+                            k: v for k, v in data.items()
+                            if k in DeploymentConfig.model_fields
+                        })
+                        logger.info("development_crew raw json DeploymentConfig fallback")
+                elif isinstance(data, list):
+                    # Bare list of code file dicts
+                    for item_data in data:
+                        if isinstance(item_data, dict) and "path" in item_data:
+                            code_files.append(CodeFile(**{
+                                k: v for k, v in item_data.items()
+                                if k in CodeFile.model_fields
+                            }))
+                    if code_files:
+                        logger.info(
+                            "development_crew raw json list fallback",
+                            file_count=len(code_files),
+                        )
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                logger.warning(
+                    "development_crew raw json parse failed",
+                    error=str(exc),
+                    raw_len=len(raw_out),
+                )
 
     return code_files, deployment_config
 

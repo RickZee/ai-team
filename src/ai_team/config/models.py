@@ -117,9 +117,9 @@ ENV_MODELS: dict[Environment, dict[str, RoleModelConfig]] = {
         "backend_developer": _role(_DEVSTRAL_2, temperature=0.4),
         "frontend_developer": _role(_DEVSTRAL_2, temperature=0.4),
         "fullstack_developer": _role(_DEVSTRAL_2, temperature=0.4),
-        "cloud_engineer": _role(_DEEPSEEK_V3),
+        "cloud_engineer": _role(_DEVSTRAL_2, temperature=0.4),  # switched from deepseek-v3: too many empty responses
         "devops": _role(_DEVSTRAL_2, temperature=0.4),
-        "qa_engineer": _role(_DEEPSEEK_V3),
+        "qa_engineer": _role(_DEVSTRAL_2, temperature=0.4),  # switched from deepseek-v3: empty responses on code_review
     },
     Environment.TEST: {
         "manager": _role(_GEMINI_FLASH),
