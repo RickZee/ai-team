@@ -752,14 +752,17 @@ class AITeamFlow(Flow[ProjectState]):
                     )
                 try:
                     from ai_team.core.team_profile import load_team_profile
+
                     _profile_name = self.state.metadata.get("team_profile", "full")
                     _profile = load_team_profile(_profile_name)
-                    _next_phase = ProjectPhase.DEPLOYMENT if "deployment" in _profile.phases else ProjectPhase.COMPLETE
+                    _next_phase = (
+                        ProjectPhase.DEPLOYMENT
+                        if "deployment" in _profile.phases
+                        else ProjectPhase.COMPLETE
+                    )
                 except Exception:
                     _next_phase = ProjectPhase.DEPLOYMENT
-                self.state.add_phase_transition(
-                    ProjectPhase.TESTING, _next_phase, "Tests passed"
-                )
+                self.state.add_phase_transition(ProjectPhase.TESTING, _next_phase, "Tests passed")
                 reset_circuit(self.state, ProjectPhase.TESTING)
                 with contextlib.suppress(Exception):
                     _persist_state(self.state)

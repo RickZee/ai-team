@@ -15,7 +15,7 @@ from typing import Any
 import structlog
 from ai_team.guardrails.quality import coverage_guardrail
 from ai_team.models.qa_models import CodeReviewReport
-from ai_team.tools.test_tools import TestRunResult, validate_test_quality
+from ai_team.tools.test_tools import validate_test_quality
 from crewai import Task
 
 logger = structlog.get_logger(__name__)
