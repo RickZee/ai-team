@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -21,14 +21,12 @@ class ExperimentRecord:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
 
     @property
     def improvement(self) -> float | None:
         if self.metric_value is not None and self.baseline:
-            return round(
-                (self.metric_value - self.baseline) / abs(self.baseline) * 100, 3
-            )
+            return round((self.metric_value - self.baseline) / abs(self.baseline) * 100, 3)
         return None
 
 

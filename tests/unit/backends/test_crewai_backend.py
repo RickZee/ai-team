@@ -42,12 +42,16 @@ class TestCrewAIBackendRun:
 
     def test_stream_yields_start_and_finish(self, profile: TeamProfile) -> None:
         backend = CrewAIBackend()
-        with patch.object(backend, "run", return_value=ProjectResult(
-            backend_name="crewai",
-            success=True,
-            raw={},
-            team_profile=profile.name,
-        )):
+        with patch.object(
+            backend,
+            "run",
+            return_value=ProjectResult(
+                backend_name="crewai",
+                success=True,
+                raw={},
+                team_profile=profile.name,
+            ),
+        ):
             import asyncio
 
             async def collect() -> list[dict]:
