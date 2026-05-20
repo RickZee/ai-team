@@ -122,5 +122,3 @@ class TestProductOwnerTools:
         story = "As a user I want to login."
         result = priority_scorer.run(story)
         assert isinstance(result, str)
-
-

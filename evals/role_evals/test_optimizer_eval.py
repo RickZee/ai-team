@@ -18,15 +18,14 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from ai_team.optimizers.experiment_log import load_experiments, summarise_experiments
 from ai_team.optimizers.loop import KarpathyLoop, LoopConfig
 from ai_team.optimizers.metric import MetricConfig
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _seed_slow_workspace(ws: Path) -> None:
     """Drop a small Python module with an obviously improvable implementation."""
@@ -71,7 +70,7 @@ _PYTEST_METRIC = MetricConfig(
     name="test_pass_rate",
     evaluation_command=(
         "python -m pytest tests/ --tb=no -q --no-header 2>/dev/null | "
-        "python -c \""
+        'python -c "'
         "import sys, re; "
         "out = sys.stdin.read(); "
         "m = re.search(r'(\\\\d+) passed', out); "
@@ -115,6 +114,7 @@ def loop_result(tmp_path_factory):
 # ---------------------------------------------------------------------------
 # Structural tests (run always — no real LLM required)
 # ---------------------------------------------------------------------------
+
 
 class TestLoopStructure:
     def test_at_least_one_experiment_attempted(self, loop_result):
@@ -172,14 +172,15 @@ class TestLoopStructure:
             text=True,
             timeout=30,
         )
-        assert proc.returncode == 0, (
-            f"Tests broken after optimizer loop:\n{proc.stdout}\n{proc.stderr}"
-        )
+        assert (
+            proc.returncode == 0
+        ), f"Tests broken after optimizer loop:\n{proc.stdout}\n{proc.stderr}"
 
 
 # ---------------------------------------------------------------------------
 # Quality tests (only meaningful with a real LLM)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.skipif(
     os.getenv("AI_TEAM_USE_REAL_LLM", "") != "1",
@@ -192,13 +193,12 @@ class TestLoopQuality:
 
     def test_improvement_is_positive(self, loop_result):
         result, _ = loop_result
-        assert (result.improvement_pct or 0) > 0, (
-            f"No improvement: {result.improvement_pct}%"
-        )
+        assert (result.improvement_pct or 0) > 0, f"No improvement: {result.improvement_pct}%"
 
     def test_lessons_ingested_to_rag(self, loop_result):
         _, ws = loop_result
         from ai_team.rag.pipeline import get_rag_pipeline
+
         hits = get_rag_pipeline().retrieve("optimizer experiment lesson", top_k=3)
         assert hits, "No experiment lessons were written to RAG"
 
@@ -209,24 +209,23 @@ class TestLoopQuality:
         has_loop = "for _ in range" in source
         uses_operator = "a * b" in source or "return a * b" in source
         # At least one of: loop removed, or operator used
-        assert not has_loop or uses_operator, (
-            "Optimizer did not fix the O(n) multiply loop"
-        )
+        assert not has_loop or uses_operator, "Optimizer did not fix the O(n) multiply loop"
 
     def test_experiment_branch_exists(self, loop_result):
         _, ws = loop_result
         proc = subprocess.run(
             ["git", "branch", "--list", "optimize/karpathy-loop"],
-            cwd=ws, capture_output=True, text=True,
+            cwd=ws,
+            capture_output=True,
+            text=True,
         )
-        assert "optimize/karpathy-loop" in proc.stdout, (
-            "Optimizer branch was not created"
-        )
+        assert "optimize/karpathy-loop" in proc.stdout, "Optimizer branch was not created"
 
 
 # ---------------------------------------------------------------------------
 # Adversarial tests — loop must NOT touch forbidden paths
 # ---------------------------------------------------------------------------
+
 
 class TestLoopGuardrails:
     def test_test_files_not_modified(self, loop_result):
@@ -247,25 +246,24 @@ class TestLoopGuardrails:
 # Unit tests for metric extraction (no LLM, no workspace)
 # ---------------------------------------------------------------------------
 
+
 class TestMetricExtraction:
     def test_maximize_better(self):
-        m = MetricConfig(
-            name="rps", evaluation_command="echo 1", direction="maximize"
-        )
+        m = MetricConfig(name="rps", evaluation_command="echo 1", direction="maximize")
         assert m.better(1.1, 1.0)
         assert not m.better(0.9, 1.0)
 
     def test_minimize_better(self):
-        m = MetricConfig(
-            name="latency", evaluation_command="echo 1", direction="minimize"
-        )
+        m = MetricConfig(name="latency", evaluation_command="echo 1", direction="minimize")
         assert m.better(90.0, 100.0)
         assert not m.better(110.0, 100.0)
 
     def test_meets_threshold_maximize(self):
         m = MetricConfig(
-            name="rps", evaluation_command="echo 1",
-            direction="maximize", success_threshold=500.0,
+            name="rps",
+            evaluation_command="echo 1",
+            direction="maximize",
+            success_threshold=500.0,
         )
         assert m.meets_threshold(500.0)
         assert m.meets_threshold(600.0)
@@ -273,6 +271,7 @@ class TestMetricExtraction:
 
     def test_extract_metric_last_line(self, tmp_path):
         from ai_team.optimizers.metric import extract_metric
+
         m = MetricConfig(
             name="score",
             evaluation_command="echo '0.95'",
@@ -284,6 +283,7 @@ class TestMetricExtraction:
 
     def test_extract_metric_json(self, tmp_path):
         from ai_team.optimizers.metric import extract_metric
+
         m = MetricConfig(
             name="rps",
             evaluation_command='echo \'{"results": {"rps_mean": 423.5}}\'',
@@ -296,6 +296,7 @@ class TestMetricExtraction:
 
     def test_extract_metric_timeout_returns_none(self, tmp_path):
         from ai_team.optimizers.metric import extract_metric
+
         m = MetricConfig(
             name="slow",
             evaluation_command="sleep 10",
@@ -313,9 +314,14 @@ class TestExperimentLog:
             append_experiment,
             load_experiments,
         )
+
         rec = ExperimentRecord(
-            iteration=1, metric_value=0.9, baseline=0.8,
-            kept=True, cost_usd=0.05, snapshot_tag="iter_001",
+            iteration=1,
+            metric_value=0.9,
+            baseline=0.8,
+            kept=True,
+            cost_usd=0.05,
+            snapshot_tag="iter_001",
         )
         append_experiment(tmp_path, rec)
         records = load_experiments(tmp_path)
@@ -325,9 +331,14 @@ class TestExperimentLog:
 
     def test_improvement_calculation(self):
         from ai_team.optimizers.experiment_log import ExperimentRecord
+
         rec = ExperimentRecord(
-            iteration=1, metric_value=0.88, baseline=0.80,
-            kept=True, cost_usd=0.01, snapshot_tag="iter_001",
+            iteration=1,
+            metric_value=0.88,
+            baseline=0.80,
+            kept=True,
+            cost_usd=0.01,
+            snapshot_tag="iter_001",
         )
         assert rec.improvement == pytest.approx(10.0, rel=1e-2)
 
@@ -336,8 +347,8 @@ class TestExperimentLog:
             ExperimentRecord,
             append_experiment,
             load_experiments,
-            summarise_experiments,
         )
+
         for i in range(3):
             append_experiment(
                 tmp_path,

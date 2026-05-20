@@ -166,19 +166,21 @@ def _cmd_optimize(
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
-    print(json.dumps(
-        {
-            "experiments_run": result.experiments_run,
-            "baseline_metric": result.baseline_metric,
-            "best_metric": result.best_metric,
-            "improvement_pct": result.improvement_pct,
-            "total_cost_usd": round(result.total_cost_usd, 6),
-            "winning_commits": result.winning_commits,
-            "experiment_log": str(result.experiment_log_path),
-            "summary": result.summary,
-        },
-        indent=2,
-    ))
+    print(
+        json.dumps(
+            {
+                "experiments_run": result.experiments_run,
+                "baseline_metric": result.baseline_metric,
+                "best_metric": result.best_metric,
+                "improvement_pct": result.improvement_pct,
+                "total_cost_usd": round(result.total_cost_usd, 6),
+                "winning_commits": result.winning_commits,
+                "experiment_log": str(result.experiment_log_path),
+                "summary": result.summary,
+            },
+            indent=2,
+        )
+    )
     return 0 if (result.improvement_pct or 0) >= 0 else 1
 
 

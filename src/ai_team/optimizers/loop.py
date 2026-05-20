@@ -24,12 +24,12 @@ Usage (from Python):
 
 from __future__ import annotations
 
+import contextlib
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import structlog
-
 from ai_team.backends.registry import get_backend
 from ai_team.core.team_profile import load_team_profile
 from ai_team.optimizers.experiment_log import (
@@ -158,6 +158,7 @@ class KarpathyLoop:
             restore_workspace_subtrees,
             snapshot_workspace_subtrees,
         )
+
         tag = f"iter_{n:03d}"
         snapshot_workspace_subtrees(ws, tag=tag)
         t0 = time.monotonic()
@@ -185,6 +186,7 @@ class KarpathyLoop:
             from ai_team.backends.claude_agent_sdk_backend.workspace_snapshots import (
                 restore_workspace_subtrees,
             )
+
             restore_workspace_subtrees(ws, tag=tag)
             self._record(n, None, False, iter_cost, run_error, tag)
             self._cost_spent += iter_cost
@@ -200,7 +202,6 @@ class KarpathyLoop:
         # --- keep or revert ---
         if improved:
             try:
-                diff = git_diff(str(ws))
                 git_add(str(ws), ["."])
                 sha = git_commit(
                     str(ws),
@@ -222,6 +223,7 @@ class KarpathyLoop:
             from ai_team.backends.claude_agent_sdk_backend.workspace_snapshots import (
                 restore_workspace_subtrees,
             )
+
             restore_workspace_subtrees(ws, tag=tag)
             git_reset_hard(ws)
             logger.info("karpathy_loop.reverted", n=n, metric=new_metric)
@@ -231,13 +233,9 @@ class KarpathyLoop:
 
     def _build_prompt(self, n: int) -> str:
         rag = get_rag_pipeline()
-        context = rag.format_context(
-            rag.retrieve(f"optimize {self.cfg.metric.name}", top_k=5)
-        )
+        context = rag.format_context(rag.retrieve(f"optimize {self.cfg.metric.name}", top_k=5))
         strategy_block = (
-            f"\n\nHigh-level strategy hints:\n{self.cfg.strategy}"
-            if self.cfg.strategy
-            else ""
+            f"\n\nHigh-level strategy hints:\n{self.cfg.strategy}" if self.cfg.strategy else ""
         )
         lessons_block = (
             f"\n\nLessons from prior experiments (retrieved from memory):\n{context}"
@@ -268,14 +266,10 @@ class KarpathyLoop:
         pct = abs(new_metric - self._best) / max(abs(self._best), 1e-9) * 100
         return pct >= self.cfg.min_improvement_pct
 
-    def _ingest_lesson(
-        self, n: int, metric: float | None, kept: bool, elapsed: float
-    ) -> None:
+    def _ingest_lesson(self, n: int, metric: float | None, kept: bool, elapsed: float) -> None:
         diff_preview = ""
-        try:
+        with contextlib.suppress(Exception):
             diff_preview = git_diff(str(self.cfg.workspace))[:600]
-        except Exception:
-            pass
         outcome = "IMPROVEMENT — kept" if kept else "NO_IMPROVEMENT — reverted"
         chunk = TextChunk(
             text=(
@@ -322,4 +316,5 @@ class KarpathyLoop:
     @staticmethod
     def _load_experiments(ws: Path) -> list[ExperimentRecord]:
         from ai_team.optimizers.experiment_log import load_experiments
+
         return load_experiments(ws)

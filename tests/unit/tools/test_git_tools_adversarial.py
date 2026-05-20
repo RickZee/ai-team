@@ -49,7 +49,9 @@ class TestGitAdversarialMainCommit:
             "GIT_COMMITTER_NAME": "t",
             "GIT_COMMITTER_EMAIL": "t@t",
         }
-        subprocess.run(["git", "init", "-b", "master"], cwd=repo, check=True, capture_output=True, env=env)
+        subprocess.run(
+            ["git", "init", "-b", "master"], cwd=repo, check=True, capture_output=True, env=env
+        )
         (repo / "a.txt").write_text("a", encoding="utf-8")
         subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True, capture_output=True, env=env)
         subprocess.run(

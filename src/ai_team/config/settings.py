@@ -9,10 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from ai_team.config.optimizer_settings import OptimizerSettings
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from ai_team.config.optimizer_settings import OptimizerSettings
 
 
 class GuardrailSettings(BaseSettings):
