@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS run_records (
     id TEXT PRIMARY KEY,                    -- run_id (UUID)
     started_at TEXT NOT NULL,               -- ISO 8601
     finished_at TEXT,                       -- ISO 8601, NULL if still running
-    backend TEXT NOT NULL,                  -- crewai | langgraph | claude-sdk
+    backend TEXT NOT NULL,                  -- crewai | langgraph | claude-agent-sdk
     team_profile TEXT NOT NULL,             -- full | backend-api | prototype | ...
     env TEXT NOT NULL,                      -- dev | test | prod
     description TEXT,                       -- project description (first 500 chars)

@@ -217,7 +217,7 @@ The `TeamMonitor` is display-only (capped at 50 log lines, 20 guardrail events).
 |-------|------|---------|
 | `run_id` | UUID | Unique run identifier |
 | `timestamp` | ISO 8601 | When the run started |
-| `backend` | str | crewai / langgraph / claude-sdk |
+| `backend` | str | crewai / langgraph / claude-agent-sdk |
 | `team_profile` | str | full / backend-api / prototype / ... |
 | `env` | str | dev / test / prod |
 | `success` | bool | Did the run complete? |

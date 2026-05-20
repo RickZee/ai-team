@@ -13,7 +13,7 @@ This guide walks you through prerequisites, installation, your first run, and co
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/ai-team.git
+git clone https://github.com/RickZee/ai-team.git
 cd ai-team
 ```
 
@@ -36,9 +36,10 @@ uv sync --extra dev   # for pytest, ruff, mypy, etc.
 cp .env.example .env
 ```
 
-Edit `.env` and set:
+Edit `.env` and set the key for the backend you plan to run:
 
-- `OPENROUTER_API_KEY` — your key from https://openrouter.ai/settings/keys.
+- `OPENROUTER_API_KEY` — your key from [OpenRouter settings](https://openrouter.ai/settings/keys).
+- `ANTHROPIC_API_KEY` — optional; required only for the Claude Agent SDK backend.
 - Optional: `AI_TEAM_ENV=dev` (default), `test`, or `prod`.
 
 ### 4. Verify setup
@@ -56,23 +57,28 @@ poetry run pytest tests/unit -v
 1. **Ensure `OPENROUTER_API_KEY` is set** in `.env` (see Troubleshooting below if you see auth errors).
 
 2. **Run the CLI** with a short prompt:
+
    ```bash
    poetry run ai-team "Create a minimal Hello World Flask API"
    ```
+
    Or use the entry point:
+
    ```bash
    poetry run python -m ai_team.main "Create a minimal Hello World Flask API"
    ```
 
 3. **Optional: run the web dashboard or TUI**
+
    ```bash
    poetry run ai-team-web   # FastAPI + React on http://127.0.0.1:8421
    poetry run ai-team-tui   # Textual terminal UI
    ```
 
-4. **Run a demo** (when the flow is wired to the demo runner):
+4. **Run a demo**:
+
    ```bash
-   python scripts/run_demo.py demos/01_hello_world
+   poetry run python scripts/run_demo.py demos/01_hello_world --skip-estimate
    ```
 
 ## Troubleshooting common issues
@@ -83,7 +89,7 @@ poetry run pytest tests/unit -v
 
 **Fix:**
 
-- Add `OPENROUTER_API_KEY=sk-or-v1-...` to `.env` (get a key at https://openrouter.ai/settings/keys).
+- Add `OPENROUTER_API_KEY=sk-or-v1-...` to `.env` (get a key at [OpenRouter settings](https://openrouter.ai/settings/keys)).
 - Ensure `OPENROUTER_API_BASE` is `https://openrouter.ai/api/v1` unless using a proxy.
 
 ### Model not found / does not exist

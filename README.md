@@ -1,7 +1,7 @@
 # AI-Team: Autonomous Multi-Agent Software Development
 
-[![CI](https://github.com/yourusername/ai-team/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/ai-team/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-pytest--cov-informational)](https://github.com/yourusername/ai-team)
+[![CI](https://github.com/RickZee/ai-team/actions/workflows/ci.yml/badge.svg)](https://github.com/RickZee/ai-team/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-pytest--cov-informational)](https://github.com/RickZee/ai-team)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -168,7 +168,7 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                         UI Layer (3 interfaces)                              │
 │  Web Dashboard (FastAPI+React) │ Textual TUI │ Rich CLI Monitor             │
-│         --backend crewai | langgraph | claude-sdk    --team <profile>        │
+│       --backend crewai | langgraph | claude-agent-sdk  --team <profile>      │
 └──────────────────────────────┬───────────────────────────────────────────────┘
                                ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -200,7 +200,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
 ## Quick start
 
 ```bash
-git clone https://github.com/yourusername/ai-team.git && cd ai-team
+git clone https://github.com/RickZee/ai-team.git && cd ai-team
 cp .env.example .env   # Add API keys (see Configuration below)
 poetry install
 
@@ -210,8 +210,8 @@ poetry run ai-team "Create a REST API for a todo list"
 # Run with LangGraph
 poetry run ai-team --backend langgraph --team backend-api "Create a REST API for a todo list"
 
-# Run with Claude Agent SDK (when implemented)
-poetry run ai-team --backend claude-sdk "Create a REST API for a todo list"
+# Run with Claude Agent SDK
+poetry run ai-team --backend claude-agent-sdk --team backend-api "Create a REST API for a todo list"
 ```
 
 For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
@@ -223,7 +223,7 @@ For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/G
 | `OPENROUTER_API_KEY` | OpenRouter API key (CrewAI / LangGraph backends) | — |
 | `ANTHROPIC_API_KEY` | Anthropic API key (Claude Agent SDK backend) | — |
 | `AI_TEAM_ENV` | Tier: `dev`, `test`, `prod` | `dev` |
-| `AI_TEAM_BACKEND` | Default backend: `crewai`, `langgraph`, `claude-sdk` | `crewai` |
+| `AI_TEAM_BACKEND` | Default backend: `crewai`, `langgraph`, `claude-agent-sdk` | `crewai` |
 | `AI_TEAM_LANGGRAPH_POSTGRES_URI` | Postgres URI for LangGraph checkpointing (optional) | SQLite |
 | `OPENROUTER_API_BASE` | OpenRouter endpoint | `https://openrouter.ai/api/v1` |
 | `OPENROUTER_EMBEDDING_MODEL` | Embedding model for crew memory | `openai/text-embedding-3-small` |
@@ -305,7 +305,7 @@ ai-team optimize ./workspace/my-app \
 
 | Flag | Description |
 |------|-------------|
-| `--backend` | `crewai` (default), `langgraph`, `claude-sdk` |
+| `--backend` | `crewai` (default), `langgraph`, `claude-agent-sdk` |
 | `--team` | Team profile from `config/team_profiles.yaml` |
 | `--env` | `dev`, `test`, `prod` — selects model tier |
 | `--skip-estimate` | Skip cost estimate confirmation |

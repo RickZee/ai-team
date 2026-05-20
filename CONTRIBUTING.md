@@ -13,7 +13,7 @@ Thank you for your interest in contributing. This document covers development se
 ### Install
 
 ```bash
-git clone https://github.com/yourusername/ai-team.git
+git clone https://github.com/RickZee/ai-team.git
 cd ai-team
 poetry install
 poetry run pytest   # Sanity check
