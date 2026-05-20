@@ -81,6 +81,7 @@ def _make_test_execution_guardrail(min_coverage: float = MIN_COVERAGE_THRESHOLD)
     Use this instead of the bare `_test_execution_guardrail` so per-profile coverage
     thresholds (e.g. smoke: 0) are respected.
     """
+
     def _guardrail(task_output: Any):
         s = _task_output_to_str(task_output)
         if not s or not s.strip():
@@ -248,15 +249,26 @@ def test_execution_task(
     else:
         guardrail = _test_execution_guardrail
 
-    cov_str = f"{int((min_coverage_pct or MIN_COVERAGE_THRESHOLD * 100))}%"
+    cov_str = f"{int(min_coverage_pct or MIN_COVERAGE_THRESHOLD * 100)}%"
     return Task(
-        description="Run all generated tests and report results. Use run_pytest (or equivalent) with coverage. Report pass/fail counts, duration, and line and branch coverage.",
+        description=(
+            "Run all generated tests and report results. Use run_pytest (or equivalent) with "
+            "coverage. Report pass/fail counts, duration, and line and branch coverage. "
+            "Return a JSON object with keys: total, passed, failed, errors, skipped, warnings, "
+            "duration_seconds, line_coverage_pct, branch_coverage_pct, raw_output, success."
+        ),
         agent=qa_agent,
         context=context or [],
-        expected_output=f"TestRunResult with pass/fail counts, coverage percentage, and raw output. Ensure zero critical failures and minimum {cov_str} line coverage.",
+        expected_output=(
+            f"JSON object matching TestRunResult schema: total, passed, failed, errors, skipped, "
+            f"warnings, duration_seconds, line_coverage_pct, branch_coverage_pct, raw_output, "
+            f"success. Ensure zero critical failures and minimum {cov_str} line coverage."
+        ),
         guardrail=guardrail,
         guardrail_max_retries=guardrail_max_retries,
-        output_pydantic=output_pydantic or TestRunResult,
+        # output_pydantic omitted: Devstral and similar models return tool-call format when
+        # output_pydantic is set, causing ValidationError. Parse manually in testing_crew.py.
+        output_pydantic=output_pydantic,  # None by default; caller can override if needed
     )
 
 

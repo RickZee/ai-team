@@ -1,6 +1,6 @@
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { CommandPalette } from "./components/CommandPalette";
-import { formatUnifiedRunLabel, useUnifiedRuns } from "./hooks/useUnifiedRuns";
+import { useUnifiedRuns } from "./hooks/useUnifiedRuns";
 import { Artifacts } from "./pages/Artifacts";
 import { Compare } from "./pages/Compare";
 import { Dashboard } from "./pages/Dashboard";

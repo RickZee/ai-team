@@ -30,6 +30,76 @@ logger = structlog.get_logger(__name__)
 
 
 # -----------------------------------------------------------------------------
+# Pytest stdout fallback parser
+# -----------------------------------------------------------------------------
+
+def _extract_test_result_from_pytest_stdout(raw_outputs: list[str]) -> TestRunResult | None:
+    """
+    Scan all raw task outputs for embedded pytest stdout and build a TestRunResult.
+
+    Used when the LLM returns tool-call arguments instead of TestRunResult JSON
+    (observed with Devstral-2512 when output_pydantic is set on the task).
+    """
+    pytest_markers = ("passed", "failed", "error", "collected", "test session")
+    combined = "\n".join(raw_outputs)
+
+    if not any(m in combined.lower() for m in pytest_markers):
+        return None
+
+    # Parse counts from pytest summary line
+    total = passed = failed = errors = skipped = warnings = 0
+    duration_seconds = 0.0
+
+    summary_match = re.search(
+        r"(?:(\d+)\s+passed)?\s*"
+        r"(?:(\d+)\s+failed)?\s*"
+        r"(?:(\d+)\s+error(?:s)?)?\s*"
+        r"(?:(\d+)\s+skipped)?\s*"
+        r"(?:in\s+([\d.]+)\s*s)?",
+        combined,
+        re.IGNORECASE,
+    )
+    if summary_match:
+        g = summary_match.groups()
+        passed = int(g[0] or 0)
+        failed = int(g[1] or 0)
+        errors = int(g[2] or 0)
+        skipped = int(g[3] or 0)
+        duration_seconds = float(g[4] or 0)
+
+    warn_match = re.search(r"(\d+)\s+warnings?", combined, re.IGNORECASE)
+    if warn_match:
+        warnings = int(warn_match.group(1))
+
+    total = passed + failed + errors + skipped
+    if total == 0 and passed == 0:
+        return None  # couldn't parse anything useful
+
+    # Coverage: TOTAL line from pytest-cov
+    line_pct: float | None = None
+    cov_match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", combined)
+    if cov_match:
+        line_pct = float(cov_match.group(1))
+
+    logger.info(
+        "test_result_parsed_from_stdout_fallback",
+        total=total, passed=passed, failed=failed, line_coverage_pct=line_pct,
+    )
+    return TestRunResult(
+        total=total,
+        passed=passed,
+        failed=failed,
+        errors=errors,
+        skipped=skipped,
+        warnings=warnings,
+        duration_seconds=duration_seconds,
+        line_coverage_pct=line_pct,
+        raw_output=combined[:4000],
+        success=(failed == 0 and errors == 0 and total > 0),
+    )
+
+
+# -----------------------------------------------------------------------------
 # Output model (TestRunResult + CodeReviewReport)
 # -----------------------------------------------------------------------------
 
@@ -156,7 +226,9 @@ def create_testing_crew(
         guardrail_max_retries=retries,
         use_input_placeholder=True,
     )
-    t_exec = test_execution_task(agent, context=[t_gen], guardrail_max_retries=retries, min_coverage_pct=min_coverage_pct)
+    t_exec = test_execution_task(
+        agent, context=[t_gen], guardrail_max_retries=retries, min_coverage_pct=min_coverage_pct
+    )
     t_review = code_review_task(
         agent,
         context=[t_gen, t_exec],
@@ -232,6 +304,11 @@ def kickoff(
         test_run_result = _parse_task_output_as_model(raw_outputs[1], TestRunResult)
     if len(raw_outputs) >= 3:
         code_review_report = _parse_task_output_as_model(raw_outputs[2], CodeReviewReport)
+
+    # Fallback: if the model returned tool-call args instead of TestRunResult JSON,
+    # scan all raw outputs for pytest stdout and parse it directly.
+    if test_run_result is None:
+        test_run_result = _extract_test_result_from_pytest_stdout(raw_outputs)
 
     min_line = 0.8
     min_branch: float | None = None

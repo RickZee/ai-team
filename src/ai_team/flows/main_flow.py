@@ -73,42 +73,47 @@ class PhaseTimeoutError(RuntimeError):
 def phase_timeout(phase: str, seconds: int | None):
     """
     Context manager: raise PhaseTimeoutError if phase takes longer than `seconds`.
-    Uses a background thread + threading.Event so it works in sync (non-async) code.
+
+    Uses signal.alarm() (SIGALRM) when called from the main thread — this is the
+    only mechanism that reliably interrupts blocking C-level I/O (e.g. LLM HTTP calls).
+    Falls back to a threading.Timer event for non-main-thread callers (best-effort).
     No-op when seconds is None or <= 0.
     """
     if not seconds or seconds <= 0:
         yield
         return
 
+    is_main = threading.current_thread() is threading.main_thread()
     timer_fired = threading.Event()
-
-    def _fire():
-        timer_fired.set()
-        logger.error("phase_timeout_exceeded", phase=phase, limit_seconds=seconds)
-        # Raise in main thread via signal only on main thread; otherwise set event
-        # and let the caller check. We use SIGALRM on Unix.
-        try:
-            signal.raise_signal(signal.SIGALRM)
-        except (AttributeError, OSError):
-            pass  # Windows or non-main thread; caller handles via event
-
-    timer = threading.Timer(seconds, _fire)
-    old_handler = None
 
     def _sigalrm_handler(signum, frame):
         raise PhaseTimeoutError(f"Phase '{phase}' exceeded {seconds}s wall-clock limit")
 
-    try:
-        if hasattr(signal, "SIGALRM"):
-            old_handler = signal.signal(signal.SIGALRM, _sigalrm_handler)
-        timer.start()
-        yield timer_fired
-    except PhaseTimeoutError:
-        raise
-    finally:
-        timer.cancel()
-        if hasattr(signal, "SIGALRM") and old_handler is not None:
+    if is_main and hasattr(signal, "SIGALRM"):
+        # Kernel-level alarm: reliably interrupts blocking syscalls / HTTP in main thread.
+        old_handler = signal.signal(signal.SIGALRM, _sigalrm_handler)
+        signal.alarm(seconds)
+        try:
+            yield timer_fired
+        except PhaseTimeoutError:
+            logger.error("phase_timeout_exceeded", phase=phase, limit_seconds=seconds)
+            raise
+        finally:
+            signal.alarm(0)  # cancel pending alarm
             signal.signal(signal.SIGALRM, old_handler)
+    else:
+        # Non-main thread: timer fires event; caller must poll timer_fired if it cares.
+        def _fire():
+            timer_fired.set()
+            logger.error("phase_timeout_exceeded", phase=phase, limit_seconds=seconds)
+
+        timer = threading.Timer(seconds, _fire)
+        try:
+            timer.start()
+            yield timer_fired
+        finally:
+            timer.cancel()
+
 
 # Root cause of RecursionError: CrewAI Flow executes steps recursively. In flow.py,
 # _execute_start_method() -> _execute_listeners() -> _execute_single_listener() ->
@@ -271,6 +276,7 @@ class AITeamFlow(Flow[ProjectState]):
         """Return per-phase wall-clock limit from team profile metadata, or None."""
         try:
             from ai_team.core.team_profile import load_team_profile
+
             profile_name = self.state.metadata.get("team_profile", "full")
             profile = load_team_profile(profile_name)
             timeouts = (profile.metadata or {}).get("phase_timeouts_seconds", {})
@@ -283,6 +289,7 @@ class AITeamFlow(Flow[ProjectState]):
         """Return a float value from team profile metadata, or None if absent/invalid."""
         try:
             from ai_team.core.team_profile import load_team_profile
+
             profile_name = self.state.metadata.get("team_profile", "full")
             profile = load_team_profile(profile_name)
             val = (profile.metadata or {}).get(key)
@@ -314,6 +321,7 @@ class AITeamFlow(Flow[ProjectState]):
 
         try:
             from ai_team.config.llm_observability import register_llm_observability_hooks
+
             register_llm_observability_hooks()
         except Exception:
             pass
@@ -593,6 +601,7 @@ class AITeamFlow(Flow[ProjectState]):
             }
         except Exception as e:
             import traceback as _tb
+
             err_msg = str(e)
             tb = _tb.format_exc()
             self.logger.error("planning_failed", error=err_msg, traceback=tb)
@@ -671,6 +680,7 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "success", "files": self.state.generated_files}
         except Exception as e:
             import traceback as _tb
+
             err_msg = str(e)
             tb = _tb.format_exc()
             self.logger.error("development_failed", error=err_msg, traceback=tb)
@@ -740,8 +750,15 @@ class AITeamFlow(Flow[ProjectState]):
                         passed=output.test_run_result.passed or 0,
                         failed=output.test_run_result.failed or 0,
                     )
+                try:
+                    from ai_team.core.team_profile import load_team_profile
+                    _profile_name = self.state.metadata.get("team_profile", "full")
+                    _profile = load_team_profile(_profile_name)
+                    _next_phase = ProjectPhase.DEPLOYMENT if "deployment" in _profile.phases else ProjectPhase.COMPLETE
+                except Exception:
+                    _next_phase = ProjectPhase.DEPLOYMENT
                 self.state.add_phase_transition(
-                    ProjectPhase.TESTING, ProjectPhase.DEPLOYMENT, "Tests passed"
+                    ProjectPhase.TESTING, _next_phase, "Tests passed"
                 )
                 reset_circuit(self.state, ProjectPhase.TESTING)
                 with contextlib.suppress(Exception):
@@ -761,6 +778,7 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "tests_failed", "results": output.test_run_result, "output": output}
         except Exception as e:
             import traceback as _tb
+
             err_msg = str(e)
             tb = _tb.format_exc()
             self.logger.error("testing_failed", error=err_msg, traceback=tb)
@@ -831,6 +849,7 @@ class AITeamFlow(Flow[ProjectState]):
             return {"status": "success", "config": self.state.deployment_config}
         except Exception as e:
             import traceback as _tb
+
             err_msg = str(e)
             tb = _tb.format_exc()
             self.logger.error("deployment_failed", error=err_msg, traceback=tb)
@@ -846,8 +865,12 @@ class AITeamFlow(Flow[ProjectState]):
         return route_after_deployment(deploy_result, self.state)
 
     @listen("finalize_project")
-    def finalize_project(self) -> dict[str, Any]:
+    def finalize_project(self) -> None:
         """Package outputs, generate summary, persist state, log completion."""
+        if self.state.completed_at is not None:
+            # Guard against post-completion loop: CrewAI Flow re-emits "finalize_project"
+            # each time this method returns a non-None value, causing infinite re-entry.
+            return
         if self._monitor:
             self._monitor.on_phase_change("complete")
         self.state.completed_at = datetime.now(UTC)
@@ -915,7 +938,7 @@ class AITeamFlow(Flow[ProjectState]):
         except Exception:
             pass
 
-        return summary
+        return None
 
     @listen("request_human_feedback")
     def request_human_feedback(self) -> dict[str, Any]:

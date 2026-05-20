@@ -105,7 +105,8 @@ export function Dashboard() {
   const monitor: MonitorState | null =
     isLive && live.monitor ? live.monitor : staticMonitor ?? live.monitor;
 
-  const hasMonitor = Boolean(monitor?.phase);
+  const displayMonitor = monitor?.phase ? monitor : null;
+  const hasMonitor = displayMonitor !== null;
   const runStatus = isLive ? live.runStatus : activeRun?.status ?? null;
 
   useEffect(() => {
@@ -113,10 +114,10 @@ export function Dashboard() {
       setShowGuardrails(false);
       setShowFullLog(true);
     }
-    if (monitor?.guardrail_events?.some((e) => e.status === "fail")) {
+    if (displayMonitor?.guardrail_events?.some((e) => e.status === "fail")) {
       setShowGuardrails(true);
     }
-  }, [isLive, monitor?.guardrail_events?.length]);
+  }, [isLive, displayMonitor?.guardrail_events?.length]);
 
   const selectRun = (id: string) => {
     setSelectedRunId(id);
@@ -211,7 +212,10 @@ export function Dashboard() {
           ) : (
             <div className="dashboard" data-testid="dashboard-active">
               <div className="dashboard-sticky-header">
-                <PhasePipeline phase={monitor.phase} retries={monitor.metrics.retries} />
+                <PhasePipeline
+                  phase={displayMonitor.phase}
+                  retries={displayMonitor.metrics.retries}
+                />
                 <div className="run-meta-row">
                   {activeRun && (
                     <>
@@ -219,9 +223,9 @@ export function Dashboard() {
                       <span className={`status-chip status-${activeRun.status}`}>
                         {activeRun.status}
                       </span>
-                      <span className="dim">{monitor.elapsed}</span>
-                      {monitor.cost_usd != null && (
-                        <span className="dim">${monitor.cost_usd.toFixed(4)}</span>
+                      <span className="dim">{displayMonitor.elapsed}</span>
+                      {displayMonitor.cost_usd != null && (
+                        <span className="dim">${displayMonitor.cost_usd.toFixed(4)}</span>
                       )}
                     </>
                   )}
@@ -231,7 +235,7 @@ export function Dashboard() {
               {isTerminal && activeRun && (
                 <RunSummaryCard
                   run={activeRun}
-                  monitor={monitor}
+                  monitor={displayMonitor}
                   artifactProjectId={activeRun.run_id}
                 />
               )}
@@ -265,16 +269,16 @@ export function Dashboard() {
                 <div className="dashboard-grid">
                   <div className="panel agents">
                     <h3>Agents</h3>
-                    <AgentTable agents={monitor.agents} />
+                    <AgentTable agents={displayMonitor.agents} />
                   </div>
                   <div className="panel metrics">
                     <h3>Metrics</h3>
                     <MetricsCard
-                      metrics={monitor.metrics}
-                      elapsed={monitor.elapsed}
-                      costUsd={monitor.cost_usd}
-                      tokenEstimate={monitor.token_estimate}
-                      sessionId={monitor.session_id}
+                      metrics={displayMonitor.metrics}
+                      elapsed={displayMonitor.elapsed}
+                      costUsd={displayMonitor.cost_usd}
+                      tokenEstimate={displayMonitor.token_estimate}
+                      sessionId={displayMonitor.session_id}
                     />
                   </div>
                   <div className="panel log">
@@ -289,7 +293,7 @@ export function Dashboard() {
                       </button>
                     </div>
                     {showFullLog && (
-                      <ActivityLog entries={monitor.log} ariaLive="polite" />
+                      <ActivityLog entries={displayMonitor.log} ariaLive="polite" />
                     )}
                   </div>
                   <div className="panel guardrails">
@@ -306,7 +310,7 @@ export function Dashboard() {
                       )}
                     </div>
                     {(showGuardrails || !isLive) && (
-                      <GuardrailsPanel events={monitor.guardrail_events} />
+                      <GuardrailsPanel events={displayMonitor.guardrail_events} />
                     )}
                     {!showGuardrails && isLive && (
                       <p className="dim panel-collapsed-hint">

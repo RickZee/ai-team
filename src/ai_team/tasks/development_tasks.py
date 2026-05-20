@@ -70,9 +70,7 @@ def _task_output_to_code_files(result: Any) -> list[tuple[str, str, str]]:
                     file_count=len(files),
                 )
         except (json.JSONDecodeError, AttributeError, TypeError) as exc:
-            logger.warning(
-                "development_tasks guardrail raw json parse failed", error=str(exc)
-            )
+            logger.warning("development_tasks guardrail raw json parse failed", error=str(exc))
     return files
 
 
@@ -157,12 +155,12 @@ def _frontend_implementation_guardrail(result: Any):
         re.IGNORECASE,
     )
     # Only check markup/style files — package.json, .env, .md etc. never have aria-/flex
-    _UI_EXTENSIONS = {".css", ".html", ".htm", ".jsx", ".tsx", ".js", ".ts", ".vue", ".svelte"}
+    ui_extensions = {".css", ".html", ".htm", ".jsx", ".tsx", ".js", ".ts", ".vue", ".svelte"}
 
     ui_files = [
         (path, content, lang)
         for path, content, lang in code_files
-        if any(path.lower().endswith(ext) for ext in _UI_EXTENSIONS)
+        if any(path.lower().endswith(ext) for ext in ui_extensions)
         or lang in {"css", "html", "javascript", "typescript", "jsx", "tsx"}
     ]
 
@@ -208,10 +206,14 @@ def _devops_configuration_guardrail(result: Any):
             try:
                 data = json.loads(cleaned)
                 if isinstance(data, dict):
-                    cfg = DeploymentConfig(**{k: v for k, v in data.items() if k in DeploymentConfig.model_fields})
+                    cfg = DeploymentConfig(
+                        **{k: v for k, v in data.items() if k in DeploymentConfig.model_fields}
+                    )
                     logger.info("devops_configuration guardrail parsed raw json fallback")
             except (json.JSONDecodeError, TypeError, ValueError) as exc:
-                logger.warning("devops_configuration guardrail raw json parse failed", error=str(exc))
+                logger.warning(
+                    "devops_configuration guardrail raw json parse failed", error=str(exc)
+                )
         if cfg is None:
             msg = "DevOps configuration must produce a DeploymentConfig (Dockerfile, compose, CI pipeline)."
             logger.warning("devops_configuration guardrail failed", reason=msg)
