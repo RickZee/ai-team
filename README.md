@@ -7,6 +7,8 @@
 
 > A multi-agent software development system that transforms natural language into production-ready code — and a **framework comparison platform** for evaluating orchestration approaches side by side.
 
+![AI-Team web dashboard — live phase pipeline, agent status, metrics, and guardrails](docs/images/dashboard.png)
+
 ## Project goals
 
 1. **Build** an autonomous AI team that accepts a project description and delivers requirements, architecture, code, tests, and deployment artifacts end-to-end.

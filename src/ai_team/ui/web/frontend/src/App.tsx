@@ -13,13 +13,26 @@ function App() {
             <span className="brand-icon">🤖</span> AI-Team Dashboard
           </Link>
           <div className="nav-links">
-            <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) => (isActive ? "active" : "")}
+              data-testid="nav-dashboard"
+            >
               Dashboard
             </NavLink>
-            <NavLink to="/run" className={({ isActive }) => (isActive ? "active" : "")}>
+            <NavLink
+              to="/run"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              data-testid="nav-run"
+            >
               Run
             </NavLink>
-            <NavLink to="/compare" className={({ isActive }) => (isActive ? "active" : "")}>
+            <NavLink
+              to="/compare"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              data-testid="nav-compare"
+            >
               Compare
             </NavLink>
           </div>

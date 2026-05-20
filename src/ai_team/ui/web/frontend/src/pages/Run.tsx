@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ActivityLog } from "../components/ActivityLog";
 import { AgentTable } from "../components/AgentTable";
 import { MetricsCard } from "../components/MetricsCard";
@@ -8,6 +9,7 @@ import { useRunWebSocket } from "../hooks/useWebSocket";
 import type { CostEstimate } from "../types";
 
 export function Run() {
+  const navigate = useNavigate();
   const [backend, setBackend] = useState("crewai");
   const [profile, setProfile] = useState("full");
   const [description, setDescription] = useState("");
@@ -33,6 +35,7 @@ export function Run() {
   const handleDemo = async () => {
     try {
       await postDemo();
+      navigate("/");
     } catch (e) {
       console.error(e);
     }
@@ -45,14 +48,24 @@ export function Run() {
         <div className="form-grid">
           <div className="form-group">
             <label>Backend</label>
-            <select value={backend} onChange={(e) => setBackend(e.target.value)}>
+            <select
+              value={backend}
+              onChange={(e) => setBackend(e.target.value)}
+              data-testid="run-backend"
+            >
               <option value="crewai">CrewAI</option>
               <option value="langgraph">LangGraph</option>
+              <option value="claude-agent-sdk">Claude Agent SDK</option>
             </select>
           </div>
           <div className="form-group">
             <label>Team Profile</label>
-            <input value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="full" />
+            <input
+              value={profile}
+              onChange={(e) => setProfile(e.target.value)}
+              placeholder="full"
+              data-testid="run-profile"
+            />
           </div>
           <div className="form-group">
             <label>Complexity</label>
@@ -70,16 +83,22 @@ export function Run() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe what to build..."
             rows={3}
+            data-testid="run-description"
           />
         </div>
         <div className="form-actions">
-          <button className="btn-primary" onClick={handleRun} disabled={status === "running"}>
+          <button
+            className="btn-primary"
+            onClick={handleRun}
+            disabled={status === "running"}
+            data-testid="run-submit"
+          >
             {status === "running" ? "Running..." : "Run"}
           </button>
-          <button className="btn-secondary" onClick={handleEstimate}>
+          <button className="btn-secondary" onClick={handleEstimate} data-testid="run-estimate">
             Estimate Cost
           </button>
-          <button className="btn-warning" onClick={handleDemo}>
+          <button className="btn-warning" onClick={handleDemo} data-testid="run-demo">
             Demo
           </button>
         </div>
