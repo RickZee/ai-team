@@ -183,29 +183,38 @@ def _extract_outputs_from_crew_result(
                         # CodeFileList format: {"files": [...]}
                         for item_data in data["files"]:
                             if isinstance(item_data, dict) and "path" in item_data:
-                                code_files.append(CodeFile(**{
-                                    k: v for k, v in item_data.items()
-                                    if k in CodeFile.model_fields
-                                }))
+                                code_files.append(
+                                    CodeFile(
+                                        **{
+                                            k: v
+                                            for k, v in item_data.items()
+                                            if k in CodeFile.model_fields
+                                        }
+                                    )
+                                )
                         logger.info(
                             "development_crew raw json CodeFileList fallback",
                             file_count=len(code_files),
                         )
                     elif any(k in data for k in ("dockerfile", "docker_compose", "ci_cd_config")):
                         # DeploymentConfig format
-                        deployment_config = DeploymentConfig(**{
-                            k: v for k, v in data.items()
-                            if k in DeploymentConfig.model_fields
-                        })
+                        deployment_config = DeploymentConfig(
+                            **{k: v for k, v in data.items() if k in DeploymentConfig.model_fields}
+                        )
                         logger.info("development_crew raw json DeploymentConfig fallback")
                 elif isinstance(data, list):
                     # Bare list of code file dicts
                     for item_data in data:
                         if isinstance(item_data, dict) and "path" in item_data:
-                            code_files.append(CodeFile(**{
-                                k: v for k, v in item_data.items()
-                                if k in CodeFile.model_fields
-                            }))
+                            code_files.append(
+                                CodeFile(
+                                    **{
+                                        k: v
+                                        for k, v in item_data.items()
+                                        if k in CodeFile.model_fields
+                                    }
+                                )
+                            )
                     if code_files:
                         logger.info(
                             "development_crew raw json list fallback",

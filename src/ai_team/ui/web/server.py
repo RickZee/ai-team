@@ -275,9 +275,7 @@ async def project_download_zip(project_id: str):
     return Response(
         content=data,
         media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{project_id}-workspace.zip"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="{project_id}-workspace.zip"'},
     )
 
 
@@ -360,9 +358,7 @@ async def ws_run(websocket: WebSocket):
         state.runs[run_id]["thread_id"] = run_id
         state.runs[run_id]["project_id"] = run_id
 
-        await websocket.send_json(
-            {"type": "run_started", "run_id": run_id, "project_id": run_id}
-        )
+        await websocket.send_json({"type": "run_started", "run_id": run_id, "project_id": run_id})
 
         await _execute_run(websocket, run_id, req)
 

@@ -28,9 +28,7 @@ class TestWebUiNavigation:
 class TestWebUiDemoFlow:
     """Demo button triggers simulated pipeline; Dashboard shows COMPLETE."""
 
-    def test_demo_reaches_complete_on_dashboard(
-        self, page: Page, browser_base_url: str
-    ) -> None:
+    def test_demo_reaches_complete_on_dashboard(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-demo").click()
         page.wait_for_url(f"{browser_base_url}/**")
@@ -87,9 +85,7 @@ class TestWebUiDashboardRuns:
         expect(page.get_by_text("Go to Run")).to_be_visible()
         expect(page.get_by_test_id("dashboard-demo")).to_be_visible()
 
-    def test_dashboard_demo_via_api_deep_link(
-        self, page: Page, browser_base_url: str
-    ) -> None:
+    def test_dashboard_demo_via_api_deep_link(self, page: Page, browser_base_url: str) -> None:
         """Dashboard demo flow: POST /api/demo then open /runs/{id}."""
         import httpx
 
@@ -117,14 +113,10 @@ class TestWebUiComparePage:
         page.goto(f"{browser_base_url}/compare")
         expect(page.get_by_test_id("compare-submit")).to_be_disabled()
 
-    def test_compare_demo_starts_three_columns(
-        self, page: Page, browser_base_url: str
-    ) -> None:
+    def test_compare_demo_starts_three_columns(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/compare")
         page.get_by_test_id("compare-demo").click()
         expect(page.get_by_test_id("compare-crewai-col")).to_be_visible()
         expect(page.get_by_test_id("compare-langgraph-col")).to_be_visible()
         expect(page.get_by_test_id("compare-claude-col")).to_be_visible()
-        expect(page.get_by_test_id("phase-pipeline").first).to_be_visible(
-            timeout=90_000
-        )
+        expect(page.get_by_test_id("phase-pipeline").first).to_be_visible(timeout=90_000)

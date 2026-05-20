@@ -363,7 +363,9 @@ def _normalize_tests_from_dict(data: dict[str, Any], source: str) -> TestsPanelD
                         ),
                     )
                 )
-        line_cov = float(cov.get("line_coverage") or cov.get("lines") or data.get("coverage_line") or 0)
+        line_cov = float(
+            cov.get("line_coverage") or cov.get("lines") or data.get("coverage_line") or 0
+        )
         branch_cov = float(
             cov.get("branch_coverage") or cov.get("branches") or data.get("coverage_branch") or 0
         )
@@ -371,12 +373,15 @@ def _normalize_tests_from_dict(data: dict[str, Any], source: str) -> TestsPanelD
         line_cov = float(data.get("coverage_line") or 0)
         branch_cov = float(data.get("coverage_branch") or 0)
 
-    tests_block = data.get("tests") if isinstance(data.get("tests"), dict) else {}
+    tests_raw = data.get("tests")
+    tests_block: dict[str, Any] = tests_raw if isinstance(tests_raw, dict) else {}
     passed = int(data.get("passed") or tests_block.get("passed") or 0)
     failed = int(data.get("failed") or tests_block.get("failed") or 0)
     errors = int(data.get("errors") or tests_block.get("errors") or 0)
     skipped = int(data.get("skipped") or tests_block.get("skipped") or 0)
-    total = int(data.get("total") or tests_block.get("total") or (passed + failed + errors + skipped))
+    total = int(
+        data.get("total") or tests_block.get("total") or (passed + failed + errors + skipped)
+    )
 
     return TestsPanelData(
         total=total,
@@ -437,7 +442,8 @@ def load_architecture_panel(project_id: str) -> ArchitecturePanelData:
         raw = _read_json_path(path)
         if not isinstance(raw, dict):
             continue
-        arch_raw = raw.get("architecture") if "architecture" in raw and isinstance(raw["architecture"], dict) else raw
+        nested = raw.get("architecture")
+        arch_raw: dict[str, Any] = nested if isinstance(nested, dict) else raw
         try:
             doc = ArchitectureDocument.model_validate(arch_raw)
             return ArchitecturePanelData(
@@ -485,7 +491,9 @@ def load_architecture_panel(project_id: str) -> ArchitecturePanelData:
                 source="bundle:state.json",
             )
         if isinstance(arch, str) and arch.strip():
-            return ArchitecturePanelData(markdown_fallback=arch, source="bundle:state.json:architecture")
+            return ArchitecturePanelData(
+                markdown_fallback=arch, source="bundle:state.json:architecture"
+            )
 
     return ArchitecturePanelData(source="empty")
 
