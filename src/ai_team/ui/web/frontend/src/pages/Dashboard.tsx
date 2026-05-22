@@ -1,65 +1,323 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActivityLog } from "../components/ActivityLog";
 import { AgentTable } from "../components/AgentTable";
+import { AlertBanner } from "../components/AlertBanner";
+import { ArtifactPreview } from "../components/ArtifactPreview";
 import { GuardrailsPanel } from "../components/GuardrailsPanel";
+import { HumanReviewPanel } from "../components/HumanReviewPanel";
+import { LoadingState } from "../components/LoadingState";
 import { MetricsCard } from "../components/MetricsCard";
 import { PhasePipeline } from "../components/PhasePipeline";
+import { RunSummaryCard } from "../components/RunSummaryCard";
+import { getHealth, getRun, getRuns, postDemo } from "../hooks/useApi";
 import { useMonitorWebSocket } from "../hooks/useWebSocket";
-import { getRuns } from "../hooks/useApi";
-import type { MonitorState } from "../types";
+import type { MonitorState, RunInfo } from "../types";
+import { formatRunDate, sortRunsByDate } from "../utils/formatRun";
+
+const POLL_ACTIVE_MS = 2000;
+const POLL_IDLE_MS = 8000;
 
 export function Dashboard() {
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
-  const liveMonitor = useMonitorWebSocket(activeRunId);
+  const { runId: routeRunId } = useParams<{ runId?: string }>();
+  const navigate = useNavigate();
+  const [runs, setRuns] = useState<RunInfo[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(routeRunId ?? null);
+  const [staticMonitor, setStaticMonitor] = useState<MonitorState | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [healthOk, setHealthOk] = useState<boolean | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [showGuardrails, setShowGuardrails] = useState(false);
+  const [showFullLog, setShowFullLog] = useState(true);
 
-  // Poll for active runs
+  const activeRun = runs.find((r) => r.run_id === selectedRunId);
+  const isLive =
+    activeRun?.status === "running" || activeRun?.status === "awaiting_human";
+  const isTerminal =
+    activeRun?.status === "complete" || activeRun?.status === "error";
+
+  const live = useMonitorWebSocket(isLive ? selectedRunId : null);
+
   useEffect(() => {
-    const poll = async () => {
-      try {
-        const data = await getRuns();
-        const running = data.runs.find((r) => r.status === "running");
-        if (running) setActiveRunId(running.run_id);
-      } catch {
-        // server not up yet
+    if (routeRunId) setSelectedRunId(routeRunId);
+  }, [routeRunId]);
+
+  const hasActiveRuns = useMemo(
+    () => runs.some((r) => r.status === "running" || r.status === "awaiting_human"),
+    [runs],
+  );
+
+  const pollRuns = useCallback(async () => {
+    try {
+      const data = await getRuns();
+      const list = sortRunsByDate(data.runs as RunInfo[]);
+      setRuns(list);
+      setApiError(null);
+      if (!selectedRunId && list.length > 0) {
+        const running = list.find((r) => r.status === "running");
+        const awaiting = list.find((r) => r.status === "awaiting_human");
+        const pick = running ?? awaiting ?? list[0];
+        setSelectedRunId(pick.run_id);
+        if (!routeRunId) {
+          navigate(`/runs/${pick.run_id}`, { replace: true });
+        }
       }
-    };
-    poll();
-    const id = setInterval(poll, 2000);
-    return () => clearInterval(id);
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : "Cannot reach API");
+    }
+  }, [selectedRunId, routeRunId, navigate]);
+
+  useEffect(() => {
+    getHealth()
+      .then((h) => setHealthOk(h.status === "ok"))
+      .catch(() => setHealthOk(false));
   }, []);
 
-  const monitor: MonitorState | null = liveMonitor;
+  useEffect(() => {
+    const tick = () => {
+      if (document.hidden) return;
+      pollRuns();
+    };
+    tick();
+    const ms = hasActiveRuns ? POLL_ACTIVE_MS : POLL_IDLE_MS;
+    const id = setInterval(tick, ms);
+    return () => clearInterval(id);
+  }, [pollRuns, hasActiveRuns]);
 
-  if (!monitor) {
-    return (
-      <div className="dashboard-empty" data-testid="dashboard-empty">
-        <h2>No Active Run</h2>
-        <p>Start a run from the Run tab, or launch a demo to see the dashboard in action.</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!selectedRunId) {
+      setStaticMonitor(null);
+      return;
+    }
+    let cancelled = false;
+    getRun(selectedRunId)
+      .then((data) => {
+        if (!cancelled) setStaticMonitor(data.monitor ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setStaticMonitor(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRunId]);
+
+  const monitor: MonitorState | null =
+    isLive && live.monitor ? live.monitor : staticMonitor ?? live.monitor;
+
+  const hasMonitor = Boolean(monitor?.phase);
+  const runStatus = isLive ? live.runStatus : activeRun?.status ?? null;
+
+  useEffect(() => {
+    if (isLive) {
+      setShowGuardrails(false);
+      setShowFullLog(true);
+    }
+    if (monitor?.guardrail_events?.some((e) => e.status === "fail")) {
+      setShowGuardrails(true);
+    }
+  }, [isLive, monitor?.guardrail_events?.length]);
+
+  const selectRun = (id: string) => {
+    setSelectedRunId(id);
+    navigate(`/runs/${id}`, { replace: true });
+  };
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      const { run_id } = await postDemo();
+      setSelectedRunId(run_id);
+      navigate(`/runs/${run_id}`);
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : "Demo failed");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
+  const alerts = (
+    <>
+      {healthOk === false && (
+        <AlertBanner variant="warning" message="API unreachable — is ai-team-web running?" />
+      )}
+      {apiError && <AlertBanner message={apiError} onDismiss={() => setApiError(null)} />}
+      {live.errorMessage && <AlertBanner message={live.errorMessage} />}
+    </>
+  );
 
   return (
-    <div className="dashboard" data-testid="dashboard-active">
-      <div className="dashboard-header">
-        <PhasePipeline phase={monitor.phase} />
-      </div>
-      <div className="dashboard-grid">
-        <div className="panel agents">
-          <h3>Agents</h3>
-          <AgentTable agents={monitor.agents} />
+    <div className="dashboard-page">
+      {(healthOk === false || apiError || live.errorMessage) && (
+        <div className="dashboard-alerts" role="status">
+          {alerts}
         </div>
-        <div className="panel metrics">
-          <h3>Metrics</h3>
-          <MetricsCard metrics={monitor.metrics} elapsed={monitor.elapsed} />
-        </div>
-        <div className="panel log">
-          <h3>Activity Log</h3>
-          <ActivityLog entries={monitor.log} />
-        </div>
-        <div className="panel guardrails">
-          <h3>Guardrails</h3>
-          <GuardrailsPanel events={monitor.guardrail_events} />
+      )}
+
+      <div className="dashboard-layout">
+        <aside className="run-sidebar panel" aria-label="Run history">
+          <h3>Runs</h3>
+          {runs.length === 0 ? (
+            <p className="dim">No runs yet</p>
+          ) : (
+            <ul className="run-list">
+              {runs.map((r) => (
+                <li key={r.run_id}>
+                  <button
+                    type="button"
+                    className={`run-list-item ${r.run_id === selectedRunId ? "active" : ""}`}
+                    onClick={() => selectRun(r.run_id)}
+                    data-testid={`run-item-${r.run_id}`}
+                  >
+                    <span className="run-list-date">{formatRunDate(r.started_at)}</span>
+                    <span className="run-list-assignment" title={r.description}>
+                      {r.description || "No assignment"}
+                    </span>
+                    <span className="run-list-meta">
+                      <span className={`status-chip status-${r.status}`}>{r.status}</span>
+                      <span className="run-list-backend">{r.backend}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
+
+        <div className="dashboard-main">
+          {!selectedRunId ? (
+            <div className="dashboard-empty" data-testid="dashboard-empty">
+              <h2>No Active Run</h2>
+              <p>Launch a zero-cost demo or start a real run from the Run tab.</p>
+              <div className="empty-actions">
+                <button
+                  type="button"
+                  className="btn-warning"
+                  onClick={handleDemo}
+                  disabled={demoLoading}
+                  data-testid="dashboard-demo"
+                >
+                  {demoLoading ? "Starting demo…" : "Launch Demo"}
+                </button>
+                <Link to="/run" className="btn-primary">
+                  Go to Run
+                </Link>
+              </div>
+            </div>
+          ) : !hasMonitor ? (
+            <LoadingState
+              label={isLive ? "Connecting to live run…" : "Loading run…"}
+            />
+          ) : (
+            <div className="dashboard" data-testid="dashboard-active">
+              <div className="dashboard-sticky-header">
+                <PhasePipeline phase={monitor.phase} retries={monitor.metrics.retries} />
+                <div className="run-meta-row">
+                  {activeRun && (
+                    <>
+                      <span className="dim">Run {activeRun.run_id}</span>
+                      <span className={`status-chip status-${activeRun.status}`}>
+                        {activeRun.status}
+                      </span>
+                      <span className="dim">{monitor.elapsed}</span>
+                      {monitor.cost_usd != null && (
+                        <span className="dim">${monitor.cost_usd.toFixed(4)}</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {isTerminal && activeRun && (
+                <RunSummaryCard
+                  run={activeRun}
+                  monitor={monitor}
+                  artifactProjectId={activeRun.run_id}
+                />
+              )}
+
+              {!isTerminal && activeRun && (
+                <div className="dashboard-run-meta panel">
+                  <p className="run-meta-date">
+                    Started {formatRunDate(activeRun.started_at)}
+                  </p>
+                  <div className="run-meta-assignment">
+                    <span className="run-meta-label">Assignment</span>
+                    <p>{activeRun.description || "No assignment"}</p>
+                  </div>
+                </div>
+              )}
+
+              {isTerminal && activeRun && activeRun.backend !== "demo" && (
+                <ArtifactPreview projectId={activeRun.run_id} isDemo={false} />
+              )}
+
+              {(runStatus === "awaiting_human" || live.hitlPayload) && selectedRunId && (
+                <HumanReviewPanel
+                  runId={selectedRunId}
+                  payload={live.hitlPayload}
+                  backend={activeRun?.backend}
+                  onResumed={pollRuns}
+                />
+              )}
+
+              {!isTerminal && (
+                <div className="dashboard-grid">
+                  <div className="panel agents">
+                    <h3>Agents</h3>
+                    <AgentTable agents={monitor.agents} />
+                  </div>
+                  <div className="panel metrics">
+                    <h3>Metrics</h3>
+                    <MetricsCard
+                      metrics={monitor.metrics}
+                      elapsed={monitor.elapsed}
+                      costUsd={monitor.cost_usd}
+                      tokenEstimate={monitor.token_estimate}
+                      sessionId={monitor.session_id}
+                    />
+                  </div>
+                  <div className="panel log">
+                    <div className="panel-toolbar">
+                      <h3>Activity Log</h3>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => setShowFullLog((v) => !v)}
+                      >
+                        {showFullLog ? "Collapse" : "Expand"}
+                      </button>
+                    </div>
+                    {showFullLog && (
+                      <ActivityLog entries={monitor.log} ariaLive="polite" />
+                    )}
+                  </div>
+                  <div className="panel guardrails">
+                    <div className="panel-toolbar">
+                      <h3>Guardrails</h3>
+                      {!showGuardrails && isLive && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() => setShowGuardrails(true)}
+                        >
+                          Show
+                        </button>
+                      )}
+                    </div>
+                    {(showGuardrails || !isLive) && (
+                      <GuardrailsPanel events={monitor.guardrail_events} />
+                    )}
+                    {!showGuardrails && isLive && (
+                      <p className="dim panel-collapsed-hint">
+                        Guardrails hidden — click Show or wait for a failure.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

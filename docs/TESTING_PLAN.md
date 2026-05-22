@@ -18,7 +18,7 @@
 | Category | Untested Modules | Risk |
 |----------|-----------------|------|
 | **UI — TUI** | `ui/tui/app.py`, `ui/tui/widgets.py` | Medium — user-facing, default entry point mismatch was already a bug |
-| **UI — Web** | `ui/web/server.py`, entire React frontend | Medium — no API endpoint tests, no component tests |
+| **UI — Web** | `ui/web/server.py`, entire React frontend | Medium — API/WS unit + E2E; Vitest component tests |
 | **Tools** | `git_tools.py`, `architect_tools.py`, `code_tools.py`, `developer_tools.py`, `manager_tools.py`, `qa_tools.py`, `infrastructure.py` | High — tools are the hands of every agent |
 | **Backends** | `backends/registry.py`, `crewai_backend/backend.py`, `langgraph_backend/backend.py`, Claude SDK (`orchestrator.py`, `recovery.py`, `streaming.py`, `workspace.py`) | High — the entire Backend protocol layer |
 | **Agents** | `architect.py`, `backend_developer.py`, `frontend_developer.py`, `fullstack_developer.py`, `manager.py` | Medium — factory functions, prompt loading |
@@ -266,10 +266,10 @@ FastAPI provides `TestClient` (sync, no server startup needed).
 
 | Task | File to Create | Module Under Test | Test Count | Effort |
 |------|---------------|-------------------|------------|--------|
-| [ ] - **T3.10** Setup Vitest + React Testing Library | `ui/web/frontend/vitest.config.ts`, `package.json` scripts | — | — | 2h |
-| [ ] - **T3.11** Dashboard page: renders, connects to WebSocket mock | `ui/web/frontend/src/pages/__tests__/Dashboard.test.tsx` | `Dashboard.tsx` | ~5 | 2h |
-| [ ] - **T3.12** Run page: form defaults, backend selector, submission | `ui/web/frontend/src/pages/__tests__/Run.test.tsx` | `Run.tsx` | ~6 | 2h |
-| [ ] - **T3.13** Compare page: renders comparison table | `ui/web/frontend/src/pages/__tests__/Compare.test.tsx` | `Compare.tsx` | ~4 | 1.5h |
+| [x] - **T3.10** Setup Vitest + React Testing Library | `ui/web/frontend/vitest.config.ts`, `package.json` scripts | — | — | 2h |
+| [x] - **T3.11** Dashboard page: renders, connects to WebSocket mock | `ui/web/frontend/src/pages/__tests__/Dashboard.test.tsx` | `Dashboard.tsx` | ~5 | 2h |
+| [x] - **T3.12** Run page: form defaults, backend selector, submission | `ui/web/frontend/src/pages/__tests__/Run.test.tsx` | `Run.tsx` | ~6 | 2h |
+| [x] - **T3.13** Compare page: renders comparison table | `ui/web/frontend/src/pages/__tests__/Compare.test.tsx` | `Compare.tsx` | ~4 | 1.5h |
 
 **Phase 3 total: ~21.5 hours, ~68 tests**
 

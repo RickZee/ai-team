@@ -160,7 +160,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 6.1  | Generate Gradio UI | [phase-6-1-gradio-ui.md](phase-6-1-gradio-ui.md) | Pending | |
 | 6.2  | Generate Project Input Component | [phase-6-2-project-input-component.md](phase-6-2-project-input-component.md) | Pending | |
 | 6.3  | Generate Progress Display Component | [phase-6-3-progress-display-component.md](phase-6-3-progress-display-component.md) | Pending | |
-| 6.4  | Generate Output Display Component | [phase-6-4-output-display-component.md](phase-6-4-output-display-component.md) | Pending | |
+| 6.4  | Generate Output Display Component | [phase-6-4-output-display-component.md](phase-6-4-output-display-component.md) | **Done** | Web dashboard: `/artifacts` page (Files/Tests/Architecture/Download), FastAPI artifact APIs, `ui/artifacts/service.py`. React (not Gradio). |
 | 6.5  | Generate demo recording scripts | [phase-6-5-demo-recording-scripts.md](phase-6-5-demo-recording-scripts.md) | Pending | |
 | 6.6  | Generate comprehensive documentation | [phase-6-6-comprehensive-documentation.md](phase-6-6-comprehensive-documentation.md) | Pending | |
 | 6.7  | Generate GitHub polish | [phase-6-7-github-polish.md](phase-6-7-github-polish.md) | Pending | |

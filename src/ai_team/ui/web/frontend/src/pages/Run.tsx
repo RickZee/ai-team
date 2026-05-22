@@ -1,50 +1,82 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ActivityLog } from "../components/ActivityLog";
-import { AgentTable } from "../components/AgentTable";
-import { MetricsCard } from "../components/MetricsCard";
-import { PhasePipeline } from "../components/PhasePipeline";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { AlertBanner } from "../components/AlertBanner";
+import { EstimateTable } from "../components/EstimateTable";
+import { HumanReviewPanel } from "../components/HumanReviewPanel";
+import { RunLaunchStatus } from "../components/RunLaunchStatus";
+import { useCatalog } from "../hooks/useCatalog";
 import { postDemo, postEstimate } from "../hooks/useApi";
 import { useRunWebSocket } from "../hooks/useWebSocket";
 import type { CostEstimate } from "../types";
 
 export function Run() {
   const navigate = useNavigate();
-  const [backend, setBackend] = useState("crewai");
+  const { backends, profileNames, loading: catalogLoading, error: catalogError } = useCatalog();
+  const [backend, setBackend] = useState("langgraph");
   const [profile, setProfile] = useState("full");
   const [description, setDescription] = useState("");
   const [complexity, setComplexity] = useState("medium");
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const { monitor, runId, status, startRun } = useRunWebSocket();
+  const { runId, projectId, status, errorMessage, hitlPayload, startRun } = useRunWebSocket();
+
+  const canRun =
+    description.trim().length > 0 && status !== "running" && status !== "connecting";
+
+  const backendOptions =
+    backends.length > 0
+      ? backends
+      : [
+          { name: "langgraph", label: "LangGraph", streaming: true },
+          { name: "crewai", label: "CrewAI", streaming: false },
+          { name: "claude-agent-sdk", label: "Claude Agent SDK", streaming: true },
+        ];
+
+  useEffect(() => {
+    if (runId && (status === "running" || status === "connecting")) {
+      navigate(`/runs/${runId}`, { replace: true });
+    }
+  }, [runId, status, navigate]);
 
   const handleRun = () => {
-    if (!description.trim()) return;
+    if (!canRun) return;
+    setActionError(null);
     startRun(backend, profile, description, complexity);
   };
 
   const handleEstimate = async () => {
+    setActionError(null);
     try {
-      const est = await postEstimate(complexity);
-      setEstimate(est);
+      setEstimate(await postEstimate(complexity));
     } catch (e) {
-      console.error(e);
+      setActionError(e instanceof Error ? e.message : "Estimate failed");
     }
   };
 
   const handleDemo = async () => {
+    setActionError(null);
     try {
-      await postDemo();
-      navigate("/");
+      const { run_id } = await postDemo();
+      navigate(`/runs/${run_id}`);
     } catch (e) {
-      console.error(e);
+      setActionError(e instanceof Error ? e.message : "Demo failed");
     }
   };
 
   return (
-    <div className="run-page">
-      <div className="run-form">
+    <div className="run-page page-shell">
+      {catalogError && <AlertBanner variant="warning" message={catalogError} />}
+      {actionError && (
+        <AlertBanner message={actionError} onDismiss={() => setActionError(null)} />
+      )}
+
+      <header className="page-header">
         <h2>Run Pipeline</h2>
+        <p className="dim">Configure and start a run — live monitoring opens on the Dashboard.</p>
+      </header>
+
+      <div className="run-form panel">
         <div className="form-grid">
           <div className="form-group">
             <label>Backend</label>
@@ -52,20 +84,38 @@ export function Run() {
               value={backend}
               onChange={(e) => setBackend(e.target.value)}
               data-testid="run-backend"
+              disabled={catalogLoading}
             >
-              <option value="crewai">CrewAI</option>
-              <option value="langgraph">LangGraph</option>
-              <option value="claude-agent-sdk">Claude Agent SDK</option>
+              {backendOptions.map((b) => (
+                <option key={b.name} value={b.name}>
+                  {b.label}
+                  {b.streaming ? " (streaming)" : ""}
+                </option>
+              ))}
             </select>
           </div>
           <div className="form-group">
             <label>Team Profile</label>
-            <input
-              value={profile}
-              onChange={(e) => setProfile(e.target.value)}
-              placeholder="full"
-              data-testid="run-profile"
-            />
+            {profileNames.length > 0 ? (
+              <select
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                data-testid="run-profile"
+              >
+                {profileNames.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                placeholder="full"
+                data-testid="run-profile"
+              />
+            )}
           </div>
           <div className="form-group">
             <label>Complexity</label>
@@ -90,10 +140,10 @@ export function Run() {
           <button
             className="btn-primary"
             onClick={handleRun}
-            disabled={status === "running"}
+            disabled={!canRun}
             data-testid="run-submit"
           >
-            {status === "running" ? "Running..." : "Run"}
+            {status === "running" || status === "connecting" ? "Starting…" : "Run"}
           </button>
           <button className="btn-secondary" onClick={handleEstimate} data-testid="run-estimate">
             Estimate Cost
@@ -102,68 +152,53 @@ export function Run() {
             Demo
           </button>
         </div>
+        {estimate && !estimate.within_budget && (
+          <p className="estimate-budget-warn yellow">
+            Estimated cost exceeds default budget — review before running.
+          </p>
+        )}
       </div>
 
       {estimate && (
         <div className="panel estimate-panel">
           <h3>Cost Estimate ({estimate.complexity})</h3>
-          <table className="estimate-table">
-            <thead>
-              <tr>
-                <th>Role</th>
-                <th>Model</th>
-                <th>Input Tokens</th>
-                <th>Output Tokens</th>
-                <th>Cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {estimate.rows.map((r) => (
-                <tr key={r.role}>
-                  <td>{r.role}</td>
-                  <td>{r.model_id}</td>
-                  <td>{r.input_tokens.toLocaleString()}</td>
-                  <td>{r.output_tokens.toLocaleString()}</td>
-                  <td>${r.cost_usd.toFixed(4)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={4}>Total (with 20% buffer)</td>
-                <td className={estimate.within_budget ? "green" : "red"}>${estimate.total_usd.toFixed(4)}</td>
-              </tr>
-            </tfoot>
-          </table>
+          <EstimateTable estimate={estimate} />
         </div>
       )}
 
-      {monitor && (
-        <div className="run-monitor">
-          <PhasePipeline phase={monitor.phase} />
-          <div className="run-monitor-grid">
-            <div className="panel">
-              <h3>Agents</h3>
-              <AgentTable agents={monitor.agents} />
-            </div>
-            <div className="panel">
-              <h3>Metrics</h3>
-              <MetricsCard metrics={monitor.metrics} elapsed={monitor.elapsed} />
-            </div>
-          </div>
-          <div className="panel">
-            <h3>Activity Log</h3>
-            <ActivityLog entries={monitor.log} />
-          </div>
-        </div>
+      <RunLaunchStatus status={status} runId={runId} errorMessage={errorMessage} />
+
+      {status === "awaiting_human" && runId && (
+        <HumanReviewPanel
+          runId={runId}
+          payload={hitlPayload}
+          backend={backend}
+          onResumed={() => navigate(`/runs/${runId}`)}
+        />
       )}
 
-      {status === "complete" && (
-        <div className="run-complete">
-          <span className="green">Run complete</span> {runId && <span className="dim">({runId})</span>}
+      {status === "complete" && runId && (
+        <div className="run-complete panel">
+          <span className="green">Run complete</span>
+          <Link to={`/runs/${runId}`} className="btn-primary" data-testid="run-open-dashboard">
+            Open dashboard
+          </Link>
+          {(projectId ?? runId) && (
+            <Link
+              to={`/artifacts?project=${encodeURIComponent(projectId ?? runId)}`}
+              className="btn-secondary"
+              data-testid="view-artifacts"
+            >
+              View artifacts
+            </Link>
+          )}
         </div>
       )}
-      {status === "error" && <div className="run-error">Run failed</div>}
+      {status === "error" && (
+        <div className="run-error panel" data-testid="run-error">
+          {errorMessage ?? "Run failed"}
+        </div>
+      )}
     </div>
   );
 }

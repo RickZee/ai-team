@@ -7,8 +7,10 @@ executed in the default suite (use demo simulation and mocked WebSocket executio
 
 | Suite | File | Cost |
 |-------|------|------|
-| API E2E | `test_api_e2e.py` | $0 — demo + mocked `/ws/run` |
-| Browser E2E | `test_browser_e2e.py` | $0 — Playwright + demo only |
+| API E2E | `test_api_e2e.py` | $0 — demo, mocked `/ws/run`, HITL, run list metadata |
+| Browser E2E | `test_browser_e2e.py` | $0 — Playwright + demo, compare shell, run list assignment |
+| Vitest | `frontend/src/**/__tests__` | $0 — formatRun, config, pages, HITL panel |
+| Unit | `tests/unit/ui/test_web_server.py` | $0 — REST resume, runs metadata, HITL detection |
 
 ## Run locally
 

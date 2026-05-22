@@ -4,6 +4,30 @@ Flow error recovery for AITeamFlow.
 Provides error classification (Retryable, Recoverable, Fatal), recovery strategies,
 circuit breaker per phase, state preservation (save on error, resume, rollback),
 and structured error reporting with metrics.
+
+## Loop-prevention guardrails (layered defence)
+
+Four independent guards prevent infinite error loops, ordered from cheapest to invoke:
+
+1. **Run-level error budget** (``MAX_RUN_ERRORS = 50``): if total errors across the
+   entire run reaches this ceiling, the next ``_handle_phase_error`` call immediately
+   escalates regardless of category or circuit-breaker state. Catches novel error
+   strings that bypass the per-phase circuit breaker.
+
+2. **Per-phase circuit breaker** (``CIRCUIT_BREAKER_THRESHOLD = 3``): if the same
+   phase fails consecutively ≥3 times, escalate. Resets on phase success via
+   ``reset_circuit()``.
+
+3. **Exponential backoff on every retry** (``RETRY_BACKOFF_DELAYS = [1, 2, 4, 8]``):
+   applied to both RETRYABLE and RECOVERABLE actions via ``apply_retry_backoff()``.
+   Prevents tight async loops even when the circuit breaker hasn't fired yet.
+
+4. **Deduplicated error recording**: if the last recorded error in ``state.errors``
+   has the same message as the current one, it is counted but not appended again.
+   Keeps the error list readable and prevents state.json from ballooning during bursts.
+
+Additionally, ``persist_state_on_error`` is throttled: it only writes to disk when the
+error is the first of a burst (i.e., the last persisted error had a different message).
 """
 
 from __future__ import annotations
@@ -27,6 +51,11 @@ RETRY_BACKOFF_DELAYS = [1, 2, 4, 8]
 CIRCUIT_BREAKER_THRESHOLD = 3
 # Cap consecutive failures so a bad state file or loop cannot inflate indefinitely
 MAX_CONSECUTIVE_FAILURES_CAP = 10
+# Run-level hard ceiling: if total errors across all phases reaches this, escalate immediately.
+# Acts as a last-resort guard against novel error strings that slip past the circuit breaker.
+MAX_RUN_ERRORS = 50
+# Metadata key used to throttle state persistence during error bursts
+_LAST_PERSISTED_ERROR_KEY = "_last_persisted_error_msg"
 
 
 # -----------------------------------------------------------------------------
@@ -57,6 +86,14 @@ RETRYABLE_INDICATORS = [
     "retry",
     "ollama",
     "connection error",
+    # LiteLLM / OpenRouter transient provider errors
+    "litellm",
+    "apierror",
+    "openrouterexception",
+    "unable to get json response",
+    # CrewAI agent_utils: LLM returned None/empty — transient provider issue
+    "invalid response from llm call",
+    "none or empty",
 ]
 FATAL_INDICATORS = [
     "model not found",
@@ -222,6 +259,36 @@ def circuit_breaker_should_escalate(state: ProjectState, phase: ProjectPhase) ->
     return get_consecutive_failures(state, phase) >= CIRCUIT_BREAKER_THRESHOLD
 
 
+def run_budget_exhausted(state: ProjectState) -> bool:
+    """Return True if total errors across all phases hit MAX_RUN_ERRORS.
+
+    This is the run-level last-resort guard. It fires before per-phase circuit
+    breaker logic so novel error strings cannot loop indefinitely even if the
+    classifier misses them.
+    """
+    return len(state.errors) >= MAX_RUN_ERRORS
+
+
+def _record_error_deduplicated(
+    state: ProjectState,
+    phase: ProjectPhase,
+    error_type: str,
+    msg: str,
+    *,
+    recoverable: bool = True,
+) -> bool:
+    """Append error to state.errors only if it differs from the last recorded message.
+
+    Returns True if appended (novel error), False if suppressed (duplicate burst).
+    Duplicate errors are still counted via the consecutive_failures counter; they just
+    don't bloat the errors list with thousands of identical entries.
+    """
+    if state.errors and state.errors[-1].message == msg:
+        return False
+    state.add_error(phase, error_type, msg, recoverable=recoverable)
+    return True
+
+
 # -----------------------------------------------------------------------------
 # State preservation
 # -----------------------------------------------------------------------------
@@ -301,6 +368,19 @@ def apply_retry_backoff(attempt: int) -> None:
 RecoveryAction = str  # "retry" | "retry_with_feedback" | "escalate"
 
 
+def _should_persist_now(state: ProjectState, msg: str) -> bool:
+    """Return True only when this error message differs from the last persisted one.
+
+    Prevents a disk-write storm during tight error loops where the same exception
+    fires hundreds of times per second.
+    """
+    last = state.metadata.get(_LAST_PERSISTED_ERROR_KEY, "")
+    if last == msg:
+        return False
+    state.metadata[_LAST_PERSISTED_ERROR_KEY] = msg
+    return True
+
+
 def get_recovery_action(
     category: ErrorCategory,
     state: ProjectState,
@@ -316,6 +396,20 @@ def get_recovery_action(
     max_retries = max_retries or state.max_retries
     payload: dict[str, Any] = {}
 
+    # Guard 1: run-level error budget (catches novel error strings before circuit breaker)
+    if run_budget_exhausted(state):
+        logger.error(
+            "run_error_budget_exhausted",
+            total_errors=len(state.errors),
+            max=MAX_RUN_ERRORS,
+            phase=phase.value,
+        )
+        return "escalate", {
+            "reason": "run_error_budget_exhausted",
+            "total_errors": len(state.errors),
+        }
+
+    # Guard 2: per-phase circuit breaker
     if circuit_breaker_should_escalate(state, phase):
         return "escalate", {
             "reason": "circuit_breaker",
@@ -334,10 +428,17 @@ def get_recovery_action(
         return "retry", payload
 
     if category == ErrorCategory.RECOVERABLE:
-        # Retry with feedback (caller can inject feedback into next prompt)
+        # Retry with feedback — honour max_retries cap and apply backoff to prevent tight loops.
+        # Recoverable errors (Pydantic validation, bad output format) can fail synchronously
+        # at Python speed; backoff is essential to avoid spinning the async event loop.
+        attempt = get_consecutive_failures(state, phase)
+        if attempt >= max_retries:
+            return "escalate", {"reason": "max_retries_exceeded", "attempts": attempt}
+        payload["backoff_attempt"] = attempt
         return "retry_with_feedback", {
             "reason": "recoverable",
             "feedback": "Please fix the reported issue and try again.",
+            **payload,
         }
 
     return "escalate", {"reason": "unknown"}
@@ -400,33 +501,55 @@ def _handle_phase_error(
 ) -> dict[str, Any]:
     """
     Shared logic: classify error, record in state, persist, circuit breaker, recovery action.
+
+    Loop-prevention measures applied here (see module docstring for full design):
+    - Deduplicated error recording: identical consecutive messages not re-appended.
+    - Throttled persistence: state.json only written when error message changes.
+    - Run-level budget and per-phase circuit breaker checked in get_recovery_action().
     """
     msg = error.get("error") or error.get("message") or str(error)
-    state.add_error(phase, f"{phase_name}_error", msg, recoverable=True)
+
+    # Deduplicated recording — always increment failure counter but only append novel errors
+    is_novel = _record_error_deduplicated(
+        state, phase, f"{phase_name}_error", msg, recoverable=True
+    )
 
     category = classify_error(error)
     record_failure(state, phase)
 
-    structured = record_structured_error(
-        phase=phase,
-        error_type=category.value,
-        message=msg,
-        stack_trace=error.get("stack_trace"),
-    )
-
-    # Persist state on every error
-    if persist_fn is not None:
-        try:
-            persist_fn(state)
-        except Exception as e:
-            logger.warning("state_persistence_failed", error=str(e))
+    # Only log + build structured entry for novel errors to avoid log spam
+    if is_novel:
+        structured = record_structured_error(
+            phase=phase,
+            error_type=category.value,
+            message=msg,
+            stack_trace=error.get("stack_trace"),
+        )
     else:
-        try:
-            persist_state_on_error(
-                state, {"phase": phase_name, "error": msg, "category": category.value}
-            )
-        except Exception as e:
-            logger.warning("state_persistence_failed", error=str(e))
+        # Build entry without logging (suppress repeat spam)
+        structured = StructuredErrorLog(
+            phase=phase.value,
+            error_type=category.value,
+            message=msg,
+            stack_trace=error.get("stack_trace"),
+            timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        )
+
+    # Throttled persistence — only write disk when error message changes
+    should_persist = _should_persist_now(state, msg)
+    if should_persist:
+        if persist_fn is not None:
+            try:
+                persist_fn(state)
+            except Exception as e:
+                logger.warning("state_persistence_failed", error=str(e))
+        else:
+            try:
+                persist_state_on_error(
+                    state, {"phase": phase_name, "error": msg, "category": category.value}
+                )
+            except Exception as e:
+                logger.warning("state_persistence_failed", error=str(e))
 
     action, payload = get_recovery_action(category, state, phase)
     summary = build_error_summary_report(state)
@@ -444,7 +567,7 @@ def _handle_phase_error(
     }
     result.update(payload)
 
-    if action == "retry" and "backoff_attempt" in payload:
+    if action in ("retry", "retry_with_feedback") and "backoff_attempt" in payload:
         apply_retry_backoff(payload["backoff_attempt"])
 
     # Transition to ERROR only when we escalate; otherwise flow will retry

@@ -21,9 +21,9 @@ from typing import Any, Literal
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -63,15 +63,24 @@ class RunState:
             "started_at": datetime.now().isoformat(),
             "finished_at": None,
             "error": None,
+            "thread_id": run_id,
+            "project_id": run_id,
+            "hitl_payload": None,
         }
         self.runs[run_id] = entry
         return entry
+
+    def set_awaiting_human(self, run_id: str, payload: dict[str, Any]) -> None:
+        if run_id in self.runs:
+            self.runs[run_id]["status"] = "awaiting_human"
+            self.runs[run_id]["hitl_payload"] = payload
 
     def finish_run(self, run_id: str, success: bool, error: str | None = None) -> None:
         if run_id in self.runs:
             self.runs[run_id]["status"] = "complete" if success else "error"
             self.runs[run_id]["finished_at"] = datetime.now().isoformat()
             self.runs[run_id]["error"] = error
+            self.runs[run_id]["hitl_payload"] = None
 
 
 state = RunState()
@@ -90,6 +99,10 @@ class RunRequest(BaseModel):
 
 class EstimateRequest(BaseModel):
     complexity: ComplexityOption = "medium"
+
+
+class ResumeRequest(BaseModel):
+    feedback: str
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +187,144 @@ async def get_run(run_id: str):
 
     monitor = state.monitors.get(run_id)
     monitor_data = _serialize_monitor(monitor) if monitor else None
-    return {**run, "monitor": monitor_data}
+    return {**run, "project_id": run.get("project_id") or run_id, "monitor": monitor_data}
+
+
+@app.get("/api/registry/runs")
+async def registry_runs():
+    """List runs from disk registry merged with in-memory web sessions."""
+    from ai_team.ui.artifacts.service import load_registry
+
+    rows = load_registry(list(state.runs.values()))
+    return {"runs": [r.model_dump() for r in rows]}
+
+
+@app.get("/api/projects/{project_id}/tree")
+async def project_tree(
+    project_id: str,
+    root: Literal["workspace", "bundle"] = Query(default="workspace"),
+):
+    """Nested file tree for a project workspace or results bundle."""
+    from ai_team.ui.artifacts.service import build_tree
+
+    try:
+        nodes = build_tree(project_id, root)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"project_id": project_id, "root": root, "tree": [n.model_dump() for n in nodes]}
+
+
+@app.get("/api/projects/{project_id}/file")
+async def project_file(
+    project_id: str,
+    path: str = Query(..., description="Relative file path"),
+    root: Literal["workspace", "bundle"] = Query(default="workspace"),
+):
+    """Read a single artifact file (text) or return binary metadata."""
+    from ai_team.ui.artifacts.service import read_artifact_file
+
+    try:
+        content = read_artifact_file(project_id, root, path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if content.is_binary:
+        raise HTTPException(
+            status_code=415,
+            detail={
+                "message": "Binary file cannot be displayed as text",
+                "size_bytes": content.size_bytes,
+                "path": content.path,
+            },
+        )
+    return content.model_dump()
+
+
+@app.get("/api/projects/{project_id}/tests")
+async def project_tests(project_id: str):
+    """Normalized test results for the Tests tab."""
+    from ai_team.ui.artifacts.service import load_tests_panel
+
+    try:
+        panel = load_tests_panel(project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return panel.model_dump()
+
+
+@app.get("/api/projects/{project_id}/architecture")
+async def project_architecture(project_id: str):
+    """Architecture document for the Architecture tab."""
+    from ai_team.ui.artifacts.service import load_architecture_panel
+
+    try:
+        panel = load_architecture_panel(project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return panel.model_dump()
+
+
+@app.get("/api/projects/{project_id}/download.zip")
+async def project_download_zip(project_id: str):
+    """Download workspace as ZIP."""
+    from ai_team.ui.artifacts.service import workspace_zip_bytes
+
+    try:
+        data = workspace_zip_bytes(project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{project_id}-workspace.zip"'
+        },
+    )
+
+
+@app.post("/api/runs/{run_id}/resume")
+async def resume_run(run_id: str, req: ResumeRequest):
+    """Resume a LangGraph run blocked on human review (HITL)."""
+    run = state.runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run["status"] != "awaiting_human":
+        raise HTTPException(status_code=400, detail="Run is not awaiting human input")
+    if run["backend"] != "langgraph":
+        raise HTTPException(status_code=400, detail="Resume only supported for langgraph backend")
+
+    feedback = (req.feedback or "").strip()
+    if not feedback:
+        raise HTTPException(status_code=400, detail="Feedback is required")
+
+    from ai_team.backends.langgraph_backend.backend import LangGraphBackend
+    from ai_team.backends.registry import get_backend
+    from ai_team.core.team_profile import load_team_profile
+
+    backend = get_backend("langgraph")
+    if not isinstance(backend, LangGraphBackend):
+        raise HTTPException(status_code=500, detail="LangGraph backend unavailable")
+
+    profile = load_team_profile(run["profile"])
+    thread_id = str(run.get("thread_id") or run_id)
+    monitor = state.monitors.get(run_id)
+    run["status"] = "running"
+
+    loop = asyncio.get_event_loop()
+
+    def _resume() -> None:
+        backend.resume(thread_id, feedback, profile)
+
+    try:
+        await loop.run_in_executor(None, _resume)
+        state.finish_run(run_id, success=True)
+        return {
+            "run_id": run_id,
+            "status": "complete",
+            "monitor": _serialize_monitor(monitor) if monitor else None,
+        }
+    except Exception as e:
+        state.finish_run(run_id, success=False, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/demo")
@@ -207,8 +357,12 @@ async def ws_run(websocket: WebSocket):
 
         run_id = str(uuid.uuid4())[:8]
         state.create_run(run_id, req.backend, req.profile, req.description)
+        state.runs[run_id]["thread_id"] = run_id
+        state.runs[run_id]["project_id"] = run_id
 
-        await websocket.send_json({"type": "run_started", "run_id": run_id})
+        await websocket.send_json(
+            {"type": "run_started", "run_id": run_id, "project_id": run_id}
+        )
 
         await _execute_run(websocket, run_id, req)
 
@@ -239,8 +393,25 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
             data["run_status"] = run["status"]
             await websocket.send_json({"type": "monitor_update", "data": data})
 
+            if run["status"] == "awaiting_human":
+                payload = run.get("hitl_payload") or {}
+                await websocket.send_json(
+                    {
+                        "type": "hitl_required",
+                        "data": {**payload, "monitor": data, "run_id": run_id},
+                    }
+                )
+                break
+
             if run["status"] in ("complete", "error"):
-                await websocket.send_json({"type": "complete"})
+                final_type = "error" if run["status"] == "error" else "complete"
+                await websocket.send_json(
+                    {
+                        "type": final_type,
+                        "data": data,
+                        "message": run.get("error"),
+                    }
+                )
                 break
 
             await asyncio.sleep(0.5)
@@ -273,11 +444,16 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
 
             if isinstance(backend, LangGraphBackend):
                 loop = asyncio.get_event_loop()
+                thread_id = run_id
 
-                # Run blocking iter_stream_events in executor
                 def _stream():
                     events = []
-                    for ev in backend.iter_stream_events(req.description, profile, monitor=monitor):
+                    for ev in backend.iter_stream_events(
+                        req.description,
+                        profile,
+                        monitor=monitor,
+                        thread_id=thread_id,
+                    ):
                         events.append(ev)
                     return events
 
@@ -291,6 +467,17 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     )
                     monitor_snap = _serialize_monitor(monitor)
                     await ws.send_json({"type": "monitor_update", "data": monitor_snap})
+
+                awaiting, hitl_payload = _langgraph_hitl_status(backend, thread_id)
+                if awaiting:
+                    payload = {
+                        **(hitl_payload or {}),
+                        "thread_id": thread_id,
+                        "monitor": _serialize_monitor(monitor),
+                    }
+                    state.set_awaiting_human(run_id, payload)
+                    await ws.send_json({"type": "hitl_required", "data": payload})
+                    return
         elif req.backend in ("claude-agent-sdk", "claude-sdk"):
             from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
 
@@ -300,6 +487,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     profile,
                     env=None,
                     monitor=monitor,
+                    thread_id=run_id,
                 ):
                     await ws.send_json(
                         {
@@ -313,7 +501,13 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
                 None,
-                lambda: backend.run(req.description, profile, env=None, monitor=monitor),
+                lambda: backend.run(
+                    req.description,
+                    profile,
+                    env=None,
+                    monitor=monitor,
+                    thread_id=run_id,
+                ),
             )
             await ws.send_json(
                 {
@@ -327,6 +521,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             {
                 "type": "complete",
                 "data": _serialize_monitor(monitor),
+                "project_id": run_id,
             }
         )
 
@@ -452,6 +647,37 @@ async def _run_demo_async(run_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _langgraph_hitl_status(backend: Any, thread_id: str) -> tuple[bool, dict[str, Any] | None]:
+    """Return whether a LangGraph thread is paused for human review."""
+    try:
+        from ai_team.backends.langgraph_backend.state_inspection import get_thread_state_snapshot
+
+        g = backend._compile_for_run(backend._graph_mode({}), None)
+        snap = get_thread_state_snapshot(g, thread_id)
+        values = snap.values if isinstance(snap.values, dict) else {}
+        phase = str(values.get("current_phase") or "")
+        if phase == "awaiting_human":
+            meta = values.get("metadata") if isinstance(values.get("metadata"), dict) else {}
+            return True, {
+                "phase": phase,
+                "thread_id": thread_id,
+                "metadata": meta,
+                "next": list(snap.next) if snap.next else [],
+            }
+        if snap.tasks:
+            for task in snap.tasks:
+                interrupts = getattr(task, "interrupts", None)
+                if interrupts:
+                    return True, {
+                        "thread_id": thread_id,
+                        "interrupts": json.loads(json.dumps(interrupts, default=str)),
+                        "next": list(snap.next) if snap.next else [],
+                    }
+    except Exception as e:
+        logger.debug("langgraph_hitl_check_skipped", error=str(e))
+    return False, None
+
+
 def _serialize_monitor(monitor) -> dict[str, Any]:
     """Serialize TeamMonitor state to JSON-safe dict."""
     if not monitor:
@@ -499,6 +725,9 @@ def _serialize_monitor(monitor) -> dict[str, Any]:
             }
             for e in monitor.guardrail_events[-20:]
         ],
+        "token_estimate": monitor.metrics.token_estimate,
+        "cost_usd": monitor.metrics.claude_cost_usd,
+        "session_id": monitor.metrics.claude_session_id or None,
     }
 
 

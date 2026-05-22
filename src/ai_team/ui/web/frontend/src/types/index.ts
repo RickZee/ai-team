@@ -18,6 +18,12 @@ export interface Metrics {
   tests_failed: number;
 }
 
+export interface MonitorCostFields {
+  token_estimate?: number;
+  cost_usd?: number | null;
+  session_id?: string;
+}
+
 export interface LogEntry {
   timestamp: string;
   agent: string;
@@ -33,7 +39,7 @@ export interface GuardrailEvent {
   message: string;
 }
 
-export interface MonitorState {
+export interface MonitorState extends MonitorCostFields {
   phase: string;
   elapsed: string;
   agents: Record<string, AgentState>;
@@ -78,5 +84,82 @@ export interface BackendInfo {
 export interface ProfileInfo {
   agents: string[];
   phases: string[];
-  model_overrides: Record<string, string>;
+  model_overrides?: Record<string, string>;
+}
+
+export type ArtifactRoot = "workspace" | "bundle";
+
+export interface RegistryRun {
+  run_id: string;
+  output_dir?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  backend?: string | null;
+  team_profile?: string | null;
+  status?: string | null;
+  description?: string | null;
+}
+
+export interface ArtifactTreeNode {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+  size?: number | null;
+  children: ArtifactTreeNode[];
+}
+
+export interface ArtifactFileContent {
+  path: string;
+  root: ArtifactRoot;
+  content: string | null;
+  language?: string | null;
+  size_bytes: number;
+  is_binary: boolean;
+  truncated: boolean;
+}
+
+export interface TestFailureItem {
+  test_name: string;
+  error: string;
+  traceback: string;
+}
+
+export interface FileCoverageItem {
+  path: string;
+  line_coverage: number;
+  branch_coverage: number;
+}
+
+export interface TestsPanelData {
+  total: number;
+  passed: number;
+  failed: number;
+  errors: number;
+  skipped: number;
+  coverage_line: number;
+  coverage_branch: number;
+  duration_seconds: number;
+  failures: TestFailureItem[];
+  per_file_coverage: FileCoverageItem[];
+  raw_pytest?: string | null;
+  source?: string | null;
+}
+
+export interface ArchitecturePanelData {
+  system_overview: string;
+  ascii_diagram: string;
+  components: { name: string; responsibilities: string }[];
+  technology_stack: { name: string; category: string; justification: string }[];
+  interface_contracts: Record<string, unknown>[];
+  data_model_outline: string;
+  deployment_topology: string;
+  adrs: Record<string, unknown>[];
+  markdown_fallback?: string | null;
+  source?: string | null;
+}
+
+export interface OpenFileTab {
+  path: string;
+  root: ArtifactRoot;
+  label: string;
 }

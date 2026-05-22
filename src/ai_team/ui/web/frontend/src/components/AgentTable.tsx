@@ -30,7 +30,7 @@ export function AgentTable({ agents }: { agents: Record<string, AgentState> }) {
   const entries = Object.entries(agents);
 
   if (entries.length === 0) {
-    return <div className="empty-state">Waiting for agents...</div>;
+    return <div className="empty-state">Waiting for agents to join the run…</div>;
   }
 
   return (
@@ -39,20 +39,24 @@ export function AgentTable({ agents }: { agents: Record<string, AgentState> }) {
         <tr>
           <th>Agent</th>
           <th>Status</th>
+          <th>Model</th>
           <th>Task</th>
           <th>Done</th>
         </tr>
       </thead>
       <tbody>
         {entries.map(([role, agent]) => (
-          <tr key={role}>
+          <tr key={role} className={agent.status === "working" ? "agent-row-active" : undefined}>
             <td className="agent-name">
               {ICONS[role] || "\ud83e\udd16"} {role.replace(/_/g, " ")}
             </td>
             <td className={STATUS_CLASS[agent.status] || "status-idle"}>
               {STATUS_LABEL[agent.status] || "○ IDLE"}
             </td>
-            <td className="agent-task">{agent.current_task || "\u2014"}</td>
+            <td className="agent-model dim">{agent.model || "—"}</td>
+            <td className="agent-task" title={agent.current_task}>
+              {agent.current_task || (agent.status === "done" ? "(finished)" : "—")}
+            </td>
             <td className="agent-done">{agent.tasks_completed}</td>
           </tr>
         ))}

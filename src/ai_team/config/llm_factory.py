@@ -45,16 +45,25 @@ def create_llm_for_role(role: str, settings: OpenRouterSettings) -> LLM:
     role_config = settings.get_model_for_role(role)
     # Cap max_tokens so requests stay within OpenRouter key limits (402 = credits/max_tokens)
     max_tokens = min(role_config.max_tokens, 8192)
+    # Timeout: 120s per-request. Set both `timeout` (LiteLLM primary) and
+    # `request_timeout` (LiteLLM fallback key) to prevent OpenRouter stalls.
+    # num_retries: LiteLLM retries on transient 5xx / empty responses before raising.
+    _TIMEOUT_SECONDS = 120
     llm = LLM(
         model=role_config.model_id,
         temperature=role_config.temperature,
         max_tokens=max_tokens,
+        timeout=_TIMEOUT_SECONDS,
+        num_retries=3,
+        request_timeout=_TIMEOUT_SECONDS,  # LiteLLM fallback timeout key
     )
-    logger.debug(
+    logger.info(
         "llm_factory_created",
         role=role,
         model=role_config.model_id,
         temperature=role_config.temperature,
+        max_tokens=max_tokens,
+        num_retries=3,
     )
     return llm
 
