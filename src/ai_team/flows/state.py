@@ -224,8 +224,8 @@ def _validate_transition(from_phase: ProjectPhase, to_phase: ProjectPhase) -> No
     if to_phase in (ProjectPhase.ERROR, ProjectPhase.FAILED, ProjectPhase.AWAITING_HUMAN):
         return
     # Profiles that skip deployment allow TESTING -> COMPLETE directly.
-    _ALLOWED_SKIPS = {(ProjectPhase.TESTING, ProjectPhase.COMPLETE)}
-    if (from_phase, to_phase) in _ALLOWED_SKIPS:
+    allowed_skips = {(ProjectPhase.TESTING, ProjectPhase.COMPLETE)}
+    if (from_phase, to_phase) in allowed_skips:
         return
     try:
         from_idx = _PHASE_ORDER.index(from_phase)
