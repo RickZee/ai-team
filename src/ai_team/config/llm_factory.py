@@ -48,14 +48,14 @@ def create_llm_for_role(role: str, settings: OpenRouterSettings) -> LLM:
     # Timeout: 120s per-request. Set both `timeout` (LiteLLM primary) and
     # `request_timeout` (LiteLLM fallback key) to prevent OpenRouter stalls.
     # num_retries: LiteLLM retries on transient 5xx / empty responses before raising.
-    _TIMEOUT_SECONDS = 120
+    timeout_seconds = 120
     llm = LLM(
         model=role_config.model_id,
         temperature=role_config.temperature,
         max_tokens=max_tokens,
-        timeout=_TIMEOUT_SECONDS,
+        timeout=timeout_seconds,
         num_retries=3,
-        request_timeout=_TIMEOUT_SECONDS,  # LiteLLM fallback timeout key
+        request_timeout=timeout_seconds,  # LiteLLM fallback timeout key
     )
     logger.info(
         "llm_factory_created",

@@ -224,3 +224,6 @@ output/
 
 # Per-run generated project workspace (ephemeral)
 workspace/
+
+# Logs
+logs/

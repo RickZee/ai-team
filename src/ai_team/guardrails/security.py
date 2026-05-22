@@ -76,7 +76,11 @@ _DEFAULT_DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"yaml\.load\s*\([^)]*\)(?!\s*Loader\s*=)", "yaml.load() without Loader", _SEVERITY_CRITICAL),
     (r"open\s*\([^)]*[\'\"]/etc/", "system file access", _SEVERITY_CRITICAL),
     (r"chmod\s+[0-7]*7[0-7]*", "world-writable chmod", _SEVERITY_WARNING),
-    (r"rm\s+-rf\s+/\s*$", "root filesystem deletion", _SEVERITY_CRITICAL),  # rm -rf / only, not rm -rf /var/...
+    (
+        r"rm\s+-rf\s+/\s*$",
+        "root filesystem deletion",
+        _SEVERITY_CRITICAL,
+    ),  # rm -rf / only, not rm -rf /var/...
     (r"DROP\s+(TABLE|DATABASE|INDEX)", "SQL DROP", _SEVERITY_CRITICAL),
     (r"TRUNCATE\s+TABLE", "SQL TRUNCATE", _SEVERITY_WARNING),
     (r"<\s*script[^>]*>", "XSS script tag", _SEVERITY_CRITICAL),
