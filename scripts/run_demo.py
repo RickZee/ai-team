@@ -201,4 +201,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rc = main()
+    # Force-exit to kill dangling non-daemon threads from CrewAI/LiteLLM internals
+    # that would otherwise keep the process alive indefinitely after flow completes.
+    os._exit(rc)
