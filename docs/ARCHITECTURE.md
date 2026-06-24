@@ -8,35 +8,24 @@ This document describes the AI Team system architecture: flows, crews, agents, t
 
 Three UI interfaces serve different audiences — all integrate through the same `TeamMonitor`, `Backend` protocol, and cost tracking APIs.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                              UI LAYER                                            │
-│                                                                                  │
-│  ┌─────────────────────┐  ┌──────────────────┐  ┌───────────────┐  ┌──────────┐ │
-│  │ Web Dashboard       │  │ Textual TUI      │  │ Rich CLI Monitor             │ │
-│  │ (FastAPI + React)   │  │ (ai-team-tui)    │  │ (--monitor)                  │ │
-│  │                     │  │                  │  │               │  │          │ │
-│  │ • REST + WebSocket  │  │ • 3 tabs: Dash,  │  │ • Inline CLI  │  │ • Quick  │ │
-│  │ • Real-time stream  │  │   Run, Compare   │  │   live display│  │   demo   │ │
-│  │ • Compare backends  │  │ • Keyboard nav   │  │ • Phase, log, │  │          │ │
-│  │ • Cost estimation   │  │ • Demo mode      │  │   agents,     │  │          │ │
-│  │ • Agent monitoring  │  │ • Cost estimate  │  │   guardrails  │  │          │ │
-│  └────────┬────────────┘  └────────┬─────────┘  └───────┬───────┘  └────┬─────┘ │
-│           └────────────────────────┼─────────────────────┘               │       │
-│                                    ▼                                     │       │
-│           ┌─────────────────────────────────────────────────┐           │       │
-│           │ TeamMonitor (monitor.py)                        │◄──────────┘       │
-│           │ • Phase tracking    • Agent status table         │                   │
-│           │ • Metrics (tasks, guardrails, tests, files)      │                   │
-│           │ • Activity log      • Guardrail events           │                   │
-│           └──────────────────────┬──────────────────────────┘                   │
-│                                  ▼                                               │
-│           ┌─────────────────────────────────────────────────┐                   │
-│           │ Backend Registry → get_backend("crewai|langgraph|claude-agent-sdk")│  │
-│           │ Cost Estimator → estimate_run_cost(settings, cx)  │                   │
-│           │ Token Tracker → record(), summary(), save_report()│                   │
-│           └─────────────────────────────────────────────────┘                   │
-└──────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph UI["High Level Diagram"]
+        WD["<b>Web Dashboard</b><br/>(FastAPI + React)<br/>• REST + WebSocket<br/>• Real-time stream<br/>• Compare backends<br/>• Cost estimation<br/>• Agent monitoring"]
+        TUI["<b>Textual TUI</b><br/>(ai-team-tui)<br/>• 3 tabs: Dash, Run, Compare<br/>• Keyboard nav<br/>• Demo mode<br/>• Cost estimate"]
+        CLI["<b>Rich CLI Monitor</b><br/>(--monitor)<br/>• Inline CLI live display<br/>• Phase, log, agents, guardrails"]
+        QD["<b>Quick Demo</b>"]
+
+        TM["<b>TeamMonitor</b> (monitor.py)<br/>• Phase tracking &nbsp;&nbsp;&nbsp;• Agent status table<br/>• Metrics: tasks, guardrails, tests, files<br/>• Activity log &nbsp;&nbsp;&nbsp;• Guardrail events"]
+
+        BR["<b>Backend Registry</b> → get_backend(crewai | langgraph | claude-agent-sdk)<br/><b>Cost Estimator</b> → estimate_run_cost(settings, cx)<br/><b>Token Tracker</b> → record(), summary(), save_report()"]
+    end
+
+    WD --> TM
+    TUI --> TM
+    CLI --> TM
+    QD --> TM
+    TM --> BR
 ```
 
 ### Key files
@@ -54,57 +43,29 @@ Three UI interfaces serve different audiences — all integrate through the same
 
 ## 1. System Overview Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           FLOW LAYER (Orchestration)                             │
-│  ┌─────────────────────────────────────────────────────────────────────────────┐ │
-│  │  AITeamFlow                                                                  │ │
-│  │  • @start() → intake_request                                                  │ │
-│  │  • @router() → route_after_intake | route_after_planning | ...               │ │
-│  │  • @listen("run_planning") | "run_development" | "run_testing" | ...         │ │
-│  │  • ProjectState (Pydantic) — phase, requirements, files, test_results, ...   │ │
-│  └─────────────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    ▼                   ▼                   ▼
-┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
-│     CREW LAYER          │ │     CREW LAYER          │ │     CREW LAYER          │
-│  PlanningCrew          │ │  DevelopmentCrew        │ │  TestingCrew            │
-│  • Manager (coordinator)│ │  • Manager (coordinator)│ │  • QA Engineer          │
-│  • Product Owner        │ │  • Backend / Frontend   │ │  • Test tools           │
-│  • Architect            │ │  • Fullstack (optional)│ │  • Coverage / reports    │
-│  • Requirements + Arch  │ │  • Code + File + Git    │ │                         │
-└───────────┬─────────────┘ └───────────┬─────────────┘ └───────────┬─────────────┘
-            │                           │                           │
-            ▼                           ▼                           ▼
-┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
-│     CREW LAYER          │ │     AGENT LAYER         │ │     AGENT LAYER         │
-│  DeploymentCrew         │ │  • Manager              │ │  • Backend Developer    │
-│  • DevOps Engineer      │ │  • Product Owner        │ │  • Frontend Developer   │
-│  • Cloud Engineer       │ │  • Architect            │ │  • QA Engineer          │
-│  • Docker / IaC / CI-CD │ │  • Cloud Engineer       │ │  • DevOps Engineer      │
-└───────────┬─────────────┘ │  • (Fullstack optional) │ │  (7–8 specialized)      │
-            │               └───────────┬─────────────┘ └───────────┬─────────────┘
-            │                           │                           │
-            └───────────────────────────┼───────────────────────────┘
-                                        ▼
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           TOOL LAYER (with security wrappers)                    │
-│  File: read_file, write_file, list_dir (path validation)                         │
-│  Code: code_generation, code_review, sandbox execution                            │
-│  Git:  status, commit, branch, diff                                               │
-│  Test: run_tests, coverage_report                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-                                        │
-┌───────────────────────────────────────┼───────────────────────────────────────────┐
-│  GUARDRAIL LAYER                      │  MEMORY LAYER                              │
-│  • Behavioral (role, scope, reasoning)│  • Short-term (ChromaDB) — session context │
-│  • Security (code safety, PII,        │  • Long-term (SQLite) — cross-session      │
-│    secrets, prompt injection, paths)  │  • Entity memory — entities & relations    │
-│  • Quality (word count, JSON, syntax, │  • Knowledge sources for RAG               │
-│    no placeholders, LLM guardrails)   │                                             │
-└───────────────────────────────────────┴───────────────────────────────────────────┘
+```mermaid
+graph TB
+    ATF["<b>AITeamFlow</b><br/><i>event-driven orchestration over ProjectState</i>"]
+
+    ATF --> PC & DC & TC & DEPC
+
+    PC["<b>PlanningCrew</b><br/><i>requirements + architecture</i>"]
+    DC["<b>DevelopmentCrew</b><br/><i>code generation</i>"]
+    TC["<b>TestingCrew</b><br/><i>tests + coverage</i>"]
+    DEPC["<b>DeploymentCrew</b><br/><i>Docker, IaC, CI/CD</i>"]
+
+    PC & DC & TC & DEPC --> AG
+
+    AG["<b>Agents</b> (7–8 roles)<br/><i>Manager, PO, Architect, Dev, Cloud, DevOps, QA</i>"]
+
+    AG --> TOOLS
+
+    TOOLS["<b>Tools</b><br/><i>File · Code · Git · Test, with security wrappers</i>"]
+
+    TOOLS --> GL & ML
+
+    GL["<b>Guardrails</b><br/><i>Behavioral · Security · Quality</i>"]
+    ML["<b>Memory</b><br/><i>short-term · long-term · entity · RAG</i>"]
 ```
 
 ---
@@ -240,38 +201,30 @@ Configured via `MemoryConfig` (Chroma persist dir, SQLite path, limits). Used by
 
 ## 3. Data Flow Diagram
 
-```
-  User Request
-       │
-       ▼
-┌──────────────┐     invalid / rejected      ┌─────────────────────┐
-│   INTAKE     │ ──────────────────────────►│ request_clarification│
-│  (validate) │                             │ or handle_fatal_error│
-└──────┬───────┘                             └─────────────────────┘
-       │ success
-       ▼
-┌──────────────┐     needs_clarification      ┌─────────────────────┐
-│  PLANNING    │ ──────────────────────────►│ request_clarification│
-│ (req + arch) │                             └─────────────────────┘
-└──────┬───────┘
-       │ success
-       ▼
-┌──────────────┐     tests_failed & retries  ┌─────────────────────┐
-│ DEVELOPMENT  │ ◄──────────────────────────│ retry_development   │
-│ (code gen)  │ ──────────────────────────►│ (feedback loop)     │
-└──────┬───────┘     success                 └─────────────────────┘
-       │
-       ▼
-┌──────────────┐     tests_failed (max)      ┌─────────────────────┐
-│   TESTING    │ ──────────────────────────►│ escalate_test_      │
-│ (QA + runs)  │                             │ failures → human     │
-└──────┬───────┘                             └─────────────────────┘
-       │ success
-       ▼
-┌──────────────┐
-│  DEPLOYMENT  │ ─── success ──► finalize_project ──► COMPLETE
-│ (Docker, CI) │ ─── error ────► handle_deployment_error
-└──────────────┘
+```mermaid
+flowchart TD
+    UR([User Request]) --> INTAKE
+
+    INTAKE["<b>INTAKE</b><br/>(validate)"]
+    INTAKE -- "invalid / rejected" --> RC1["request_clarification<br/>or handle_fatal_error"]
+    INTAKE -- success --> PLAN
+
+    PLAN["<b>PLANNING</b><br/>(req + arch)"]
+    PLAN -- "needs_clarification" --> RC2["request_clarification"]
+    PLAN -- success --> DEV
+
+    DEV["<b>DEVELOPMENT</b><br/>(code gen)"]
+    DEV -- "tests_failed & retries" --> RETRY["retry_development<br/>(feedback loop)"]
+    RETRY --> DEV
+    DEV -- success --> TEST
+
+    TEST["<b>TESTING</b><br/>(QA + runs)"]
+    TEST -- "tests_failed (max)" --> ESCAL["escalate_test_failures<br/>→ human"]
+    TEST -- success --> DEPLOY
+
+    DEPLOY["<b>DEPLOYMENT</b><br/>(Docker, CI)"]
+    DEPLOY -- success --> FIN["finalize_project → COMPLETE"]
+    DEPLOY -- error --> ERR["handle_deployment_error"]
 ```
 
 State is carried in **ProjectState** through the flow; each crew reads/writes the relevant fields (e.g. PlanningCrew → `requirements`, `architecture`; DevelopmentCrew → `generated_files`; TestingCrew → `test_results`).
@@ -280,36 +233,30 @@ State is carried in **ProjectState** through the flow; each crew reads/writes th
 
 ## 4. State Machine (ProjectState Transitions)
 
-```
-                    ┌─────────────┐
-                    │   INTAKE    │
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-       ┌──────────┐ ┌─────────────┐ ┌──────────────┐
-       │ PLANNING │ │ AWAITING_    │ │   FAILED     │
-       └────┬─────┘ │ HUMAN       │ └──────────────┘
-            │       └─────────────┘
-            ▼
-       ┌──────────────┐
-       │ DEVELOPMENT  │◄────────── retry (from TESTING)
-       └──────┬───────┘
-              │
-              ▼
-       ┌──────────────┐
-       │   TESTING    │──────► AWAITING_HUMAN (escalate)
-       └──────┬───────┘
-              │
-              ▼
-       ┌──────────────┐
-       │  DEPLOYMENT  │
-       └──────┬───────┘
-              │
-              ▼
-       ┌──────────────┐
-       │   COMPLETE   │
-       └──────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> INTAKE
+
+    INTAKE --> PLANNING : valid
+    INTAKE --> AWAITING_HUMAN : clarification needed
+    INTAKE --> FAILED : rejected
+
+    PLANNING --> DEVELOPMENT : success
+    PLANNING --> AWAITING_HUMAN : clarification needed
+    PLANNING --> FAILED : error
+
+    DEVELOPMENT --> TESTING : success
+    DEVELOPMENT --> FAILED : error
+
+    TESTING --> DEPLOYMENT : all passed
+    TESTING --> DEVELOPMENT : retry
+    TESTING --> AWAITING_HUMAN : escalate (max retries)
+    TESTING --> FAILED : error
+
+    DEPLOYMENT --> COMPLETE : success
+    DEPLOYMENT --> FAILED : error
+
+    COMPLETE --> [*]
 ```
 
 - **INTAKE** → PLANNING (valid), AWAITING_HUMAN (clarification), FAILED (rejected).

@@ -15,10 +15,11 @@ import sys
 from typing import Literal, cast
 
 import structlog
+from dotenv import load_dotenv
+
 from ai_team.backends.registry import get_backend
 from ai_team.core.team_profile import load_team_profile
 from ai_team.monitor import TeamMonitor
-from dotenv import load_dotenv
 
 logger = structlog.get_logger(__name__)
 
@@ -48,12 +49,13 @@ def _preprocess_argv_for_subcommand(argv: list[str]) -> list[str]:
 
 def _cmd_estimate(env: str, complexity: str) -> int:
     """Show cost estimate for the given environment and complexity."""
+    from pydantic import ValidationError
+
     from ai_team.config.cost_estimator import (
         display_estimate,
         estimate_run_cost,
     )
     from ai_team.config.models import OpenRouterSettings
-    from pydantic import ValidationError
 
     os.environ["AI_TEAM_ENV"] = env
     try:
@@ -73,12 +75,13 @@ def _cmd_estimate(env: str, complexity: str) -> int:
 
 def _cmd_compare_costs(complexity: str) -> int:
     """Show side-by-side cost comparison for dev, test, and prod."""
+    from pydantic import ValidationError
+
     from ai_team.config.cost_estimator import (
         display_compare_costs,
         estimate_run_cost,
     )
     from ai_team.config.models import Environment, OpenRouterSettings
-    from pydantic import ValidationError
 
     env_results = []
     try:
@@ -229,6 +232,16 @@ def _cmd_run(
         backend = get_backend(backend_name)
         hitl_default = (get_settings().human_feedback.default_response or "").strip()
 
+        # Gap #1: close the self-improvement loop. Promote recurring failures from
+        # prior runs into lessons before this run starts, so injected prompts are
+        # current. Cheap (pure SQLite, no LLM) and never aborts the run.
+        from ai_team.memory.self_improvement_runtime import (
+            maybe_extract_lessons_at_startup,
+            persist_run_metrics,
+        )
+
+        maybe_extract_lessons_at_startup()
+
         if backend_name == "langgraph" and resume_thr:
             if not isinstance(backend, LangGraphBackend):
                 print("Error: resume requires LangGraph backend.", file=sys.stderr)
@@ -246,6 +259,7 @@ def _cmd_run(
                 profile,
                 **resume_kw,
             )
+            persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
             raw = pr.raw
             out: dict[str, object] = {
                 "backend": pr.backend_name,
@@ -357,6 +371,7 @@ def _cmd_run(
             env=env,
             **run_kw,
         )
+        persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
         raw = pr.raw
         out = {
             "backend": pr.backend_name,

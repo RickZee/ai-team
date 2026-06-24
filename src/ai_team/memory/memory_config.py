@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
+
 from ai_team.config.settings import MemorySettings
 
 logger = structlog.get_logger(__name__)
@@ -354,6 +355,33 @@ class LongTermStore:
                 FROM performance_metrics
                 GROUP BY agent_role, model, metric_name
             """)
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_metrics_timeseries(
+        self, metric_name: str | None = None, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        """Return raw metric rows ordered by time (oldest first) for trend analysis.
+
+        Unlike :meth:`get_metrics_summary`, this preserves the per-run sequence so
+        callers can answer "is the system improving over time?" rather than only
+        "what is the average?".
+        """
+        with self._with_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            if metric_name:
+                cur = conn.execute(
+                    "SELECT agent_role, model, metric_name, value, created_at "
+                    "FROM performance_metrics WHERE metric_name = ? "
+                    "ORDER BY created_at ASC LIMIT ?",
+                    (metric_name, limit),
+                )
+            else:
+                cur = conn.execute(
+                    "SELECT agent_role, model, metric_name, value, created_at "
+                    "FROM performance_metrics ORDER BY created_at ASC LIMIT ?",
+                    (limit,),
+                )
             rows = cur.fetchall()
         return [dict(r) for r in rows]
 
