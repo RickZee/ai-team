@@ -58,8 +58,6 @@ def _run_success(result: dict) -> bool:
         return False
     state = result.get("state") or {}
     if not state:
-        # Backends that don't expose LangGraph/CrewAI state (e.g. claude-agent-sdk)
-        # signal success via the top-level success flag alone.
         return result.get("success") is True
     return state.get("current_phase") == "complete"
 
@@ -89,6 +87,7 @@ def _run_backend(
     team: str,
     monitor: object | None,
     skip_estimate: bool,
+    graph_mode: str = "full",
 ) -> dict:
     from ai_team.backends.registry import get_backend
     from ai_team.core.team_profile import load_team_profile
@@ -101,6 +100,7 @@ def _run_backend(
         env="dev",
         monitor=monitor,
         skip_estimate=skip_estimate,
+        graph_mode=graph_mode,
     )
     raw = pr.raw
     return {
@@ -154,6 +154,12 @@ def main() -> int:
         default=None,
         help="Project name for the monitor (default: demo directory name).",
     )
+    parser.add_argument(
+        "--graph-mode",
+        default="full",
+        choices=("placeholder", "full"),
+        help="LangGraph mode: 'full' runs real LLM calls (default), 'placeholder' stubs nodes.",
+    )
     args = parser.parse_args()
 
     repo = _repo_root()
@@ -195,12 +201,14 @@ def main() -> int:
                 team=team,
                 monitor=monitor,
                 skip_estimate=args.skip_estimate,
+                graph_mode=args.graph_mode,
             )
         _print_error_summary(result, file=sys.stderr)
         print(json.dumps(result, indent=2, default=str))
         return 0 if _run_success(result) else 1
     except Exception as e:
         import traceback
+
         traceback.print_exc(file=sys.stderr)
         print(f"Error: {e}", file=sys.stderr)
         sys.stderr.flush()
