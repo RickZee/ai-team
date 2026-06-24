@@ -49,10 +49,15 @@ class TestBehavioralGuardrailsIsolation:
         assert result.retry_allowed is True
 
     def test_role_adherence_guardrail_qa_fail_production_code(self) -> None:
-        out = "def get_user(user_id: int): return db.query(User).get(user_id)"
-        result = role_adherence_guardrail(out, "qa_engineer")
-        assert result.status == "fail"
-        assert result.message
+        # Quoting production code in QA analysis is now allowed; only file_writer on non-test files fails
+        quoted = "def get_user(user_id: int): return db.query(User).get(user_id)"
+        result = role_adherence_guardrail(quoted, "qa_engineer")
+        assert result.status in ("pass", "warn")
+
+        writing_prod = "file_writer('user_service.py', content='...')"
+        result2 = role_adherence_guardrail(writing_prod, "qa_engineer")
+        assert result2.status == "fail"
+        assert result2.message
 
     def test_scope_control_guardrail_pass(self) -> None:
         result = scope_control_guardrail(
