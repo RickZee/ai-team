@@ -57,6 +57,10 @@ def _run_success(result: dict) -> bool:
     if result.get("success") is False:
         return False
     state = result.get("state") or {}
+    if not state:
+        # Backends that don't expose LangGraph/CrewAI state (e.g. claude-agent-sdk)
+        # signal success via the top-level success flag alone.
+        return result.get("success") is True
     return state.get("current_phase") == "complete"
 
 
@@ -196,12 +200,17 @@ def main() -> int:
         print(json.dumps(result, indent=2, default=str))
         return 0 if _run_success(result) else 1
     except Exception as e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         print(f"Error: {e}", file=sys.stderr)
+        sys.stderr.flush()
         return 1
 
 
 if __name__ == "__main__":
     rc = main()
+    sys.stdout.flush()
+    sys.stderr.flush()
     # Force-exit to kill dangling non-daemon threads from CrewAI/LiteLLM internals
     # that would otherwise keep the process alive indefinitely after flow completes.
     os._exit(rc)
