@@ -227,3 +227,4 @@ workspace/
 
 # Logs
 logs/
+evals/results/
