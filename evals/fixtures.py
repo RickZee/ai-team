@@ -184,6 +184,7 @@ class LLMJudge:
         return JudgeVerdict(passed=False, score=0.0, reason=f"judge error: {last_exc}")
 
     def _check_once(self, criterion: str, evidence: str) -> JudgeVerdict:
+        import httpx
         msg = self._client.messages.create(
             model=self._model,
             max_tokens=256,
@@ -192,6 +193,7 @@ class LLMJudge:
                 "role": "user",
                 "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
             }],
+            timeout=httpx.Timeout(self.TIMEOUT_S, connect=10.0),
         )
         raw_text = msg.content[0].text if msg.content else ""
         if not raw_text.strip():
