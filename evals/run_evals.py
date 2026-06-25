@@ -58,8 +58,19 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Load .env so ANTHROPIC_API_KEY etc. are available to subprocess
+    _dotenv = _REPO_ROOT / ".env"
+    dotenv_vars: dict[str, str] = {}
+    if _dotenv.exists():
+        for line in _dotenv.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                dotenv_vars[k.strip()] = v.strip()
+
     env = {
-        **os.environ,
+        **dotenv_vars,
+        **os.environ,  # shell env wins over .env
         "AI_TEAM_USE_REAL_LLM": "1",
         "EVAL_SCENARIO": args.scenario,
     }
