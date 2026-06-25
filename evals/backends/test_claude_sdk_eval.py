@@ -52,7 +52,7 @@ def sdk_result(tmp_path_factory) -> tuple[EvalResult, Path]:
     wall = time.time() - t0
 
     result = eval_result_from_run(
-        BACKEND, SCENARIO["id"], raw.raw, workspace_dir=ws, wall_time_s=wall
+        BACKEND, SCENARIO["id"], {**raw.raw, "success": raw.success}, workspace_dir=ws, wall_time_s=wall
     )
     # Also pull cost from raw.raw directly if available
     if result.cost_usd is None:
