@@ -244,10 +244,19 @@ def summarize_workspace(ws: Path, *, max_files: int = 10, max_chars: int = 500) 
 def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
     conftest = ws / "conftest.py"
     if not conftest.exists():
+        # Add both ws root and ws/src to sys.path so backends that put source
+        # in src/ (e.g. claude-agent-sdk) resolve imports correctly.
         conftest.write_text(
-            "import sys\nfrom pathlib import Path\nsys.path.insert(0, str(Path(__file__).parent))\n",
+            "import sys\nfrom pathlib import Path\n"
+            "_ws = Path(__file__).parent\n"
+            "sys.path.insert(0, str(_ws))\n"
+            "sys.path.insert(0, str(_ws / 'src'))\n",
             encoding="utf-8",
         )
+    # Build PYTHONPATH to include ws root + ws/src for subprocess
+    import os as _os
+    extra_paths = f"{ws}:{ws / 'src'}"
+    env = {**_os.environ, "PYTHONPATH": extra_paths}
     result = subprocess.run(
         ["uv", "run", "pytest", "-q", f"--rootdir={ws}", "--no-header", "--tb=short",
          "--import-mode=importlib"],
@@ -255,6 +264,7 @@ def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
         text=True,
         timeout=timeout,
         cwd=ws,
+        env=env,
     )
     stdout = (result.stdout or "") + (result.stderr or "")
     passed = int(re.search(r"(\d+) passed", stdout).group(1)) if re.search(r"(\d+) passed", stdout) else 0
