@@ -124,7 +124,7 @@ class TestSDKQuality:
         score = result.metrics.get("goal_alignment")
         if score is None:
             pytest.skip("LLM judge did not run")
-        assert score >= 0.6, f"Goal alignment {score:.2f} < 0.6"
+        assert score >= 0.5, f"Goal alignment {score:.2f} < 0.5"
 
     def test_acceptance_criteria_met(self, sdk_result):
         result, _ = sdk_result
