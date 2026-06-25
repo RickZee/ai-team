@@ -106,8 +106,10 @@ def eval_result_from_run(
 ) -> EvalResult:
     """Convert the raw dict from run_demo / backend.run() into EvalResult."""
     state = raw_result.get("state") or {}
-    success = raw_result.get("success", False)
     current_phase = state.get("current_phase", "unknown")
+    # raw_result may not carry "success" (langgraph puts it on ProjectResult, not .raw dict)
+    # fall back to phase check so langgraph runs that reach "complete" aren't marked failed
+    success = raw_result.get("success") if raw_result.get("success") is not None else (current_phase == "complete")
     generated_files = [
         f["path"] if isinstance(f, dict) else str(f)
         for f in (state.get("generated_files") or [])

@@ -78,8 +78,9 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
     wall = time.time() - t0
     print(f"[eval] {name} finished in {wall:.0f}s", flush=True)
 
+    raw_dict = {**raw.raw, "success": raw.success}
     result = eval_result_from_run(
-        name, SCENARIO_ID, raw.raw, workspace_dir=ws, wall_time_s=wall
+        name, SCENARIO_ID, raw_dict, workspace_dir=ws, wall_time_s=wall
     )
     if result.cost_usd is None:
         result.cost_usd = raw.raw.get("cost_usd")
