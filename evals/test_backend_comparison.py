@@ -58,22 +58,48 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
     print(f"\n[eval] starting {name} (timeout={timeout_s}s)", flush=True)
     t0 = time.time()
 
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-        future = ex.submit(backend.run, SCENARIO["description"], profile, env="dev", **kwargs)
+    import multiprocessing
+    import queue as _queue
+
+    def _worker(q: multiprocessing.Queue) -> None:  # type: ignore[type-arg]
         try:
-            raw = future.result(timeout=timeout_s)
-        except concurrent.futures.TimeoutError:
-            wall = time.time() - t0
-            print(f"[eval] {name} TIMED OUT after {wall:.0f}s", flush=True)
-            return EvalResult(
-                backend=name,
-                scenario_id=SCENARIO_ID,
-                success=False,
-                current_phase="timeout",
-                wall_time_s=wall,
-                error=f"Backend timed out after {timeout_s}s",
-            )
+            result = backend.run(SCENARIO["description"], profile, env="dev", **kwargs)
+            q.put(("ok", result))
+        except Exception as exc:
+            q.put(("err", str(exc)))
+
+    q: multiprocessing.Queue = multiprocessing.Queue()  # type: ignore[type-arg]
+    proc = multiprocessing.Process(target=_worker, args=(q,), daemon=True)
+    proc.start()
+    proc.join(timeout=timeout_s)
+
+    if proc.is_alive():
+        proc.kill()
+        proc.join()
+        wall = time.time() - t0
+        print(f"[eval] {name} TIMED OUT after {wall:.0f}s", flush=True)
+        return EvalResult(
+            backend=name,
+            scenario_id=SCENARIO_ID,
+            success=False,
+            current_phase="timeout",
+            wall_time_s=wall,
+            error=f"Backend timed out after {timeout_s}s",
+        )
+
+    try:
+        status, payload = q.get_nowait()
+    except _queue.Empty:
+        status, payload = "err", "no result in queue"
+
+    if status == "err":
+        wall = time.time() - t0
+        print(f"[eval] {name} ERROR: {payload}", flush=True)
+        return EvalResult(
+            backend=name, scenario_id=SCENARIO_ID, success=False,
+            current_phase="error", wall_time_s=wall, error=str(payload),
+        )
+    raw = payload
 
     wall = time.time() - t0
     print(f"[eval] {name} finished in {wall:.0f}s", flush=True)
