@@ -91,6 +91,7 @@ def compute_metrics(
         _judge = judge or LLMJudge()
         evidence = summarize_workspace(ws)
         criteria = scenario["expected"].get("acceptance_criteria") or []
+        print(f"  [judge] scoring {len(criteria)} criteria + goal alignment for {result.backend}...", flush=True)
         verdicts = _judge.check_all_criteria(criteria, evidence)
         result.judge_scores = {c: v.score for c, v in verdicts.items()}
         m["acceptance_criteria_scores"] = result.judge_scores
@@ -98,9 +99,11 @@ def compute_metrics(
             sum(result.judge_scores.values()) / len(result.judge_scores)
             if result.judge_scores else None
         )
+        print(f"  [judge] goal alignment...", flush=True)
         m["goal_alignment"] = _judge.score_goal_alignment(
             scenario["description"], evidence
         )
+        print(f"  [judge] done — goal_alignment={m['goal_alignment']:.2f}", flush=True)
     else:
         m["acceptance_criteria_scores"] = {}
         m["acceptance_criteria_mean"] = None

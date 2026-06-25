@@ -202,7 +202,12 @@ class LLMJudge:
     def check_all_criteria(
         self, criteria: list[str], evidence: str
     ) -> dict[str, JudgeVerdict]:
-        return {c: self.check(c, evidence) for c in criteria}
+        results = {}
+        for i, c in enumerate(criteria, 1):
+            print(f"    [judge {i}/{len(criteria)}] {c[:60]}...", flush=True)
+            results[c] = self.check(c, evidence)
+            print(f"    [judge {i}/{len(criteria)}] score={results[c].score:.2f}", flush=True)
+        return results
 
 
 # ---------------------------------------------------------------------------

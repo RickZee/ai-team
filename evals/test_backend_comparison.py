@@ -54,9 +54,29 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
     if name == "langgraph":
         kwargs["graph_mode"] = "full"
 
+    timeout_s = SCENARIO.get("timeout_seconds", 600)
+    print(f"\n[eval] starting {name} (timeout={timeout_s}s)", flush=True)
     t0 = time.time()
-    raw = backend.run(SCENARIO["description"], profile, env="dev", **kwargs)
+
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        future = ex.submit(backend.run, SCENARIO["description"], profile, env="dev", **kwargs)
+        try:
+            raw = future.result(timeout=timeout_s)
+        except concurrent.futures.TimeoutError:
+            wall = time.time() - t0
+            print(f"[eval] {name} TIMED OUT after {wall:.0f}s", flush=True)
+            return EvalResult(
+                backend=name,
+                scenario_id=SCENARIO_ID,
+                success=False,
+                current_phase="timeout",
+                wall_time_s=wall,
+                error=f"Backend timed out after {timeout_s}s",
+            )
+
     wall = time.time() - t0
+    print(f"[eval] {name} finished in {wall:.0f}s", flush=True)
 
     result = eval_result_from_run(
         name, SCENARIO_ID, raw.raw, workspace_dir=ws, wall_time_s=wall
