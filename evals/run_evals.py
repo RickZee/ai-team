@@ -43,7 +43,10 @@ def _load_dotenv() -> dict[str, str]:
 
 
 def _make_env(scenario: str, no_judge: bool) -> dict[str, str]:
-    env = {**_load_dotenv(), **os.environ, "AI_TEAM_USE_REAL_LLM": "1", "EVAL_SCENARIO": scenario}
+    dotenv = _load_dotenv()
+    # Shell env wins, but skip empty-string values so they don't shadow .env
+    shell = {k: v for k, v in os.environ.items() if v}
+    env = {**dotenv, **shell, "AI_TEAM_USE_REAL_LLM": "1", "EVAL_SCENARIO": scenario}
     if no_judge:
         env["EVAL_NO_JUDGE"] = "1"
     return env
