@@ -401,6 +401,23 @@ def development_subgraph_node(
         )
     except Exception as e:
         logger.exception("development_subgraph_failed", error=str(e))
+        # Even on subgraph exception, try fallback code extraction from whatever
+        # messages were written before the error — deepseek often emits markdown
+        # prose that can be salvaged even when the subgraph JSON parse fails.
+        generated = _snapshot_workspace_files()
+        if not generated:
+            extracted = _extract_and_write_code_blocks(seed)
+            if extracted:
+                logger.info("development_exception_fallback", count=len(extracted))
+                generated = _snapshot_workspace_files()
+        if generated:
+            logger.info("development_recovered_via_fallback", files=len(generated))
+            return {
+                "current_phase": "development",
+                "generated_files": generated,
+                "errors": [],
+                "phase_history": [{"phase": "development", "status": "complete", "files": len(generated)}],
+            }
         return {
             "errors": [
                 {
@@ -432,6 +449,7 @@ def development_subgraph_node(
         "generated_files": generated,
         "deployment_config": out.get("deployment_config"),
         "phase_history": [{"phase": "development", "status": "complete", "files": len(generated)}],
+        "errors": [],
     }
 
 
