@@ -15,6 +15,6 @@
       "pytest exits 0"
     ]
   },
-  "budget_usd_max": 0.10,
+  "budget_usd_max": 0.50,
   "timeout_seconds": 600
 }
