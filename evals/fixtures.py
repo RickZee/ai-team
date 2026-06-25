@@ -53,6 +53,49 @@ class EvalResult:
     metrics: dict[str, Any] = field(default_factory=dict)
 
 
+def _resolve_workspace(backend_name: str, raw_result: dict[str, Any]) -> Path | None:
+    """Find the actual workspace directory from the backend result."""
+    from ai_team.config.settings import get_settings
+
+    try:
+        ws_base = Path(get_settings().project.workspace_dir).resolve()
+    except Exception:
+        ws_base = Path("./workspace").resolve()
+
+    # langgraph: thread_id in raw; crewai: project_id in raw or state
+    run_id = (
+        raw_result.get("thread_id")
+        or raw_result.get("project_id")
+        or (raw_result.get("state") or {}).get("project_id")
+    )
+    if run_id:
+        p = ws_base / str(run_id)
+        if p.exists():
+            return p
+
+    # claude-agent-sdk: workspace path in raw
+    ws = raw_result.get("workspace_dir") or raw_result.get("workspace")
+    if ws:
+        p = Path(ws)
+        if p.exists():
+            return p.resolve()
+
+    # last-resort: most-recently-modified subdir
+    try:
+        if ws_base.exists():
+            subdirs = sorted(
+                (d for d in ws_base.iterdir() if d.is_dir()),
+                key=lambda d: d.stat().st_mtime,
+                reverse=True,
+            )
+            if subdirs:
+                return subdirs[0]
+    except Exception:
+        pass
+
+    return None
+
+
 def eval_result_from_run(
     backend_name: str,
     scenario_id: str,
@@ -73,14 +116,16 @@ def eval_result_from_run(
     phase_history = state.get("phase_history") or []
     retry_count = int(state.get("retry_count") or 0)
 
-    # Cost: langgraph doesn't currently track it; SDK returns it in raw
+    # Cost: SDK returns it in raw; crewai/langgraph don't yet track it
     cost_usd = (
         raw_result.get("cost_usd")
         or (state.get("metadata") or {}).get("cost_usd")
     )
 
-    # Guardrail checks across all phases — stored in subgraph state
     guardrail_checks = state.get("guardrail_checks") or []
+
+    # Resolve actual workspace from result if caller didn't supply one
+    ws = workspace_dir or _resolve_workspace(backend_name, raw_result)
 
     return EvalResult(
         backend=backend_name,
@@ -94,7 +139,7 @@ def eval_result_from_run(
         retry_count=retry_count,
         cost_usd=float(cost_usd) if cost_usd is not None else None,
         wall_time_s=wall_time_s,
-        workspace_dir=workspace_dir,
+        workspace_dir=ws,
         raw=raw_result,
     )
 

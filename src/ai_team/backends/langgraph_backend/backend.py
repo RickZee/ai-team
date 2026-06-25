@@ -109,7 +109,9 @@ class LangGraphBackend:
             thread_id = str(kwargs.get("thread_id") or uuid4())
             # Per-run workspace isolation (tools write under workspace/<project_id>/).
             try:
-                os.environ["PROJECT_WORKSPACE_DIR"] = os.path.join("./workspace", thread_id)
+                ws_override = kwargs.get("workspace_dir")
+                ws_path = str(ws_override) if ws_override else os.path.join("./workspace", thread_id)
+                os.environ["PROJECT_WORKSPACE_DIR"] = ws_path
                 reload_settings()
             except Exception:
                 pass

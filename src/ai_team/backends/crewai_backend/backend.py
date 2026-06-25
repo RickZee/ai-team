@@ -56,6 +56,10 @@ class CrewAIBackend:
             )
 
         try:
+            ws_override = kwargs.get("workspace_dir")
+            if ws_override:
+                import os as _os
+                _os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_override)
             payload = run_ai_team(
                 _maybe_augment_with_rag(description),
                 monitor=monitor,
@@ -64,11 +68,13 @@ class CrewAIBackend:
                 complexity_override=kwargs.get("complexity_override"),
                 team_profile=profile.name,
             )
+            project_id = (payload.get("state") or {}).get("project_id")
             enriched = {
                 **payload,
                 "team_profile": profile.name,
                 "agents": profile.agents,
                 "phases": profile.phases,
+                "project_id": project_id,
             }
             return ProjectResult(
                 backend_name=self.name,
