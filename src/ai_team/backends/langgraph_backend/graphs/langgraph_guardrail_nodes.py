@@ -68,10 +68,13 @@ def _behavioral_stack(
     project_description: str | None,
     *,
     is_supervisor: bool = False,
+    min_scope_relevance: float = 0.5,
 ) -> BehavioralGR:
     parts: list[BehavioralGR] = []
     if project_description and project_description.strip():
-        parts.append(scope_control_guardrail(text, project_description))
+        parts.append(
+            scope_control_guardrail(text, project_description, min_relevance=min_scope_relevance)
+        )
     parts.append(role_adherence_guardrail(text, role, is_supervisor=is_supervisor))
     if len(text.strip()) >= MIN_REASONING_FOR_CHECK:
         parts.append(reasoning_guardrail(text))
@@ -126,11 +129,16 @@ def make_behavioral_guardrail_node(
     behavioral_role: str,
     *,
     behavioral_only_message_names: frozenset[str] | None = None,
+    min_scope_relevance: float = 0.5,
 ):
     """Factory: role used for role_adherence (per subgraph).
 
     For supervisor subgraphs, pass ``behavioral_only_message_names`` with the
     supervisor's graph name so worker outputs are not scanned as the supervisor role.
+
+    ``min_scope_relevance`` tunes how strictly scope_control_guardrail checks keyword
+    overlap. Code-heavy roles (qa_engineer) score lower because test output vocabulary
+    diverges from project description prose — use 0.25 for those roles.
     """
 
     def behavioral_guardrail_node(state: LangGraphSubgraphState) -> dict[str, Any]:
@@ -151,6 +159,7 @@ def make_behavioral_guardrail_node(
             behavioral_role,
             desc,
             is_supervisor=behavioral_only_message_names is not None,
+            min_scope_relevance=min_scope_relevance,
         )
         return {"guardrail_checks": [_serialize_behavioral(gr)]}
 
@@ -302,6 +311,15 @@ def route_after_quality(
     return "retry_wrap"
 
 
+# Roles where test/code output vocabulary diverges from project description prose.
+# Lower scope relevance threshold so well-formed test output isn't falsely rejected.
+_LOW_SCOPE_RELEVANCE_ROLES: frozenset[str] = frozenset(
+    {"qa_engineer", "backend_developer", "frontend_developer", "fullstack_developer"}
+)
+_DEFAULT_SCOPE_RELEVANCE = 0.5
+_CODE_ROLE_SCOPE_RELEVANCE = 0.25
+
+
 def wrap_agents_with_guardrails(
     agents_compiled: CompiledStateGraph,
     *,
@@ -313,10 +331,16 @@ def wrap_agents_with_guardrails(
 
     Flow: agents → behavioral → security → quality → END, with retry_wrap → agents.
     """
+    min_scope = (
+        _CODE_ROLE_SCOPE_RELEVANCE
+        if behavioral_role in _LOW_SCOPE_RELEVANCE_ROLES
+        else _DEFAULT_SCOPE_RELEVANCE
+    )
     g = StateGraph(LangGraphSubgraphState)
     behavioral = make_behavioral_guardrail_node(
         behavioral_role,
         behavioral_only_message_names=behavioral_only_message_names,
+        min_scope_relevance=min_scope,
     )
 
     g.add_node("agents", agents_compiled)

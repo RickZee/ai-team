@@ -55,11 +55,10 @@ ALLOWED_DELEGATORS = {
 ROLE_RESTRICTIONS: dict[str, dict[str, Any]] = {
     "qa_engineer": {
         "forbidden_patterns": [
-            (r"def\s+(?!test_)\w+\(", "Production code (non-test function)"),
-            (r"class\s+(?!Test)\w+\(", "Production class (non-test)"),
-            (r"(?<!test_)\.py\s*$|^(?!test_)\w+\.py", "Modifying non-test source files"),
+            # Only block explicit non-test file creation markers; avoid flagging quoted code
+            (r"file_writer.*?['\"](?!test_)[a-z]\w*\.py['\"]", "Writing non-test source file"),
         ],
-        "message": "QA Engineer should only write test code, not modify production source.",
+        "message": "QA Engineer should only write test files (test_*.py), not production source.",
     },
     "product_owner": {
         "forbidden_patterns": [

@@ -35,15 +35,17 @@ def test_role_adherence_guardrail_qa_engineer_pass():
 
 
 def test_role_adherence_guardrail_qa_engineer_fail_production_code():
-    """QA output with production code fails."""
-    mock_output = """
-    def get_user_by_id(user_id: int):
-        return db.query(User).get(user_id)
-    """
-    result = role_adherence_guardrail(mock_output, "qa_engineer")
-    assert result.status == "fail"
-    assert "test" in result.message.lower() or "production" in result.message.lower()
-    assert result.details and "violations" in result.details
+    """QA writing non-test file via file_writer fails; quoting production code in analysis is OK."""
+    # QA referencing production code in analysis prose is now allowed (regex was too broad)
+    quoted_prod_code = "def get_user_by_id(user_id: int):\n    return db.query(User).get(user_id)"
+    result = role_adherence_guardrail(quoted_prod_code, "qa_engineer")
+    assert result.status in ("pass", "warn")  # quoting code is fine
+
+    # But QA calling file_writer on a non-test source file must still fail
+    writing_prod_file = "file_writer('user_service.py', content='...')"
+    result2 = role_adherence_guardrail(writing_prod_file, "qa_engineer")
+    assert result2.status == "fail"
+    assert "test" in result2.message.lower() or "production" in result2.message.lower()
 
 
 def test_role_adherence_guardrail_backend_fail_frontend():
