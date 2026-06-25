@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from typing import Any, Literal
 
@@ -97,6 +98,9 @@ def _node_manager_report(
     pid = str(state.get("project_id") or "").strip()
     if not pid:
         logger.warning("manager_report_skipped", reason="missing_project_id")
+        return {}
+    if os.environ.get("AI_TEAM_SKIP_POST_RUN"):
+        logger.debug("manager_report_skipped", reason="AI_TEAM_SKIP_POST_RUN")
         return {}
     try:
         bundle = ResultsBundle(pid)
