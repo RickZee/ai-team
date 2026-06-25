@@ -166,32 +166,47 @@ class LLMJudge:
         'Reply with JSON only: {"passed": true/false, "score": 0.0-1.0, "reason": "one sentence"}'
     )
 
-    TIMEOUT_S: int = 30
+    TIMEOUT_S: int = 60
 
     def __init__(self, model: str = "claude-haiku-4-5-20251001") -> None:
         self._client = anthropic.Anthropic(timeout=self.TIMEOUT_S)
         self._model = model
 
     def check(self, criterion: str, evidence: str) -> JudgeVerdict:
-        try:
-            msg = self._client.messages.create(
-                model=self._model,
-                max_tokens=256,
-                system=self.SYSTEM,
-                messages=[{
-                    "role": "user",
-                    "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
-                }],
-            )
-            data = json.loads(msg.content[0].text)
-            return JudgeVerdict(
-                passed=bool(data.get("passed", False)),
-                score=float(data.get("score", 0.0)),
-                reason=str(data.get("reason", "")),
-            )
-        except Exception as exc:
-            logger.warning("llm_judge_error", error=str(exc))
-            return JudgeVerdict(passed=False, score=0.0, reason=f"judge error: {exc}")
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                return self._check_once(criterion, evidence)
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("llm_judge_retry", attempt=attempt + 1, error=str(exc))
+        logger.warning("llm_judge_error", error=str(last_exc))
+        return JudgeVerdict(passed=False, score=0.0, reason=f"judge error: {last_exc}")
+
+    def _check_once(self, criterion: str, evidence: str) -> JudgeVerdict:
+        msg = self._client.messages.create(
+            model=self._model,
+            max_tokens=256,
+            system=self.SYSTEM,
+            messages=[{
+                "role": "user",
+                "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
+            }],
+        )
+        raw_text = msg.content[0].text if msg.content else ""
+        if not raw_text.strip():
+            raise ValueError(f"judge returned empty response (stop_reason={msg.stop_reason})")
+        # Strip markdown fences if model wrapped JSON
+        text = raw_text.strip()
+        if text.startswith("```"):
+            text = "\n".join(text.split("\n")[1:])
+            text = text.rstrip("`").strip()
+        data = json.loads(text)
+        return JudgeVerdict(
+            passed=bool(data.get("passed", False)),
+            score=float(data.get("score", 0.0)),
+            reason=str(data.get("reason", "")),
+        )
 
     def score_goal_alignment(self, goal: str, output_text: str) -> float:
         """0-1 score: how well does output align with the stated goal?"""
