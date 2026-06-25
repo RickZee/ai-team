@@ -16,5 +16,5 @@
     ]
   },
   "budget_usd_max": 0.10,
-  "timeout_seconds": 300
+  "timeout_seconds": 600
 }

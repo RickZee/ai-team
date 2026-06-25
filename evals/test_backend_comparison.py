@@ -54,7 +54,8 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
     if name == "langgraph":
         kwargs["graph_mode"] = "full"
 
-    timeout_s = SCENARIO.get("timeout_seconds", 600)
+    # Give 1.5x the scenario budget so slow backends don't get killed mid-run
+    timeout_s = max(int(SCENARIO.get("timeout_seconds", 600) * 1.5), 600)
     print(f"\n[eval] starting {name} (timeout={timeout_s}s)", flush=True)
     t0 = time.time()
 
@@ -64,7 +65,14 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
     def _worker(q: multiprocessing.Queue) -> None:  # type: ignore[type-arg]
         try:
             result = backend.run(SCENARIO["description"], profile, env="dev", **kwargs)
-            q.put(("ok", result))
+            # Serialize to plain dict before putting on queue — avoids pickling
+            # complex crewai/langgraph objects which cause RecursionError
+            import json as _json
+            try:
+                raw_dict = _json.loads(_json.dumps(result.raw, default=str))
+            except Exception:
+                raw_dict = {"state": {}, "thread_id": None}
+            q.put(("ok", {"raw": raw_dict, "success": result.success, "error": result.error}))
         except Exception as exc:
             q.put(("err", str(exc)))
 
@@ -99,17 +107,17 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
             backend=name, scenario_id=SCENARIO_ID, success=False,
             current_phase="error", wall_time_s=wall, error=str(payload),
         )
-    raw = payload
+    serialized = payload  # {"raw": dict, "success": bool, "error": str|None}
 
     wall = time.time() - t0
     print(f"[eval] {name} finished in {wall:.0f}s", flush=True)
 
-    raw_dict = {**raw.raw, "success": raw.success}
+    raw_dict = {**serialized["raw"], "success": serialized["success"]}
     result = eval_result_from_run(
         name, SCENARIO_ID, raw_dict, workspace_dir=ws, wall_time_s=wall
     )
     if result.cost_usd is None:
-        result.cost_usd = raw.raw.get("cost_usd")
+        result.cost_usd = serialized["raw"].get("cost_usd")
     compute_metrics(result, SCENARIO, judge=_JUDGE, run_judge=True)
     _results.append(result)
     return result
