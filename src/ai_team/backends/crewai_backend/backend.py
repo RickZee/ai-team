@@ -67,6 +67,7 @@ class CrewAIBackend:
                 env_override=env,
                 complexity_override=kwargs.get("complexity_override"),
                 team_profile=profile.name,
+                verbose=kwargs.get("verbose", False),
             )
             project_id = (payload.get("state") or {}).get("project_id")
             enriched = {

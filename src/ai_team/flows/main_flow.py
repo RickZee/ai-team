@@ -266,11 +266,13 @@ class AITeamFlow(Flow[ProjectState]):
         self,
         feedback_handler: HumanFeedbackHandler | None = None,
         monitor: TeamMonitor | None = None,
+        verbose: bool | None = None,
     ) -> None:
         super().__init__()
         self.logger = structlog.get_logger().bind(flow="AITeamFlow")
         self._feedback_handler = feedback_handler
         self._monitor = monitor
+        self._verbose_override = verbose
 
     def _phase_timeout_seconds(self, phase: str) -> int | None:
         """Return per-phase wall-clock limit from team profile metadata, or None."""
@@ -634,7 +636,7 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.development_crew import kickoff as development_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = True
+            verbose = True if self._verbose_override is None else self._verbose_override
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
@@ -713,7 +715,7 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.testing_crew import kickoff as testing_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = not self._monitor  # CrewAI verbose when no TUI
+            verbose = (not self._monitor) if self._verbose_override is None else self._verbose_override
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
@@ -1228,6 +1230,7 @@ def run_ai_team(
     env_override: str | None = None,
     complexity_override: str | None = None,
     team_profile: str | None = None,
+    verbose: bool | None = None,
 ) -> dict[str, Any]:
     """
     Main entry point to run the AI Team flow.
@@ -1257,7 +1260,7 @@ def run_ai_team(
     old_limit = sys.getrecursionlimit()
     try:
         sys.setrecursionlimit(FLOW_RECURSION_LIMIT)
-        flow = AITeamFlow(monitor=monitor)
+        flow = AITeamFlow(monitor=monitor, verbose=verbose)
         flow.state.project_description = project_description
         flow.state.metadata["skip_estimate"] = skip_estimate
         flow.state.metadata["team_profile"] = profile_name
