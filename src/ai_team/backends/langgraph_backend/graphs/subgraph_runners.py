@@ -175,6 +175,17 @@ def _run_cmd(cmd: list[str], *, timeout_s: int, cwd: Path) -> dict[str, Any]:
         return {"ok": False, "returncode": None, "output": f"Error running {cmd[0]}: {e}"}
 
 
+def _ensure_workspace_conftest(root: Path) -> None:
+    """Write conftest.py adding workspace root to sys.path so tests import local src files."""
+    conftest = root / "conftest.py"
+    if conftest.exists():
+        return
+    conftest.write_text(
+        "import sys\nfrom pathlib import Path\nsys.path.insert(0, str(Path(__file__).parent))\n",
+        encoding="utf-8",
+    )
+
+
 def _run_real_quality_gate() -> dict[str, Any]:
     """
     Run real lint + tests in the workspace and return a structured QA result.
@@ -182,8 +193,17 @@ def _run_real_quality_gate() -> dict[str, Any]:
     This is the authoritative source of truth for `test_results` in state.
     """
     root = _workspace_root()
+    # Write conftest.py to add workspace root to sys.path so tests can import src files
+    _ensure_workspace_conftest(root)
+    # Auto-fix trivial style issues (imports, trailing newlines) before checking
+    _run_cmd(["ruff", "check", "--fix", "--select", "I,W292", "--preview", "."], timeout_s=30, cwd=root)
     ruff = _run_cmd(["ruff", "check", "."], timeout_s=60, cwd=root)
-    pytest = _run_cmd(["pytest", "-q"], timeout_s=300, cwd=root)
+    # Run pytest with --rootdir=workspace so it ignores the parent pyproject.toml
+    pytest = _run_cmd(
+        ["pytest", "-q", f"--rootdir={root}", "--no-header", "--tb=short"],
+        timeout_s=300,
+        cwd=root,
+    )
     passed = bool(ruff["ok"]) and bool(pytest["ok"])
     return {
         "passed": passed,
@@ -215,6 +235,55 @@ def _snapshot_workspace_files() -> list[dict[str, Any]]:
                 rel = fp.name
             out.append({"path": rel})
     return sorted(out, key=lambda d: d.get("path", ""))
+
+
+_CODE_BLOCK_RE = re.compile(
+    r"(?:#+\s*)?(?P<fname>[\w./\\-]+\.(?:py|js|ts|jsx|tsx|html|css|json|yaml|yml|toml|txt|sh))\s*:?\n"
+    r"```(?:\w+)?\n(?P<code>.*?)```",
+    re.DOTALL | re.IGNORECASE,
+)
+_FENCED_NAMED_RE = re.compile(
+    r"```(?:\w+)?\s*\n#\s*(?P<fname>[\w./\\-]+\.(?:py|js|ts|jsx|tsx|html|css|json|yaml|yml|toml|txt|sh))\n"
+    r"(?P<code>.*?)```",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str, Any]]:
+    """Fallback: parse filename+code-block pairs from AI text and write to workspace.
+
+    When the developer model outputs code as markdown instead of calling file_writer,
+    this extracts fenced blocks with adjacent filenames and writes them to disk.
+    Called only when workspace is empty after development subgraph.
+    """
+    root = _workspace_root()
+    written: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    from langchain_core.messages import AIMessage
+
+    for msg in messages:
+        if not isinstance(msg, AIMessage):
+            continue
+        text = msg.content if isinstance(msg.content, str) else ""
+        if not text:
+            continue
+        for pattern in (_CODE_BLOCK_RE, _FENCED_NAMED_RE):
+            for m in pattern.finditer(text):
+                fname = m.group("fname").strip().lstrip("./")
+                code = m.group("code").rstrip()
+                if not fname or fname in seen:
+                    continue
+                # Security: reject path traversal and hidden files
+                safe = Path(fname)
+                if ".." in safe.parts or safe.name.startswith("."):
+                    continue
+                dest = root / safe
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(code + "\n", encoding="utf-8")
+                seen.add(fname)
+                written.append({"path": fname, "source": "extracted_from_message"})
+                logger.info("code_block_extracted_to_workspace", path=fname)
+    return written
 
 
 def _guardrail_error_dict(out: dict[str, Any], phase: str) -> dict[str, Any] | None:
@@ -295,6 +364,7 @@ def planning_subgraph_node(
         "current_phase": "planning",
         "requirements": extracted_req,
         "architecture": extracted_arch,
+        "phase_history": [{"phase": "planning", "status": "complete"}],
     }
 
 
@@ -349,11 +419,19 @@ def development_subgraph_node(
         }
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
+    generated = _snapshot_workspace_files()
+    if not generated:
+        # Developer output code as markdown prose instead of calling file_writer — extract it.
+        extracted = _extract_and_write_code_blocks(delta)
+        if extracted:
+            logger.info("development_fallback_extraction", count=len(extracted))
+            generated = _snapshot_workspace_files()
     return {
         "messages": delta,
         "current_phase": "development",
-        "generated_files": _snapshot_workspace_files(),
+        "generated_files": generated,
         "deployment_config": out.get("deployment_config"),
+        "phase_history": [{"phase": "development", "status": "complete", "files": len(generated)}],
     }
 
 
@@ -363,9 +441,17 @@ def testing_subgraph_node(
 ) -> dict[str, Any]:
     """Run QA ReAct agent."""
     files = state.get("generated_files") or []
+    workspace_dir = get_settings().project.workspace_dir or "./workspace"
+    desc = (state.get("project_description") or "").strip()
     ctx = (
-        "Run QA on the following generated files summary:\n"
-        f"{json.dumps(files, default=str)[:12000]}\n"
+        f"Project description: {desc}\n\n"
+        f"Workspace directory: {workspace_dir}\n\n"
+        "Generated files available for testing:\n"
+        f"{json.dumps(files, default=str)[:12000]}\n\n"
+        "Your task: write pytest tests for the project using file_writer tool. "
+        "Use read_file to inspect source files in the workspace. "
+        "Write each test file with file_writer (e.g. tests/test_main.py). "
+        "Call file_writer — do not output test code as plain text."
     )
     prior = [m for m in (state.get("messages") or []) if isinstance(m, BaseMessage)]
     seed: list[BaseMessage] = (
@@ -403,6 +489,7 @@ def testing_subgraph_node(
         "messages": delta,
         "current_phase": "testing",
         "test_results": tr,
+        "phase_history": [{"phase": "testing", "status": "complete", "passed": tr.get("passed")}],
     }
 
 
@@ -453,4 +540,5 @@ def deployment_subgraph_node(
         "messages": delta,
         "current_phase": "deployment",
         "deployment_config": state.get("deployment_config") or {"status": "pending"},
+        "phase_history": [{"phase": "deployment", "status": "complete"}],
     }

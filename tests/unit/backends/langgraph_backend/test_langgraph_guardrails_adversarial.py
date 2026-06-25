@@ -36,9 +36,15 @@ class TestLangGraphBehavioralNodeAdversarial:
         assert checks[-1]["status"] == "pass"
 
     def test_qa_fails_production_code(self) -> None:
+        # QA quoting/referencing production code in analysis is now allowed.
+        # Only writing non-test files via file_writer is blocked.
         node = make_behavioral_guardrail_node("qa_engineer")
+        # Quoting prod code → should pass (no longer blocked)
         out = node(_state_with_ai("def get_user(user_id: int): return db.query(User).get(user_id)"))
-        assert out["guardrail_checks"][-1]["status"] == "fail"
+        assert out["guardrail_checks"][-1]["status"] in ("pass", "warn")
+        # Writing a non-test file → should fail
+        out2 = node(_state_with_ai("file_writer('user_service.py', content='...')"))
+        assert out2["guardrail_checks"][-1]["status"] == "fail"
 
     def test_scope_fail_off_scope(self) -> None:
         node = make_behavioral_guardrail_node("manager")
