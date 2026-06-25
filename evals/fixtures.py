@@ -243,20 +243,25 @@ def summarize_workspace(ws: Path, *, max_files: int = 10, max_chars: int = 500) 
 
 
 def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
-    conftest = ws / "conftest.py"
-    if not conftest.exists():
-        # Add both ws root and ws/src to sys.path so backends that put source
-        # in src/ (e.g. claude-agent-sdk) resolve imports correctly.
-        conftest.write_text(
-            "import sys\nfrom pathlib import Path\n"
-            "_ws = Path(__file__).parent\n"
-            "sys.path.insert(0, str(_ws))\n"
-            "sys.path.insert(0, str(_ws / 'src'))\n",
-            encoding="utf-8",
-        )
-    # Build PYTHONPATH to include ws root + ws/src for subprocess
+    # Collect all src-like dirs: ws root + every nested src/ dir.
+    # SDK puts files at ws/workspace/src/ so rglob catches it.
     import os as _os
-    extra_paths = f"{ws}:{ws / 'src'}"
+    src_dirs = [ws] + [d for d in ws.rglob("src") if d.is_dir()]
+    extra_paths = ":".join(str(d) for d in src_dirs)
+
+    # Write conftest at ws root AND in every src dir that has test files
+    # so pytest always finds the sys.path additions regardless of rootdir.
+    conftest_body = (
+        "import sys\nfrom pathlib import Path\n"
+        "_here = Path(__file__).parent\n"
+    ) + "".join(f"sys.path.insert(0, str(_here))\n" if d == ws
+                else f'sys.path.insert(0, r"{d}")\n'
+                for d in src_dirs)
+    for candidate in [ws] + [d for d in ws.rglob("src") if d.is_dir()]:
+        cf = candidate / "conftest.py"
+        if not cf.exists():
+            cf.write_text(conftest_body, encoding="utf-8")
+
     env = {**_os.environ, "PYTHONPATH": extra_paths}
     result = subprocess.run(
         ["uv", "run", "pytest", "-q", f"--rootdir={ws}", "--no-header", "--tb=short",
