@@ -70,13 +70,17 @@ class CrewAIBackend:
                 verbose=kwargs.get("verbose", False),
             )
             project_id = (payload.get("state") or {}).get("project_id")
+            # Drop "result" key (crewai FlowOutput) — contains circular refs that
+            # cause RecursionError during JSON serialization in eval workers.
             enriched = {
-                **payload,
+                k: v for k, v in payload.items() if k != "result"
+            }
+            enriched.update({
                 "team_profile": profile.name,
                 "agents": profile.agents,
                 "phases": profile.phases,
                 "project_id": project_id,
-            }
+            })
             return ProjectResult(
                 backend_name=self.name,
                 success=True,

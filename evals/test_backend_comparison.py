@@ -68,10 +68,22 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
             # Serialize to plain dict before putting on queue — avoids pickling
             # complex crewai/langgraph objects which cause RecursionError
             import json as _json
+            import sys as _sys
+            # Strip non-serializable crewai objects before json.dumps to avoid
+            # infinite recursion in FlowOutput / circular ref structures.
+            _SAFE_KEYS = {"state", "thread_id", "project_id", "success", "cost_usd",
+                          "generated_files", "test_results", "workspace", "team_profile",
+                          "agents", "phases", "session_id", "usage", "requirements",
+                          "architecture", "deployment_config"}
+            safe_raw = {k: v for k, v in result.raw.items() if k in _SAFE_KEYS}
+            old_limit = _sys.getrecursionlimit()
+            _sys.setrecursionlimit(500)
             try:
-                raw_dict = _json.loads(_json.dumps(result.raw, default=str))
+                raw_dict = _json.loads(_json.dumps(safe_raw, default=str))
             except Exception:
-                raw_dict = {"state": {}, "thread_id": None}
+                raw_dict = {k: str(v) for k, v in safe_raw.items()}
+            finally:
+                _sys.setrecursionlimit(old_limit)
             q.put(("ok", {"raw": raw_dict, "success": result.success, "error": result.error}))
         except Exception as exc:
             q.put(("err", str(exc)))
