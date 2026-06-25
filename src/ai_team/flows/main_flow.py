@@ -908,17 +908,19 @@ class AITeamFlow(Flow[ProjectState]):
                     team_profile=str(self.state.metadata.get("team_profile") or "full"),
                     state=self.state,
                 )
-            with contextlib.suppress(Exception):
-                from ai_team.reports.manager_self_improvement import (
-                    write_manager_self_improvement_report,
-                )
+            # Skip expensive post-run LLM analysis in eval/CI mode
+            if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
+                with contextlib.suppress(Exception):
+                    from ai_team.reports.manager_self_improvement import (
+                        write_manager_self_improvement_report,
+                    )
 
-                write_manager_self_improvement_report(
-                    b,
-                    backend="crewai",
-                    team_profile=str(self.state.metadata.get("team_profile") or "full"),
-                    state=self.state,
-                )
+                    write_manager_self_improvement_report(
+                        b,
+                        backend="crewai",
+                        team_profile=str(self.state.metadata.get("team_profile") or "full"),
+                        state=self.state,
+                    )
             b.write_summary(
                 "\n".join(
                     [

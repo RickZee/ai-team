@@ -55,6 +55,8 @@ def _make_env(scenario: str, no_judge: bool) -> dict[str, str]:
         "CREWAI_DISABLE_TELEMETRY": "1",
         "NO_COLOR": "1",
         "TERM": "dumb",
+        # Skip post-run self-improvement LLM report (~400s extra in eval mode)
+        "AI_TEAM_SKIP_POST_RUN": "1",
     }
     if no_judge:
         env["EVAL_NO_JUDGE"] = "1"
