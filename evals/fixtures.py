@@ -249,7 +249,8 @@ def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
             encoding="utf-8",
         )
     result = subprocess.run(
-        ["uv", "run", "pytest", "-q", f"--rootdir={ws}", "--no-header", "--tb=short"],
+        ["uv", "run", "pytest", "-q", f"--rootdir={ws}", "--no-header", "--tb=short",
+         "--import-mode=importlib"],
         capture_output=True,
         text=True,
         timeout=timeout,
