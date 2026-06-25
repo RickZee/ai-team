@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from ai_team.backends.langgraph_backend.graphs.langgraph_chat import _fix_tool_call_args
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
 from ai_team.config.settings import get_settings
 from langchain_core.messages import BaseMessage, HumanMessage
@@ -42,10 +43,9 @@ def _nested_config(config: RunnableConfig, suffix: str) -> RunnableConfig:
 
 
 def _message_delta(seed: list[BaseMessage], out_msgs: list[BaseMessage]) -> list[BaseMessage]:
-    """Return messages appended after ``seed`` (subgraph output is typically seed + new)."""
-    if len(out_msgs) < len(seed):
-        return list(out_msgs)
-    return list(out_msgs[len(seed) :])
+    """Return messages appended after ``seed``; normalises tool_call args string→dict."""
+    delta = list(out_msgs[len(seed) :]) if len(out_msgs) >= len(seed) else list(out_msgs)
+    return [_fix_tool_call_args(m) for m in delta]
 
 
 def _extract_profile_from_state(
