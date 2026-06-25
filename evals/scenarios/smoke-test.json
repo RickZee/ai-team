@@ -1,0 +1,20 @@
+{
+  "id": "smoke-test",
+  "role": "backend",
+  "description": "Write a single Python function called add(a, b) that returns a + b. Include one pytest test that calls add(1, 2) and asserts the result is 3. Output: calc.py and test_calc.py only.",
+  "difficulty": "smoke",
+  "expected": {
+    "files": ["calc.py"],
+    "test_files": ["test_calc.py", "tests/test_calc.py"],
+    "test_pass_rate_min": 1.0,
+    "has_dockerfile": false,
+    "acceptance_criteria": [
+      "calc.py contains a function named add",
+      "at least one pytest test file exists",
+      "the add function returns the correct sum",
+      "pytest exits 0"
+    ]
+  },
+  "budget_usd_max": 0.10,
+  "timeout_seconds": 300
+}
