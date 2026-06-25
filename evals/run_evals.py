@@ -77,7 +77,7 @@ def main() -> None:
     if args.no_judge:
         env["EVAL_NO_JUDGE"] = "1"
 
-    base_cmd = ["uv", "run", "pytest", "--tb=short", "-s"]
+    base_cmd = ["uv", "run", "pytest", "--tb=short", "-s", "--timeout=600"]
     if args.verbose:
         base_cmd.append("-v")
 

@@ -164,21 +164,23 @@ class LLMJudge:
         'Reply with JSON only: {"passed": true/false, "score": 0.0-1.0, "reason": "one sentence"}'
     )
 
+    TIMEOUT_S: int = 30
+
     def __init__(self, model: str = "claude-haiku-4-5-20251001") -> None:
-        self._client = anthropic.Anthropic()
+        self._client = anthropic.Anthropic(timeout=self.TIMEOUT_S)
         self._model = model
 
     def check(self, criterion: str, evidence: str) -> JudgeVerdict:
-        msg = self._client.messages.create(
-            model=self._model,
-            max_tokens=256,
-            system=self.SYSTEM,
-            messages=[{
-                "role": "user",
-                "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
-            }],
-        )
         try:
+            msg = self._client.messages.create(
+                model=self._model,
+                max_tokens=256,
+                system=self.SYSTEM,
+                messages=[{
+                    "role": "user",
+                    "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
+                }],
+            )
             data = json.loads(msg.content[0].text)
             return JudgeVerdict(
                 passed=bool(data.get("passed", False)),
@@ -186,8 +188,8 @@ class LLMJudge:
                 reason=str(data.get("reason", "")),
             )
         except Exception as exc:
-            logger.warning("llm_judge_parse_error", error=str(exc))
-            return JudgeVerdict(passed=False, score=0.0, reason=f"parse error: {exc}")
+            logger.warning("llm_judge_error", error=str(exc))
+            return JudgeVerdict(passed=False, score=0.0, reason=f"judge error: {exc}")
 
     def score_goal_alignment(self, goal: str, output_text: str) -> float:
         """0-1 score: how well does output align with the stated goal?"""
