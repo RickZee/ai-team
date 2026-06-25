@@ -15,6 +15,24 @@ from ai_team.monitor import TeamMonitor
 logger = structlog.get_logger(__name__)
 
 
+def _disable_crewai_console() -> None:
+    # crewai's EventListener singleton hardwires ConsoleFormatter(verbose=True).
+    # update_method_status() has no verbose gate and recurses into print() which
+    # calls rich.Live.update() — infinite mutual recursion in non-TTY subprocesses.
+    # Setting _is_streaming=True makes print() early-return on Tree args, breaking
+    # the cycle. verbose=False suppresses all other crew/task/agent rendering.
+    try:
+        from crewai.events.event_listener import EventListener
+        el = EventListener()
+        el.formatter.verbose = False
+        el.formatter._is_streaming = True
+    except Exception:
+        pass  # crewai not installed or API changed — non-fatal
+
+
+_disable_crewai_console()
+
+
 def _maybe_augment_with_rag(description: str) -> str:
     """Prepend RAG snippets when ``RAG_ENABLED`` is true (Phase 6)."""
     try:
