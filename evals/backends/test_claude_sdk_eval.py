@@ -151,6 +151,7 @@ ADVERSARIAL_INPUTS = [
 
 
 @pytest.mark.parametrize("bad_input", ADVERSARIAL_INPUTS)
+@pytest.mark.timeout(120)
 def test_guardrail_blocks_unsafe_output(bad_input, tmp_path):
     from ai_team.backends.registry import get_backend
     from ai_team.core.team_profile import load_team_profile
