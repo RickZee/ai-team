@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from evals.fixtures import EvalResult, LLMJudge, count_hallucinations, summarize_workspace
+from evals.fixtures import EvalResult, LLMJudge, count_hallucinations, run_pytest_in_workspace, summarize_workspace
 
 
 def compute_metrics(
@@ -91,10 +91,18 @@ def compute_metrics(
         _judge = judge or LLMJudge()
         evidence = summarize_workspace(ws)
         # Append backend-reported test results so judge knows pytest exit status
+        import json as _json
         tr = result.raw.get("test_results")
         if tr:
-            import json as _json
             evidence += f"\n\n## Backend test_results\n```json\n{_json.dumps(tr, indent=2, default=str)}\n```"
+        else:
+            # Backend didn't run pytest (e.g. claude-agent-sdk) — run it ourselves
+            pytest_out = run_pytest_in_workspace(ws)
+            evidence += (
+                f"\n\n## pytest output (eval runner)\n"
+                f"returncode={pytest_out['returncode']} passed={pytest_out['passed']} "
+                f"failed={pytest_out['failed']}\n```\n{pytest_out['output']}\n```"
+            )
         criteria = scenario["expected"].get("acceptance_criteria") or []
         print(f"  [judge] scoring {len(criteria)} criteria + goal alignment for {result.backend}...", flush=True)
         verdicts = _judge.check_all_criteria(criteria, evidence)
