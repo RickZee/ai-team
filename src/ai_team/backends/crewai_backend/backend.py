@@ -70,17 +70,32 @@ class CrewAIBackend:
                 verbose=kwargs.get("verbose", False),
             )
             project_id = (payload.get("state") or {}).get("project_id")
-            # Drop "result" key (crewai FlowOutput) — contains circular refs that
-            # cause RecursionError during JSON serialization in eval workers.
-            enriched = {
-                k: v for k, v in payload.items() if k != "result"
-            }
+            # Drop "result" key (crewai FlowOutput) — contains circular refs.
+            enriched = {k: v for k, v in payload.items() if k != "result"}
             enriched.update({
                 "team_profile": profile.name,
                 "agents": profile.agents,
                 "phases": profile.phases,
                 "project_id": project_id,
             })
+            # Sanitize to plain JSON-safe dict in-process before returning.
+            # flow.state.model_dump() may embed LangChain message objects with
+            # circular __dict__ refs that cause RecursionError in multiprocessing queue.
+            import json as _json
+            import sys as _sys
+            old_limit = _sys.getrecursionlimit()
+            _sys.setrecursionlimit(500)
+            try:
+                enriched = _json.loads(_json.dumps(enriched, default=str))
+            except Exception:
+                enriched = {
+                    "project_id": str(project_id),
+                    "team_profile": profile.name,
+                    "agents": profile.agents,
+                    "phases": profile.phases,
+                }
+            finally:
+                _sys.setrecursionlimit(old_limit)
             return ProjectResult(
                 backend_name=self.name,
                 success=True,
