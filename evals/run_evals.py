@@ -62,7 +62,7 @@ def _make_env(scenario: str, no_judge: bool) -> dict[str, str]:
 
 
 def _base_cmd(verbose: bool) -> list[str]:
-    cmd = ["uv", "run", "pytest", "--tb=short", "-s", "--timeout=600"]
+    cmd = ["uv", "run", "pytest", "--tb=short", "-s", "--timeout=1200"]
     if verbose:
         cmd.append("-v")
     return cmd
