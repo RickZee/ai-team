@@ -100,9 +100,11 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
     # Poll until all done, print status updates
     done: set[str] = set()
     exit_codes: dict[str, int] = {}
-    # Track when project_complete was first seen per backend for watchdog
-    complete_seen_at: dict[str, float] = {}
-    complete_drain_timeout = 90  # seconds after project_complete before force-kill
+    complete_seen_at: dict[str, float] = {}  # when project_complete first seen
+    log_last_size: dict[str, int] = {}        # log file size at last poll
+    log_frozen_since: dict[str, float] = {}   # when log stopped growing
+    complete_drain_timeout = 90   # kill N seconds after project_complete
+    log_freeze_timeout = 120      # kill N seconds after log stops growing (deadlock)
     t0 = time.time()
     while len(done) < len(procs):
         time.sleep(10)
@@ -117,22 +119,43 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
                 status = "PASSED" if rc == 0 else f"FAILED (rc={rc})"
                 print(f"[compare] {backend} {status} after {elapsed:.0f}s", flush=True)
             else:
-                # Watchdog: if project_complete seen and drain timeout exceeded, force-kill as PASSED
                 try:
                     log_text = log_path.read_text(errors="replace")
+                    log_size = len(log_text)
+
+                    # Watchdog 1: project_complete seen → drain timeout
                     if "project_complete" in log_text and backend not in complete_seen_at:
                         complete_seen_at[backend] = time.time()
                     if backend in complete_seen_at:
                         drain_elapsed = time.time() - complete_seen_at[backend]
                         if drain_elapsed > complete_drain_timeout:
                             print(
-                                f"[compare] {backend} watchdog: project_complete seen {drain_elapsed:.0f}s ago, force-killing",
+                                f"[compare] {backend} watchdog: project_complete {drain_elapsed:.0f}s ago, killing",
                                 flush=True,
                             )
                             proc.kill()
                             done.add(backend)
-                            exit_codes[backend] = 0  # score as passed — flow completed successfully
+                            exit_codes[backend] = 0
                             print(f"[compare] {backend} PASSED (watchdog) after {elapsed:.0f}s", flush=True)
+                            continue
+
+                    # Watchdog 2: log frozen → deadlock kill (score FAILED — run incomplete)
+                    prev_size = log_last_size.get(backend, -1)
+                    if log_size != prev_size:
+                        log_last_size[backend] = log_size
+                        log_frozen_since.pop(backend, None)
+                    else:
+                        frozen_since = log_frozen_since.setdefault(backend, time.time())
+                        frozen_elapsed = time.time() - frozen_since
+                        if frozen_elapsed > log_freeze_timeout:
+                            print(
+                                f"[compare] {backend} watchdog: log frozen {frozen_elapsed:.0f}s, killing (deadlock)",
+                                flush=True,
+                            )
+                            proc.kill()
+                            done.add(backend)
+                            exit_codes[backend] = 1  # score FAILED — flow never completed
+                            print(f"[compare] {backend} FAILED (deadlock) after {elapsed:.0f}s", flush=True)
                             continue
                 except Exception:
                     pass
