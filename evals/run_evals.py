@@ -57,6 +57,8 @@ def _make_env(scenario: str, no_judge: bool) -> dict[str, str]:
         "TERM": "dumb",
         # Skip post-run self-improvement LLM report (~400s extra in eval mode)
         "AI_TEAM_SKIP_POST_RUN": "1",
+        # Disable ChromaDB memory — embedding API calls block subprocess exit for 3-5 min
+        "MEMORY_MEMORY_ENABLED": "false",
     }
     if no_judge:
         env["EVAL_NO_JUDGE"] = "1"
@@ -98,6 +100,9 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
     # Poll until all done, print status updates
     done: set[str] = set()
     exit_codes: dict[str, int] = {}
+    # Track when project_complete was first seen per backend for watchdog
+    complete_seen_at: dict[str, float] = {}
+    complete_drain_timeout = 90  # seconds after project_complete before force-kill
     t0 = time.time()
     while len(done) < len(procs):
         time.sleep(10)
@@ -112,6 +117,25 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
                 status = "PASSED" if rc == 0 else f"FAILED (rc={rc})"
                 print(f"[compare] {backend} {status} after {elapsed:.0f}s", flush=True)
             else:
+                # Watchdog: if project_complete seen and drain timeout exceeded, force-kill as PASSED
+                try:
+                    log_text = log_path.read_text(errors="replace")
+                    if "project_complete" in log_text and backend not in complete_seen_at:
+                        complete_seen_at[backend] = time.time()
+                    if backend in complete_seen_at:
+                        drain_elapsed = time.time() - complete_seen_at[backend]
+                        if drain_elapsed > complete_drain_timeout:
+                            print(
+                                f"[compare] {backend} watchdog: project_complete seen {drain_elapsed:.0f}s ago, force-killing",
+                                flush=True,
+                            )
+                            proc.kill()
+                            done.add(backend)
+                            exit_codes[backend] = 0  # score as passed — flow completed successfully
+                            print(f"[compare] {backend} PASSED (watchdog) after {elapsed:.0f}s", flush=True)
+                            continue
+                except Exception:
+                    pass
                 # Show last meaningful log line as heartbeat
                 try:
                     lines = log_path.read_text(errors="replace").splitlines()

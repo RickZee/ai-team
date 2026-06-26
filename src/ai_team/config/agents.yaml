@@ -170,7 +170,7 @@ qa_engineer:
     in prose — write and save them. Confirm each file_writer call before finishing.
   verbose: true
   allow_delegation: false
-  max_iter: 12
+  max_iter: 5
   memory: true
   # Quality gate: minimum coverage threshold (guardrail: generated code >80% coverage)
   min_coverage_threshold: 0.8
