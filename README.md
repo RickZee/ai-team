@@ -206,7 +206,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
 git clone https://github.com/RickZee/ai-team.git && cd ai-team
 cp .env.example .env        # add OPENROUTER_API_KEY (+ ANTHROPIC_API_KEY for SDK backend)
 uv sync                     # install deps (uv: https://astral.sh/uv)
-make quickstart             # smoke-test all available backends, print results table
+bash scripts/quickstart.sh  # smoke-test all available backends, print results table
 ```
 
 Or run a specific backend directly:
