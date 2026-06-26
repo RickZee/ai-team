@@ -55,6 +55,9 @@ if [[ ! -d .venv ]]; then
 fi
 ok "Dependencies ready"
 
+# Skip post-run self-improvement reports — saves 3-5 min of ChromaDB embedding calls
+export AI_TEAM_SKIP_POST_RUN=1
+
 # ── parse args ────────────────────────────────────────────────────────────────
 EXTRA_ARGS=("$@")
 
