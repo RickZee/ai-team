@@ -1,0 +1,230 @@
+<svg viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui, -apple-system, sans-serif">
+  <title>ai-team Architecture: Multi-Backend Agent Pipeline</title>
+  <desc>System diagram showing the ai-team architecture with three backends (CrewAI, LangGraph, Claude SDK), nine specialized agents, guardrail layers, and self-improvement loop</desc>
+
+  <!-- Background -->
+  <rect width="860" height="620" fill="#0f1117" rx="12"/>
+
+  <!-- Title -->
+  <text x="430" y="38" text-anchor="middle" fill="#e2e8f0" font-size="17" font-weight="700" letter-spacing="0.3">ai-team: Multi-Backend Agent Architecture</text>
+
+  <!-- INPUT label -->
+  <text x="60" y="74" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">INPUT</text>
+
+  <!-- User box -->
+  <rect x="30" y="80" width="160" height="46" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="110" y="98" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">PROJECT DESCRIPTION</text>
+  <text x="110" y="115" text-anchor="middle" fill="#64748b" font-size="9">"Build a Flask REST API"</text>
+
+  <!-- Arrow right to backends -->
+  <line x1="190" y1="103" x2="230" y2="103" stroke="#334155" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- BACKEND label -->
+  <text x="237" y="74" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">BACKEND (--backend)</text>
+
+  <!-- LangGraph -->
+  <rect x="230" y="80" width="145" height="44" rx="8" fill="#0f2d1a" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="302" y="97" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">LangGraph</text>
+  <text x="302" y="113" text-anchor="middle" fill="#86efac" font-size="9">StateGraph · streaming</text>
+
+  <!-- CrewAI -->
+  <rect x="230" y="134" width="145" height="44" rx="8" fill="#1a1a2e" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="302" y="151" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700">CrewAI</text>
+  <text x="302" y="167" text-anchor="middle" fill="#c7d2fe" font-size="9">Flows · OpenRouter</text>
+
+  <!-- Claude SDK -->
+  <rect x="230" y="188" width="145" height="44" rx="8" fill="#1a1207" stroke="#d97706" stroke-width="1.5"/>
+  <text x="302" y="205" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">Claude Agent SDK</text>
+  <text x="302" y="221" text-anchor="middle" fill="#fde68a" font-size="9">Subagents · Anthropic API</text>
+
+  <!-- Arrows to pipeline -->
+  <line x1="375" y1="102" x2="415" y2="102" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arr-g)"/>
+  <line x1="375" y1="156" x2="415" y2="156" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr-p)"/>
+  <line x1="375" y1="210" x2="415" y2="210" stroke="#d97706" stroke-width="1.5" marker-end="url(#arr-o)"/>
+
+  <!-- Merge lines -->
+  <line x1="415" y1="102" x2="415" y2="156" stroke="#334155" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="415" y1="156" x2="415" y2="210" stroke="#334155" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="415" y1="156" x2="450" y2="156" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- PIPELINE label -->
+  <text x="455" y="74" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">PIPELINE PHASES</text>
+
+  <!-- INTAKE -->
+  <rect x="450" y="80" width="70" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="485" y="95" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">INTAKE</text>
+  <text x="485" y="109" text-anchor="middle" fill="#64748b" font-size="8">Manager</text>
+  <line x1="520" y1="98" x2="533" y2="98" stroke="#334155" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- PLANNING -->
+  <rect x="533" y="80" width="70" height="36" rx="6" fill="#1e2a1e" stroke="#16a34a" stroke-width="1.2"/>
+  <text x="568" y="95" text-anchor="middle" fill="#4ade80" font-size="9.5" font-weight="700">PLANNING</text>
+  <text x="568" y="109" text-anchor="middle" fill="#86efac" font-size="8">PO · Architect</text>
+  <line x1="603" y1="98" x2="616" y2="98" stroke="#334155" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- DEVELOPMENT -->
+  <rect x="616" y="80" width="78" height="36" rx="6" fill="#1a1a2e" stroke="#6366f1" stroke-width="1.2"/>
+  <text x="655" y="95" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700">DEV</text>
+  <text x="655" y="109" text-anchor="middle" fill="#c7d2fe" font-size="8">Backend · FE · Full</text>
+  <line x1="694" y1="98" x2="707" y2="98" stroke="#334155" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- TESTING -->
+  <rect x="707" y="80" width="65" height="36" rx="6" fill="#1c1a0e" stroke="#ca8a04" stroke-width="1.2"/>
+  <text x="739" y="95" text-anchor="middle" fill="#fbbf24" font-size="9.5" font-weight="700">TESTING</text>
+  <text x="739" y="109" text-anchor="middle" fill="#fde68a" font-size="8">QA Engineer</text>
+  <line x1="772" y1="98" x2="785" y2="98" stroke="#334155" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- DEPLOYMENT -->
+  <rect x="785" y="80" width="60" height="36" rx="6" fill="#1a0a0a" stroke="#dc2626" stroke-width="1.2"/>
+  <text x="815" y="95" text-anchor="middle" fill="#f87171" font-size="9.5" font-weight="700">DEPLOY</text>
+  <text x="815" y="109" text-anchor="middle" fill="#fca5a5" font-size="8">DevOps · Cloud</text>
+
+  <!-- AGENTS label -->
+  <text x="30" y="270" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">9 SPECIALIZED AGENTS</text>
+
+  <!-- Row 1 -->
+  <rect x="30" y="278" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="84" y="295" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Manager</text>
+  <text x="84" y="308" text-anchor="middle" fill="#64748b" font-size="8">Coordinator</text>
+
+  <rect x="148" y="278" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="202" y="295" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Product Owner</text>
+  <text x="202" y="308" text-anchor="middle" fill="#64748b" font-size="8">Requirements</text>
+
+  <rect x="266" y="278" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="320" y="295" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Architect</text>
+  <text x="320" y="308" text-anchor="middle" fill="#64748b" font-size="8">System design</text>
+
+  <!-- Row 2 -->
+  <rect x="30" y="324" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="84" y="341" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Backend Dev</text>
+  <text x="84" y="354" text-anchor="middle" fill="#64748b" font-size="8">APIs · services</text>
+
+  <rect x="148" y="324" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="202" y="341" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Frontend Dev</text>
+  <text x="202" y="354" text-anchor="middle" fill="#64748b" font-size="8">UI · components</text>
+
+  <rect x="266" y="324" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="320" y="341" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Fullstack Dev</text>
+  <text x="320" y="354" text-anchor="middle" fill="#64748b" font-size="8">End-to-end</text>
+
+  <!-- Row 3 -->
+  <rect x="30" y="370" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="84" y="387" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">QA Engineer</text>
+  <text x="84" y="400" text-anchor="middle" fill="#64748b" font-size="8">Tests · coverage</text>
+
+  <rect x="148" y="370" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="202" y="387" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">DevOps</text>
+  <text x="202" y="400" text-anchor="middle" fill="#64748b" font-size="8">CI/CD · Docker</text>
+
+  <rect x="266" y="370" width="108" height="36" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1.2"/>
+  <text x="320" y="387" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="600">Cloud Engineer</text>
+  <text x="320" y="400" text-anchor="middle" fill="#64748b" font-size="8">Infra · IaC</text>
+
+  <!-- GUARDRAILS label -->
+  <text x="420" y="270" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">GUARDRAIL LAYERS</text>
+
+  <rect x="420" y="278" width="130" height="36" rx="6" fill="#0c1a12" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="485" y="295" text-anchor="middle" fill="#4ade80" font-size="9.5" font-weight="700">Security</text>
+  <text x="485" y="309" text-anchor="middle" fill="#86efac" font-size="8">blocks eval · rm-rf · os.system</text>
+
+  <rect x="420" y="324" width="130" height="36" rx="6" fill="#0d0d1e" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="485" y="341" text-anchor="middle" fill="#a5b4fc" font-size="9.5" font-weight="700">Behavioral</text>
+  <text x="485" y="355" text-anchor="middle" fill="#c7d2fe" font-size="8">role enforcement · scope control</text>
+
+  <rect x="420" y="370" width="130" height="36" rx="6" fill="#1a130a" stroke="#d97706" stroke-width="1.5"/>
+  <text x="485" y="387" text-anchor="middle" fill="#fbbf24" font-size="9.5" font-weight="700">Quality</text>
+  <text x="485" y="401" text-anchor="middle" fill="#fde68a" font-size="8">coverage · complexity · docs</text>
+
+  <!-- SELF-IMPROVEMENT label -->
+  <text x="590" y="270" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">SELF-IMPROVEMENT LOOP</text>
+
+  <rect x="590" y="278" width="250" height="130" rx="8" fill="#0f1117" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+  <circle cx="610" cy="303" r="4" fill="#dc2626"/>
+  <text x="622" y="307" fill="#f87171" font-size="9.5" font-weight="600">Failure captured → SQLite</text>
+
+  <line x1="610" y1="307" x2="610" y2="323" stroke="#dc2626" stroke-width="1" stroke-dasharray="2,2" marker-end="url(#arr-r)"/>
+  <circle cx="610" cy="330" r="4" fill="#d97706"/>
+  <text x="622" y="334" fill="#fbbf24" font-size="9.5" font-weight="600">Pattern clustering</text>
+
+  <line x1="610" y1="334" x2="610" y2="350" stroke="#d97706" stroke-width="1" stroke-dasharray="2,2" marker-end="url(#arr-o2)"/>
+  <circle cx="610" cy="357" r="4" fill="#6366f1"/>
+  <text x="622" y="361" fill="#a5b4fc" font-size="9.5" font-weight="600">Lessons extracted → ChromaDB</text>
+
+  <line x1="610" y1="361" x2="610" y2="377" stroke="#6366f1" stroke-width="1" stroke-dasharray="2,2" marker-end="url(#arr-p2)"/>
+  <circle cx="610" cy="384" r="4" fill="#16a34a"/>
+  <text x="622" y="388" fill="#4ade80" font-size="9.5" font-weight="600">Injected into prompts next run</text>
+
+  <!-- BENCHMARK label -->
+  <text x="30" y="440" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">BENCHMARK RESULTS (smoke-test: write add(a,b) + pytest)</text>
+
+  <!-- Table header -->
+  <rect x="30" y="448" width="800" height="24" rx="4" fill="#1e293b"/>
+  <text x="100" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">BACKEND</text>
+  <text x="270" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">RESULT</text>
+  <text x="400" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">TIME</text>
+  <text x="600" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">NOTES</text>
+
+  <!-- LangGraph row -->
+  <rect x="30" y="472" width="800" height="28" rx="3" fill="#0f1a0f"/>
+  <rect x="30" y="472" width="4" height="28" rx="2" fill="#16a34a"/>
+  <text x="100" y="490" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">LangGraph</text>
+  <rect x="240" y="477" width="58" height="16" rx="8" fill="#16a34a"/>
+  <text x="269" y="489" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">PASSED</text>
+  <text x="400" y="490" text-anchor="middle" fill="#86efac" font-size="10">~80s</text>
+  <text x="600" y="490" text-anchor="middle" fill="#64748b" font-size="9">Most reliable · deterministic · OpenRouter</text>
+
+  <!-- Claude SDK row -->
+  <rect x="30" y="500" width="800" height="28" rx="3" fill="#1a130a"/>
+  <rect x="30" y="500" width="4" height="28" rx="2" fill="#d97706"/>
+  <text x="100" y="518" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">Claude Agent SDK</text>
+  <rect x="240" y="505" width="58" height="16" rx="8" fill="#16a34a"/>
+  <text x="269" y="517" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">PASSED</text>
+  <text x="400" y="518" text-anchor="middle" fill="#fde68a" font-size="10">~200s</text>
+  <text x="600" y="518" text-anchor="middle" fill="#64748b" font-size="9">Native guardrails · blocks injection · Anthropic</text>
+
+  <!-- CrewAI row -->
+  <rect x="30" y="528" width="800" height="28" rx="3" fill="#1a0d0d"/>
+  <rect x="30" y="528" width="4" height="28" rx="2" fill="#dc2626"/>
+  <text x="100" y="546" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">CrewAI</text>
+  <rect x="230" y="533" width="80" height="16" rx="8" fill="#7f1d1d"/>
+  <text x="270" y="545" text-anchor="middle" fill="#fca5a5" font-size="8.5" font-weight="700">~50% pass</text>
+  <text x="400" y="546" text-anchor="middle" fill="#fca5a5" font-size="10">~340s</text>
+  <text x="600" y="546" text-anchor="middle" fill="#64748b" font-size="9">Threading deadlock bug in crewai core</text>
+
+  <!-- WORKSPACE label -->
+  <text x="30" y="584" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">PER-RUN WORKSPACE  workspace/&lt;run-id&gt;/</text>
+  <rect x="30" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="75" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">docs/</text>
+  <rect x="130" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="175" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">src/</text>
+  <rect x="230" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="275" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">tests/</text>
+  <rect x="330" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="375" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">logs/</text>
+
+  <defs>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#475569"/>
+    </marker>
+    <marker id="arr-g" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#16a34a"/>
+    </marker>
+    <marker id="arr-p" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#6366f1"/>
+    </marker>
+    <marker id="arr-o" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#d97706"/>
+    </marker>
+    <marker id="arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/>
+    </marker>
+    <marker id="arr-o2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#d97706"/>
+    </marker>
+    <marker id="arr-p2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#6366f1"/>
+    </marker>
+  </defs>
+</svg>
