@@ -27,8 +27,8 @@ from crewai import Task
 
 logger = structlog.get_logger()
 
-# Default retries for guardrail failure (CrewAI will retry with feedback)
-GUARDRAIL_MAX_RETRIES = 3
+# Keep retries low — crewai deadlocks during pydantic output parsing on retry 2+
+GUARDRAIL_MAX_RETRIES = 1
 
 
 def _task_output_to_code_files(result: Any) -> list[tuple[str, str, str]]:
@@ -270,7 +270,7 @@ def create_backend_implementation_task(
         ),
         agent=agent,
         context=list(context) if context else [],
-        output_pydantic=CodeFileList,
+        output_json=CodeFileList,
         guardrail=guardrail_fn,
         guardrail_max_retries=guardrail_max_retries,
     )
