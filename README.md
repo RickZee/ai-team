@@ -204,17 +204,25 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
 
 ```bash
 git clone https://github.com/RickZee/ai-team.git && cd ai-team
-cp .env.example .env   # Add API keys (see Configuration below)
-poetry install
+cp .env.example .env        # add OPENROUTER_API_KEY (+ ANTHROPIC_API_KEY for SDK backend)
+uv sync                     # install deps (uv: https://astral.sh/uv)
+make quickstart             # smoke-test all available backends, print results table
+```
 
-# Run with CrewAI (default)
-poetry run ai-team "Create a REST API for a todo list"
+Or run a specific backend directly:
 
-# Run with LangGraph
-poetry run ai-team --backend langgraph --team backend-api "Create a REST API for a todo list"
+```bash
+# CrewAI
+uv run python -m evals.run_evals --backend crewai --scenario smoke-test --no-judge
 
-# Run with Claude Agent SDK
-poetry run ai-team --backend claude-agent-sdk --team backend-api "Create a REST API for a todo list"
+# LangGraph
+uv run python -m evals.run_evals --backend langgraph --scenario smoke-test --no-judge
+
+# Claude Agent SDK (requires ANTHROPIC_API_KEY)
+uv run python -m evals.run_evals --backend claude-agent-sdk --scenario smoke-test --no-judge
+
+# All three in parallel, side-by-side results table
+uv run python -m evals.run_evals --compare --scenario smoke-test --no-judge
 ```
 
 For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).

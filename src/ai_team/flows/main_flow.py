@@ -1115,7 +1115,21 @@ class AITeamFlow(Flow[ProjectState]):
     @listen("retry_development")
     def retry_development(self) -> str:
         """Retry development with test feedback."""
-        self.logger.info("retrying_development", project_id=self.state.project_id)
+        _dev_retry_key = "_dev_retry_count"
+        count = self.state.metadata.get(_dev_retry_key, 0) + 1
+        self.state.metadata[_dev_retry_key] = count
+        self.logger.info(
+            "retrying_development",
+            project_id=self.state.project_id,
+            dev_retry_count=count,
+        )
+        if count > 3:
+            self.logger.warning(
+                "dev_retry_limit_exceeded",
+                project_id=self.state.project_id,
+                dev_retry_count=count,
+            )
+            return "escalate_to_human"
         return "run_development"
 
     @listen("handle_development_error")
