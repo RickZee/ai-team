@@ -78,6 +78,42 @@ def test_route_after_testing_needs_human_flag() -> None:
     assert route_after_testing(state) == "human_review"
 
 
+def test_route_after_testing_phase_error_retries() -> None:
+    """A testing-phase error (e.g. QA tool-call crash) is recoverable: retry dev."""
+    state = {
+        "errors": [{"phase": "testing", "message": "JSONDecodeError", "type": "JSONDecodeError"}],
+        "retry_count": 0,
+        "max_retries": 3,
+    }
+    assert route_after_testing(state) == "retry_development"
+
+
+def test_route_after_testing_phase_error_exhausted_to_human() -> None:
+    """Testing-phase error with retries exhausted escalates to a human, not terminal."""
+    state = {
+        "errors": [{"phase": "testing", "message": "boom", "type": "RuntimeError"}],
+        "retry_count": 3,
+        "max_retries": 3,
+    }
+    assert route_after_testing(state) == "human_review"
+
+
+def test_route_after_testing_non_testing_error_is_terminal() -> None:
+    """An error from another phase remains terminal (hard fault, not QA-recoverable)."""
+    state = {
+        "errors": [{"phase": "development", "message": "fatal", "type": "RuntimeError"}],
+        "retry_count": 0,
+        "max_retries": 3,
+    }
+    assert route_after_testing(state) == "error"
+
+
+def test_route_after_testing_untagged_error_is_terminal() -> None:
+    """A legacy error dict without a phase key stays terminal (backward compatible)."""
+    state = {"errors": [{"msg": "x"}], "retry_count": 0, "max_retries": 3}
+    assert route_after_testing(state) == "error"
+
+
 def test_route_after_deployment() -> None:
     assert route_after_deployment({"errors": []}) == "complete"
     assert route_after_deployment({"errors": [{"e": 1}]}) == "error"

@@ -5,7 +5,10 @@ from __future__ import annotations
 from operator import add
 from typing import Any
 
-from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
+from ai_team.backends.langgraph_backend.graphs.state import (
+    LangGraphProjectState,
+    reset_or_extend_errors,
+)
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph.message import add_messages
 
@@ -21,7 +24,17 @@ class TestOperatorAddReducers:
     def test_errors_accumulate(self) -> None:
         e1 = [{"type": "E1", "message": "m1"}]
         e2 = [{"type": "E2", "message": "m2"}]
-        assert add(e1, e2) == e1 + e2
+        assert reset_or_extend_errors(e1, e2) == e1 + e2
+
+    def test_errors_reset_on_empty_update(self) -> None:
+        """An empty update clears accumulated errors (retry recovery signal)."""
+        existing = [{"phase": "testing", "type": "E1", "message": "m1"}]
+        assert reset_or_extend_errors(existing, []) == []
+
+    def test_errors_append_on_nonempty(self) -> None:
+        existing = [{"type": "E1"}]
+        new = [{"type": "E2"}]
+        assert reset_or_extend_errors(existing, new) == [{"type": "E1"}, {"type": "E2"}]
 
     def test_generated_files_concat(self) -> None:
         a = [{"path": "a.py", "content": "1"}]
