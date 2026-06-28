@@ -2,9 +2,10 @@
   "status": "success",
   "artifacts": ["calc.py", "test_calc.py"],
   "checks": [
-    "calc.py contains function named add",
-    "test_calc.py contains at least one test function",
+    "calc.py defines add, subtract, multiply, and divide",
+    "divide raises ValueError on divide-by-zero",
+    "test_calc.py has at least one test per function plus the divide-by-zero case",
     "pytest exits 0"
   ],
-  "summary": "Smoke test passed — pipeline ran end-to-end, agents invoked, artifacts written."
+  "summary": "Smoke test passed — pipeline ran end-to-end, agents invoked, calculator module and tests written."
 }

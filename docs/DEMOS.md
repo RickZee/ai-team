@@ -2,19 +2,23 @@
 
 The `demos/` folder contains self-contained project scenarios used to exercise and validate the full `AITeamFlow` pipeline. Each demo provides a natural-language project spec as input; the system is expected to autonomously produce working, tested, deployable code as output.
 
+> **Start here:** [demos/DEMO_SCENARIOS.md](../demos/DEMO_SCENARIOS.md) is the
+> reproducible, screenshot-ready walkthrough for every scenario (all three backends).
+> This page is the reference for the per-demo file layout and tooling.
+
 ---
 
 ## Demo catalog
 
 | # | Directory | Team profile | Scope | Business use case |
 | - | --------- | ------------ | ----- | ----------------- |
-| 0 | `00_smoke_test` | `prototype` | **Setup validator** — single Python function + one test; minimum token spend | [BUSINESS_USE_CASE.md](../demos/00_smoke_test/BUSINESS_USE_CASE.md) |
-| 1 | `01_hello_world` | `full` (default) | Minimal Flask REST API with health, items CRUD, pytest, Dockerfile | [BUSINESS_USE_CASE.md](../demos/01_hello_world/BUSINESS_USE_CASE.md) |
-| 2 | `02_todo_app` | `full` | Full-stack TODO app — Flask + SQLite backend, HTML/JS frontend | [BUSINESS_USE_CASE.md](../demos/02_todo_app/BUSINESS_USE_CASE.md) |
-| 3 | `03_data_pipeline` | `full` | ETL pipeline — CSV ingest, validate/transform, SQLite load, CLI report | [BUSINESS_USE_CASE.md](../demos/03_data_pipeline/BUSINESS_USE_CASE.md) |
-| 4 | `04_ml_api` | `full` | FastAPI ML inference service — scikit-learn model, predict/health/metrics endpoints | [BUSINESS_USE_CASE.md](../demos/04_ml_api/BUSINESS_USE_CASE.md) |
+| 0 | `00_smoke_test` | `prototype` | **Setup validator** — calculator module (4 ops) + pytest; minimum token spend | [BUSINESS_USE_CASE.md](../demos/00_smoke_test/BUSINESS_USE_CASE.md) |
+| 2 | `02_todo_app` | `full` | Full-stack TODO app — Flask REST API + SQLite, HTML/JS UI, Dockerized | [BUSINESS_USE_CASE.md](../demos/02_todo_app/BUSINESS_USE_CASE.md) |
 | 5 | `05_microservices` | `full` | Three-service system — API Gateway, User Service, Notification Service + docker-compose | [BUSINESS_USE_CASE.md](../demos/05_microservices/BUSINESS_USE_CASE.md) |
 | 6 | `06_karpathy_optimization` | `research-optimizer` | AutoOptimizer Loop — iterative metric-driven optimization with keep/revert and RAG lesson injection | [BUSINESS_USE_CASE.md](../demos/06_karpathy_optimization/BUSINESS_USE_CASE.md) |
+
+> Folder numbers are kept stable for git history; `01_hello_world`, `03_data_pipeline`,
+> and `04_ml_api` were retired to `.archive/demos-removed-2026-06-28/`.
 
 Team profiles are documented in [TEAM_PROFILES.md](TEAM_PROFILES.md). Set `team_profile` in `input.json` or pass `--team` to `run_demo.py` / `compare_backends.py`.
 

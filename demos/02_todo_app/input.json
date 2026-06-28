@@ -1,5 +1,5 @@
 {
   "project_name": "todo_app",
-  "description": "Full-stack TODO application with backend API and frontend",
-  "stack": ["Flask", "SQLite", "HTML/JS"]
+  "description": "Build a full-stack TODO application. Backend: Flask REST API exposing GET /health, GET /todos, POST /todos (create), PATCH /todos/{id} (toggle complete), and DELETE /todos/{id}, persisting to SQLite so data survives restarts; return JSON, validate input, and use proper status codes. Frontend: a single-page HTML/JS UI served by the app that lists todos and lets the user add, complete, and delete them via the API. Packaging: a Dockerfile and a docker-compose.yml so the whole stack starts with 'docker compose up'. Include pytest API tests, requirements.txt, and a README with run instructions.",
+  "stack": ["Flask", "SQLite", "HTML/JS", "Docker", "pytest"]
 }

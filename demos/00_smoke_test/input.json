@@ -1,6 +1,7 @@
 {
-  "project_name": "smoke_test",
-  "description": "Write a single Python function called add(a, b) that returns a + b. Include one pytest test that calls add(1, 2) and asserts the result is 3. Output: calc.py and test_calc.py only.",
+  "project_name": "smoke_test_calculator",
+  "description": "Write a single Python module calc.py exposing add(a, b), subtract(a, b), multiply(a, b), and divide(a, b) (raising ValueError on divide-by-zero), with type hints and docstrings. Include test_calc.py with pytest cases covering each function and the divide-by-zero error. Output calc.py and test_calc.py only.",
   "requirements": ["pytest"],
+  "stack": ["Python", "pytest"],
   "team_profile": "prototype"
 }
