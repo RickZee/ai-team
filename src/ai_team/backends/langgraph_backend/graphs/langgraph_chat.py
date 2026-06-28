@@ -26,8 +26,16 @@ def _fix_tool_call_args(msg: BaseMessage) -> BaseMessage:
             try:
                 tc = {**tc, "args": json.loads(args)}
                 changed = True
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as e:
+                # Malformed tool-call args (e.g. truncated/prose-wrapped JSON from
+                # deepseek). Leave the raw string for the agent to handle, but log
+                # it — silently swallowing this previously masked QA failures.
+                logger.warning(
+                    "tool_call_args_unparseable",
+                    tool=tc.get("name"),
+                    error=str(e),
+                    preview=args[:200],
+                )
         fixed.append(tc)
     if not changed:
         return msg

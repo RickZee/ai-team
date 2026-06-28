@@ -206,12 +206,33 @@ def _run_real_quality_gate() -> dict[str, Any]:
         timeout_s=300,
         cwd=root,
     )
+    # pytest exit code 5 == "no tests collected". Surface this distinctly so a
+    # retry can tell the developer/QA "no tests were written" rather than
+    # leaving it indistinguishable from a normal test failure.
+    no_tests = pytest.get("returncode") == 5
     passed = bool(ruff["ok"]) and bool(pytest["ok"])
-    return {
+    result: dict[str, Any] = {
         "passed": passed,
         "lint": {"tool": "ruff", **ruff},
         "tests": {"tool": "pytest", **pytest},
     }
+    if no_tests:
+        result["no_tests_collected"] = True
+        result["reason"] = (
+            "No tests were collected (pytest exit 5). QA must write test files "
+            "with file_writer (e.g. tests/test_*.py), not emit them as prose."
+        )
+    return result
+
+
+def _workspace_has_tests() -> bool:
+    """True if the workspace contains at least one pytest-discoverable test file."""
+    root = _workspace_root()
+    for fp in root.rglob("*.py"):
+        name = fp.name
+        if name.startswith("test_") or name.endswith("_test.py"):
+            return True
+    return False
 
 
 def _snapshot_workspace_files() -> list[dict[str, Any]]:
@@ -249,6 +270,15 @@ _FENCED_NAMED_RE = re.compile(
     r"(?P<code>.*?)```",
     re.DOTALL | re.IGNORECASE,
 )
+# Markdown-header-named blocks, e.g.  "### `test_calc.py`\n```python\n...\n```".
+# The filename may be wrapped in backticks and the fence may sit a blank line
+# below the header. Common deepseek/QA prose format that the two patterns above
+# miss, which previously left tests unwritten and pytest collecting 0 items.
+_MD_HEADER_NAMED_RE = re.compile(
+    r"#{1,6}\s*`?(?P<fname>[\w./\\-]+\.(?:py|js|ts|jsx|tsx|html|css|json|yaml|yml|toml|txt|sh))`?\s*\n+"
+    r"```(?:\w+)?\n(?P<code>.*?)```",
+    re.DOTALL | re.IGNORECASE,
+)
 
 
 def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str, Any]]:
@@ -269,15 +299,23 @@ def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str
         text = msg.content if isinstance(msg.content, str) else ""
         if not text:
             continue
-        for pattern in (_CODE_BLOCK_RE, _FENCED_NAMED_RE):
+        for pattern in (_CODE_BLOCK_RE, _FENCED_NAMED_RE, _MD_HEADER_NAMED_RE):
             for m in pattern.finditer(text):
-                fname = m.group("fname").strip().lstrip("./")
+                raw = m.group("fname").strip()
+                # Strip at most one leading "./"; do NOT use lstrip("./") — that
+                # removes arbitrary leading dot/slash chars and turns "../x.py"
+                # into "x.py", defeating the traversal check below.
+                fname = raw[2:] if raw.startswith("./") else raw
                 code = m.group("code").rstrip()
                 if not fname or fname in seen:
                     continue
-                # Security: reject path traversal and hidden files
+                # Security: reject absolute paths, traversal, and hidden files.
                 safe = Path(fname)
-                if ".." in safe.parts or safe.name.startswith("."):
+                if (
+                    safe.is_absolute()
+                    or ".." in safe.parts
+                    or any(part.startswith(".") for part in safe.parts)
+                ):
                     continue
                 dest = root / safe
                 dest.parent.mkdir(parents=True, exist_ok=True)
@@ -488,6 +526,23 @@ def testing_subgraph_node(
         )
     except Exception as e:
         logger.exception("testing_subgraph_failed", error=str(e))
+        # A malformed tool-call (e.g. deepseek emitting prose with broken JSON
+        # args) can crash the subgraph mid-run. Try to salvage any test code the
+        # model wrote as prose in the seed messages before giving up; if we
+        # recover tests, run the gate instead of failing the phase outright.
+        if not _workspace_has_tests():
+            salvaged = _extract_and_write_code_blocks(seed)
+            if salvaged:
+                logger.info("testing_exception_fallback", count=len(salvaged))
+        if _workspace_has_tests():
+            tr = _run_real_quality_gate()
+            return {
+                "current_phase": "testing",
+                "test_results": tr,
+                "phase_history": [
+                    {"phase": "testing", "status": "recovered", "passed": tr.get("passed")}
+                ],
+            }
         return {
             "errors": [
                 {
@@ -506,6 +561,14 @@ def testing_subgraph_node(
         }
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
+    # Salvage: if the QA model emitted test code as markdown prose instead of
+    # calling file_writer, no test file reaches the workspace and pytest collects
+    # 0 items. Extract fenced blocks from QA's messages and write them before the
+    # quality gate runs, mirroring the development-phase fallback.
+    if not _workspace_has_tests():
+        salvaged = _extract_and_write_code_blocks(delta)
+        if salvaged:
+            logger.info("testing_fallback_extraction", count=len(salvaged))
     tr = _run_real_quality_gate()
     return {
         "messages": delta,

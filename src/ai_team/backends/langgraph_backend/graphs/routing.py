@@ -66,9 +66,25 @@ def route_after_development(
 def route_after_testing(
     state: LangGraphProjectState,
 ) -> Literal["deployment", "retry_development", "human_review", "error"]:
-    """Route after testing: deployment, retry development, human escalation, or error."""
+    """Route after testing: deployment, retry development, human escalation, or error.
+
+    A *testing-phase* error (e.g. the QA agent emitting prose instead of a
+    ``file_writer`` tool-call, or a malformed tool-call that crashes the
+    subgraph) is treated as retryable: route back to development up to
+    ``max_retries``, then escalate to a human. Only errors from *other* phases
+    are terminal here — a hard fault we cannot recover by re-running QA.
+    """
     errs = state.get("errors") or []
+    rc = int(state.get("retry_count") or 0)
+    mx = int(state.get("max_retries") or 3)
     if errs:
+        latest = errs[-1] if isinstance(errs[-1], dict) else {}
+        if latest.get("phase") == "testing":
+            # Recoverable: re-run development (which re-triggers testing) until
+            # we exhaust retries, then hand off to a human rather than dying.
+            if rc < mx:
+                return "retry_development"
+            return "human_review"
         return "error"
     meta = state.get("metadata") or {}
     if meta.get("testing_needs_human"):
@@ -76,8 +92,6 @@ def route_after_testing(
     tr = state.get("test_results") or {}
     passed = tr.get("passed", True)
     if not passed:
-        rc = int(state.get("retry_count") or 0)
-        mx = int(state.get("max_retries") or 3)
         if rc < mx:
             return "retry_development"
         return "human_review"
