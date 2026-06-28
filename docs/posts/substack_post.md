@@ -168,6 +168,47 @@ The lesson: **CrewAI's reliability problem is framework-level, not model-level**
 
 ---
 
+## The Agent That Wouldn't Press the Button
+
+The deadlock was a framework bug. The next one was stranger — the *model* itself refusing to act like an agent.
+
+On the LangGraph backend, the todo-API demo would run for ten minutes and produce nothing. No crash, no hang — it just looped. Dig into the logs and you find the development agent's output:
+
+```
+"Here are the files:
+
+### 1. `main.py` (Flask Application)
+... <correct Flask app> ...
+
+Would you like me to proceed with saving these files?"
+```
+
+It wrote the entire app. Correctly. Type hints, error handling, SQLite wiring — all there. And then it **asked permission to save it.**
+
+There's nobody to answer. The agent has a `file_writer` tool. Its instructions literally say *"call file_writer — do not output code as plain text."* It ignored that and behaved like a chat assistant in a conversation, waiting for a human to say "yes, go ahead." The code never left the transcript.
+
+Here's why that's fatal and not just annoying: **the agents coordinate through files on disk, not through chat history.** That's a deliberate design choice — it's how a real engineering team works. The architect's design, the developer's code, the tester's tests — they're files in a shared workspace, not messages. So when the developer writes `main.py` as *prose*:
+
+1. Development "finishes" — but the workspace has no app.
+2. Testing runs real `pytest` → `ImportError: no module named main`.
+3. Routing sees the failure → retries development.
+4. The developer writes the same prose again. Still no tool call.
+5. Loop, until the retry cap trips. Ten minutes. Zero files.
+
+The model generated correct code on every single lap and threw all of it away.
+
+**The fix isn't a better prompt — it's a salvage net.** If the agent won't call the tool, I parse the markdown it emitted, find the fenced code blocks with filenames, and write them to disk myself. It feels like a hack. It's actually the right call: the entire point of this project is comparing backends *including open models*, so the harness has to survive a model that won't follow tool-use instructions. A pipeline that silently loops for ten minutes because the model got chatty is not a pipeline you can ship.
+
+It took three iterations to get the salvage right — the developer agent used numbered markdown headers (`### 1. main.py`) that my first regex missed, and the extraction was gated on "workspace empty" so it skipped the moment any file already existed. Each fix was small. The pattern underneath was the same: *assume the agent will narrate instead of act, and recover.*
+
+**And it can loop you into a real bill.** The retry caps bound how many *times* it loops, but nothing bound how much it *spends*. A crash-loop on a slow model just burns money quietly. So every run now has a hard dollar ceiling, fed by the real per-call cost the provider reports — and crossing it aborts the run immediately. The subtle part: that abort has to be *un-catchable* by the retry machinery, or the loop eats its own kill signal and keeps spending. (In Python terms: the budget exception subclasses `BaseException`, not `Exception`, so the `except Exception` blocks in the framework and the orchestration both let it through. One line of design, load-bearing.)
+
+The honest ending: the todo demo *still* doesn't fully pass on the open model. The salvage lands the files now, but the agents don't agree on a project layout — the tester writes `from main import app`, the developer writes `todoapp/app.py` — because no agent *owns* the structure. Each phase invents its own paths. That's the next problem, and it's not a parsing bug. It's an **agent-coordination** problem: the planning phase needs to pin a file layout and hand it to everyone downstream.
+
+The meta-lesson, again: **the framework is not the bottleneck, and increasingly neither is the model's raw capability — it's whether the model will *act* instead of *talk*.** Claude via the SDK reliably calls its tools and shows almost none of this. DeepSeek writes equally good code and then asks if it may save it. A surprising fraction of "building an agent system" turns out to be building the harness that survives the agent when it forgets it's an agent.
+
+---
+
 ## The Guardrail Layer
 
 The Claude Agent SDK eval suite includes adversarial tests. These aren't capability tests — they're safety tests:
@@ -219,11 +260,12 @@ The bigger lesson: **the framework is not the bottleneck**. The model is. DeepSe
 
 ## What's Next
 
-Three things on the roadmap:
+Four things on the roadmap:
 
-1. **Doctest verification** — actually execute `Examples:` blocks as part of the quality guardrail
-2. **Cross-agent consistency** — verify that what the architect specified is what the developer built, not just that both documents exist
-3. **Self-improvement validation** — run A/B evals to measure whether the ChromaDB-injected lessons actually reduce failure rates across runs
+1. **A shared project layout** — the biggest open problem from the prose-vs-tool-call saga: have the planning phase pin the file structure and inject it into every downstream agent, so the developer and tester stop inventing conflicting paths
+2. **Doctest verification** — actually execute `Examples:` blocks as part of the quality guardrail
+3. **Cross-agent consistency** — verify that what the architect specified is what the developer built, not just that both documents exist
+4. **Self-improvement validation** — run A/B evals to measure whether the ChromaDB-injected lessons actually reduce failure rates across runs
 
 The codebase is a real working system — not a toy, not a proof-of-concept demo. Every run above used real LLM API calls. The numbers are from actual logs, not estimates.
 
