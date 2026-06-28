@@ -1,5 +1,12 @@
 {
   "status": "success",
-  "artifacts": ["backend/", "frontend/", "requirements.txt", "README.md", "docker-compose.yml"],
-  "summary": "Full-stack TODO app generated with backend and frontend."
+  "artifacts": ["app.py", "frontend/", "tests/", "requirements.txt", "Dockerfile", "docker-compose.yml", "README.md"],
+  "checks": [
+    "REST API exposes health plus todos CRUD (GET/POST/PATCH/DELETE)",
+    "Data persists to SQLite across restarts",
+    "Browser UI can add, complete, and delete todos",
+    "'docker compose up' starts the full stack",
+    "pytest API tests pass"
+  ],
+  "summary": "Full-stack TODO app generated with Flask REST API, SQLite persistence, a browser UI, tests, and Docker packaging."
 }
