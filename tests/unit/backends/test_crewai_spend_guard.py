@@ -55,9 +55,7 @@ def _make_logger():
 class TestCrewaiSpendCallback:
     def test_records_response_cost(self) -> None:
         logger = _make_logger()
-        logger.log_success_event(
-            {"response_cost": 0.20}, _FakeResponse(300), None, None
-        )
+        logger.log_success_event({"response_cost": 0.20}, _FakeResponse(300), None, None)
         snap = current_spend()
         assert snap["spent_usd"] == pytest.approx(0.20)
         assert snap["total_tokens"] == 300
@@ -70,9 +68,7 @@ class TestCrewaiSpendCallback:
 
     def test_malformed_cost_does_not_crash(self) -> None:
         logger = _make_logger()
-        logger.log_success_event(
-            {"response_cost": "n/a"}, _FakeResponse(0), None, None
-        )
+        logger.log_success_event({"response_cost": "n/a"}, _FakeResponse(0), None, None)
         assert current_spend()["spent_usd"] == 0.0
 
     def test_abort_raises_base_exception_not_exception(self) -> None:
@@ -80,9 +76,7 @@ class TestCrewaiSpendCallback:
         reset_spend_guard(0.05)
         logger = _make_logger()
         with pytest.raises(BudgetExceededError):
-            logger.log_success_event(
-                {"response_cost": 0.10}, _FakeResponse(0), None, None
-            )
+            logger.log_success_event({"response_cost": 0.10}, _FakeResponse(0), None, None)
 
     def test_register_is_idempotent(self) -> None:
         import ai_team.config.llm_observability as obs
