@@ -100,6 +100,70 @@ AI-Team automatically turns run outcomes into actionable feedback:
 
 See a full example report in [`docs/manager_self_improvement_report.md`](docs/manager_self_improvement_report.md).
 
+## Managing runs
+
+Each run creates isolated on-disk data:
+
+| Location | Contents |
+|----------|----------|
+| `workspace/<run_id>/` | Generated source, tests, logs, agent handoff files |
+| `output/runs/<run_id>/` | Artifact bundle (`run.json`, `state.json`, `artifacts/`, `reports/`) |
+| `output/index.json` + `output/latest` | Disk registry of all runs (rebuilt from `output/runs/*`) |
+
+The web dashboard also keeps **in-memory** session metadata for active and recent runs (`GET /api/runs`); that state is lost on server restart but the disk registry remains.
+
+### Cancel vs delete
+
+| Action | What it does | How |
+|--------|--------------|-----|
+| **Cancel** | Stops an in-flight run cooperatively; artifacts already written remain | Web: `POST /api/runs/{id}/cancel` or **Stop run** on the Dashboard |
+| **Delete** | Removes workspace + output bundle and rebuilds the registry | Programmatic API below (REST/UI/CLI surfaces are planned) |
+
+### Delete a run (programmatic)
+
+Use the shared cleanup module in `ai_team.core.results`:
+
+```python
+from ai_team.core.results import delete_run, delete_runs
+
+result = delete_run("my-run-id")
+# result.workspace_deleted, result.bundle_deleted, result.existed
+
+results = delete_runs(["run-a", "run-b"])
+```
+
+`delete_run` is **idempotent**: deleting a missing run returns `existed=False` and does not raise. Run IDs are validated (`..`, `/`, and `\` are rejected).
+
+For the web server, remove a **terminal** run from in-memory state after disk cleanup:
+
+```python
+from ai_team.ui.web.server import RunState
+
+state.remove_run("my-run-id")  # only complete | error | cancelled
+```
+
+Implementation: [`src/ai_team/core/results/cleanup.py`](src/ai_team/core/results/cleanup.py). Unit tests: [`tests/unit/core/results/test_cleanup.py`](tests/unit/core/results/test_cleanup.py).
+
+### Manual cleanup (last resort)
+
+If you only need to reclaim disk space and do not need registry consistency, you can remove directories directly:
+
+```bash
+rm -rf workspace/<run_id> output/runs/<run_id>
+```
+
+Then rebuild the registry from Python:
+
+```python
+from pathlib import Path
+from ai_team.core.results import rebuild_registry
+from ai_team.config.settings import get_settings
+
+rebuild_registry(Path(get_settings().project.output_dir))
+```
+
+Prefer `delete_run()` — it handles path validation, registry rebuild, and audit logging in one call.
+
 ## AutoOptimizer Loop (Karpathy-style)
 
 Inspired by Andrej Karpathy's overnight experiment runs, the AutoOptimizer Loop is a tight autonomous cycle that iteratively improves a target metric (e.g. test pass rate, requests/sec, latency) on any workspace:
@@ -385,6 +449,7 @@ See [docs/WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) for user journeys and UX note
 | `POST /api/estimate` | REST | Cost estimation |
 | `GET /api/runs` | REST | List runs (in-memory session) |
 | `GET /api/runs/{id}` | REST | Run detail + monitor snapshot |
+| `POST /api/runs/{id}/cancel` | REST | Cancel an in-flight run (cooperative stop) |
 | `POST /api/runs/{id}/resume` | REST | Resume LangGraph HITL (human feedback) |
 | `POST /api/demo` | REST | Start demo simulation |
 | `GET /api/registry/runs` | REST | List disk-backed runs (artifacts) |
@@ -397,6 +462,8 @@ See [docs/WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) for user journeys and UX note
 | `WS /ws/monitor/{id}` | WebSocket | Monitor active run (500ms state snapshots) |
 
 The React app uses same-origin `/api` and `/ws` (Vite proxies in dev; production serves UI and API from one port).
+
+**Run deletion:** disk cleanup is available via `delete_run()` in Python (see [Managing runs](#managing-runs)). A `DELETE /api/runs/{id}` endpoint and Dashboard delete affordance are not yet exposed; track progress in [docs/UX_IMPLEMENTATION_TASKS.md](docs/UX_IMPLEMENTATION_TASKS.md) (T12).
 
 ### Textual TUI (Terminal)
 
