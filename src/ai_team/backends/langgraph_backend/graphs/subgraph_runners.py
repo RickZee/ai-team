@@ -196,7 +196,9 @@ def _run_real_quality_gate() -> dict[str, Any]:
     # Write conftest.py to add workspace root to sys.path so tests can import src files
     _ensure_workspace_conftest(root)
     # Auto-fix trivial style issues (imports, trailing newlines) before checking
-    _run_cmd(["ruff", "check", "--fix", "--select", "I,W292", "--preview", "."], timeout_s=30, cwd=root)
+    _run_cmd(
+        ["ruff", "check", "--fix", "--select", "I,W292", "--preview", "."], timeout_s=30, cwd=root
+    )
     ruff = _run_cmd(["ruff", "check", "."], timeout_s=60, cwd=root)
     # Run pytest with --rootdir=workspace so it ignores the parent pyproject.toml
     pytest = _run_cmd(
@@ -416,7 +418,9 @@ def development_subgraph_node(
                 "current_phase": "development",
                 "generated_files": generated,
                 "errors": [],
-                "phase_history": [{"phase": "development", "status": "complete", "files": len(generated)}],
+                "phase_history": [
+                    {"phase": "development", "status": "complete", "files": len(generated)}
+                ],
             }
         return {
             "errors": [

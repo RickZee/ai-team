@@ -52,7 +52,11 @@ def crewai_result(tmp_path_factory) -> tuple[EvalResult, Path]:
     wall = time.time() - t0
 
     result = eval_result_from_run(
-        BACKEND, SCENARIO["id"], {**raw.raw, "success": raw.success}, workspace_dir=ws, wall_time_s=wall
+        BACKEND,
+        SCENARIO["id"],
+        {**raw.raw, "success": raw.success},
+        workspace_dir=ws,
+        wall_time_s=wall,
     )
     compute_metrics(result, SCENARIO, run_judge=True)
     print("\n" + format_scorecard(result))
@@ -62,6 +66,7 @@ def crewai_result(tmp_path_factory) -> tuple[EvalResult, Path]:
 # ---------------------------------------------------------------------------
 # Task success
 # ---------------------------------------------------------------------------
+
 
 class TestCrewAITaskSuccess:
     def test_completes_successfully(self, crewai_result):
@@ -88,14 +93,13 @@ class TestCrewAITaskSuccess:
         _, ws = crewai_result
         out = run_pytest_in_workspace(ws)
         min_rate = SCENARIO["expected"]["test_pass_rate_min"]
-        assert out["pass_rate"] >= min_rate, (
-            f"Pass rate {out['pass_rate']:.0%} < {min_rate:.0%}"
-        )
+        assert out["pass_rate"] >= min_rate, f"Pass rate {out['pass_rate']:.0%} < {min_rate:.0%}"
 
 
 # ---------------------------------------------------------------------------
 # Quality — crewai.experimental.evaluation
 # ---------------------------------------------------------------------------
+
 
 class TestCrewAIExperimentalEval:
     """Use CrewAI's built-in evaluators on the agent trajectory captured during run."""
@@ -126,27 +130,29 @@ class TestCrewAIExperimentalEval:
 # Cost & latency
 # ---------------------------------------------------------------------------
 
+
 class TestCrewAICostLatency:
     def test_within_budget(self, crewai_result):
         result, _ = crewai_result
         if result.cost_usd is None:
             pytest.skip("Cost not reported by backend")
-        assert result.cost_usd <= SCENARIO["budget_usd_max"], (
-            f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
-        )
+        assert (
+            result.cost_usd <= SCENARIO["budget_usd_max"]
+        ), f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
 
     def test_completes_within_timeout(self, crewai_result):
         result, _ = crewai_result
         if result.wall_time_s is None:
             pytest.skip("Wall time not recorded")
-        assert result.wall_time_s <= SCENARIO["timeout_seconds"], (
-            f"Timed out: {result.wall_time_s:.1f}s > {SCENARIO['timeout_seconds']}s"
-        )
+        assert (
+            result.wall_time_s <= SCENARIO["timeout_seconds"]
+        ), f"Timed out: {result.wall_time_s:.1f}s > {SCENARIO['timeout_seconds']}s"
 
 
 # ---------------------------------------------------------------------------
 # Trajectory
 # ---------------------------------------------------------------------------
+
 
 class TestCrewAITrajectory:
     def test_retry_count_bounded(self, crewai_result):

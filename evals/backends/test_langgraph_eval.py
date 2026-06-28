@@ -57,7 +57,11 @@ def lg_result(tmp_path_factory) -> tuple[EvalResult, Path]:
     wall = time.time() - t0
 
     result = eval_result_from_run(
-        BACKEND, SCENARIO["id"], {**raw.raw, "success": raw.success}, workspace_dir=ws, wall_time_s=wall
+        BACKEND,
+        SCENARIO["id"],
+        {**raw.raw, "success": raw.success},
+        workspace_dir=ws,
+        wall_time_s=wall,
     )
     compute_metrics(result, SCENARIO, run_judge=True)
     print("\n" + format_scorecard(result))
@@ -67,6 +71,7 @@ def lg_result(tmp_path_factory) -> tuple[EvalResult, Path]:
 # ---------------------------------------------------------------------------
 # Task success
 # ---------------------------------------------------------------------------
+
 
 class TestLangGraphTaskSuccess:
     def test_completes_successfully(self, lg_result):
@@ -97,6 +102,7 @@ class TestLangGraphTaskSuccess:
 # ---------------------------------------------------------------------------
 # Phase trajectory
 # ---------------------------------------------------------------------------
+
 
 class TestLangGraphTrajectory:
     def test_phase_history_populated(self, lg_result):
@@ -135,6 +141,7 @@ class TestLangGraphTrajectory:
 # Quality
 # ---------------------------------------------------------------------------
 
+
 class TestLangGraphQuality:
     def test_goal_alignment(self, lg_result):
         result, _ = lg_result
@@ -167,6 +174,7 @@ class TestLangGraphQuality:
 # ---------------------------------------------------------------------------
 # Cost & latency
 # ---------------------------------------------------------------------------
+
 
 class TestLangGraphCostLatency:
     def test_within_budget(self, lg_result):

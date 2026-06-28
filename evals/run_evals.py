@@ -92,19 +92,19 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
         proc = subprocess.Popen(cmd, env=env, cwd=_REPO_ROOT, stdout=f, stderr=subprocess.STDOUT)
         procs[backend] = (proc, log_path)
 
-    print(f"[compare] all 3 backends running in parallel", flush=True)
-    print(f"[compare] tail logs:", flush=True)
-    for backend, (_, log_path) in procs.items():
+    print("[compare] all 3 backends running in parallel", flush=True)
+    print("[compare] tail logs:", flush=True)
+    for _, log_path in procs.values():
         print(f"  tail -f {log_path}", flush=True)
 
     # Poll until all done, print status updates
     done: set[str] = set()
     exit_codes: dict[str, int] = {}
     complete_seen_at: dict[str, float] = {}  # when project_complete first seen
-    log_last_size: dict[str, int] = {}        # log file size at last poll
-    log_frozen_since: dict[str, float] = {}   # when log stopped growing
-    complete_drain_timeout = 90   # kill N seconds after project_complete
-    log_freeze_timeout = 120      # kill N seconds after log stops growing (deadlock)
+    log_last_size: dict[str, int] = {}  # log file size at last poll
+    log_frozen_since: dict[str, float] = {}  # when log stopped growing
+    complete_drain_timeout = 90  # kill N seconds after project_complete
+    log_freeze_timeout = 120  # kill N seconds after log stops growing (deadlock)
     t0 = time.time()
     while len(done) < len(procs):
         time.sleep(10)
@@ -136,7 +136,10 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
                             proc.kill()
                             done.add(backend)
                             exit_codes[backend] = 0
-                            print(f"[compare] {backend} PASSED (watchdog) after {elapsed:.0f}s", flush=True)
+                            print(
+                                f"[compare] {backend} PASSED (watchdog) after {elapsed:.0f}s",
+                                flush=True,
+                            )
                             continue
 
                     # Watchdog 2: log frozen → deadlock kill (score FAILED — run incomplete)
@@ -155,15 +158,23 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
                             proc.kill()
                             done.add(backend)
                             exit_codes[backend] = 1  # score FAILED — flow never completed
-                            print(f"[compare] {backend} FAILED (deadlock) after {elapsed:.0f}s", flush=True)
+                            print(
+                                f"[compare] {backend} FAILED (deadlock) after {elapsed:.0f}s",
+                                flush=True,
+                            )
                             continue
                 except Exception:
                     pass
                 # Show last meaningful log line as heartbeat
                 try:
                     lines = log_path.read_text(errors="replace").splitlines()
-                    last = next((l for l in reversed(lines) if l.strip() and "│" not in l), "...")
-                    print(f"[compare] {backend} running ({elapsed:.0f}s) — {last[-80:]}", flush=True)
+                    last = next(
+                        (line for line in reversed(lines) if line.strip() and "│" not in line),
+                        "...",
+                    )
+                    print(
+                        f"[compare] {backend} running ({elapsed:.0f}s) — {last[-80:]}", flush=True
+                    )
                 except Exception:
                     pass
 
@@ -208,10 +219,16 @@ def _print_summary(exit_codes: dict[str, int], scenario: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI-Team eval runner")
-    parser.add_argument("--backend", choices=list(_FILE_MAP), help="Run evals for a single backend.")
-    parser.add_argument("--scenario", default="smoke-test", help="Scenario ID (default: smoke-test).")
+    parser.add_argument(
+        "--backend", choices=list(_FILE_MAP), help="Run evals for a single backend."
+    )
+    parser.add_argument(
+        "--scenario", default="smoke-test", help="Scenario ID (default: smoke-test)."
+    )
     parser.add_argument("--all", action="store_true", help="Run all backend evals sequentially.")
-    parser.add_argument("--compare", action="store_true", help="Cross-backend comparison (parallel).")
+    parser.add_argument(
+        "--compare", action="store_true", help="Cross-backend comparison (parallel)."
+    )
     parser.add_argument("--no-judge", action="store_true", help="Skip LLM judge.")
     parser.add_argument("--verbose", "-v", action="store_true", help="Pass -v to pytest.")
     args = parser.parse_args()
@@ -220,7 +237,9 @@ def main() -> None:
         rc = _run_compare(args.scenario, args.no_judge, args.verbose)
     elif args.all:
         cmd = _base_cmd(args.verbose) + ["evals/backends/"]
-        rc = subprocess.run(cmd, env=_make_env(args.scenario, args.no_judge), cwd=_REPO_ROOT).returncode
+        rc = subprocess.run(
+            cmd, env=_make_env(args.scenario, args.no_judge), cwd=_REPO_ROOT
+        ).returncode
     elif args.backend:
         rc = _run_single(args.backend, args.scenario, args.no_judge, args.verbose)
     else:

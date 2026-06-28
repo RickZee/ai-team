@@ -22,6 +22,7 @@ _RESULTS_DIR = Path(__file__).parent / "results"
 # Scenario loading
 # ---------------------------------------------------------------------------
 
+
 def load_scenario(scenario_id: str) -> dict[str, Any]:
     path = _SCENARIOS_DIR / f"{scenario_id}.json"
     return json.loads(path.read_text())
@@ -30,6 +31,7 @@ def load_scenario(scenario_id: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # EvalResult — normalized output from any backend run
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class EvalResult:
@@ -109,20 +111,20 @@ def eval_result_from_run(
     current_phase = state.get("current_phase", "unknown")
     # raw_result may not carry "success" (langgraph puts it on ProjectResult, not .raw dict)
     # fall back to phase check so langgraph runs that reach "complete" aren't marked failed
-    success = raw_result.get("success") if raw_result.get("success") is not None else (current_phase == "complete")
+    success = (
+        raw_result.get("success")
+        if raw_result.get("success") is not None
+        else (current_phase == "complete")
+    )
     generated_files = [
-        f["path"] if isinstance(f, dict) else str(f)
-        for f in (state.get("generated_files") or [])
+        f["path"] if isinstance(f, dict) else str(f) for f in (state.get("generated_files") or [])
     ]
     test_results = state.get("test_results") or {}
     phase_history = state.get("phase_history") or []
     retry_count = int(state.get("retry_count") or 0)
 
     # Cost: SDK returns it in raw; crewai/langgraph don't yet track it
-    cost_usd = (
-        raw_result.get("cost_usd")
-        or (state.get("metadata") or {}).get("cost_usd")
-    )
+    cost_usd = raw_result.get("cost_usd") or (state.get("metadata") or {}).get("cost_usd")
 
     guardrail_checks = state.get("guardrail_checks") or []
 
@@ -149,6 +151,7 @@ def eval_result_from_run(
 # ---------------------------------------------------------------------------
 # LLM Judge
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class JudgeVerdict:
@@ -188,10 +191,12 @@ class LLMJudge:
             model=self._model,
             max_tokens=256,
             system=self.SYSTEM,
-            messages=[{
-                "role": "user",
-                "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
+                }
+            ],
             timeout=float(self.TIMEOUT_S),
         )
         raw_text = msg.content[0].text if msg.content else ""
@@ -217,9 +222,7 @@ class LLMJudge:
         )
         return verdict.score
 
-    def check_all_criteria(
-        self, criteria: list[str], evidence: str
-    ) -> dict[str, JudgeVerdict]:
+    def check_all_criteria(self, criteria: list[str], evidence: str) -> dict[str, JudgeVerdict]:
         results = {}
         for i, c in enumerate(criteria, 1):
             print(f"    [judge {i}/{len(criteria)}] {c[:60]}...", flush=True)
@@ -231,6 +234,7 @@ class LLMJudge:
 # ---------------------------------------------------------------------------
 # Workspace helpers
 # ---------------------------------------------------------------------------
+
 
 def summarize_workspace(ws: Path, *, max_files: int = 10, max_chars: int = 500) -> str:
     parts: list[str] = []
@@ -246,17 +250,18 @@ def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
     # Collect all src-like dirs: ws root + every nested src/ dir.
     # SDK puts files at ws/workspace/src/ so rglob catches it.
     import os as _os
+
     src_dirs = [ws] + [d for d in ws.rglob("src") if d.is_dir()]
     extra_paths = ":".join(str(d) for d in src_dirs)
 
     # Write conftest at ws root AND in every src dir that has test files
     # so pytest always finds the sys.path additions regardless of rootdir.
     conftest_body = (
-        "import sys\nfrom pathlib import Path\n"
-        "_here = Path(__file__).parent\n"
-    ) + "".join(f"sys.path.insert(0, str(_here))\n" if d == ws
-                else f'sys.path.insert(0, r"{d}")\n'
-                for d in src_dirs)
+        "import sys\nfrom pathlib import Path\n" "_here = Path(__file__).parent\n"
+    ) + "".join(
+        "sys.path.insert(0, str(_here))\n" if d == ws else f'sys.path.insert(0, r"{d}")\n'
+        for d in src_dirs
+    )
     for candidate in [ws] + [d for d in ws.rglob("src") if d.is_dir()]:
         cf = candidate / "conftest.py"
         if not cf.exists():
@@ -264,8 +269,16 @@ def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
 
     env = {**_os.environ, "PYTHONPATH": extra_paths}
     result = subprocess.run(
-        ["uv", "run", "pytest", "-q", f"--rootdir={ws}", "--no-header", "--tb=short",
-         "--import-mode=importlib"],
+        [
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            f"--rootdir={ws}",
+            "--no-header",
+            "--tb=short",
+            "--import-mode=importlib",
+        ],
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -273,8 +286,16 @@ def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
         env=env,
     )
     stdout = (result.stdout or "") + (result.stderr or "")
-    passed = int(re.search(r"(\d+) passed", stdout).group(1)) if re.search(r"(\d+) passed", stdout) else 0
-    failed = int(re.search(r"(\d+) failed", stdout).group(1)) if re.search(r"(\d+) failed", stdout) else 0
+    passed = (
+        int(re.search(r"(\d+) passed", stdout).group(1))
+        if re.search(r"(\d+) passed", stdout)
+        else 0
+    )
+    failed = (
+        int(re.search(r"(\d+) failed", stdout).group(1))
+        if re.search(r"(\d+) failed", stdout)
+        else 0
+    )
     total = passed + failed
     return {
         "ok": result.returncode == 0,
@@ -300,6 +321,7 @@ _HALLUCINATION_PATTERNS = [
     r"\.\.\.(?:\s*#.*)?$",
 ]
 
+
 def count_hallucinations(workspace: Path) -> int:
     count = 0
     for py in workspace.rglob("*.py"):
@@ -313,8 +335,10 @@ def count_hallucinations(workspace: Path) -> int:
 # Save / load comparison report
 # ---------------------------------------------------------------------------
 
+
 def save_comparison_report(results: list[dict[str, Any]], tag: str = "") -> Path:
     from datetime import datetime
+
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%dT%H%M%S")
     name = f"comparison_{tag}_{ts}.json" if tag else f"comparison_{ts}.json"

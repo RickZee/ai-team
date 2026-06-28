@@ -115,7 +115,6 @@ async def health():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 
-
 @app.get("/api/profiles")
 async def list_profiles():
     """List available team profiles."""

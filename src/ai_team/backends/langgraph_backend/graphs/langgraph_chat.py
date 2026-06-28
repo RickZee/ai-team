@@ -54,7 +54,7 @@ def _fix_chat_completion_response(response: httpx.Response) -> None:
 
     changed = False
     for choice in data.get("choices") or []:
-        msg = (choice.get("message") or {})
+        msg = choice.get("message") or {}
         for tc in msg.get("tool_calls") or []:
             fn = tc.get("function") or {}
             args = fn.get("arguments")
@@ -94,12 +94,10 @@ def create_chat_model_for_role(
     rc = settings.get_model_for_role(role)
     model_id = model_id_override or rc.model_id
     if model_id.startswith("openrouter/"):
-        model_id = model_id[len("openrouter/"):]
+        model_id = model_id[len("openrouter/") :]
 
     http_client = httpx.Client(event_hooks={"response": [_fix_chat_completion_response]})
-    async_http_client = httpx.AsyncClient(
-        event_hooks={"response": [_fix_chat_completion_response]}
-    )
+    async_http_client = httpx.AsyncClient(event_hooks={"response": [_fix_chat_completion_response]})
 
     llm = ChatOpenAI(
         model=model_id,

@@ -69,13 +69,28 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
             # complex crewai/langgraph objects which cause RecursionError
             import json as _json
             import sys as _sys
+
             # Strip non-serializable crewai objects before json.dumps to avoid
             # infinite recursion in FlowOutput / circular ref structures.
-            _SAFE_KEYS = {"state", "thread_id", "project_id", "success", "cost_usd",
-                          "generated_files", "test_results", "workspace", "team_profile",
-                          "agents", "phases", "session_id", "usage", "requirements",
-                          "architecture", "deployment_config"}
-            safe_raw = {k: v for k, v in result.raw.items() if k in _SAFE_KEYS}
+            safe_keys = {
+                "state",
+                "thread_id",
+                "project_id",
+                "success",
+                "cost_usd",
+                "generated_files",
+                "test_results",
+                "workspace",
+                "team_profile",
+                "agents",
+                "phases",
+                "session_id",
+                "usage",
+                "requirements",
+                "architecture",
+                "deployment_config",
+            }
+            safe_raw = {k: v for k, v in result.raw.items() if k in safe_keys}
             old_limit = _sys.getrecursionlimit()
             _sys.setrecursionlimit(500)
             try:
@@ -116,8 +131,12 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
         wall = time.time() - t0
         print(f"[eval] {name} ERROR: {payload}", flush=True)
         return EvalResult(
-            backend=name, scenario_id=SCENARIO_ID, success=False,
-            current_phase="error", wall_time_s=wall, error=str(payload),
+            backend=name,
+            scenario_id=SCENARIO_ID,
+            success=False,
+            current_phase="error",
+            wall_time_s=wall,
+            error=str(payload),
         )
     serialized = payload  # {"raw": dict, "success": bool, "error": str|None}
 
@@ -125,9 +144,7 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
     print(f"[eval] {name} finished in {wall:.0f}s", flush=True)
 
     raw_dict = {**serialized["raw"], "success": serialized["success"]}
-    result = eval_result_from_run(
-        name, SCENARIO_ID, raw_dict, workspace_dir=ws, wall_time_s=wall
-    )
+    result = eval_result_from_run(name, SCENARIO_ID, raw_dict, workspace_dir=ws, wall_time_s=wall)
     if result.cost_usd is None:
         result.cost_usd = serialized["raw"].get("cost_usd")
     compute_metrics(result, SCENARIO, judge=_JUDGE, run_judge=True)
@@ -148,6 +165,7 @@ def backend_result(request, tmp_path_factory) -> tuple[EvalResult, Path]:
 # ---------------------------------------------------------------------------
 # Universal assertions (parameterised across all backends)
 # ---------------------------------------------------------------------------
+
 
 class TestAllBackendsComplete:
     def test_success(self, backend_result):
@@ -185,6 +203,7 @@ class TestAllBackendsComplete:
 # Final report (runs after all parameterised tests)
 # ---------------------------------------------------------------------------
 
+
 def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
     """Write comparison JSON after the session regardless of pass/fail."""
     if not _results:
@@ -192,19 +211,21 @@ def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
 
     rows = []
     for r in _results:
-        rows.append({
-            "backend": r.backend,
-            "scenario": r.scenario_id,
-            "success": r.success,
-            "current_phase": r.current_phase,
-            "metrics": r.metrics,
-            "judge_scores": r.judge_scores,
-            "wall_time_s": r.wall_time_s,
-            "cost_usd": r.cost_usd,
-            "generated_files": r.generated_files,
-            "retry_count": r.retry_count,
-            "error": r.error,
-        })
+        rows.append(
+            {
+                "backend": r.backend,
+                "scenario": r.scenario_id,
+                "success": r.success,
+                "current_phase": r.current_phase,
+                "metrics": r.metrics,
+                "judge_scores": r.judge_scores,
+                "wall_time_s": r.wall_time_s,
+                "cost_usd": r.cost_usd,
+                "generated_files": r.generated_files,
+                "retry_count": r.retry_count,
+                "error": r.error,
+            }
+        )
 
     path = save_comparison_report(rows, tag=SCENARIO_ID)
 
@@ -216,8 +237,16 @@ def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
 def _print_comparison_table(rows: list[dict]) -> None:
     if not rows:
         return
-    cols = ["backend", "success", "goal_alignment", "test_passed", "hallucination_count",
-            "retry_count", "cost_usd", "wall_time_s"]
+    cols = [
+        "backend",
+        "success",
+        "goal_alignment",
+        "test_passed",
+        "hallucination_count",
+        "retry_count",
+        "cost_usd",
+        "wall_time_s",
+    ]
     header = "  ".join(f"{c:<22}" for c in cols)
     print("\n" + "=" * len(header))
     print("BACKEND COMPARISON")

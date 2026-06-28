@@ -114,7 +114,7 @@ def complete_with_openrouter(
         logger.warning("complete_with_openrouter_skip", reason="OPENROUTER_API_KEY not set")
         return ""
     base = (
-        api_base or os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
+        api_base or os.environ.get("OPENROUTER_API_BASE") or "https://openrouter.ai/api/v1"
     ).rstrip("/")
     if model is None:
         settings = OpenRouterSettings()
