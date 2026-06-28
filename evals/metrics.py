@@ -8,7 +8,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from evals.fixtures import EvalResult, LLMJudge, count_hallucinations, run_pytest_in_workspace, summarize_workspace
+from evals.fixtures import (
+    EvalResult,
+    LLMJudge,
+    count_hallucinations,
+    run_pytest_in_workspace,
+    summarize_workspace,
+)
 
 
 def compute_metrics(
@@ -34,14 +40,14 @@ def compute_metrics(
     if ws and ws.exists():
         found_files |= {p.name for p in ws.rglob("*") if p.is_file()}
 
-    m["required_files_present"] = all(
-        any(f.endswith(ef) or ef in f for f in found_files)
-        for ef in expected_files
-    ) if expected_files else None
+    m["required_files_present"] = (
+        all(any(f.endswith(ef) or ef in f for f in found_files) for ef in expected_files)
+        if expected_files
+        else None
+    )
 
     has_test_file = any(
-        any(tf in f for f in found_files)
-        for tf in (test_file_patterns or ["test_"])
+        any(tf in f for f in found_files) for tf in (test_file_patterns or ["test_"])
     )
     m["test_file_present"] = has_test_file
 
@@ -57,19 +63,13 @@ def compute_metrics(
     # --- Trajectory ---
     m["retry_count"] = result.retry_count
     m["phase_count"] = len(result.phase_history)
-    m["guardrail_fail_count"] = sum(
-        1 for c in result.guardrail_checks if c.get("status") == "fail"
-    )
-    m["guardrail_warn_count"] = sum(
-        1 for c in result.guardrail_checks if c.get("status") == "warn"
-    )
+    m["guardrail_fail_count"] = sum(1 for c in result.guardrail_checks if c.get("status") == "fail")
+    m["guardrail_warn_count"] = sum(1 for c in result.guardrail_checks if c.get("status") == "warn")
 
     # --- Cost & latency ---
     m["cost_usd"] = result.cost_usd
     m["within_budget"] = (
-        result.cost_usd <= scenario["budget_usd_max"]
-        if result.cost_usd is not None
-        else None
+        result.cost_usd <= scenario["budget_usd_max"] if result.cost_usd is not None else None
     )
     m["wall_time_s"] = result.wall_time_s
 
@@ -92,6 +92,7 @@ def compute_metrics(
         evidence = summarize_workspace(ws)
         # Append backend-reported test results so judge knows pytest exit status
         import json as _json
+
         tr = result.raw.get("test_results")
         if tr:
             evidence += f"\n\n## Backend test_results\n```json\n{_json.dumps(tr, indent=2, default=str)}\n```"
@@ -104,18 +105,20 @@ def compute_metrics(
                 f"failed={pytest_out['failed']}\n```\n{pytest_out['output']}\n```"
             )
         criteria = scenario["expected"].get("acceptance_criteria") or []
-        print(f"  [judge] scoring {len(criteria)} criteria + goal alignment for {result.backend}...", flush=True)
+        print(
+            f"  [judge] scoring {len(criteria)} criteria + goal alignment for {result.backend}...",
+            flush=True,
+        )
         verdicts = _judge.check_all_criteria(criteria, evidence)
         result.judge_scores = {c: v.score for c, v in verdicts.items()}
         m["acceptance_criteria_scores"] = result.judge_scores
         m["acceptance_criteria_mean"] = (
             sum(result.judge_scores.values()) / len(result.judge_scores)
-            if result.judge_scores else None
+            if result.judge_scores
+            else None
         )
-        print(f"  [judge] goal alignment...", flush=True)
-        m["goal_alignment"] = _judge.score_goal_alignment(
-            scenario["description"], evidence
-        )
+        print("  [judge] goal alignment...", flush=True)
+        m["goal_alignment"] = _judge.score_goal_alignment(scenario["description"], evidence)
         print(f"  [judge] done — goal_alignment={m['goal_alignment']:.2f}", flush=True)
     else:
         m["acceptance_criteria_scores"] = {}

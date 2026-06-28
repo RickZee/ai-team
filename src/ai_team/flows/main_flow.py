@@ -715,7 +715,9 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.testing_crew import kickoff as testing_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = (not self._monitor) if self._verbose_override is None else self._verbose_override
+            verbose = (
+                (not self._monitor) if self._verbose_override is None else self._verbose_override
+            )
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
