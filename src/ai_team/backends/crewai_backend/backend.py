@@ -74,6 +74,14 @@ class CrewAIBackend:
                 type_name=type(raw_monitor).__name__,
             )
 
+        # Per-run spend ceiling: register the LiteLLM cost callback (idempotent)
+        # and reset the budget so a runaway crash/retry loop is aborted.
+        from ai_team.config.llm_observability import register_crewai_spend_guard
+        from ai_team.core.spend_guard import reset_spend_guard
+
+        register_crewai_spend_guard()
+        reset_spend_guard(kwargs.get("run_budget_usd"))
+
         try:
             ws_override = kwargs.get("workspace_dir")
             if ws_override:

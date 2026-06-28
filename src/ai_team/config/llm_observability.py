@@ -68,3 +68,52 @@ def register_llm_observability_hooks() -> None:
     register_after_llm_call_hook(_after_hook)
     _REGISTERED = True
     logger.info("llm_observability_hooks_registered")
+
+
+_SPEND_GUARD_REGISTERED = False
+
+
+def register_crewai_spend_guard() -> None:
+    """Register a LiteLLM success callback that feeds the shared spend guard.
+
+    CrewAI routes every LLM call through LiteLLM, which reports the real
+    per-call cost as ``response_cost`` in the success event. Recording it lets
+    the per-run budget ceiling (``AI_TEAM_RUN_BUDGET_USD``) abort a runaway
+    crash/retry loop on the CrewAI backend, matching the LangGraph backend.
+
+    Idempotent. The actual budget reset happens per run via ``reset_spend_guard``.
+    """
+    global _SPEND_GUARD_REGISTERED
+    if _SPEND_GUARD_REGISTERED:
+        return
+    try:
+        import litellm
+        from litellm.integrations.custom_logger import CustomLogger
+    except ImportError:
+        logger.warning("crewai_spend_guard_skip", reason="litellm not available")
+        return
+
+    from ai_team.core.spend_guard import record_usage
+
+    class _SpendGuardLogger(CustomLogger):  # type: ignore[misc]
+        def log_success_event(
+            self,
+            kwargs: dict,
+            response_obj: object,
+            start_time: object,
+            end_time: object,
+        ) -> None:
+            cost = kwargs.get("response_cost")
+            try:
+                cost_f = float(cost) if cost is not None else 0.0
+            except (TypeError, ValueError):
+                cost_f = 0.0
+            usage = getattr(response_obj, "usage", None)
+            total_tokens = int(getattr(usage, "total_tokens", 0) or 0)
+            # record_usage raises BudgetExceededError when the ceiling is crossed;
+            # let it propagate to abort the run.
+            record_usage(cost_f, total_tokens)
+
+    litellm.callbacks = [*getattr(litellm, "callbacks", []), _SpendGuardLogger()]
+    _SPEND_GUARD_REGISTERED = True
+    logger.info("crewai_spend_guard_registered")
