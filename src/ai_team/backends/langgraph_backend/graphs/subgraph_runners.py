@@ -297,7 +297,8 @@ def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str
 
     When the developer model outputs code as markdown instead of calling file_writer,
     this extracts fenced blocks with adjacent filenames and writes them to disk.
-    Called only when workspace is empty after development subgraph.
+    Idempotent within a call (dedupes by filename); writes the latest prose version,
+    overwriting an existing file so a retry's corrected output wins.
     """
     root = _workspace_root()
     written: list[dict[str, Any]] = []
@@ -494,13 +495,17 @@ def development_subgraph_node(
         }
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
+    # Always attempt prose-block salvage from the dev delta — not only when the
+    # workspace is empty. The dev supervisor commonly writes *some* files via
+    # file_writer (or a prior retry left test files) while emitting the main app
+    # module (e.g. main.py) as markdown prose. Gating on an empty workspace meant
+    # that app module was silently dropped, leaving "tests but no app" and an
+    # unbreakable retry loop. Extraction is idempotent within a call and writes
+    # the latest prose version (the dev's corrected output on a retry).
+    extracted = _extract_and_write_code_blocks(delta)
+    if extracted:
+        logger.info("development_fallback_extraction", count=len(extracted))
     generated = _snapshot_workspace_files()
-    if not generated:
-        # Developer output code as markdown prose instead of calling file_writer — extract it.
-        extracted = _extract_and_write_code_blocks(delta)
-        if extracted:
-            logger.info("development_fallback_extraction", count=len(extracted))
-            generated = _snapshot_workspace_files()
     return {
         "messages": delta,
         "current_phase": "development",
