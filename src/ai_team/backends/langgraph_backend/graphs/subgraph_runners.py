@@ -279,6 +279,17 @@ _MD_HEADER_NAMED_RE = re.compile(
     r"```(?:\w+)?\n(?P<code>.*?)```",
     re.DOTALL | re.IGNORECASE,
 )
+# Markdown header with a *backtick-wrapped* filename anywhere in the line, allowing
+# leading numbering and surrounding words — e.g. "### 1. `main.py` (Flask App)" or
+# "#### 2. Updated `tests/test_api.py`". The development supervisor emits this shape
+# and the stricter pattern above misses it (filename not immediately after the #s),
+# which left main.py unwritten so the build had tests but no app. Backticks are
+# REQUIRED here to avoid matching prose that merely mentions a filename mid-sentence.
+_MD_HEADER_LOOSE_RE = re.compile(
+    r"#{1,6}[^\n`]*`(?P<fname>[\w./\\-]+\.(?:py|js|ts|jsx|tsx|html|css|json|yaml|yml|toml|txt|sh))`[^\n]*\n+"
+    r"```(?:\w+)?\n(?P<code>.*?)```",
+    re.DOTALL | re.IGNORECASE,
+)
 
 
 def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str, Any]]:
@@ -299,7 +310,12 @@ def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str
         text = msg.content if isinstance(msg.content, str) else ""
         if not text:
             continue
-        for pattern in (_CODE_BLOCK_RE, _FENCED_NAMED_RE, _MD_HEADER_NAMED_RE):
+        for pattern in (
+            _CODE_BLOCK_RE,
+            _FENCED_NAMED_RE,
+            _MD_HEADER_NAMED_RE,
+            _MD_HEADER_LOOSE_RE,
+        ):
             for m in pattern.finditer(text):
                 raw = m.group("fname").strip()
                 # Strip at most one leading "./"; do NOT use lstrip("./") — that
