@@ -7,6 +7,7 @@ import os
 
 import httpx
 import structlog
+from ai_team.backends.langgraph_backend.graphs.spend_guard import record_usage
 from ai_team.config.models import OpenRouterSettings
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
@@ -42,15 +43,40 @@ def _fix_tool_call_args(msg: BaseMessage) -> BaseMessage:
     return msg.model_copy(update={"tool_calls": fixed})
 
 
+def _record_spend_from_body(data: dict) -> None:
+    """Feed this completion's cost/usage into the per-run spend guard.
+
+    OpenRouter returns a ``usage`` block with a ``cost`` (USD) and token counts.
+    Recording it here lets the guard abort a runaway crash/retry loop. Raising
+    ``BudgetExceededError`` propagates out through httpx and fails the run.
+    """
+    usage = data.get("usage") or {}
+    cost = usage.get("cost")
+    if cost is None:
+        # Some providers nest it; fall back to 0 (token-only tracking).
+        cost = (usage.get("cost_details") or {}).get("upstream_inference_cost", 0.0)
+    try:
+        cost_f = float(cost or 0.0)
+    except (TypeError, ValueError):
+        cost_f = 0.0
+    total_tokens = int(usage.get("total_tokens") or 0)
+    record_usage(cost_f, total_tokens)
+
+
 def _fix_chat_completion_response(response: httpx.Response) -> None:
-    """httpx response event hook: normalise tool_call function.arguments dict→JSON string.
+    """httpx response event hook: normalise tool_call args and meter spend.
 
-    deepseek-v3 via OpenRouter returns function.arguments as a parsed dict instead of
-    the JSON string the OpenAI SDK requires. With openai SDK defer_build=True models,
-    this causes a MockValSer/TypeError when model_dump() is called on the ChatCompletion.
+    Two jobs:
 
-    We hook the raw HTTP response, read + rewrite the body before the SDK parses it.
-    Event hooks run after the response is received but before the SDK processes it.
+    1. deepseek-v3 via OpenRouter returns function.arguments as a parsed dict
+       instead of the JSON string the OpenAI SDK requires. With openai SDK
+       defer_build=True models, this causes a MockValSer/TypeError when
+       model_dump() is called on the ChatCompletion. We rewrite the body.
+    2. Meter the call's cost/tokens into the spend guard so a runaway
+       crash/retry loop is aborted before it burns money.
+
+    We hook the raw HTTP response, read + rewrite the body before the SDK parses
+    it. Event hooks run after the response is received but before SDK processing.
     """
     if "chat/completions" not in str(response.request.url):
         return
@@ -59,6 +85,10 @@ def _fix_chat_completion_response(response: httpx.Response) -> None:
         data = json.loads(response.text)
     except (json.JSONDecodeError, ValueError):
         return
+
+    # Meter spend first. A BudgetExceededError here intentionally propagates,
+    # aborting the run before the SDK even parses this (already-paid-for) call.
+    _record_spend_from_body(data)
 
     changed = False
     for choice in data.get("choices") or []:
