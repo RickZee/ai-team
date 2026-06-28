@@ -45,7 +45,7 @@ The Dashboard sidebar lists **every** run on the server. A wall of stale runs is
 
 ```bash
 # In-memory runs are cleared by restarting the API server:
-poetry run ai-team-web        # Ctrl+C the old one first — in-memory runs reset on restart
+uv run ai-team-web        # Ctrl+C the old one first — in-memory runs reset on restart
 
 # Disk-backed runs (the registry) live under the workspace/output dirs.
 # Move them aside instead of deleting, so you can restore later:
@@ -159,7 +159,7 @@ mkdir -p .archive/screenshots-backup && mv output/* .archive/screenshots-backup/
 # (restart ai-team-web to clear in-memory runs)
 
 # 2. Start UI
-poetry run ai-team-web &                       # http://localhost:8421
+uv run ai-team-web &                       # http://localhost:8421
 cd src/ai_team/ui/web/frontend && npm run dev  # http://localhost:5173
 
 # 3. Run ONE scenario from the Run tab, capture stages 1–10 in order.

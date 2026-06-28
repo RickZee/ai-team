@@ -8,7 +8,7 @@ description: >-
 
 # Fix CI (ai-team)
 
-Mirror `.github/workflows/ci.yml`. Run from **repository root** with `poetry run …`.
+Mirror `.github/workflows/ci.yml`. Run from **repository root** with `uv run …` locally (GitHub Actions still uses Poetry).
 
 For **pip-audit / bandit** only, use the `pre-push-checks` skill (`.cursor/skills/pre-push-checks/`).
 
@@ -16,10 +16,10 @@ For **pip-audit / bandit** only, use the `pre-push-checks` skill (`.cursor/skill
 
 | GitHub job | Local reproduction |
 |------------|-------------------|
-| **Lint** | `poetry run ruff check .` → `poetry run ruff format --check .` → `poetry run mypy src/` |
-| **Test** | `poetry run pytest tests/unit -v --tb=short` |
+| **Lint** | `uv run ruff check .` → `uv run ruff format --check .` → `uv run mypy src/` |
+| **Test** | `uv run pytest tests/unit -v --tb=short` |
 | **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
-| **Integration test** (main push only) | `poetry run pytest tests/integration -v --tb=short` |
+| **Integration test** (main push only) | `uv run pytest tests/integration -v --tb=short` |
 | **Security** | `./scripts/pre_push_check.sh` (or `./scripts/pip_audit.sh` only) |
 
 With `gh` authenticated:
@@ -36,22 +36,22 @@ Example run: [26157760272](https://github.com/RickZee/ai-team/actions/runs/26157
 Run in order; stop at first failure and fix before continuing:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy src/
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src/
 ```
 
 **Fix ruff format** (safe auto-fix):
 
 ```bash
-poetry run ruff format .
+uv run ruff format .
 # or one file:
-poetry run ruff format tests/e2e/web/test_browser_e2e.py
+uv run ruff format tests/e2e/web/test_browser_e2e.py
 ```
 
-Re-run `poetry run ruff format --check .` until exit code 0.
+Re-run `uv run ruff format --check .` until exit code 0.
 
-**Fix ruff check**: `poetry run ruff check . --fix` where safe; hand-fix the rest.
+**Fix ruff check**: `uv run ruff check . --fix` where safe; hand-fix the rest.
 
 **Fix mypy**: type hints / `cast` / narrow unions in `src/ai_team/` only (CI runs `mypy src/`).
 
@@ -60,36 +60,36 @@ Re-run `poetry run ruff format --check .` until exit code 0.
 Matches CI `web-e2e` job:
 
 ```bash
-poetry install
-poetry run playwright install chromium
+uv sync
+uv run playwright install chromium
 cd src/ai_team/ui/web/frontend && npm ci && npm run build
 cd -  # repo root
-poetry run pytest tests/e2e/web -m web_e2e -v --tb=short --timeout=120
+uv run pytest tests/e2e/web -m web_e2e -v --tb=short --timeout=120
 ```
 
 Faster subsets while iterating:
 
 ```bash
 # API only (no Playwright browser)
-poetry run pytest tests/e2e/web/test_api_e2e.py -m web_e2e -v --timeout=120
+uv run pytest tests/e2e/web/test_api_e2e.py -m web_e2e -v --timeout=120
 
 # Browser only
-poetry run pytest tests/e2e/web/test_browser_e2e.py -m web_e2e -v --timeout=120
+uv run pytest tests/e2e/web/test_browser_e2e.py -m web_e2e -v --timeout=120
 ```
 
 Skip frontend build (browser tests skipped):
 
 ```bash
-AI_TEAM_SKIP_FRONTEND_BUILD=1 poetry run pytest tests/e2e/web -m web_e2e -v
+AI_TEAM_SKIP_FRONTEND_BUILD=1 uv run pytest tests/e2e/web -m web_e2e -v
 ```
 
 ### Common Web UI E2E failures
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| `Would reformat: tests/e2e/web/...` | Lint, not E2E | `poetry run ruff format tests/e2e/web/` |
+| `Would reformat: tests/e2e/web/...` | Lint, not E2E | `uv run ruff format tests/e2e/web/` |
 | `Frontend build did not produce .../index.html` | `npm` build failed | `cd src/ai_team/ui/web/frontend && npm ci && npm run build` |
-| `playwright` / browser missing | Chromium not installed | `poetry run playwright install chromium` |
+| `playwright` / browser missing | Chromium not installed | `uv run playwright install chromium` |
 | `dashboard-active` / `COMPLETE` timeout | Demo slow or UI drift on Linux CI | Confirm `data-testid` on `src/ai_team/ui/web/frontend/src/pages/Run.tsx`, `Dashboard.tsx`, `PhasePipeline.tsx`; demo ~30–60s — tests use 90s; check `src/ai_team/ui/web/server.py` `_run_demo_async` |
 | `get_by_test_id(...)` not found | React `data-testid` ≠ Python selector | Grep `data-testid` in `frontend/src` and align `tests/e2e/web/test_browser_e2e.py` |
 | `get_by_text("CrewAI")` etc. | Copy/layout change on Compare/Run | Update test or restore visible labels |
@@ -97,7 +97,7 @@ AI_TEAM_SKIP_FRONTEND_BUILD=1 poetry run pytest tests/e2e/web -m web_e2e -v
 
 **UI change checklist** (before push):
 
-1. `poetry run ruff format --check .`
+1. `uv run ruff format --check .`
 2. `npm run build` in `src/ai_team/ui/web/frontend`
 3. Full `pytest tests/e2e/web -m web_e2e` (or at least touched test file)
 
@@ -106,7 +106,7 @@ Docs: `tests/e2e/web/README.md`
 ## 4. Test job
 
 ```bash
-poetry run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term
+uv run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term
 ```
 
 If only one area changed, run the narrowest `tests/unit/...` path first, then full unit suite.
@@ -116,13 +116,13 @@ If only one area changed, run the narrowest `tests/unit/...` path first, then fu
 Runs on **push to main**, not on every PR branch. Same command as CI:
 
 ```bash
-poetry run pytest tests/integration -v --tb=short
+uv run pytest tests/integration -v --tb=short
 ```
 
 ## 6. Security job
 
 ```bash
-poetry run python -m pip install --upgrade "pip>=26.1.2"
+uv run python -m pip install --upgrade "pip>=26.1.2"
 ./scripts/pip_audit.sh
 ```
 
@@ -133,11 +133,11 @@ Same ignore list as `.github/workflows/ci.yml` (single source: `scripts/pip_audi
 Before declaring CI fixed locally:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy src/
-poetry run pytest tests/unit -q
-poetry run pytest tests/e2e/web -m web_e2e -q --timeout=120
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src/
+uv run pytest tests/unit -q
+uv run pytest tests/e2e/web -m web_e2e -q --timeout=120
 ```
 
 Optional if touching dependencies: `./scripts/pip_audit.sh` (included in `./scripts/pre_push_check.sh`).

@@ -7,7 +7,7 @@ Thank you for your interest in contributing. This document covers development se
 ### Prerequisites
 
 - Python 3.11 or 3.12
-- [Poetry](https://python-poetry.org/) (or use `uv` with the same `pyproject.toml`)
+- [uv](https://docs.astral.sh/uv/) — install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - OpenRouter API key for full flow (see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md))
 
 ### Install
@@ -15,11 +15,11 @@ Thank you for your interest in contributing. This document covers development se
 ```bash
 git clone https://github.com/RickZee/ai-team.git
 cd ai-team
-poetry install
-poetry run pytest   # Sanity check
+uv sync
+uv run pytest   # Sanity check
 ```
 
-Install with dev dependencies (already included in `poetry install`):
+Install with dev dependencies (included in `uv sync`):
 
 - pytest, pytest-cov, pytest-asyncio, pytest-timeout, pytest-mock
 - ruff, black, isort, mypy
@@ -28,7 +28,7 @@ Install with dev dependencies (already included in `poetry install`):
 ### Optional: pre-commit
 
 ```bash
-poetry run pre-commit install
+uv run pre-commit install
 ```
 
 Hooks run ruff check (with fix) and ruff format before each commit.
@@ -48,31 +48,31 @@ We use **black**, **ruff**, and **mypy** for consistent, type-checked code.
 ### Black (formatting)
 
 - Line length: 100 (configured in `pyproject.toml`).
-- Run: `poetry run black src/ai_team tests/`
+- Run: `uv run black src/ai_team tests/`
 
 ### Ruff (linting)
 
 - Rules: E, F, I, N, W, UP, B, C4, SIM; E501 ignored (line length left to black).
-- Run: `poetry run ruff check src/ai_team tests/`
-- Auto-fix: `poetry run ruff check --fix src/ai_team tests/`
+- Run: `uv run ruff check src/ai_team tests/`
+- Auto-fix: `uv run ruff check --fix src/ai_team tests/`
 
 ### isort (import sorting)
 
-- Run: `poetry run isort src/ai_team tests/`
+- Run: `uv run isort src/ai_team tests/`
 
 ### mypy (type checking)
 
 - Target: Python 3.11.
-- Run: `poetry run mypy src/ai_team`
+- Run: `uv run mypy src/ai_team`
 - Config: `warn_return_any`, `warn_unused_configs`, `ignore_missing_imports` in `pyproject.toml`.
 
 Before opening a PR, ensure:
 
 ```bash
-poetry run black src/ai_team tests/
-poetry run ruff check src/ai_team tests/
-poetry run mypy src/ai_team
-poetry run pytest
+uv run black src/ai_team tests/
+uv run ruff check src/ai_team tests/
+uv run mypy src/ai_team
+uv run pytest
 ```
 
 ## PR process and commit messages
@@ -98,7 +98,7 @@ poetry run pytest
 Run with coverage:
 
 ```bash
-poetry run pytest --cov=src/ai_team --cov-report=term-missing
+uv run pytest --cov=src/ai_team --cov-report=term-missing
 ```
 
 New behavior should be covered by unit and/or integration tests as appropriate.

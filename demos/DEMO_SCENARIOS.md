@@ -37,7 +37,7 @@ git-ignored.
 | Need | Why | Check |
 |------|-----|-------|
 | Python 3.11+ | Runtime | `python --version` |
-| Poetry | Dependency + script runner | `poetry --version` |
+| uv | Dependency + script runner | `uv --version` |
 | Node 18+ & npm | Web UI frontend | `node --version` |
 | Docker | Scenarios 2 & 3 build/run containers | `docker --version` |
 | **One** LLM key | CrewAI/LangGraph use `OPENROUTER_API_KEY`; Claude Agent SDK uses `ANTHROPIC_API_KEY` | see `.env.example` |
@@ -46,7 +46,7 @@ git-ignored.
 git clone https://github.com/RickZee/ai-team.git
 cd ai-team
 cp .env.example .env          # then add your key(s)
-poetry install
+uv sync
 ```
 
 > **Pick your backend by the key you have.** Don't assume an OpenRouter key works
@@ -58,14 +58,14 @@ poetry install
 **A. CLI** — fastest, scriptable, no UI needed:
 
 ```bash
-poetry run python scripts/run_demo.py demos/00_smoke_test --skip-estimate
+uv run python scripts/run_demo.py demos/00_smoke_test --skip-estimate
 ```
 
 **B. Web UI** — the visual path, and the source of all screenshots in this guide:
 
 ```bash
 # Terminal 1 — API (defaults to http://localhost:8421)
-poetry run ai-team-web
+uv run ai-team-web
 
 # Terminal 2 — frontend dev server (http://localhost:5173, proxies the API)
 cd src/ai_team/ui/web/frontend && npm install && npm run dev
@@ -117,13 +117,13 @@ passes, the pipeline works.
 
 ```bash
 # CrewAI (OPENROUTER_API_KEY)
-poetry run python scripts/run_demo.py demos/00_smoke_test --backend crewai --skip-estimate
+uv run python scripts/run_demo.py demos/00_smoke_test --backend crewai --skip-estimate
 
 # LangGraph (OPENROUTER_API_KEY)
-poetry run python scripts/run_demo.py demos/00_smoke_test --backend langgraph --skip-estimate
+uv run python scripts/run_demo.py demos/00_smoke_test --backend langgraph --skip-estimate
 
 # Claude Agent SDK (ANTHROPIC_API_KEY + Claude Code runtime)
-poetry run python scripts/run_demo.py demos/00_smoke_test --backend claude-agent-sdk --skip-estimate
+uv run python scripts/run_demo.py demos/00_smoke_test --backend claude-agent-sdk --skip-estimate
 ```
 
 Add `--monitor` for a live Rich TUI in the terminal.
@@ -142,7 +142,7 @@ Acceptance (`expected_output.json`): `calc.py` defines all four functions,
 ### Verify
 
 ```bash
-poetry run python scripts/capture_demo.py \
+uv run python scripts/capture_demo.py \
   --output-dir demos/00_smoke_test/output \
   --demo-id 00_smoke_test --skip-docker
 ```
@@ -188,13 +188,13 @@ contractor engagement" demo, and the optimization target for Scenario 4.
 
 ```bash
 # CrewAI
-poetry run python scripts/run_demo.py demos/02_todo_app --backend crewai --skip-estimate
+uv run python scripts/run_demo.py demos/02_todo_app --backend crewai --skip-estimate
 
 # LangGraph
-poetry run python scripts/run_demo.py demos/02_todo_app --backend langgraph --skip-estimate
+uv run python scripts/run_demo.py demos/02_todo_app --backend langgraph --skip-estimate
 
 # Claude Agent SDK
-poetry run python scripts/run_demo.py demos/02_todo_app --backend claude-agent-sdk --skip-estimate
+uv run python scripts/run_demo.py demos/02_todo_app --backend claude-agent-sdk --skip-estimate
 ```
 
 ### Expected output
@@ -215,7 +215,7 @@ persistence, a browser UI, `docker compose up` starts the stack, and tests pass.
 ### Verify
 
 ```bash
-poetry run python scripts/capture_demo.py \
+uv run python scripts/capture_demo.py \
   --output-dir demos/02_todo_app/output --demo-id 02_todo_app
 ```
 
@@ -277,13 +277,13 @@ independently deployable services, using current best practices.
 
 ```bash
 # CrewAI
-poetry run python scripts/run_demo.py demos/05_microservices --backend crewai --skip-estimate
+uv run python scripts/run_demo.py demos/05_microservices --backend crewai --skip-estimate
 
 # LangGraph
-poetry run python scripts/run_demo.py demos/05_microservices --backend langgraph --skip-estimate
+uv run python scripts/run_demo.py demos/05_microservices --backend langgraph --skip-estimate
 
 # Claude Agent SDK
-poetry run python scripts/run_demo.py demos/05_microservices --backend claude-agent-sdk --skip-estimate
+uv run python scripts/run_demo.py demos/05_microservices --backend claude-agent-sdk --skip-estimate
 ```
 
 ### Expected output
@@ -303,7 +303,7 @@ and a working compose file.
 ### Verify
 
 ```bash
-poetry run python scripts/capture_demo.py \
+uv run python scripts/capture_demo.py \
   --output-dir demos/05_microservices/output --demo-id 05_microservices
 ```
 
@@ -346,7 +346,7 @@ lessons via RAG. It optimizes the **Scenario 2 to-do app**, so build that first.
 
 ```bash
 # 1. Build the optimization target (Scenario 2) if you haven't:
-poetry run python scripts/run_demo.py demos/02_todo_app --backend claude-agent-sdk --skip-estimate
+uv run python scripts/run_demo.py demos/02_todo_app --backend claude-agent-sdk --skip-estimate
 
 # 2. Run the optimizer against that workspace:
 ai-team optimize ./demos/02_todo_app/output \
@@ -384,8 +384,8 @@ quality, cost, latency, and tokens.
 **CLI:**
 
 ```bash
-poetry run python scripts/compare_backends.py demos/02_todo_app --env dev
-poetry run python scripts/compare_backends.py demos/02_todo_app --env dev --with-claude
+uv run python scripts/compare_backends.py demos/02_todo_app --env dev
+uv run python scripts/compare_backends.py demos/02_todo_app --env dev --with-claude
 ```
 
 **Web UI:** the **Compare** tab runs CrewAI + LangGraph + Claude Agent SDK in
@@ -398,7 +398,7 @@ for a zero-cost simulated comparison, or **Run All Backends** for a real (paid)
 ## Reproducibility checklist
 
 - [ ] `.env` has the key matching your chosen backend (`OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY`).
-- [ ] `poetry install` completed without errors.
+- [ ] `uv sync` completed without errors.
 - [ ] Smoke test (Scenario 1) passes before running paid scenarios.
 - [ ] For Scenarios 2 & 3: Docker is running.
 - [ ] You ran the brief from the **Run** tab (not the Demo button) for real artifacts.

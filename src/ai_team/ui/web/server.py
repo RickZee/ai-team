@@ -117,6 +117,24 @@ class RunState:
     def is_cancel_requested(self, run_id: str) -> bool:
         return self.cancel_flags.get(run_id, False)
 
+    def remove_run(self, run_id: str) -> None:
+        """Remove a terminal run from in-memory state.
+
+        Raises:
+            KeyError: If the run is not tracked.
+            ValueError: If the run is not in a terminal status.
+        """
+        run = self.runs.get(run_id)
+        if run is None:
+            raise KeyError(f"Run not found: {run_id}")
+        terminal = {"complete", "error", "cancelled"}
+        if run["status"] not in terminal:
+            raise ValueError(f"Run is not terminal ({run['status']})")
+        self.runs.pop(run_id, None)
+        self.monitors.pop(run_id, None)
+        self.tasks.pop(run_id, None)
+        self.cancel_flags.pop(run_id, None)
+
 
 state = RunState()
 
@@ -403,7 +421,14 @@ async def ws_run(websocket: WebSocket):
         req = RunRequest(**msg)
 
         run_id = str(uuid.uuid4())[:8]
-        state.create_run(run_id, req.backend, req.profile, req.description, estimate_usd=req.estimate_usd, complexity=req.complexity)
+        state.create_run(
+            run_id,
+            req.backend,
+            req.profile,
+            req.description,
+            estimate_usd=req.estimate_usd,
+            complexity=req.complexity,
+        )
         state.runs[run_id]["thread_id"] = run_id
         state.runs[run_id]["project_id"] = run_id
 

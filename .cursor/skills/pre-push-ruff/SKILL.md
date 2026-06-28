@@ -19,15 +19,15 @@ description: >-
 From repository root:
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
+uv run ruff check .
+uv run ruff format --check .
 ```
 
 **Auto-fix** (safe for most I001 / format issues):
 
 ```bash
-poetry run ruff check . --fix
-poetry run ruff format .
+uv run ruff check . --fix
+uv run ruff format .
 ```
 
 Re-run check until exit code 0.
