@@ -169,6 +169,8 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 
 ## Architecture
 
+The [diagram above](#ai-team-autonomous-multi-agent-software-development) shows the **runtime flow**; the view below shows the **software layers** — how a single `Backend` protocol lets the UI drive any orchestration engine over the same shared tools, guardrails, and memory.
+
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                         UI Layer (3 interfaces)                              │
