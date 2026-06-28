@@ -83,6 +83,7 @@ Source: [`src/ai_team/config/team_profiles.yaml`](src/ai_team/config/team_profil
 | **Multi-backend** | Same team, same demos, different orchestration — compare results |
 | **Team profiles** | Right-size the team for the use case (`--team backend-api`, `--team prototype`, ...) |
 | **Enterprise guardrails** | Behavioral (role, scope), security (code safety, PII, secrets), quality (syntax, completeness) |
+| **Operational guardrails** | Per-run wall-clock timeout, spend ceiling (`AI_TEAM_RUN_BUDGET_USD`), and recursion/retry caps that abort hung or runaway loops — see [docs/GUARDRAILS.md](docs/GUARDRAILS.md) |
 | **MCP servers** | Per-team, per-agent MCP tool providers (GitHub, filesystem, Docker, Postgres) |
 | **RAG knowledge** | Static best practices + dynamic project knowledge, scoped per agent role |
 | **Self-improvement reports** | Each run produces a manager report that summarizes failures, references prior lessons, and proposes corrective actions |
