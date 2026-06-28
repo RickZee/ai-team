@@ -104,16 +104,16 @@ No production code currently reads `expected_output.json` — it is documentatio
 
 ```bash
 # Validate setup first — cheapest profile-aware run (prototype crew via LangGraph)
-poetry run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
+uv run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
 
 # Run a demo end-to-end (requires OPENROUTER_API_KEY in .env)
-poetry run python scripts/run_demo.py demos/01_hello_world
+uv run python scripts/run_demo.py demos/01_hello_world
 
 # Skip the cost-estimate prompt (useful in CI or scripted runs)
-poetry run python scripts/run_demo.py demos/02_todo_app --skip-estimate
+uv run python scripts/run_demo.py demos/02_todo_app --skip-estimate
 
 # Use Rich TUI for live agent progress
-poetry run python scripts/run_demo.py demos/01_hello_world --monitor
+uv run python scripts/run_demo.py demos/01_hello_world --monitor
 
 # Run with log monitoring (stops on first runtime error)
 ./scripts/monitor_demo.sh demos/01_hello_world
@@ -126,7 +126,7 @@ Demo 06 uses the `ai-team optimize` subcommand rather than `scripts/run_demo.py`
 ```bash
 # Build demo 02 first, or point the optimizer at another existing workspace.
 # Demo 06's input references the todo API produced by demo 02.
-poetry run python scripts/run_demo.py demos/02_todo_app --skip-estimate
+uv run python scripts/run_demo.py demos/02_todo_app --skip-estimate
 
 ai-team optimize ./demos/02_todo_app/output \
   --metric demos/06_karpathy_optimization/metric.yaml \
@@ -153,13 +153,13 @@ After the flow completes and files are written to `output/`, run the capture scr
 
 ```bash
 # Verify output, run pytest + ruff + Docker build + smoke test, write RESULTS.md
-poetry run python scripts/capture_demo.py \
+uv run python scripts/capture_demo.py \
   --output-dir demos/01_hello_world/output \
   --run-report demos/01_hello_world/run_report.json \
   --demo-id 01_hello_world
 
 # Skip Docker build and smoke test (faster local check)
-poetry run python scripts/capture_demo.py \
+uv run python scripts/capture_demo.py \
   --output-dir demos/01_hello_world/output \
   --skip-docker
 ```
@@ -177,8 +177,8 @@ poetry run python scripts/capture_demo.py \
 Run the same demo spec through multiple backends and compare output quality, cost, latency, and token usage:
 
 ```bash
-poetry run python scripts/compare_backends.py demos/01_hello_world --env dev
-poetry run python scripts/compare_backends.py demos/01_hello_world --team backend-api --markdown out.md
+uv run python scripts/compare_backends.py demos/01_hello_world --env dev
+uv run python scripts/compare_backends.py demos/01_hello_world --team backend-api --markdown out.md
 ```
 
 ---

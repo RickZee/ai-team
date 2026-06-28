@@ -8,12 +8,12 @@ End-to-end tests run a real AITeamFlow (no mocks) and require **OpenRouter** (OP
 
 2. Run the e2e test:
    ```bash
-   poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s
+   uv run pytest tests/e2e/test_e2e_hello_world.py -v -s
    ```
 
 3. The test can take several minutes (full flow: planning → development → testing → deployment).
 
 To skip e2e/slow tests in normal runs:
 ```bash
-poetry run pytest -m "not e2e and not slow"
+uv run pytest -m "not e2e and not slow"
 ```

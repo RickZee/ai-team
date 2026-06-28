@@ -13,7 +13,7 @@ cd "$REPO_ROOT"
 STOP_PATTERN="ERROR:root:|ValueError: |Traceback \(most recent call last\)|Embedding function conflict: new: openai vs persisted|OpenrouterException.*402|requires more credits, or fewer max_tokens"
 
 echo "Running demo: $DEMO_PATH (streaming output; will stop on first error)."
-( poetry run python scripts/run_demo.py "$DEMO_PATH" --skip-estimate 2>&1 | tee "$LOG" ) &
+( uv run python scripts/run_demo.py "$DEMO_PATH" --skip-estimate 2>&1 | tee "$LOG" ) &
 PIPELINE_PID=$!
 trap 'kill $PIPELINE_PID 2>/dev/null; rm -f "$LOG"; exit 130' INT TERM
 

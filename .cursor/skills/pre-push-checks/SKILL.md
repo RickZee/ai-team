@@ -28,19 +28,19 @@ From the **repository root**, run the shared script (mirrors CI lint + security 
 ### Manual breakdown (if iterating on one gate)
 
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .   # or: poetry run ruff format .
-poetry run mypy src/
-poetry run python -m pip install --upgrade "pip>=26.1.2"
+uv run ruff check .
+uv run ruff format --check .   # or: uv run ruff format .
+uv run mypy src/
+uv run python -m pip install --upgrade "pip>=26.1.2"
 ./scripts/pip_audit.sh
 ```
 
 ## Project defaults
 
-- Use **`poetry run …`** so tools use the project virtualenv.
-- **`pip-audit`** is a Poetry **dev** dependency; do not assume a global install.
+- Use **`uv run …`** so tools use the project virtualenv.
+- **`pip-audit`** is a project dev dependency; do not assume a global install.
 - A **Cursor hook** (`.cursor/hooks.json`) blocks `git push` when `./scripts/pre_push_check.sh` fails.
-- Optional **pre-commit**: `poetry run pre-commit install` (ruff + ruff-format on commit).
+- Optional **pre-commit**: `uv run pre-commit install` (ruff + ruff-format on commit).
 
 ## Optional (not required by this skill)
 

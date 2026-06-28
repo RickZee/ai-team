@@ -4,16 +4,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "==> ruff check"
-poetry run ruff check .
+uv run ruff check .
 
 echo "==> ruff format --check"
-poetry run ruff format --check .
+uv run ruff format --check .
 
 echo "==> mypy"
-poetry run mypy src/
+uv run mypy src/
 
 echo "==> pip-audit (upgrade pip like CI security job)"
-poetry run python -m pip install --upgrade "pip>=26.1.2" -q
+uv run python -m pip install --upgrade "pip>=26.1.2" -q
 ./scripts/pip_audit.sh
 
 echo "All pre-push checks passed."

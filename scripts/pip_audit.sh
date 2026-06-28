@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-exec poetry run pip-audit \
+exec uv run pip-audit \
   --ignore-vuln CVE-2025-69872 \
   --ignore-vuln PYSEC-2022-42969 \
   --ignore-vuln PYSEC-2024-278 \

@@ -3,7 +3,6 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Dashboard } from "../Dashboard";
 import { getRun, getRuns } from "../../hooks/useApi";
-import userEvent from "@testing-library/user-event";
 
 vi.mock("../../hooks/useApi", () => ({
   getHealth: vi.fn().mockResolvedValue({ status: "ok" }),

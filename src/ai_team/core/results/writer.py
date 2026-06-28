@@ -27,6 +27,53 @@ logger = structlog.get_logger(__name__)
 RUNS_SUBDIR = "runs"
 
 
+def rebuild_registry(registry_root: Path) -> None:
+    """Rebuild ``index.json`` and ``latest`` from ``output/runs/*`` under *registry_root*."""
+    root = registry_root.resolve()
+    runs_dir = root / RUNS_SUBDIR
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    run_dirs = [p for p in runs_dir.iterdir() if p.is_dir()]
+    latest_path = root / "latest"
+    if not run_dirs:
+        payload = {"version": 1, "updated_at": _utcnow().isoformat(), "runs": []}
+        (root / "index.json").write_text(
+            json.dumps(payload, indent=2, default=str), encoding="utf-8"
+        )
+        if latest_path.exists():
+            latest_path.unlink()
+        return
+
+    def sort_key(p: Path) -> float:
+        best = p.stat().st_mtime
+        for name in ("state.json", "run.json", "events.jsonl"):
+            f = p / name
+            if f.exists():
+                best = max(best, f.stat().st_mtime)
+        return best
+
+    run_dirs.sort(key=sort_key, reverse=True)
+    entries: list[dict[str, Any]] = []
+    for d in run_dirs:
+        run_json = d / "run.json"
+        row: dict[str, Any] = {
+            "run_id": d.name,
+            "output_dir": str(d.resolve()),
+        }
+        if run_json.exists():
+            try:
+                data = json.loads(run_json.read_text(encoding="utf-8"))
+                row["started_at"] = data.get("started_at")
+                row["completed_at"] = data.get("completed_at")
+                row["backend"] = data.get("backend")
+                row["team_profile"] = data.get("team_profile")
+            except (json.JSONDecodeError, OSError):
+                pass
+        entries.append(row)
+    payload = {"version": 1, "updated_at": _utcnow().isoformat(), "runs": entries}
+    (root / "index.json").write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    latest_path.write_text(run_dirs[0].name + "\n", encoding="utf-8")
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -62,48 +109,7 @@ class ResultsBundle:
 
     def _update_registry(self) -> None:
         """Write ``output/index.json`` and ``output/latest`` from ``output/runs/*``."""
-        root = self._registry_root
-        runs_dir = root / RUNS_SUBDIR
-        runs_dir.mkdir(parents=True, exist_ok=True)
-        run_dirs = [p for p in runs_dir.iterdir() if p.is_dir()]
-        if not run_dirs:
-            payload = {"version": 1, "updated_at": _utcnow().isoformat(), "runs": []}
-            (root / "index.json").write_text(
-                json.dumps(payload, indent=2, default=str), encoding="utf-8"
-            )
-            return
-
-        def sort_key(p: Path) -> float:
-            best = p.stat().st_mtime
-            for name in ("state.json", "run.json", "events.jsonl"):
-                f = p / name
-                if f.exists():
-                    best = max(best, f.stat().st_mtime)
-            return best
-
-        run_dirs.sort(key=sort_key, reverse=True)
-        entries: list[dict[str, Any]] = []
-        for d in run_dirs:
-            run_json = d / "run.json"
-            row: dict[str, Any] = {
-                "run_id": d.name,
-                "output_dir": str(d.resolve()),
-            }
-            if run_json.exists():
-                try:
-                    data = json.loads(run_json.read_text(encoding="utf-8"))
-                    row["started_at"] = data.get("started_at")
-                    row["completed_at"] = data.get("completed_at")
-                    row["backend"] = data.get("backend")
-                    row["team_profile"] = data.get("team_profile")
-                except (json.JSONDecodeError, OSError):
-                    pass
-            entries.append(row)
-        payload = {"version": 1, "updated_at": _utcnow().isoformat(), "runs": entries}
-        (root / "index.json").write_text(
-            json.dumps(payload, indent=2, default=str), encoding="utf-8"
-        )
-        (root / "latest").write_text(run_dirs[0].name + "\n", encoding="utf-8")
+        rebuild_registry(self._registry_root)
 
     def init_dirs(self) -> None:
         (self._base_output / "artifacts" / "intake").mkdir(parents=True, exist_ok=True)

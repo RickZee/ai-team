@@ -243,7 +243,6 @@ class TestWebServerCancel:
         r = web_client.post("/api/runs/can-4/cancel")
         assert r.status_code == 400
 
-
     def test_get_run_reports_cancelled_status(self, web_client: TestClient) -> None:
         from ai_team.ui.web import server as web_server
 
@@ -271,6 +270,42 @@ class TestWebServerCancel:
         assert r.status_code == 200
 
 
+class TestRunStateRemove:
+    def test_remove_terminal_run_pops_all_state(self) -> None:
+        from ai_team.ui.web.server import RunState
+
+        state = RunState()
+        state.create_run("rm-1", "demo", "full", "Remove me")
+        state.finish_run("rm-1", success=True)
+        state.monitors["rm-1"] = object()
+        state.cancel_flags["rm-1"] = False
+
+        state.remove_run("rm-1")
+
+        assert "rm-1" not in state.runs
+        assert "rm-1" not in state.monitors
+        assert "rm-1" not in state.tasks
+        assert "rm-1" not in state.cancel_flags
+
+    def test_remove_non_terminal_run_raises(self) -> None:
+        from ai_team.ui.web.server import RunState
+
+        state = RunState()
+        state.create_run("rm-2", "demo", "full", "Still running")
+        state.runs["rm-2"]["status"] = "running"
+
+        with pytest.raises(ValueError, match="not terminal"):
+            state.remove_run("rm-2")
+        assert "rm-2" in state.runs
+
+    def test_remove_unknown_run_raises_key_error(self) -> None:
+        from ai_team.ui.web.server import RunState
+
+        state = RunState()
+        with pytest.raises(KeyError, match="Run not found"):
+            state.remove_run("missing")
+
+
 class TestWebServerRunEstimate:
     def test_run_includes_estimate_usd(self, web_client: TestClient) -> None:
         from ai_team.ui.web import server as web_server
@@ -289,7 +324,9 @@ class TestWebServerRunEstimate:
     def test_estimate_usd_exposed_in_get_run(self, web_client: TestClient) -> None:
         from ai_team.ui.web import server as web_server
 
-        web_server.state.create_run("est-3", "langgraph", "full", "Expose estimate", estimate_usd=0.1)
+        web_server.state.create_run(
+            "est-3", "langgraph", "full", "Expose estimate", estimate_usd=0.1
+        )
         r = web_client.get("/api/runs/est-3")
         assert r.status_code == 200
         assert r.json()["estimate_usd"] == pytest.approx(0.1)
@@ -297,7 +334,9 @@ class TestWebServerRunEstimate:
     def test_estimate_usd_exposed_in_list_runs(self, web_client: TestClient) -> None:
         from ai_team.ui.web import server as web_server
 
-        web_server.state.create_run("est-4", "langgraph", "full", "List estimate", estimate_usd=0.25)
+        web_server.state.create_run(
+            "est-4", "langgraph", "full", "List estimate", estimate_usd=0.25
+        )
         r = web_client.get("/api/runs")
         assert r.status_code == 200
         run = next(x for x in r.json()["runs"] if x["run_id"] == "est-4")
@@ -308,6 +347,7 @@ class TestWebServerRunEstimate:
         assert r.status_code == 200
         run_id = r.json()["run_id"]
         from ai_team.ui.web import server as web_server
+
         assert web_server.state.runs[run_id]["is_sample"] is True
 
     def test_is_sample_false_for_regular_run(self, web_client: TestClient) -> None:

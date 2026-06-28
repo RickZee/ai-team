@@ -9,11 +9,11 @@ criteria** that must all pass before the task is "done."
   vitest/RTL in `__tests__` dirs; use existing `data-testid` patterns.
 - Backend: FastAPI in `src/ai_team/ui/web/server.py`; in-memory `RunState`
   (`runs`/`monitors` dicts). New endpoints need pytest coverage (happy + adversarial).
-- Run `npm run lint`, `npm run test`, and `poetry run pytest` green before done.
+- Run `npm run lint`, `npm run test`, and `uv run pytest` green before done.
 - One task → one PR where practical. Respect dependency order below.
 
 **Definition of Done (applies to every task):**
-- [ ] Code + tests added; `npm run test` and (if backend touched) `poetry run pytest` pass.
+- [ ] Code + tests added; `npm run test` and (if backend touched) `uv run pytest` pass.
 - [ ] `npm run lint` / ruff / mypy clean for touched files.
 - [ ] No new console errors; no `print()` in library code (use structlog server-side).
 - [ ] `data-testid`s added for new interactive elements.

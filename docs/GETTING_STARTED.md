@@ -5,7 +5,7 @@ This guide walks you through prerequisites, installation, your first run, and co
 ## Prerequisites checklist
 
 - [ ] **Python 3.11 or 3.12** — Check with `python3 --version`.
-- [ ] **Poetry** (or uv) — [Install Poetry](https://python-poetry.org/docs/#installation) or [uv](https://docs.astral.sh/uv/).
+- [ ] **uv** — [Install uv](https://docs.astral.sh/uv/getting-started/installation/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
 - [ ] **OpenRouter API key** — Get one at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys); add to `.env` as `OPENROUTER_API_KEY`.
 
 ## Step-by-step installation
@@ -20,15 +20,10 @@ cd ai-team
 ### 2. Create the project environment
 
 ```bash
-poetry install
-```
-
-Or with uv:
-
-```bash
 uv sync
-uv sync --extra dev   # for pytest, ruff, mypy, etc.
 ```
+
+This creates `.venv` and installs runtime + dev dependencies from `poetry.lock`.
 
 ### 3. Configure environment
 
@@ -46,10 +41,10 @@ Edit `.env` and set the key for the backend you plan to run:
 
 ```bash
 # Quick test that the package runs
-poetry run python -c "import ai_team; print('OK')"
+uv run python -c "import ai_team; print('OK')"
 
 # Run unit tests (no real LLM required)
-poetry run pytest tests/unit -v
+uv run pytest tests/unit -v
 ```
 
 ## First run walkthrough
@@ -59,26 +54,32 @@ poetry run pytest tests/unit -v
 2. **Run the CLI** with a short prompt:
 
    ```bash
-   poetry run ai-team "Create a minimal Hello World Flask API"
+   uv run ai-team run "Create a minimal Hello World Flask API"
    ```
 
-   Or use the entry point:
+   Or use the module entry point:
 
    ```bash
-   poetry run python -m ai_team.main "Create a minimal Hello World Flask API"
+   uv run python -m ai_team.main run "Create a minimal Hello World Flask API"
    ```
 
 3. **Optional: run the web dashboard or TUI**
 
    ```bash
-   poetry run ai-team-web   # FastAPI + React on http://127.0.0.1:8421
-   poetry run ai-team-tui   # Textual terminal UI
+   uv run ai-team-web   # FastAPI + React on http://127.0.0.1:8421
+   uv run ai-team-tui   # Textual terminal UI
    ```
 
 4. **Run a demo**:
 
    ```bash
-   poetry run python scripts/run_demo.py demos/01_hello_world --skip-estimate
+   uv run python scripts/run_demo.py demos/01_hello_world --skip-estimate
+   ```
+
+5. **Smoke-test all backends** (optional):
+
+   ```bash
+   bash scripts/quickstart.sh
    ```
 
 ## Troubleshooting common issues
@@ -143,8 +144,8 @@ Back up first if you need to keep old memory data.
 **Fix:**
 
 - Integration/e2e tests may call OpenRouter when `AI_TEAM_USE_REAL_LLM=1`; ensure `OPENROUTER_API_KEY` is set.
-- Increase timeout: `poetry run pytest --timeout=60` (or set in `pyproject.toml`).
-- Run only unit tests when developing: `poetry run pytest tests/unit`.
+- Increase timeout: `uv run pytest --timeout=60` (or set in `pyproject.toml`).
+- Run only unit tests when developing: `uv run pytest tests/unit`.
 
 ### Import or dependency errors
 
@@ -152,8 +153,8 @@ Back up first if you need to keep old memory data.
 
 **Fix:**
 
-- Recreate the environment: `poetry install` (or `uv sync`).
-- Ensure you are in the project directory and using the project's virtualenv: `poetry shell` then run commands, or always use `poetry run`.
+- Recreate the environment: `uv sync`.
+- Ensure you are in the project directory and use `uv run <command>` (or `source .venv/bin/activate` then run commands directly).
 
 ---
 
