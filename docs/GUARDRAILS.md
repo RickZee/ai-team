@@ -114,11 +114,113 @@ MAX_CONSECUTIVE_FAILURES_CAP = 10      # hard cap on counter (prevents integer o
 MAX_RUN_ERRORS = 50                    # total errors across all phases before hard stop
 ```
 
+## LangGraph backend operational guardrails
+
+The CrewAI flow guards above protect the CrewAI backend. The LangGraph backend has its
+own set of **operational** guardrails — distinct from content guardrails — that bound
+*how long* and *how much money* a run can spend, and recover from common model
+non-compliance (e.g. a model emitting code as prose instead of calling `file_writer`).
+
+These exist because the failure modes are real: a hung LLM/tool call can block a run
+indefinitely, a crash-and-retry cycle can burn many paid LLM calls, and a model that
+returns test code as markdown leaves the workspace empty so `pytest` collects 0 items
+and the run fails terminally with nothing to show.
+
+### Wall-clock watchdog (CLI)
+
+`scripts/run_demo.py` has no internal watchdog of its own, so a hung call could
+previously block forever. The `--timeout` flag arms a `SIGALRM` watchdog that aborts a
+hung run with a clear message and exit code `124`.
+
+```bash
+# Default 900s budget; 0 disables.
+uv run python scripts/run_demo.py demos/02_todo_app --backend langgraph --timeout 600
+```
+
+`SIGALRM` is Unix-only and fires on the main thread (where the flow runs synchronously);
+on platforms without it the run is untimed.
+
+### Recoverable testing-phase routing
+
+`route_after_testing` (`backends/langgraph_backend/graphs/routing.py`) treats a
+*testing-phase* error — e.g. the QA agent emitting prose instead of a `file_writer`
+tool-call, or a malformed tool-call that crashes the subgraph — as **retryable**: route
+back to development up to `max_retries` (default 3), then escalate to a human. Errors
+from *other* phases stay terminal (a hard fault re-running QA cannot fix).
+
+This relies on a custom `errors` reducer, `reset_or_extend_errors`
+(`graphs/state.py`): an empty `"errors": []` update **resets** the accumulated list (the
+recovery signal a clean retry returns), while a non-empty update appends. The previous
+`operator.add` reducer made `"errors": []` a no-op, so stale errors persisted and forced
+terminal routing even after recovery. `retry_development` clears errors on each attempt.
+
+The quality gate (`_run_real_quality_gate`) also surfaces pytest exit code 5 ("no tests
+collected") as a distinct `no_tests_collected` signal with actionable reason text, so a
+retry can tell the developer/QA "no tests were written" rather than treating it like an
+ordinary test failure.
+
+### Prose-as-files salvage
+
+When a model (notably deepseek via OpenRouter) writes code as markdown prose instead of
+calling `file_writer`, `_extract_and_write_code_blocks`
+(`graphs/subgraph_runners.py`) parses fenced blocks with adjacent filenames and writes
+them to the workspace. Three regexes cover the common shapes, including
+markdown-header-named blocks (e.g. ``### `test_calc.py` `` followed by a fence). The
+testing node salvages test files this way on both the normal and exception paths, then
+runs the gate instead of failing outright.
+
+> **Security:** extraction validates each filename **before** writing — it strips at most
+> one leading `./`, then rejects absolute paths, `..` traversal segments, and dotfiles.
+> Do **not** reintroduce `lstrip("./")` here: it strips arbitrary leading dot/slash
+> characters and turns `../escape.py` into `escape.py`, defeating the traversal check.
+> Covered by adversarial tests in `tests/unit/backends/langgraph_backend/test_code_extraction.py`.
+
+### Spend ceiling and recursion limit
+
+Two loop-spend guards bound a runaway crash/retry cycle:
+
+| Guard | Default | Override | Mechanism |
+|-------|---------|----------|-----------|
+| **Run spend ceiling** | `$5.00` | `AI_TEAM_RUN_BUDGET_USD` (`0` disables) | `graphs/spend_guard.py` accumulates real per-call `cost` from the OpenRouter response (read in the `langgraph_chat` httpx hook). Crossing the ceiling raises `BudgetExceededError`. |
+| **Graph recursion limit** | `50` | `AI_TEAM_LANGGRAPH_RECURSION_LIMIT` | Explicit `recursion_limit` on graph `invoke`/`stream`, instead of the LangGraph default of 25. Bounds total supersteps deterministically. |
+
+`BudgetExceededError` subclasses **`BaseException`**, not `Exception`, on purpose. The
+phase subgraph nodes wrap `sub.invoke` in `except Exception` and convert failures into
+*retryable* error dicts — but a budget abort must **not** be retried (retrying is exactly
+what we're stopping). Subclassing `BaseException` makes it bypass those handlers and
+propagate straight out, like `KeyboardInterrupt`. It is caught explicitly at the backend
+`run`/`stream` boundary and turned into a clean `success=False` result (exit 1), never an
+unhandled traceback or a silent "complete".
+
+Budget is **per run**: `reset_spend_guard()` is called at the start of `run()` and
+`stream()`; `0` keeps tracking on (for reporting) but lifts the ceiling.
+
+```bash
+# Abort if a run's cumulative OpenRouter spend exceeds $3.
+AI_TEAM_RUN_BUDGET_USD=3.00 uv run python scripts/run_demo.py demos/02_todo_app --backend langgraph
+```
+
+### Tuning constants
+
+| Constant | File | Meaning |
+|----------|------|---------|
+| `DEFAULT_TIMEOUT_S = 900` | `scripts/run_demo.py` | Default `--timeout` wall-clock budget (s). |
+| `max_retries = 3` | `backends/langgraph_backend/backend.py` | Phase retry cap (dev ↔ testing). |
+| `MAX_SUBGRAPH_GUARDRAIL_RETRIES = 3` | `graphs/langgraph_guardrail_nodes.py` | Per-subgraph guardrail retry cap. |
+| `DEFAULT_RECURSION_LIMIT = 50` | `backends/langgraph_backend/backend.py` | Graph superstep cap. |
+| `DEFAULT_BUDGET_USD = 5.0` | `graphs/spend_guard.py` | Default per-run spend ceiling (USD). |
+
 ## Testing
 
 Guardrails are covered by focused unit tests and adversarial cases under `tests/unit/`
 and `tests/guardrails/`. New guardrails should include passing, failing, and edge-case
 tests, plus adversarial inputs for security-sensitive behavior.
+
+LangGraph operational guardrails live under
+`tests/unit/backends/langgraph_backend/` — see `test_routing.py` (testing-error
+recovery), `test_state_schema.py` (the `errors` reducer reset), `test_code_extraction.py`
+(salvage + path-traversal adversarial cases), and `test_spend_guard.py` (spend ceiling
+and the non-retryable `BaseException` semantics).
 
 Flow error-loop guardrails should be tested by simulating rapid consecutive failures
 against a `ProjectState` instance and asserting that:

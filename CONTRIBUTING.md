@@ -127,4 +127,22 @@ New behavior should be covered by unit and/or integration tests as appropriate.
 3. **Configure** via settings/GuardrailConfig and `.env` if needed.
 4. **Document** in [docs/GUARDRAILS.md](docs/GUARDRAILS.md) and add tests in the guardrail test suite.
 
+### Operational guardrails (timeouts, spend, loops)
+
+Beyond content guardrails, the project has **operational** guardrails that bound run
+duration, spend, and retry loops. Most are env-configurable — keep these in mind when
+running real (paid) backends or writing CI:
+
+| Knob | Default | Effect |
+|------|---------|--------|
+| `--timeout` (CLI flag) | `900` s | Aborts a hung `run_demo.py` run (exit `124`). `0` disables. |
+| `AI_TEAM_RUN_BUDGET_USD` | `5.0` | LangGraph per-run spend ceiling; aborts (`success=False`, exit `1`) when crossed. `0` disables. |
+| `AI_TEAM_LANGGRAPH_RECURSION_LIMIT` | `50` | LangGraph graph superstep cap. |
+
+If you add a new retry path, a new backend invoke, or anything that can loop over LLM
+calls, make sure it stays bounded by these (or add an equivalent guard) and document it
+in [docs/GUARDRAILS.md](docs/GUARDRAILS.md) → *LangGraph backend operational guardrails*.
+The spend ceiling is non-retryable by design (`BudgetExceededError` subclasses
+`BaseException`); do not catch it in phase nodes.
+
 If you are unsure where a change belongs, open an issue or ask in the PR description.
