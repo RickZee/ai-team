@@ -2,6 +2,8 @@
 
 The ai-team web UI is a FastAPI + React observability console for multi-agent runs. Four pages share one design system (GitHub-dark theme).
 
+**UI parity:** `ai-team-tui` uses the same REST + WebSocket API when `ai-team-web` is running (run history, cancel/delete, HITL, compare, artifacts). The Rich CLI monitor (`--monitor`) shows the same live metrics during `ai-team run` but has no separate pages. Start the web server for full terminal parity: `ai-team-web &` then `ai-team-tui`.
+
 ## Pages
 
 | Page | Route | Mode |

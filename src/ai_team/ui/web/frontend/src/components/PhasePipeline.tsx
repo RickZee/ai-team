@@ -62,7 +62,9 @@ export function PhasePipeline({
         </>
       )}
       {retries > 0 && phase !== "complete" && phase !== "error" && (
-        <span className="phase-retry dim"> (retry loop ×{retries})</span>
+        <span className="phase-retry self-correct-badge" data-testid="phase-retry-badge">
+          ✓ Self-corrected ×{retries}
+        </span>
       )}
     </div>
   );

@@ -6,8 +6,8 @@ Analyzes phase, errors, and history to surface problems and suggest fixes
 (e.g. Ollama 404, connection refused, repeated errors, stuck phase).
 
 Usage:
-  poetry run python scripts/monitor_output.py [--output-dir PATH] [--interval SEC]
-  poetry run python scripts/monitor_output.py --interval 5
+  uv run python scripts/monitor_output.py [--output-dir PATH] [--interval SEC]
+  uv run python scripts/monitor_output.py --interval 5
 """
 
 from __future__ import annotations

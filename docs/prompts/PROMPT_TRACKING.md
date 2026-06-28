@@ -28,9 +28,8 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 5 | 3 | 5.5, 5.6 | After 5.4; performance benchmarks + Demo Run 1 capture. |
 | 5 | 4 | 5.7, 5.8 | After 5.6; Demo Run 2 and 3 (AITeamFlow builds them). |
 | 5 | 5 | 5.9 | After 5.3–5.8; iteration and fix workflow. |
-| 6 | 1 | 6.2, 6.3, 6.4 | UI components; independent. |
-| 6 | 2 | 6.1 | Main Gradio app (uses 6.2–6.4). |
-| 6 | 3 | 6.5, 6.6, 6.7, 6.8 | After 6.1; recording, docs, polish, social. |
+| 6 | 1 | 6.1–6.4 | **Superseded** — implemented as FastAPI + React web dashboard (`ai-team-web`); see `docs/WEB_DASHBOARD.md`. |
+| 6 | 2 | 6.5, 6.6, 6.7, 6.8 | Demo recording, docs, polish (web UI screenshots). |
 | 7 | 1 | 7.1 | CDK setup first. |
 | 7 | 2 | 7.2 | Runtime Adapter after 7.1. |
 | 7 | 3 | 7.3, 7.4 | Bedrock + Dockerfile after 7.2. |
@@ -47,7 +46,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 0.1  | Generate pyproject.toml | [phase-0-1-pyproject-toml.md](phase-0-1-pyproject-toml.md) | **Done** | Poetry pyproject.toml with requested deps, dev deps (black, ruff, mypy, pytest-cov), scripts `ai-team` and `ai-team-ui`. Added `ai_team.ui` stub and Gradio launcher. |
+| 0.1  | Generate pyproject.toml | [phase-0-1-pyproject-toml.md](phase-0-1-pyproject-toml.md) | **Done** | `pyproject.toml` + `uv.lock`; scripts `ai-team`, `ai-team-web`, `ai-team-tui`. |
 | 0.2  | Generate Ollama setup script | [phase-0-2-ollama-setup-script.md](phase-0-2-ollama-setup-script.md) | **Done** | `scripts/setup_ollama.sh`: install/start Ollama, pull qwen3, qwen2.5-coder, deepseek-r1, deepseek-coder-v2; `--small` for :14b; VRAM estimates, verify test, .env with role assignments, summary table. Bash 3.2–compatible (no associative arrays). |
 | 0.3  | Generate model benchmark script | [phase-0-3-model-benchmark-script.md](phase-0-3-model-benchmark-script.md) | **Done** | `scripts/test_models.py` benchmarks code gen, reasoning, instruction-following, latency, throughput; outputs JSON + Rich table; recommendation mapping by agent role. Uses langchain-ollama. |
 | 0.4  | Generate CrewAI reference document | [phase-0-4-crewai-reference-document.md](phase-0-4-crewai-reference-document.md) | **Done** | Created docs/CREWAI_REFERENCE.md; covers agents, tasks, crews, flows, memory, guardrails, tools, callbacks/hooks with code snippets. Memory section notes unified API (LanceDB default); legacy ChromaDB/SQLite refs noted. |
@@ -59,10 +58,10 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 1.1  | Generate project scaffold | [phase-1-1-project-scaffold.md](phase-1-1-project-scaffold.md) | **Done** | Full `src/ai_team/` (config, agents, crews, flows, tools, guardrails, memory, utils) with `__init__.py` + docstrings; tests (unit/integration/e2e) with conftest.py; docs ARCHITECTURE, AGENTS, GUARDRAILS, FLOWS, TOOLS, MEMORY; scripts (setup_ollama.sh, test_models.py, run_demo.py); ui app.py + components/ + pages/; demos 01_hello_world, 02_todo_app (input.json, expected_output.json); .env.example, py.typed; .gitignore includes Docker. |
+| 1.1  | Generate project scaffold | [phase-1-1-project-scaffold.md](phase-1-1-project-scaffold.md) | **Done** | Full `src/ai_team/` layout; `ui/web/` (FastAPI + React), `ui/tui/` (Textual), `ui/artifacts/`. |
 | 1.2  | Generate settings module | [phase-1-2-settings-module.md](phase-1-2-settings-module.md) | **Done** | Pydantic Settings in `src/ai_team/config/settings.py`: OllamaSettings (base_url, per-role models, default_model, request_timeout, max_retries, check_health()), GuardrailSettings (max_retries per type, thresholds, dangerous_patterns, pii_patterns, enable flags), MemorySettings (chromadb_path, sqlite_path, embedding_model, collection_name, memory_enabled), LoggingSettings (log_level, log_format, log_file), ProjectSettings (output_dir, workspace_dir, max_iterations, default_timeout). Loads from .env; Settings.from_yaml(path) for YAML; validate_ollama_connection() on root. |
-| 1.3  | Generate Dockerfile and docker-compose | [phase-1-3-dockerfile-and-docker-compose.md](phase-1-3-dockerfile-and-docker-compose.md) | **Done** | Multi-stage Dockerfile (Python 3.11-slim, Poetry, non-root user `aiteam`, port 7860, healthcheck, entrypoint `poetry run ai-team-ui`), `.dockerignore`, docker-compose (app + ollama, shared network, .env, ./output and ollama_models volumes; GPU block optional for non-NVIDIA hosts). |
-| 1.4  | Generate CI/CD pipeline | [phase-1-4-cicd-pipeline.md](phase-1-4-cicd-pipeline.md) | **Done** | `.github/workflows/ci.yml`: triggers on push to main/develop and PRs; matrix Python 3.11/3.12; jobs lint (ruff, mypy), test (pytest unit + coverage artifact), integration-test (main only), security (bandit, pip-audit); Poetry cache; test result artifacts; badge and branch-protection comments. `.github/workflows/release.yml`: on tag v*; build/push image to GHCR; GitHub Release with generated changelog. |
+| 1.3  | Generate Dockerfile and docker-compose | [phase-1-3-dockerfile-and-docker-compose.md](phase-1-3-dockerfile-and-docker-compose.md) | **Done** | `docker/Dockerfile`: multi-stage, port **8421**, entrypoint `ai-team-web`. |
+| 1.4  | Generate CI/CD pipeline | [phase-1-4-cicd-pipeline.md](phase-1-4-cicd-pipeline.md) | **Done** | `.github/workflows/ci.yml`: lint, test, web-e2e, integration, security via **uv** (`astral-sh/setup-uv`, `uv sync --frozen`). |
 | 1.5  | Generate initial documentation | [phase-1-5-initial-documentation.md](phase-1-5-initial-documentation.md) | **Done** | README.md (badges, features, architecture ASCII, quick start, config, demos, testing, structure, contributing, license). CONTRIBUTING.md (dev setup, black/ruff/mypy, PR process, commit convention, adding agents/tools/guardrails). docs/GETTING_STARTED.md (prerequisites, installation, first run, troubleshooting: Ollama, model not found, VRAM). |
 
 ---
@@ -103,7 +102,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 3.9  | Generate State Models | [phase-3-9-state-models.md](phase-3-9-state-models.md) | **Done** | `src/ai_team/flows/state.py`: ProjectState, ProjectPhase, PhaseTransition, ProjectError; imports RequirementsDocument, ArchitectureDocument, CodeFile, DeploymentConfig, TestRunResult from models/tools; add_phase_transition/add_error/increment_retry, can_retry, get_duration, to_summary; validators for no-skip phase transitions and retry limits. main_flow.py refactored to use state module. |
 | 3.10 | Generate Main Flow | [phase-3-10-main-flow.md](phase-3-10-main-flow.md) | **Done** | AITeamFlow in `src/ai_team/flows/main_flow.py`: @start intake_request (validate length, prompt-injection guardrail), @listen/@router for planning → development → testing → deployment → finalize_project. Real crews wired (planning_crew_kickoff, development_crew_kickoff, testing_crew_kickoff, DeploymentCrew). Routing: request_human_feedback, handle_planning_error, escalate_to_human, retry_development. State persistence (_persist_state to output_dir), plot() for flow visualization, error handling and logging at every step. |
 | 3.11 | Generate conditional routing | [phase-3-11-conditional-routing.md](phase-3-11-conditional-routing.md) | **Done** | `src/ai_team/flows/routing.py`: route_after_planning, route_after_development, route_after_testing, route_after_deployment with confidence (planning), retry limits (testing), phase transitions (AWAITING_HUMAN, PLANNING), logging; main_flow delegates to routing; retry_planning listener added. |
-| 3.12 | Generate Human-in-the-Loop | [phase-3-12-human-in-the-loop.md](phase-3-12-human-in-the-loop.md) | **Done** | `src/ai_team/flows/human_feedback.py`: HumanFeedbackHandler (request_feedback with question/context/options), CLI (input + optional timeout), Gradio via set_gradio_callback; FeedbackType (clarification, approval, escalation, override); parse_feedback_response → HumanFeedbackResult; MockHumanFeedbackHandler for tests. HumanFeedbackSettings in config (timeout_seconds, default_response). main_flow: request_human_feedback and escalate_to_human use handler, metadata from routers; route_after_human_feedback and route_after_escalate resume flow. Unit tests in tests/unit/flows/test_human_feedback.py. |
+| 3.12 | Generate Human-in-the-Loop | [phase-3-12-human-in-the-loop.md](phase-3-12-human-in-the-loop.md) | **Done** | `human_feedback.py`: CLI + optional UI callback (`set_ui_callback`); web dashboard HITL via `/api/runs/{id}/resume`. |
 | 3.13 | Generate Error Handling | [phase-3-13-error-handling.md](phase-3-13-error-handling.md) | **Done** | `src/ai_team/flows/error_handling.py`: ErrorCategory (Retryable/Recoverable/Fatal), classify_error, circuit breaker (3 consecutive → escalate), persist_state_on_error, load_state_from_file, rollback_last_phase, StructuredErrorLog, build_error_summary_report, get_error_metrics, handle_*_error entry points with exponential backoff. main_flow integrates handlers and route_after_*_error routers. Unit tests in tests/unit/flows/test_error_handling.py (34 tests). |
 
 ---
@@ -157,10 +156,10 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 6.1  | Generate Gradio UI | [phase-6-1-gradio-ui.md](phase-6-1-gradio-ui.md) | Pending | |
-| 6.2  | Generate Project Input Component | [phase-6-2-project-input-component.md](phase-6-2-project-input-component.md) | Pending | |
-| 6.3  | Generate Progress Display Component | [phase-6-3-progress-display-component.md](phase-6-3-progress-display-component.md) | Pending | |
-| 6.4  | Generate Output Display Component | [phase-6-4-output-display-component.md](phase-6-4-output-display-component.md) | **Done** | Web dashboard: `/artifacts` page (Files/Tests/Architecture/Download), FastAPI artifact APIs, `ui/artifacts/service.py`. React (not Gradio). |
+| 6.1  | ~~Generate Gradio UI~~ | — | **Cancelled** | Superseded by `ai-team-web` (FastAPI + React). See `docs/WEB_DASHBOARD.md`. |
+| 6.2  | ~~Generate Project Input Component~~ | — | **Cancelled** | Superseded by Run page (`/run`). |
+| 6.3  | ~~Generate Progress Display Component~~ | — | **Cancelled** | Superseded by Dashboard live monitor. |
+| 6.4  | Generate Output Display Component | [phase-6-4-output-display-component.md](phase-6-4-output-display-component.md) | **Done** | Web dashboard: `/artifacts` page, FastAPI artifact APIs, `ui/artifacts/service.py`. |
 | 6.5  | Generate demo recording scripts | [phase-6-5-demo-recording-scripts.md](phase-6-5-demo-recording-scripts.md) | Pending | |
 | 6.6  | Generate comprehensive documentation | [phase-6-6-comprehensive-documentation.md](phase-6-6-comprehensive-documentation.md) | Pending | |
 | 6.7  | Generate GitHub polish | [phase-6-7-github-polish.md](phase-6-7-github-polish.md) | Pending | |

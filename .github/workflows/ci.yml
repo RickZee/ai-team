@@ -22,7 +22,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  POETRY_VERSION: "2.3.2"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -35,40 +34,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-deps
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-lint-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-poetry-deps.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Install project
-        run: poetry install --no-interaction
+        run: uv sync --frozen
 
       - name: Ruff check
-        run: poetry run ruff check .
+        run: uv run ruff check .
 
       - name: Ruff format check
-        run: poetry run ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Mypy
-        run: poetry run mypy src/
+        run: uv run mypy src/
 
   test:
     name: Test
@@ -79,38 +66,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-deps
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-test-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-poetry-deps.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Install project
-        run: poetry install --no-interaction
+        run: uv sync --frozen
 
       - name: Run unit tests with coverage
         env:
           COVERAGE_FILE: .coverage.${{ matrix.python-version }}
         run: |
           mkdir -p test-results
-          poetry run pytest tests/unit -v --tb=short \
+          uv run pytest tests/unit -v --tb=short \
             --cov=src/ai_team --cov-report=xml --cov-report=term \
             --junitxml=test-results/unit.xml
 
@@ -133,6 +108,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -145,36 +126,18 @@ jobs:
           cache: npm
           cache-dependency-path: src/ai_team/ui/web/frontend/package-lock.json
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-deps
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-web-e2e-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-poetry-deps.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Install project
-        run: poetry install --no-interaction
+        run: uv sync --frozen
 
       - name: Install Playwright Chromium
-        run: poetry run playwright install chromium
+        run: uv run playwright install chromium
 
       - name: Build frontend
         working-directory: src/ai_team/ui/web/frontend
         run: npm ci && npm run build
 
       - name: Run web E2E (demo/mock — no LLM)
-        run: poetry run pytest tests/e2e/web -m web_e2e -v --tb=short --timeout=120
+        run: uv run pytest tests/e2e/web -m web_e2e -v --tb=short --timeout=120
 
   integration-test:
     name: Integration test
@@ -183,36 +146,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-deps
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-integration-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-poetry-deps.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Install project
-        run: poetry install --no-interaction
+        run: uv sync --frozen
 
       - name: Run integration tests
         run: |
           mkdir -p test-results
-          poetry run pytest tests/integration -v --tb=short --junitxml=test-results/integration.xml
+          uv run pytest tests/integration -v --tb=short --junitxml=test-results/integration.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -227,40 +178,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: ${{ env.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Load cached venv
-        id: cached-poetry-deps
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-security-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-
       - name: Install dependencies
-        if: steps.cached-poetry-deps.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
+        run: uv sync --frozen
 
-      - name: Install project
-        run: poetry install --no-interaction
-
-      - name: Install bandit (pip-audit is a Poetry dev dependency)
-        run: poetry run pip install bandit
+      - name: Install bandit (pip-audit is a project dev dependency)
+        run: uv run pip install bandit
 
       - name: Upgrade pip (audit tooling CVEs)
-        run: poetry run python -m pip install --upgrade "pip>=26.1.2"
+        run: uv run python -m pip install --upgrade "pip>=26.1.2"
 
       - name: Bandit security scan
-        run: poetry run bandit -r src/ -f json -o bandit-report.json || true
+        run: uv run bandit -r src/ -f json -o bandit-report.json || true
         continue-on-error: true
 
       # litellm is pinned at 1.74.9 for CrewAI/Pydantic compatibility (see pyproject.toml).

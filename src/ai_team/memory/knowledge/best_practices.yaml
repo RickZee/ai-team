@@ -7,7 +7,7 @@ python:
   - Prefer pathlib.Path over os.path; use context managers for resources.
   - Structure projects: src layout, py.typed, explicit package roots.
   - Prefer dataclasses or Pydantic for structured data over ad-hoc dicts.
-  - Use virtual environments (venv/poetry) and pin dependencies.
+  - Use virtual environments (venv/uv) and pin dependencies (`uv.lock`).
   - Prefer list/dict comprehensions and generator expressions where readable.
   - Use structlog or logging consistently; avoid print() in production.
   - Catch specific exceptions; never bare except.

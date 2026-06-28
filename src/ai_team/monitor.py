@@ -509,6 +509,8 @@ class TeamMonitor:
         if self.current_phase == Phase.ERROR:
             parts.append(Text(" → ", style="dim"))
             parts.append(Text(f" ✗ {PHASE_ICONS[Phase.ERROR]} Error", style="bold red"))
+        if self.metrics.retries > 0 and self.current_phase not in (Phase.COMPLETE, Phase.ERROR):
+            parts.append(Text(f"  ✓ Self-corrected ×{self.metrics.retries}", style="green"))
         return Panel(
             Text.assemble(*parts),
             title="[bold]Pipeline[/bold]",
@@ -606,7 +608,7 @@ class TeamMonitor:
         )
         table.add_row(
             "Retries",
-            f"[yellow]{m.retries}[/yellow]" if m.retries else "[dim]0[/dim]",
+            f"[green]✓ Self-corrected ×{m.retries}[/green]" if m.retries else "[dim]0[/dim]",
         )
         table.add_row("Files generated", f"[blue]{m.files_generated}[/blue]")
         table.add_row("─" * 18, "─" * 6)

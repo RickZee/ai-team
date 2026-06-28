@@ -142,6 +142,7 @@ describe("RunSummaryCard — T3: retry and edit-and-rerun", () => {
           description: "Build a todo API",
           complexity: "simple",
         },
+        autoStart: true,
       },
     });
   });

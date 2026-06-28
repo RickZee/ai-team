@@ -1,4 +1,4 @@
-# Optional local hooks: poetry run pre-commit install
+# Optional local hooks: uv run pre-commit install
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.10

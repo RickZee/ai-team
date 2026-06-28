@@ -135,9 +135,12 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
                             )
                             proc.kill()
                             done.add(backend)
-                            exit_codes[backend] = 0
+                            log_text = log_path.read_text(errors="replace")
+                            eval_passed = " passed in " in log_text and "=====" in log_text
+                            exit_codes[backend] = 0 if eval_passed else 1
+                            status = "PASSED" if eval_passed else "FAILED (hang after project_complete)"
                             print(
-                                f"[compare] {backend} PASSED (watchdog) after {elapsed:.0f}s",
+                                f"[compare] {backend} {status} after {elapsed:.0f}s",
                                 flush=True,
                             )
                             continue

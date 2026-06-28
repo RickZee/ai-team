@@ -20,7 +20,15 @@ export function getProfiles() {
 }
 
 export function getBackends() {
-  return fetchJson<{ backends: { name: string; label: string; streaming: boolean }[] }>("/backends");
+  return fetchJson<{
+    backends: {
+      name: string;
+      label: string;
+      streaming: boolean;
+      required_key?: string;
+      configured?: boolean;
+    }[];
+  }>("/backends");
 }
 
 export function postEstimate(complexity: string) {
@@ -114,5 +122,11 @@ export function postResume(runId: string, feedback: string) {
 export function postCancel(runId: string) {
   return fetchJson<{ run_id: string; status: string }>(`/runs/${runId}/cancel`, {
     method: "POST",
+  });
+}
+
+export function deleteRun(runId: string) {
+  return fetchJson<{ run_id: string; deleted: boolean }>(`/runs/${runId}`, {
+    method: "DELETE",
   });
 }

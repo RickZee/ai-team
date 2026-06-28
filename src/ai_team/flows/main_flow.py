@@ -299,6 +299,12 @@ class AITeamFlow(Flow[ProjectState]):
         except Exception:
             return None
 
+    def _crew_verbose(self) -> bool:
+        """CrewAI Rich console: off by default; on only when explicitly requested."""
+        if self._monitor:
+            return False
+        return bool(self._verbose_override)
+
     def kickoff(self, *args: Any, **kwargs: Any) -> Any:
         """
         Run cost estimation and confirmation at pipeline start, then execute the flow.
@@ -330,9 +336,16 @@ class AITeamFlow(Flow[ProjectState]):
 
         # Per-run workspace isolation: tools resolve relative paths under workspace/<project_id>/.
         try:
-            os.environ["PROJECT_WORKSPACE_DIR"] = str(
-                Path(get_settings().project.workspace_dir).resolve() / self.state.project_id
-            )
+            preset = os.environ.get("PROJECT_WORKSPACE_DIR", "").strip()
+            if preset:
+                ws_path = Path(preset).resolve()
+                if ws_path.name != self.state.project_id:
+                    ws_path = ws_path / self.state.project_id
+            else:
+                ws_path = (
+                    Path(get_settings().project.workspace_dir).resolve() / self.state.project_id
+                )
+            os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_path)
             reload_settings()
         except Exception:
             # If settings reload fails, continue with default shared workspace.
@@ -549,7 +562,7 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.planning_crew import kickoff as planning_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = None
+            verbose = self._crew_verbose()
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
@@ -636,7 +649,7 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.development_crew import kickoff as development_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = True if self._verbose_override is None else self._verbose_override
+            verbose = self._crew_verbose()
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
@@ -656,8 +669,15 @@ class AITeamFlow(Flow[ProjectState]):
                 b = self._bundle()
                 entries = []
                 for cf in code_files:
-                    # Persist to isolated workspace/<project_id>/...
-                    safe_write_file(cf.path, cf.content)
+                    try:
+                        safe_write_file(cf.path, cf.content)
+                    except Exception as write_err:
+                        self.logger.warning(
+                            "development_file_write_failed",
+                            path=cf.path,
+                            error=str(write_err),
+                        )
+                        continue
                     entries.append(
                         b.record_generated_file(
                             rel_path=cf.path,
@@ -715,12 +735,11 @@ class AITeamFlow(Flow[ProjectState]):
             from ai_team.crews.testing_crew import kickoff as testing_crew_kickoff
 
             step_cb = task_cb = None
-            verbose = (
-                (not self._monitor) if self._verbose_override is None else self._verbose_override
-            )
+            verbose = self._crew_verbose()
             if self._monitor:
                 cb = MonitorCallback(self._monitor)
                 step_cb, task_cb = cb.on_step, cb.on_task
+                verbose = False
             with phase_timeout("testing", self._phase_timeout_seconds("testing")):
                 output = testing_crew_kickoff(
                     self.state.generated_files,
@@ -956,7 +975,7 @@ class AITeamFlow(Flow[ProjectState]):
 
         Called when requirements ambiguous or intake invalid. Reads metadata set by
         routers (feedback_question, context, options, resume_to), calls handler
-        (CLI or Gradio callback), parses response, injects into state.human_feedback,
+        (CLI or web/TUI callback), parses response, injects into state.human_feedback,
         and returns resume_to so flow can continue from the appropriate step.
         """
         self.state.awaiting_human_input = True

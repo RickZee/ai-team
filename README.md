@@ -408,7 +408,9 @@ ai-team optimize ./workspace/my-app \
 | `--branch` | Git branch for winning commits | `optimize/karpathy-loop` |
 | `--editable` | Paths the agent may edit | `src/` |
 
-Both `ai-team-web` and `ai-team-tui` support backend and team selection in their interfaces.
+Both `ai-team-web` and `ai-team-tui` use the **same FastAPI API** when the web server is running.
+Start `ai-team-web` first for full parity (run history, cancel/delete, HITL, compare, artifacts).
+Use `ai-team-tui --local` only for offline local execution (degraded mode).
 
 ## Monitoring & UI
 
@@ -463,20 +465,27 @@ See [docs/WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) for user journeys and UX note
 
 The React app uses same-origin `/api` and `/ws` (Vite proxies in dev; production serves UI and API from one port).
 
-**Run deletion:** disk cleanup is available via `delete_run()` in Python (see [Managing runs](#managing-runs)). A `DELETE /api/runs/{id}` endpoint and Dashboard delete affordance are not yet exposed; track progress in [docs/UX_IMPLEMENTATION_TASKS.md](docs/UX_IMPLEMENTATION_TASKS.md) (T12).
+**Run deletion:** `DELETE /api/runs/{id}` and Dashboard/TUI delete remove disk + in-memory state.
+See [docs/UX_IMPLEMENTATION_TASKS.md](docs/UX_IMPLEMENTATION_TASKS.md) and [Managing runs](#managing-runs).
 
 ### Textual TUI (Terminal)
 
 A Textual-based interactive terminal dashboard with keyboard navigation.
 
 ```bash
-uv run ai-team-tui              # Launch TUI
-uv run ai-team-tui --demo       # Launch with simulated demo
+uv run ai-team-web &    # start API (required for full TUI parity)
+uv run ai-team-tui      # terminal UI — same REST/WS as React dashboard
+uv run ai-team-tui --local   # offline fallback (run + demo only)
+uv run ai-team-tui --demo    # auto-start sample run
 ```
 
-**Tabs:** Dashboard (`d`), Run (`r`), Compare (`c`), Quit (`q`)
+**Tabs:** Dashboard (`d`), Run (`n`), Compare (`c`), Artifacts (`a`), Quit (`q`)
 
-Features: real-time phase pipeline, agent status table, metrics panel, activity log, guardrails panel, cost estimation, backend comparison — all in the terminal.
+**Dashboard keys:** `s` stop run · `x` delete run · `r` retry · `e` edit & rerun
+
+Features (with `ai-team-web` running): run sidebar with filter/search, stop/cancel, delete,
+HITL resume, estimate vs actual summary, agent timeline, 3-way compare with verdict,
+artifact browser, sample run labeling — matching the web dashboard.
 
 ### Rich Monitor (inline)
 

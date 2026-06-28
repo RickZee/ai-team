@@ -3,9 +3,9 @@
 Extract and promote recurring failure patterns into lessons.
 
 Usage:
-  poetry run python scripts/extract_lessons.py --extract
-  poetry run python scripts/extract_lessons.py --extract --threshold 2
-  poetry run python scripts/extract_lessons.py --write-infra-backlog
+  uv run python scripts/extract_lessons.py --extract
+  uv run python scripts/extract_lessons.py --extract --threshold 2
+  uv run python scripts/extract_lessons.py --write-infra-backlog
 """
 
 from __future__ import annotations

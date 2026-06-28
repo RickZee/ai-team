@@ -9,7 +9,8 @@ Create a pyproject.toml for a CrewAI multi-agent project called "ai-team" with t
 - crewai-tools
 - langchain-ollama
 - pydantic>=2.0
-- gradio
+- fastapi>=0.115.0
+- textual>=0.80.0
 - python-dotenv
 - structlog
 - chromadb
@@ -17,9 +18,9 @@ Create a pyproject.toml for a CrewAI multi-agent project called "ai-team" with t
 - pytest-asyncio
 
 Include development dependencies for testing and linting (black, ruff, mypy, pytest-cov).
-Use Poetry as the build system. Set Python requirement to >=3.11.
+Use **uv** for dependency management (`uv sync`, `uv.lock`). Set Python requirement to >=3.11.
 Include project metadata: name, version, description, authors, license.
-Add script entry points for: ai-team (main CLI), ai-team-ui (Gradio launcher).
+Add script entry points for: ai-team (main CLI), ai-team-web (FastAPI web dashboard), ai-team-tui (Textual TUI).
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
@@ -92,7 +93,7 @@ Create docs/ARCHITECTURE.md with:
    - Memory Layer: Short-term, Long-term, Entity memory
 3. Data flow diagram showing how a project request flows through the system
 4. State machine diagram for ProjectState transitions
-5. Technology stack table (CrewAI, Ollama, Pydantic, ChromaDB, SQLite, Gradio)
+5. Technology stack table (CrewAI, Ollama, Pydantic, ChromaDB, SQLite, FastAPI + React web dashboard)
 6. Directory structure mapping to components
 7. Integration points and extension guide
 8. Architecture Decision Records (ADRs) for key decisions:
@@ -114,7 +115,7 @@ Create the complete directory structure for the ai-team project:
 - tests/ with unit/, integration/, e2e/ folders, each with __init__.py and conftest.py
 - docs/ with stub markdown files: ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md
 - scripts/ with placeholder scripts: setup_ollama.sh, test_models.py, run_demo.py
-- src/ai_team/ui/ with Gradio app structure: app.py, components/, pages/ (plus TUI and web under the same package)
+- src/ai_team/ui/ with web dashboard (`ui/web/`: FastAPI + React/Vite), Textual TUI (`ui/tui/`), shared API client
 - demos/ with 01_hello_world/, 02_todo_app/ folders containing input.json and expected_output.json
 
 Include __init__.py files with module docstrings in every Python package.
@@ -162,15 +163,15 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 Create two files:
 
 1. Dockerfile — multi-stage build:
-   - Stage 1 (builder): Python 3.11-slim, install Poetry, copy pyproject.toml, install deps
+   - Stage 1 (builder): Python 3.11-slim, install uv, copy pyproject.toml + uv.lock, `uv sync --frozen --no-dev`
    - Stage 2 (runtime): Python 3.11-slim, copy from builder, create non-root user "aiteam"
    - Install system deps: git, build-essential, curl
-   - Expose port 7860 for Gradio
+   - Expose port 8421 for the web dashboard
    - Health check endpoint
-   - Entrypoint: poetry run ai-team-ui
+   - Entrypoint: uv run ai-team-web
 
 2. docker-compose.yml:
-   - Service "app": builds from Dockerfile, maps port 7860, mounts ./output volume
+   - Service "app": builds from Dockerfile, maps port 8421, mounts ./output volume
    - Service "ollama": uses ollama/ollama image, maps port 11434, GPU support with deploy.resources
    - Shared network between services
    - Environment variables from .env file
@@ -191,7 +192,7 @@ Create .github/workflows/ci.yml — a GitHub Actions workflow with:
    b. test: Run pytest tests/unit with coverage report, upload coverage artifact
    c. integration-test: Run pytest tests/integration (only on main branch)
    d. security: Run bandit for security scanning, pip-audit for dependency vulnerabilities
-4. Cache Poetry dependencies between runs
+4. Cache uv dependencies between runs (`astral-sh/setup-uv` with `enable-cache`)
 5. Upload test results as artifacts
 6. Status badge configuration
 7. Branch protection rules recommendation in comments
@@ -949,7 +950,7 @@ Create src/ai_team/flows/human_feedback.py with human interaction support:
 
 1. HumanFeedbackHandler class:
    - request_feedback(question: str, context: Dict, options: List[str]) → str
-     - Present question to user via Gradio UI or CLI prompt
+     - Present question to user via web dashboard, TUI, or CLI prompt
      - Include relevant context (what failed, what agents produced)
      - Offer structured options + free-text input
      - Timeout with default action after configurable wait
@@ -970,7 +971,7 @@ Create src/ai_team/flows/human_feedback.py with human interaction support:
    - Log all human interactions for audit trail
 
 4. CLI mode: input() prompts for non-UI usage
-5. UI mode: Gradio callback for web interface
+5. UI mode: register a callback via HumanFeedbackHandler.set_ui_callback (web/TUI)
 
 Include mock feedback handler for automated testing.
 
@@ -1505,7 +1506,7 @@ Create tests/unit/ with comprehensive unit tests for all components:
    - Test validation errors for missing required fields
 
 Use pytest fixtures for all shared setup. Aim for 85%+ coverage on
-src/ai_team/. Run: `poetry run pytest tests/unit/ --cov=src/ai_team`
+src/ai_team/. Run: `uv run pytest tests/unit/ --cov=src/ai_team`
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
@@ -1544,7 +1545,7 @@ Create tests/integration/ with crew and flow integration tests:
    - Test flow continues normally when guardrails pass
 
 Keep integration tests fast by mocking LLM responses. Label slow tests
-with @pytest.mark.slow. Run fast subset: `poetry run pytest tests/integration/ -m "not slow"`
+with @pytest.mark.slow. Run fast subset: `uv run pytest tests/integration/ -m "not slow"`
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
@@ -1654,7 +1655,7 @@ On failure:
   - Fail the test with a clear message indicating which assertion failed
 
 Mark this test: @pytest.mark.e2e @pytest.mark.slow
-Run: `poetry run pytest tests/e2e/test_e2e_hello_world.py -v -s`
+Run: `uv run pytest tests/e2e/test_e2e_hello_world.py -v -s`
 
 The test output IS the demo artifact. No separate demo script needed.
 
@@ -1694,7 +1695,7 @@ Create tests/performance/test_benchmarks.py — execution time profiling:
    - Project cost if using OpenAI API equivalent (for README comparison)
    - Highlight local-first cost savings
 
-Run: `poetry run pytest tests/performance/ -v -s --tb=short`
+Run: `uv run pytest tests/performance/ -v -s --tb=short`
 Save results to: docs/benchmark_results.json
 
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
@@ -1944,115 +1945,22 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ## Phase 6: UI, Deployment & Showcase (Days 36-42)
 
-### Prompt 6.1: Generate Gradio UI
-```
-Create src/ai_team/ui/app.py — the main Gradio application:
+> **Note:** Prompts **6.1–6.3** (Gradio UI) are **cancelled**. The shipped UI is the FastAPI + React web dashboard (`ai-team-web`, port **8421**) with Textual TUI parity via the same REST/WebSocket API. See `docs/WEB_DASHBOARD.md` and `docs/UX_IMPLEMENTATION_TASKS.md`.
 
-1. Sidebar:
-   - Configuration panel: select Ollama models per role (dropdowns)
-   - Settings: max retries, coverage threshold, guardrail toggles
-   - Ollama status indicator (green/red dot)
-   - Project history (list of past runs with links)
+### Prompt 6.1–6.3: ~~Gradio UI~~ (superseded)
 
-2. Main area:
-   - Project input: large text area for project description
-   - Template buttons: "Flask API", "Todo App", "Data Pipeline" (pre-fill description)
-   - "Generate Project" button with loading state
-   - Real-time progress: phase indicator (Planning → Development → Testing → Deployment)
-   - Agent activity feed: scrolling log of what each agent is doing
+Implemented instead under `src/ai_team/ui/web/`:
 
-3. Output area:
-   - File tree: expandable tree showing all generated files
-   - Code viewer: syntax-highlighted code display with tabs per file
-   - Test results: pass/fail badge, coverage bar chart, failure details
-   - Download button: ZIP of entire generated project
+- **Run page** — project input, templates, backend/team selection, start/stop
+- **Dashboard** — live phase pipeline, agent timeline, activity log, HITL banner
+- **Compare** — side-by-side run comparison
+- **Artifacts** — file tree, code viewer, tests, architecture, ZIP download (Prompt 6.4)
 
-4. Styling:
-   - Custom CSS for professional dark/light theme
-   - Animated progress indicators
-   - Responsive layout for different screen sizes
-
-5. Error display:
-   - Human feedback modal when flow requests clarification
-   - Error details with recovery suggestions
-   - Retry button with modified parameters
-
-Import from src/ai_team/ui/components/ and src/ai_team/ui/pages/ for modularity.
-
-At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
-```
-
-### Prompt 6.2: Generate Project Input Component
-```
-Create src/ai_team/ui/components/project_input.py with a structured input form:
-
-1. ProjectInputForm Gradio component:
-   - Project name (text input, required)
-   - Project description (large text area, required, min 50 chars)
-   - Project type selector (API, Web App, CLI Tool, Data Pipeline, Library)
-   - Complexity selector (Simple, Intermediate, Advanced)
-   - Technology preferences (optional multi-select: Python/Node/Go, Flask/FastAPI/Django, etc.)
-   - Features checklist: Authentication, Database, Docker, CI/CD, Tests, Documentation
-   - Additional notes (optional text area)
-
-2. Template system:
-   - Load templates from demos/ input.json files
-   - "Use Template" button pre-fills all fields
-   - Custom templates can be saved to JSON
-
-3. Input validation:
-   - Real-time validation with Gradio warning/alert messages
-   - Minimum description length check
-   - Conflicting options detection (e.g., Go + Django)
-
-4. Output: ProjectRequest Pydantic model with all form fields
-   - to_prompt() method that formats as natural language for the flow
-
-Include form state persistence using Gradio state (gr.State) or session.
-
-At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
-```
-
-### Prompt 6.3: Generate Progress Display Component
-```
-Create src/ai_team/ui/components/progress_display.py with real-time progress tracking:
-
-1. PhaseProgressBar component:
-   - Horizontal bar showing all phases: Intake → Planning → Development → Testing → Deployment → Complete
-   - Current phase highlighted, completed phases checked
-   - Animated transition between phases
-   - Estimated time remaining per phase
-
-2. AgentActivityFeed component:
-   - Scrolling feed of agent actions in real-time
-   - Format: [timestamp] [agent_icon] Agent Name: Action description
-   - Color-coded by agent role
-   - Expandable details for each action (tool used, input/output preview)
-   - Auto-scroll to latest with manual scroll override
-
-3. LiveMetrics component:
-   - Elapsed time counter
-   - Tasks completed: X/Y
-   - Files generated: count
-   - Test status: running/passed/failed
-   - Token usage estimate
-
-4. Integration:
-   - Uses Gradio's progress/state and dynamic updates for real-time updates
-   - Polls flow state via callback or session state
-   - Supports both synchronous and streaming updates
-
-5. Error overlay:
-   - Red banner on error with phase and message
-   - "Details" expander with full error context
-   - "Retry" and "Skip" buttons for recovery
-
-At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
-```
+Launch: `uv run ai-team-web` (or `docker/` image on port 8421).
 
 ### Prompt 6.4: Generate Output Display Component
 ```
-Create src/ai_team/ui/components/output_display.py with generated project display:
+Create the web dashboard artifacts UI under `src/ai_team/ui/web/frontend/src/` (Artifacts page) and `src/ai_team/ui/artifacts/service.py`:
 
 1. FileTreeViewer component:
    - Expandable tree structure showing all generated files
@@ -2061,7 +1969,7 @@ Create src/ai_team/ui/components/output_display.py with generated project displa
    - Click to view file contents
 
 2. CodeViewer component:
-   - Syntax-highlighted code display (using Gradio Code component or gr.HighlightedCode)
+   - Syntax-highlighted code display (React + Prism or similar)
    - Tab interface for multiple files
    - Line numbers
    - Search within file
@@ -2098,7 +2006,7 @@ rather than triggering new AITeamFlow runs.
 Create scripts/record_demo.py — automated demo recording:
 
 1. DemoRecorder class:
-   - Uses Gradio's testing utilities or Selenium/Playwright
+   - Uses Playwright (or similar) against the web dashboard at http://127.0.0.1:8421
    - Records screen during demo execution
    - Captures: input, progress, output, download
 
@@ -2133,7 +2041,7 @@ Create/update all documentation files:
    - Badges: build, coverage, license, Python, CrewAI
    - Hero GIF showing the system in action
    - Features table with icons
-   - Quick start: 3-command setup (git clone, poetry install, poetry run)
+   - Quick start: 3-command setup (git clone, uv sync, uv run)
    - Architecture diagram (refined ASCII art)
    - Agent role descriptions with capabilities
    - Configuration reference table
@@ -2381,9 +2289,9 @@ Requirements:
 1. Base image: python:3.11-slim (ARM64 compatible)
 2. Multi-stage build:
    Stage 1 (builder):
-   - Install Poetry, build-essential, git
-   - Copy pyproject.toml and poetry.lock
-   - Install dependencies with Poetry (no dev deps)
+   - Install uv, build-essential, git
+   - Copy pyproject.toml and uv.lock
+   - Install dependencies with `uv sync --frozen --no-dev`
    - Export to requirements.txt for slim install
    Stage 2 (runtime):
    - Python 3.11-slim

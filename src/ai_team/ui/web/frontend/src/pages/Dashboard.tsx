@@ -2,19 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ActivityLog } from "../components/ActivityLog";
 import { AgentTable } from "../components/AgentTable";
+import { AgentTimeline } from "../components/AgentTimeline";
 import { AlertBanner } from "../components/AlertBanner";
 import { ArtifactPreview } from "../components/ArtifactPreview";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { GuardrailsPanel } from "../components/GuardrailsPanel";
+import { HowItWorks } from "../components/HowItWorks";
 import { HumanReviewPanel } from "../components/HumanReviewPanel";
 import { LoadingState } from "../components/LoadingState";
 import { MetricsCard } from "../components/MetricsCard";
 import { PhasePipeline } from "../components/PhasePipeline";
+import { RunList } from "../components/RunList";
 import { RunSummaryCard } from "../components/RunSummaryCard";
-import { getHealth, getRun, getRuns, postCancel, postDemo } from "../hooks/useApi";
+import { deleteRun, getHealth, getRun, getRuns, postCancel, postDemo } from "../hooks/useApi";
 import { useMonitorWebSocket } from "../hooks/useWebSocket";
 import type { MonitorState, RunInfo } from "../types";
 import { formatRunDate, sortRunsByDate } from "../utils/formatRun";
+
+const DEFAULT_TITLE = "AI-Team Dashboard";
 
 const POLL_ACTIVE_MS = 2000;
 const POLL_IDLE_MS = 8000;
@@ -32,6 +37,9 @@ export function Dashboard() {
   const [showFullLog, setShowFullLog] = useState(true);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [showAgentTable, setShowAgentTable] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const activeRun = runs.find((r) => r.run_id === selectedRunId);
   const isLive =
@@ -114,6 +122,20 @@ export function Dashboard() {
   const hasMonitor = displayMonitor !== null;
   const runStatus = isLive ? live.runStatus : activeRun?.status ?? null;
 
+  const isAwaitingHuman =
+    activeRun?.status === "awaiting_human" || runStatus === "awaiting_human";
+
+  useEffect(() => {
+    if (isAwaitingHuman) {
+      document.title = "⏸ Action needed — AI-Team";
+    } else {
+      document.title = DEFAULT_TITLE;
+    }
+    return () => {
+      document.title = DEFAULT_TITLE;
+    };
+  }, [isAwaitingHuman]);
+
   useEffect(() => {
     if (isLive) {
       setShowGuardrails(false);
@@ -157,6 +179,25 @@ export function Dashboard() {
     }
   };
 
+  const handleDeleteRun = async () => {
+    if (!deleteConfirmId) return;
+    setDeleteLoading(true);
+    try {
+      await deleteRun(deleteConfirmId);
+      setDeleteConfirmId(null);
+      if (selectedRunId === deleteConfirmId) {
+        setSelectedRunId(null);
+        navigate("/", { replace: true });
+      }
+      await pollRuns();
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : "Delete failed");
+      setDeleteConfirmId(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const alerts = (
     <>
       {healthOk === false && (
@@ -169,6 +210,13 @@ export function Dashboard() {
 
   return (
     <div className="dashboard-page">
+      {isAwaitingHuman && (
+        <AlertBanner
+          variant="warning"
+          message="This run is paused for human review — respond below to continue."
+          testId="hitl-banner"
+        />
+      )}
       {(healthOk === false || apiError || live.errorMessage) && (
         <div className="dashboard-alerts" role="status">
           {alerts}
@@ -181,30 +229,12 @@ export function Dashboard() {
           {runs.length === 0 ? (
             <p className="dim">No runs yet</p>
           ) : (
-            <ul className="run-list">
-              {runs.map((r) => (
-                <li key={r.run_id}>
-                  <button
-                    type="button"
-                    className={`run-list-item ${r.run_id === selectedRunId ? "active" : ""}`}
-                    onClick={() => selectRun(r.run_id)}
-                    data-testid={`run-item-${r.run_id}`}
-                  >
-                    <span className="run-list-date">{formatRunDate(r.started_at)}</span>
-                    <span className="run-list-assignment" title={r.description}>
-                      {r.description || "No assignment"}
-                    </span>
-                    <span className="run-list-meta">
-                      <span className={`status-chip status-${r.status}`}>{r.status}</span>
-                      {r.is_sample && (
-                        <span className="run-list-sample-tag" data-testid={`sample-tag-${r.run_id}`}>Sample</span>
-                      )}
-                      <span className="run-list-backend">{r.backend}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <RunList
+              runs={runs}
+              selectedRunId={selectedRunId}
+              onSelect={selectRun}
+              onDelete={(id) => setDeleteConfirmId(id)}
+            />
           )}
         </aside>
 
@@ -212,7 +242,7 @@ export function Dashboard() {
           {!selectedRunId ? (
             <div className="dashboard-empty" data-testid="dashboard-empty">
               <h2>No Active Run</h2>
-              <p>Launch a zero-cost demo or start a real run from the Run tab.</p>
+              <HowItWorks />
               <div className="empty-actions">
                 <button
                   type="button"
@@ -274,6 +304,15 @@ export function Dashboard() {
                 onConfirm={handleCancel}
                 onCancel={() => setShowCancelConfirm(false)}
               />
+              <ConfirmModal
+                open={deleteConfirmId !== null}
+                title="Delete run?"
+                message="Removes workspace files, output bundle, and registry entry. This cannot be undone."
+                confirmLabel={deleteLoading ? "Deleting…" : "Delete run"}
+                cancelLabel="Cancel"
+                onConfirm={handleDeleteRun}
+                onCancel={() => setDeleteConfirmId(null)}
+              />
 
               {isTerminal && activeRun && (
                 <RunSummaryCard
@@ -311,10 +350,17 @@ export function Dashboard() {
 
               {!isTerminal && (
                 <div className="dashboard-grid">
-                  <div className="panel agents">
-                    <h3>Agents</h3>
-                    <AgentTable agents={displayMonitor.agents} />
-                  </div>
+                  <AgentTimeline
+                    monitor={displayMonitor}
+                    showTable={showAgentTable}
+                    onToggleTable={() => setShowAgentTable((v) => !v)}
+                  />
+                  {showAgentTable && (
+                    <div className="panel agents">
+                      <h3>Agents</h3>
+                      <AgentTable agents={displayMonitor.agents} />
+                    </div>
+                  )}
                   <div className="panel metrics">
                     <h3>Metrics</h3>
                     <MetricsCard
@@ -337,7 +383,11 @@ export function Dashboard() {
                       </button>
                     </div>
                     {showFullLog && (
-                      <ActivityLog entries={displayMonitor.log} ariaLive="polite" />
+                      <ActivityLog
+                        key={selectedRunId}
+                        entries={displayMonitor.log}
+                        ariaLive="polite"
+                      />
                     )}
                   </div>
                   <div className="panel guardrails">

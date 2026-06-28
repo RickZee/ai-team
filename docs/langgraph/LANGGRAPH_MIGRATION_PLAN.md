@@ -396,7 +396,7 @@ ai-team/
 │   ├── models/                   # SHARED: Pydantic output models
 │   ├── memory/                   # SHARED: memory config (each backend may use differently)
 │   ├── utils/                    # SHARED: logging, etc.
-│   ├── ui/                       # SHARED: src/ai_team/ui/ — Gradio UI (calls Backend protocol)
+│   ├── ui/                       # SHARED: web dashboard + TUI (call Backend protocol / REST API)
 │   ├── monitor.py                # SHARED: Rich TUI (adapter per backend for event consumption)
 │   └── main.py                   # UPDATED: --backend {crewai,langgraph} --team {profile} dispatch
 │
@@ -610,9 +610,9 @@ class Backend(Protocol):
   - Support `--resume <thread_id>` to resume interrupted runs
   - Keep `--env`, `--skip-estimate`, `--output` flags
 
-- [ ] **T8.2** Update Gradio UI (`src/ai_team/ui/app.py`):
-  - Wire to `graph.stream()` for real-time progress
-  - Add human-in-the-loop UI: show interrupt message, accept feedback, resume with `Command(resume=...)`
+- [x] **T8.2** Web dashboard HITL + streaming (`src/ai_team/ui/web/`):
+  - WebSocket monitor + `POST /api/runs/{id}/resume` for LangGraph human review
+  - React Dashboard shows HITL banner and review panel
 
 - [ ] **T8.3** Update Rich TUI (`monitor.py`):
   - Consume LangGraph stream events (node starts/finishes, state updates)
@@ -1196,7 +1196,9 @@ langchain-chroma = ">=0.2.0"       # or langchain-lancedb for lightweight altern
 pydantic = "^2.7.0"
 pydantic-settings = ">=2.2.0"
 python-dotenv = "^1.0.0"
-gradio = "^4.0.0"
+fastapi = ">=0.115.0"
+uvicorn = {version = ">=0.30.0", extras = ["standard"]}
+textual = ">=0.80.0"
 structlog = "^24.1.0"
 rich = ">=13.0.0"
 gitpython = "^3.1.0"

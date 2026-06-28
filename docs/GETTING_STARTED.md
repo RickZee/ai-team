@@ -23,7 +23,7 @@ cd ai-team
 uv sync
 ```
 
-This creates `.venv` and installs runtime + dev dependencies from `poetry.lock`.
+This creates `.venv` and installs runtime + dev dependencies from `uv.lock`.
 
 ### 3. Configure environment
 

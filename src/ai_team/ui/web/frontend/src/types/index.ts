@@ -82,6 +82,8 @@ export interface BackendInfo {
   name: string;
   label: string;
   streaming: boolean;
+  required_key?: string;
+  configured?: boolean;
 }
 
 export interface ProfileInfo {

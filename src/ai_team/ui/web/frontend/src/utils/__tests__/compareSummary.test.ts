@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestColumnKey, parseElapsedSeconds } from "../compareSummary";
+import { bestColumnKey, buildCompareVerdict, directionHint, parseElapsedSeconds } from "../compareSummary";
 import type { MonitorState } from "../../types";
 
 const baseMetrics = {
@@ -40,5 +40,31 @@ describe("compareSummary", () => {
     expect(
       bestColumnKey(rows, (m) => m.metrics.tasks_completed, "max"),
     ).toBe("b");
+  });
+
+  it("directionHint shows lower/higher is better", () => {
+    expect(directionHint("min")).toContain("lower");
+    expect(directionHint("max")).toContain("higher");
+  });
+
+  it("buildCompareVerdict summarizes winners", () => {
+    const rows = [
+      {
+        key: "a",
+        label: "CrewAI",
+        m: monitor({ cost_usd: 0.2, metrics: { ...baseMetrics, tests_passed: 3 } }),
+      },
+      {
+        key: "b",
+        label: "LangGraph",
+        m: monitor({ cost_usd: 0.1, metrics: { ...baseMetrics, tests_passed: 5 } }),
+      },
+    ];
+    const verdict = buildCompareVerdict(rows, [
+      { label: "cost", prefer: "min", numeric: (m) => m.cost_usd ?? 999 },
+      { label: "tests passed", prefer: "max", numeric: (m) => m.metrics.tests_passed },
+    ]);
+    expect(verdict).toContain("LangGraph: lowest cost");
+    expect(verdict).toContain("LangGraph: highest tests passed");
   });
 });

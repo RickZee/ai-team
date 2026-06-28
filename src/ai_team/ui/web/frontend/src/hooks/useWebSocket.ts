@@ -10,6 +10,7 @@ interface WSMessage {
   run_id?: string;
   project_id?: string;
   message?: string;
+  run_status?: string;
 }
 
 export type RunWsStatus =
@@ -18,6 +19,7 @@ export type RunWsStatus =
   | "running"
   | "awaiting_human"
   | "complete"
+  | "cancelled"
   | "error";
 
 export function useRunWebSocket() {
@@ -58,7 +60,8 @@ export function useRunWebSocket() {
         setHitlPayload(msg.data as Record<string, unknown>);
         setRunStatus("awaiting_human");
       } else if (msg.type === "complete") {
-        setRunStatus("complete");
+        const cancelled = msg.run_status === "cancelled";
+        setRunStatus(cancelled ? "cancelled" : "complete");
         if (msg.project_id) setProjectId(msg.project_id);
         if (msg.data) setMonitor(msg.data as MonitorState);
       } else if (msg.type === "error") {
@@ -148,7 +151,7 @@ export function useMonitorWebSocket(runId: string | null) {
         setRunStatus("awaiting_human");
       } else if (msg.type === "complete" && msg.data) {
         setMonitor(msg.data as MonitorState);
-        setRunStatus("complete");
+        setRunStatus(msg.run_status === "cancelled" ? "cancelled" : "complete");
       } else if (msg.type === "error") {
         setErrorMessage(msg.message ?? "Monitor error");
         setRunStatus("error");

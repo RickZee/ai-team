@@ -6,8 +6,8 @@ Requires ``OPENROUTER_API_KEY`` for embeddings (same as memory settings).
 
 Usage::
 
-    poetry run python scripts/ingest_knowledge.py
-    RAG_ENABLED=true poetry run python scripts/ingest_knowledge.py --reset
+    uv run python scripts/ingest_knowledge.py
+    RAG_ENABLED=true uv run python scripts/ingest_knowledge.py --reset
 """
 
 from __future__ import annotations

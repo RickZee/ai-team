@@ -7,9 +7,9 @@ Reads the ``performance_metrics`` table written at the end of each run by
 ``ai_team.memory.self_improvement_runtime.persist_run_metrics``.
 
 Usage:
-  poetry run python scripts/show_metrics.py                 # summary across all metrics
-  poetry run python scripts/show_metrics.py --metric test_pass_rate --trend
-  poetry run python scripts/show_metrics.py --json
+  uv run python scripts/show_metrics.py                 # summary across all metrics
+  uv run python scripts/show_metrics.py --metric test_pass_rate --trend
+  uv run python scripts/show_metrics.py --json
 """
 
 from __future__ import annotations

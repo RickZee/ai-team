@@ -122,6 +122,8 @@ def eval_result_from_run(
     test_results = state.get("test_results") or {}
     phase_history = state.get("phase_history") or []
     retry_count = int(state.get("retry_count") or 0)
+    if not retry_count and state.get("retry_counts"):
+        retry_count = sum(int(v) for v in state["retry_counts"].values())
 
     # Cost: SDK returns it in raw; crewai/langgraph don't yet track it
     cost_usd = raw_result.get("cost_usd") or (state.get("metadata") or {}).get("cost_usd")
@@ -130,6 +132,11 @@ def eval_result_from_run(
 
     # Resolve actual workspace from result if caller didn't supply one
     ws = workspace_dir or _resolve_workspace(backend_name, raw_result)
+    run_id = raw_result.get("project_id") or state.get("project_id")
+    if ws and run_id:
+        nested = ws / str(run_id)
+        if nested.is_dir():
+            ws = nested
 
     return EvalResult(
         backend=backend_name,

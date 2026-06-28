@@ -53,8 +53,11 @@ export function MetricsCard({
       </div>
       <div className="metric-row">
         <span className="metric-label">Retries</span>
-        <span className={`metric-value ${metrics.retries ? "yellow" : "dim"}`}>
-          {metrics.retries}
+        <span
+          className={`metric-value ${metrics.retries ? "self-correct-text" : "dim"}`}
+          data-testid="metrics-retries"
+        >
+          {metrics.retries > 0 ? `✓ Self-corrected ×${metrics.retries}` : metrics.retries}
         </span>
       </div>
       <div className="metric-row">

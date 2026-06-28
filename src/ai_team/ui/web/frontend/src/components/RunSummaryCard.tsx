@@ -29,6 +29,20 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
           description: run.description,
           complexity: run.complexity ?? "medium",
         },
+        autoStart: true,
+      },
+    });
+  };
+
+  const handleEditRerun = () => {
+    navigate("/run", {
+      state: {
+        prefill: {
+          backend: run.backend,
+          profile: run.profile,
+          description: run.description,
+          complexity: run.complexity ?? "medium",
+        },
       },
     });
   };
@@ -138,7 +152,7 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
             <button
               type="button"
               className="btn-secondary"
-              onClick={handleRetry}
+              onClick={handleEditRerun}
               data-testid="edit-rerun-btn"
             >
               Edit &amp; rerun
