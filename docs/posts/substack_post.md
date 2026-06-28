@@ -22,8 +22,6 @@ That means:
 
 The pipeline looks like this:
 
-**[INSERT: architecture_diagram.svg]**
-
 INTAKE → PLANNING → DEVELOPMENT → TESTING → DEPLOYMENT → COMPLETE
 
 Every phase transition is a routing decision. If planning isn't done, development doesn't start. If tests fail quality thresholds, the flow loops back. The agents don't know about each other's implementations — they only see structured handoff documents.
@@ -46,10 +44,14 @@ And a harder one:
 
 > *Build a REST API for a todo list with CRUD operations (GET/POST/PUT/DELETE /todos). Use Flask + SQLite. Include pytest tests, requirements.txt, and Dockerfile.*
 
-All three ran in parallel. Here's the UI mid-run on the calculator task — Manager active, Product Owner gathering requirements, guardrail already passing behavioral checks at 4 seconds in:
+All three ran in parallel. Here's the UI mid-run on the todo API task — Manager/PO/Architect done, Backend Developer actively implementing Flask routes, guardrail already passing behavioral and quality checks at 14 seconds in:
 
-**[INSERT: 03_run_midrun_activity.png]**
+![Development phase — Backend Developer active, 6 guardrails running](screenshots/todo_demo/RUN_02_development_content.png)
 *The activity log streams per-agent. You can see phase transitions, model calls, and guardrail results in real time.*
+
+And later, QA Engineer active while all other agents are complete — 8 tests passed, 1 failed, triggering a retry:
+
+![Testing phase — QA Engineer generating test cases, 7 guardrails, 8 tests passed](screenshots/todo_demo/RUN_03_testing_content.png)
 
 ---
 
@@ -73,16 +75,23 @@ All three ran in parallel. Here's the UI mid-run on the calculator task — Mana
 
 LangGraph is the fastest and most reliable. Claude Agent SDK is slower but runs the most rigorous eval suite — it checks not just "did the tests pass" but also adversarial guardrail cases. CrewAI has the most variance.
 
-The complete run state, after LangGraph finishes:
+The complete run state, after LangGraph finishes the todo API:
 
-**[INSERT: 04_run_complete.png]**
-*9 agents, all complete. Guardrails: 1 passed, 0 failed. Files generated: shown in artifacts panel.*
+![LangGraph complete — all 6 agents DONE, 31s, 8 files, 7 guardrails](screenshots/todo_demo/GOOD_12_done_agents_langgraph.png)
+*All 6 agents complete. 31s elapsed, 8 tasks, 8 files generated, 7 guardrails (6 passed, 1 warned).*
+
+Here's the comparison across all three backends simultaneously — same task, same prompt, same time:
+
+![Comparison summary — CrewAI vs LangGraph vs Claude Agent SDK](screenshots/todo_demo/GOOD_13_comparison_summary_table.png)
+*All three backends completed with identical output quality: 8 tasks, 8 files, 9 tests passed. Time varied 31s (demo) — real runs: LangGraph 100s, SDK 180s, CrewAI 440s.*
 
 ---
 
 ## The Code That Came Out
 
-This is the actual output from a LangGraph run. Not handcrafted. Not cleaned up.
+This is the actual output from a LangGraph run. Not handcrafted. Not cleaned up. You can browse every generated file in the artifact browser:
+
+![Artifact browser — generated calc.py with syntax highlighting](screenshots/todo_demo/FINAL_14_calc_py.png)
 
 ```python
 """
@@ -144,8 +153,8 @@ Here's where it got interesting.
 
 CrewAI failed at roughly 50% on the calculator smoke test. Not wrong output — it would just *stop*. CPU at 0%. Network at 0%. The process alive but frozen.
 
-**[INSERT: 12_crewai_midrun.png]**
-*CrewAI mid-run: elapsed 3m10s, single agent active, waiting on first LLM response. This is the planning phase — it should be 30s. Something is wrong.*
+![Guardrail detail — all 7 checks with architecture_completeness warning](screenshots/todo_demo/GOOD_12c_done_guardrails_langgraph.png)
+*Guardrail list after completion: `role_adherence` ✓, `requirements_completeness` ✓, `scope_control` ✓, `architecture_completeness` △ Missing deployment diagram, `code_safety` ✓, `secret_detection` ✓, `test_coverage` ✓. The warning is actionable — not a blocker, but a signal.*
 
 I added a log-freeze watchdog: if the log file stops growing for 120 consecutive seconds, kill the process and score it FAILED. That at least gave me a clean signal instead of a 15-minute timeout.
 

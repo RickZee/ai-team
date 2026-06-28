@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Mirror CI lint + security gates before git push. Run from repo root: ./scripts/pre_push_check.sh
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> ruff check"
+poetry run ruff check .
+
+echo "==> ruff format --check"
+poetry run ruff format --check .
+
+echo "==> mypy"
+poetry run mypy src/
+
+echo "==> pip-audit (upgrade pip like CI security job)"
+poetry run python -m pip install --upgrade "pip>=26.1.2" -q
+./scripts/pip_audit.sh
+
+echo "All pre-push checks passed."

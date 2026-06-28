@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from ai_team.config.settings import reload_settings
 from ai_team.core.result import ProjectResult
 from ai_team.memory.memory_config import LongTermStore
@@ -37,12 +36,18 @@ def tmp_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [("1", True), ("true", True), ("YES", True), ("on", True),
-     ("0", False), ("false", False), ("no", False), ("off", False)],
+    [
+        ("1", True),
+        ("true", True),
+        ("YES", True),
+        ("on", True),
+        ("0", False),
+        ("false", False),
+        ("no", False),
+        ("off", False),
+    ],
 )
-def test_env_flag_parsing(
-    monkeypatch: pytest.MonkeyPatch, value: str, expected: bool
-) -> None:
+def test_env_flag_parsing(monkeypatch: pytest.MonkeyPatch, value: str, expected: bool) -> None:
     monkeypatch.setenv("AI_TEAM_X", value)
     assert _env_flag("AI_TEAM_X", default=not expected) is expected
 
@@ -137,9 +142,7 @@ def test_persist_run_metrics_writes_rows(tmp_settings: str) -> None:
     assert series[-1]["model"] == "crewai"
 
 
-def test_persist_run_metrics_disabled(
-    tmp_settings: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_persist_run_metrics_disabled(tmp_settings: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AI_TEAM_SI_PERSIST_METRICS", "false")
     pr = ProjectResult(backend_name="crewai", raw={"kpis": {"files_generated": 1}})
     assert persist_run_metrics(pr) == 0
