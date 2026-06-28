@@ -143,6 +143,10 @@ source = ["src/ai_team"]
 branch = true
 
 [tool.coverage.report]
+# Fail the run if total coverage drops below this floor. Conservative starting
+# value — ratchet upward as coverage improves; it is a regression gate, not a
+# target. Applied wherever pytest runs with --cov (CI unit-test step).
+fail_under = 60
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
