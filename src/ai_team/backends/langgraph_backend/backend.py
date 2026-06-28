@@ -18,6 +18,10 @@ from ai_team.backends.langgraph_backend.graphs.main_graph import (
     GraphMode,
     compile_main_graph,
 )
+from ai_team.backends.langgraph_backend.graphs.spend_guard import (
+    BudgetExceededError,
+    reset_spend_guard,
+)
 from ai_team.config.settings import reload_settings
 from ai_team.core.result import ProjectResult
 from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
@@ -27,6 +31,20 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
 logger = structlog.get_logger(__name__)
+
+DEFAULT_RECURSION_LIMIT = 50
+
+
+def _recursion_limit() -> int:
+    """Graph superstep cap; override via AI_TEAM_LANGGRAPH_RECURSION_LIMIT."""
+    raw = (os.environ.get("AI_TEAM_LANGGRAPH_RECURSION_LIMIT") or "").strip()
+    if not raw:
+        return DEFAULT_RECURSION_LIMIT
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        logger.warning("bad_recursion_limit_env", value=raw, fallback=DEFAULT_RECURSION_LIMIT)
+        return DEFAULT_RECURSION_LIMIT
 
 
 class LangGraphBackend:
@@ -129,8 +147,18 @@ class LangGraphBackend:
                 b.write_run(meta)
             except Exception:
                 pass
+            # Reset the per-run spend guard so a crash/retry loop can't burn
+            # money unbounded. Budget resolves from AI_TEAM_RUN_BUDGET_USD (or a
+            # run_budget_usd kwarg); 0 disables the ceiling but keeps tracking.
+            reset_spend_guard(kwargs.get("run_budget_usd"))
             initial_state = self._build_initial_state(description, profile, thread_id)
-            config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
+            # Cap total graph supersteps explicitly rather than relying on the
+            # LangGraph default (25). Bounds a pathological loop deterministically;
+            # override via AI_TEAM_LANGGRAPH_RECURSION_LIMIT.
+            config: dict[str, Any] = {
+                "configurable": {"thread_id": thread_id},
+                "recursion_limit": _recursion_limit(),
+            }
             pg_uri = (os.environ.get("AI_TEAM_LANGGRAPH_POSTGRES_URI") or "").strip()
             if pg_uri:
 
@@ -184,6 +212,17 @@ class LangGraphBackend:
                 raw={"state": final, "thread_id": thread_id},
                 team_profile=profile.name,
             )
+        except BudgetExceededError as e:
+            # Spend ceiling hit: a deliberate, non-retryable abort. Fail the run
+            # cleanly rather than letting it bubble as an unhandled BaseException.
+            logger.error("langgraph_backend_budget_abort", error=str(e))
+            return ProjectResult(
+                backend_name=self.name,
+                success=False,
+                raw={"state": {"current_phase": "error"}, "thread_id": thread_id},
+                error=str(e),
+                team_profile=profile.name,
+            )
         except Exception as e:
             logger.exception("langgraph_backend_run_failed", error=str(e))
             return ProjectResult(
@@ -209,7 +248,10 @@ class LangGraphBackend:
         _ = profile
         try:
             mode = self._graph_mode(kwargs)
-            config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
+            config: dict[str, Any] = {
+                "configurable": {"thread_id": thread_id},
+                "recursion_limit": _recursion_limit(),
+            }
             cmd = Command(resume=resume_input)
             b = ResultsBundle(thread_id)
             pg_uri = (os.environ.get("AI_TEAM_LANGGRAPH_POSTGRES_URI") or "").strip()
@@ -263,8 +305,12 @@ class LangGraphBackend:
             reload_settings()
         except Exception:
             pass
+        reset_spend_guard(kwargs.get("run_budget_usd"))
         initial_state = self._build_initial_state(description, profile, thread_id)
-        config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
+        config: dict[str, Any] = {
+            "configurable": {"thread_id": thread_id},
+            "recursion_limit": _recursion_limit(),
+        }
         monitor = kwargs.get("monitor")
         b = ResultsBundle(thread_id)
         try:
@@ -365,6 +411,14 @@ class LangGraphBackend:
             else:
                 g = self._compile_for_run(mode, None)
                 yield from _stream_graph(g)
+        except BudgetExceededError as e:
+            logger.error("langgraph_stream_budget_abort", error=str(e))
+            yield {
+                "type": "langgraph_error",
+                "thread_id": thread_id,
+                "error": str(e),
+                "budget_exceeded": True,
+            }
         except Exception as e:
             logger.exception("langgraph_stream_failed", error=str(e))
             yield {
