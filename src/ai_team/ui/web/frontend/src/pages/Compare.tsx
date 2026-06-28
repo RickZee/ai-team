@@ -156,20 +156,38 @@ export function Compare() {
   };
 
   const summaryRows = useMemo(() => {
-    const rows: { key: BackendKey; label: string; m: MonitorState }[] = [];
+    const rows: { key: BackendKey; label: string; m: MonitorState; failed?: boolean; failReason?: string }[] = [];
     for (const b of BACKENDS) {
       const col = getColumnState(b.key);
-      if (col.monitor) rows.push({ key: b.key, label: b.title, m: col.monitor });
+      if (col.monitor) {
+        rows.push({ key: b.key, label: b.title, m: col.monitor, failed: col.status === "error", failReason: col.errorMessage ?? undefined });
+      } else if (col.status === "error") {
+        // No monitor snapshot yet but still failed — include as failed row
+        rows.push({
+          key: b.key,
+          label: b.title,
+          m: {
+            phase: "error",
+            elapsed: "—",
+            agents: {},
+            metrics: { tasks_completed: 0, tasks_failed: 0, retries: 0, files_generated: 0, guardrails_passed: 0, guardrails_failed: 0, guardrails_warned: 0, tests_passed: 0, tests_failed: 0 },
+            log: [],
+            guardrail_events: [],
+          },
+          failed: true,
+          failReason: col.errorMessage ?? "Run failed",
+        });
+      }
     }
     return rows;
   }, [
     demoMode,
-    crewai.monitor,
-    langgraph.monitor,
-    claude.monitor,
-    crewaiDemo.monitor,
-    langgraphDemo.monitor,
-    claudeDemo.monitor,
+    crewai.monitor, crewai.status, crewai.errorMessage,
+    langgraph.monitor, langgraph.status, langgraph.errorMessage,
+    claude.monitor, claude.status, claude.errorMessage,
+    crewaiDemo.monitor, crewaiDemo.runStatus, crewaiDemo.errorMessage,
+    langgraphDemo.monitor, langgraphDemo.runStatus, langgraphDemo.errorMessage,
+    claudeDemo.monitor, claudeDemo.runStatus, claudeDemo.errorMessage,
   ]);
 
   const preflightMessage = estimate
@@ -270,6 +288,10 @@ export function Compare() {
 
   const anyHitl = BACKENDS.some((b) => getColumnState(b.key).status === "awaiting_human");
 
+  const failedColumns = BACKENDS.filter((b) => getColumnState(b.key).status === "error").map(
+    (b) => ({ key: b.key, title: b.title, reason: getColumnState(b.key).errorMessage ?? "Run failed" }),
+  );
+
   return (
     <div className="compare-page page-shell">
       {catalogError && <AlertBanner variant="warning" message={catalogError} />}
@@ -281,6 +303,23 @@ export function Compare() {
           variant="warning"
           message="One or more backends are paused for human review. Resolve each column to continue."
         />
+      )}
+      {failedColumns.length > 0 && (
+        <div className="compare-failures-banner" data-testid="compare-failures-banner">
+          <span className="compare-failures-heading">
+            {failedColumns.length === 1
+              ? `${failedColumns[0].title} failed`
+              : `${failedColumns.length} backends failed`}
+            {" — "}remaining backends continue.
+          </span>
+          <ul className="compare-failures-list">
+            {failedColumns.map((f) => (
+              <li key={f.key} data-testid={`compare-failure-${f.key}`}>
+                <strong>{f.title}:</strong> {f.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <header className="page-header">
@@ -415,6 +454,13 @@ export function Compare() {
                   <tr key={row.label}>
                     <td>{row.label}</td>
                     {summaryRows.map((r) => {
+                      if (r.failed) {
+                        return (
+                          <td key={r.key} className="summary-failed">
+                            —
+                          </td>
+                        );
+                      }
                       const val = String(row.fn(r.m));
                       const isBest = bestKey === r.key && row.prefer != null;
                       return (
@@ -426,6 +472,16 @@ export function Compare() {
                   </tr>
                 );
               })}
+              {summaryRows.some((r) => r.failed) && (
+                <tr className="summary-failure-reason-row">
+                  <td>Failure reason</td>
+                  {summaryRows.map((r) => (
+                    <td key={r.key} className={r.failed ? "summary-failed summary-failed-reason" : undefined} data-testid={r.failed ? `summary-reason-${r.key}` : undefined}>
+                      {r.failed ? r.failReason : "—"}
+                    </td>
+                  ))}
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

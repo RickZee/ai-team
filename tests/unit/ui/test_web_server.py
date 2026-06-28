@@ -204,6 +204,127 @@ class TestWebServerResume:
         assert r.status_code == 400
 
 
+class TestWebServerCancel:
+    def test_cancel_running_run_returns_200(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-1", "demo", "full", "Cancel test")
+        web_server.state.runs["can-1"]["status"] = "running"
+        r = web_client.post("/api/runs/can-1/cancel")
+        assert r.status_code == 200
+        assert r.json()["status"] == "cancelling"
+
+    def test_cancel_unknown_run_returns_404(self, web_client: TestClient) -> None:
+        r = web_client.post("/api/runs/nonexistent/cancel")
+        assert r.status_code == 404
+
+    def test_cancel_terminal_run_returns_400(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-2", "demo", "full", "Already done")
+        web_server.state.finish_run("can-2", success=True)
+        r = web_client.post("/api/runs/can-2/cancel")
+        assert r.status_code == 400
+
+    def test_cancel_sets_flag_and_run_status(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-3", "demo", "full", "Flag test")
+        web_server.state.runs["can-3"]["status"] = "running"
+        web_client.post("/api/runs/can-3/cancel")
+        assert web_server.state.runs["can-3"]["status"] == "cancelling"
+        assert web_server.state.is_cancel_requested("can-3")
+
+    def test_cancel_already_cancelled_returns_400(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-4", "demo", "full", "Already cancelled")
+        web_server.state.finish_cancelled("can-4")
+        r = web_client.post("/api/runs/can-4/cancel")
+        assert r.status_code == 400
+
+
+    def test_get_run_reports_cancelled_status(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-5", "demo", "full", "Get cancelled")
+        web_server.state.finish_cancelled("can-5")
+        r = web_client.get("/api/runs/can-5")
+        assert r.status_code == 200
+        assert r.json()["status"] == "cancelled"
+
+    def test_finish_cancelled_sets_finished_at(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-6", "demo", "full", "Finish time")
+        web_server.state.runs["can-6"]["status"] = "running"
+        web_server.state.finish_cancelled("can-6")
+        assert web_server.state.runs["can-6"]["finished_at"] is not None
+        assert web_server.state.runs["can-6"]["hitl_payload"] is None
+
+    def test_cancel_awaiting_human_run_is_allowed(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("can-7", "langgraph", "full", "HITL cancel")
+        web_server.state.set_awaiting_human("can-7", {"phase": "awaiting_human"})
+        r = web_client.post("/api/runs/can-7/cancel")
+        assert r.status_code == 200
+
+
+class TestWebServerRunEstimate:
+    def test_run_includes_estimate_usd(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        entry = web_server.state.create_run(
+            "est-1", "langgraph", "full", "Test estimate", estimate_usd=0.042
+        )
+        assert entry["estimate_usd"] == pytest.approx(0.042)
+
+    def test_run_without_estimate_has_none(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        entry = web_server.state.create_run("est-2", "langgraph", "full", "No estimate")
+        assert entry["estimate_usd"] is None
+
+    def test_estimate_usd_exposed_in_get_run(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("est-3", "langgraph", "full", "Expose estimate", estimate_usd=0.1)
+        r = web_client.get("/api/runs/est-3")
+        assert r.status_code == 200
+        assert r.json()["estimate_usd"] == pytest.approx(0.1)
+
+    def test_estimate_usd_exposed_in_list_runs(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("est-4", "langgraph", "full", "List estimate", estimate_usd=0.25)
+        r = web_client.get("/api/runs")
+        assert r.status_code == 200
+        run = next(x for x in r.json()["runs"] if x["run_id"] == "est-4")
+        assert run["estimate_usd"] == pytest.approx(0.25)
+
+    def test_demo_run_is_sample(self, web_client: TestClient) -> None:
+        r = web_client.post("/api/demo")
+        assert r.status_code == 200
+        run_id = r.json()["run_id"]
+        from ai_team.ui.web import server as web_server
+        assert web_server.state.runs[run_id]["is_sample"] is True
+
+    def test_is_sample_false_for_regular_run(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        entry = web_server.state.create_run("est-5", "langgraph", "full", "Regular run")
+        assert entry["is_sample"] is False
+
+    def test_complexity_stored_on_run(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        entry = web_server.state.create_run(
+            "est-6", "langgraph", "full", "Complex run", complexity="complex"
+        )
+        assert entry["complexity"] == "complex"
+
+
 class TestLanggraphHitlStatus:
     def test_langgraph_hitl_detects_awaiting_human_phase(self) -> None:
         from unittest.mock import MagicMock, patch

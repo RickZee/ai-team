@@ -143,6 +143,62 @@ guardrail warn count distinctly from fail. The demo's
 - [ ] Guardrail warns are visually distinct from fails.
 - [ ] Test asserts a retry event renders the positive treatment.
 
+### T15 — Per-agent artifact grouping in the Artifacts tab (heuristic)
+**Why:** Artifacts are an anonymous blob; the team's division of labor is invisible
+(review finding 15). This is the clearest proof a *team* of agents did the work.
+**Files:** `Artifacts.tsx`, `components/FileTreeViewer.tsx` (or a new
+`components/AgentArtifactGroups.tsx`), a new `utils/attributeFile.ts`, `types.ts`,
+`__tests__`. Frontend-only — no backend change in this task.
+**Notes:** add a **grouping toggle** to the Files view: "Tree" (current) vs "By agent".
+In "By agent", cluster files under their producing role using a path/phase→role
+**heuristic** centralized in `attributeFile.ts`:
+- `docs/requirements*`, `docs/*spec*` → Product Owner
+- `docs/architecture*`, `docs/ARCHITECTURE*`, `docs/*design*` → Architect
+- `src/**`, `app.py`, `backend/**`, `frontend/**` → Developer (split Backend/Frontend by
+  path when possible; Fullstack otherwise)
+- `tests/**`, `test_*.py`, `*_test.py` → QA Engineer
+- `Dockerfile`, `docker-compose*.yml`, `.github/**`, `*.ci.*` → DevOps
+- anything unmatched → "Unattributed" group (never silently dropped)
+Show each group with the agent's icon (icons already exist in `monitor.py`), a file
+count, and a one-line role contribution. Make the mapping table data-driven so T15b can
+swap heuristic for real attribution without a UI rewrite.
+
+**Acceptance criteria:**
+- [ ] Files view has a Tree / By-agent toggle; Tree behavior is unchanged.
+- [ ] In By-agent, every file appears under exactly one group; unmatched files land in
+      an explicit "Unattributed" group (none dropped).
+- [ ] Each group shows the role label + icon + file count; clicking a file opens it in
+      the existing CodeViewer (same `openFile` path).
+- [ ] The heuristic lives in one tested module (`attributeFile.ts`) with unit tests for
+      each role mapping and the fallback.
+- [ ] Demo runs (no files) and empty trees render the existing empty states, not a crash.
+- [ ] Component test asserts grouping for a representative mixed file tree.
+
+### T15b — True per-file agent attribution (backend)  *(follow-up to T15)*
+**Why:** Replace the T15 heuristic with accurate provenance.
+**Files:** `monitor.py` (`on_file_generated` signature + serialized state),
+`server.py` (expose attribution in the tree/file endpoints), each backend's call sites
+(`backends/crewai_backend`, `backends/langgraph_backend`,
+`backends/claude_agent_sdk_backend`) and/or a `logs/audit.jsonl` parser, `types.ts`,
+`Artifacts.tsx` to prefer real attribution over the heuristic, pytest + vitest.
+**Notes:** add an optional `agent`/`role` arg to `on_file_generated(path, role=...)` and
+thread the producing agent at each call site; keep it backward compatible (default
+`None`). Where a backend can't attribute inline, derive it from
+`logs/phases.jsonl` + `audit.jsonl` already written to the workspace. The Artifacts UI
+should use real attribution when present and fall back to the T15 heuristic otherwise.
+
+**Acceptance criteria:**
+- [ ] `on_file_generated` accepts an optional producing role without breaking existing
+      callers; covered by a unit test.
+- [ ] At least one backend reports real per-file attribution end-to-end (path → role)
+      surfaced via the tree/file API.
+- [ ] A log-based fallback attributes files when inline data is absent, with a test
+      against a sample `audit.jsonl`.
+- [ ] Artifacts "By agent" prefers real attribution and falls back to the heuristic;
+      a test asserts the precedence.
+- [ ] `docs/WEB_DASHBOARD.md` and `docs/UX_REVIEW.md` finding 15 updated to reflect
+      real attribution shipping.
+
 ---
 
 ## P1 — Onboarding & clarity
@@ -251,9 +307,13 @@ restore on close, verify contrast on the heavy `dim` grey text.
 ## Suggested sequencing
 
 1. **Sprint 1 (trust):** T1, T2, T3.
-2. **Sprint 2 (legibility):** T4, T5, T6, T7.
+2. **Sprint 2 (legibility):** T4, T5, T6, T7, **T15** (per-agent artifacts, heuristic).
 3. **Sprint 3 (onboarding):** T8, T9, T10.
 4. **Sprint 4 (polish/a11y):** T11, T12, T13, T14.
+5. **Later (accuracy):** **T15b** (true file attribution — backend, all three backends).
+
+> T15 pairs naturally with T4 (agent timeline): same role icons, same "division of
+> labor" story across live monitoring and post-run artifacts.
 
 Hand this file to Claude Code task-by-task; each task's acceptance criteria are written
 to be directly testable.
