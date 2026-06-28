@@ -58,6 +58,9 @@ export interface RunInfo {
   started_at: string;
   finished_at: string | null;
   error: string | null;
+  estimate_usd?: number | null;
+  complexity?: string | null;
+  is_sample?: boolean;
 }
 
 export interface CostRow {

@@ -5,6 +5,16 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Run } from "../Run";
 import { useRunWebSocket } from "../../hooks/useWebSocket";
 
+vi.mock("../../hooks/useApi", () => ({
+  postDemo: vi.fn().mockResolvedValue({ run_id: "demo-1" }),
+  postEstimate: vi.fn().mockResolvedValue({
+    complexity: "medium",
+    rows: [],
+    total_usd: 0.05,
+    within_budget: true,
+  }),
+}));
+
 vi.mock("../../hooks/useCatalog", () => ({
   useCatalog: vi.fn(() => ({
     backends: [
@@ -98,5 +108,82 @@ describe("Run", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("hitl-panel")).toBeInTheDocument();
+  });
+
+  it("Demo button has updated label (T8)", () => {
+    render(
+      <MemoryRouter>
+        <Run />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("run-demo")).toHaveTextContent("Play sample run");
+  });
+});
+
+describe("Run — T3: prefill from location state", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useRunWebSocket).mockReturnValue(defaultWs);
+  });
+
+  it("prefills description from location state", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/run", state: { prefill: { description: "Build a todo app" } } }]}
+      >
+        <Run />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("run-description")).toHaveValue("Build a todo app");
+  });
+
+  it("prefills backend from location state", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/run", state: { prefill: { backend: "crewai" } } }]}
+      >
+        <Run />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("run-backend")).toHaveValue("crewai");
+  });
+
+  it("prefills profile from location state", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/run", state: { prefill: { profile: "full" } } }]}
+      >
+        <Run />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("run-profile")).toHaveValue("full");
+  });
+
+  it("passes estimate_usd to startRun when estimate was run first", async () => {
+    const user = userEvent.setup();
+    const startRun = vi.fn();
+    vi.mocked(useRunWebSocket).mockReturnValue({ ...defaultWs, startRun });
+    const { postEstimate } = await import("../../hooks/useApi");
+
+    render(
+      <MemoryRouter>
+        <Run />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByTestId("run-description"), "Build an API");
+    await user.click(screen.getByTestId("run-estimate"));
+    // Wait for estimate mock to resolve
+    await screen.findByText(/0\.05/);
+    await user.click(screen.getByTestId("run-submit"));
+
+    expect(postEstimate).toHaveBeenCalled();
+    expect(startRun).toHaveBeenCalledWith(
+      expect.any(String), // backend
+      expect.any(String), // profile
+      "Build an API",
+      expect.any(String), // complexity
+      0.05, // estimate_usd
+    );
   });
 });

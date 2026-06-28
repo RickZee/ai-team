@@ -19,10 +19,43 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 from pathlib import Path
 
 from ai_team.utils.demo_input import load_demo_input, resolve_team_profile
+
+# Default wall-clock budget for a single demo run. The pipeline has no internal
+# watchdog, so a hung LLM/tool call can otherwise block indefinitely.
+DEFAULT_TIMEOUT_S = 900
+
+
+class DemoTimeout(Exception):
+    """Raised when a demo run exceeds the wall-clock budget."""
+
+
+def _install_timeout(seconds: int) -> bool:
+    """Arm a SIGALRM watchdog that raises DemoTimeout. Returns True if armed.
+
+    SIGALRM is Unix-only and only fires on the main thread; both hold here
+    (run_demo.py runs the flow synchronously on the main thread). On platforms
+    without SIGALRM (e.g. Windows) this is a no-op and the run is untimed.
+    """
+    if seconds <= 0 or not hasattr(signal, "SIGALRM"):
+        return False
+
+    def _handler(_signum: int, _frame: object) -> None:
+        raise DemoTimeout(f"Run exceeded {seconds}s wall-clock budget")
+
+    signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(seconds)
+    return True
+
+
+def _cancel_timeout() -> None:
+    """Disarm the SIGALRM watchdog if armed."""
+    if hasattr(signal, "SIGALRM"):
+        signal.alarm(0)
 
 
 def _repo_root() -> Path:
@@ -160,6 +193,15 @@ def main() -> int:
         choices=("placeholder", "full"),
         help="LangGraph mode: 'full' runs real LLM calls (default), 'placeholder' stubs nodes.",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_S,
+        help=(
+            f"Wall-clock budget in seconds; aborts a hung run (default: {DEFAULT_TIMEOUT_S}). "
+            "Set 0 to disable."
+        ),
+    )
     args = parser.parse_args()
 
     repo = _repo_root()
@@ -186,6 +228,9 @@ def main() -> int:
     project_name = args.project_name or demo_dir.name
     monitor = TeamMonitor(project_name=project_name) if use_tui else None
 
+    armed = _install_timeout(args.timeout)
+    if armed:
+        print(f"Watchdog armed: {args.timeout}s wall-clock budget.", file=sys.stderr)
     try:
         if args.backend == "crewai":
             result = _run_crewai(
@@ -206,6 +251,15 @@ def main() -> int:
         _print_error_summary(result, file=sys.stderr)
         print(json.dumps(result, indent=2, default=str))
         return 0 if _run_success(result) else 1
+    except DemoTimeout as e:
+        print(
+            f"Error: {e}. The run was aborted by the watchdog "
+            f"(--timeout {args.timeout}). Re-run with a larger --timeout, "
+            "or check for a hung LLM/tool call.",
+            file=sys.stderr,
+        )
+        sys.stderr.flush()
+        return 124
     except Exception as e:
         import traceback
 

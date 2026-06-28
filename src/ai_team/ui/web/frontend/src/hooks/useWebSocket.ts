@@ -70,7 +70,7 @@ export function useRunWebSocket() {
   );
 
   const startRun = useCallback(
-    (backend: string, profile: string, description: string, complexity: string) => {
+    (backend: string, profile: string, description: string, complexity: string, estimateUsd?: number | null) => {
       closeSocket();
       setRunStatus("connecting");
       setEvents([]);
@@ -84,7 +84,7 @@ export function useRunWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ backend, profile, description, complexity }));
+        ws.send(JSON.stringify({ backend, profile, description, complexity, estimate_usd: estimateUsd ?? null }));
         setRunStatus("running");
       };
 

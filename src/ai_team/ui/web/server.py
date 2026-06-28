@@ -52,8 +52,19 @@ class RunState:
     def __init__(self) -> None:
         self.runs: dict[str, dict[str, Any]] = {}
         self.monitors: dict[str, Any] = {}  # run_id -> TeamMonitor
+        self.tasks: dict[str, asyncio.Task] = {}  # run_id -> background task
+        self.cancel_flags: dict[str, bool] = {}  # run_id -> cancel requested
 
-    def create_run(self, run_id: str, backend: str, profile: str, description: str) -> dict:
+    def create_run(
+        self,
+        run_id: str,
+        backend: str,
+        profile: str,
+        description: str,
+        estimate_usd: float | None = None,
+        complexity: str | None = None,
+        is_sample: bool = False,
+    ) -> dict:
         entry = {
             "run_id": run_id,
             "backend": backend,
@@ -66,8 +77,12 @@ class RunState:
             "thread_id": run_id,
             "project_id": run_id,
             "hitl_payload": None,
+            "estimate_usd": estimate_usd,
+            "complexity": complexity,
+            "is_sample": is_sample,
         }
         self.runs[run_id] = entry
+        self.cancel_flags[run_id] = False
         return entry
 
     def set_awaiting_human(self, run_id: str, payload: dict[str, Any]) -> None:
@@ -81,6 +96,26 @@ class RunState:
             self.runs[run_id]["finished_at"] = datetime.now().isoformat()
             self.runs[run_id]["error"] = error
             self.runs[run_id]["hitl_payload"] = None
+        self.tasks.pop(run_id, None)
+
+    def cancel_run(self, run_id: str) -> None:
+        """Mark a run as cancelling and request cooperative cancel."""
+        if run_id in self.runs:
+            self.runs[run_id]["status"] = "cancelling"
+            self.cancel_flags[run_id] = True
+            task = self.tasks.get(run_id)
+            if task and not task.done():
+                task.cancel()
+
+    def finish_cancelled(self, run_id: str) -> None:
+        if run_id in self.runs:
+            self.runs[run_id]["status"] = "cancelled"
+            self.runs[run_id]["finished_at"] = datetime.now().isoformat()
+            self.runs[run_id]["hitl_payload"] = None
+        self.tasks.pop(run_id, None)
+
+    def is_cancel_requested(self, run_id: str) -> bool:
+        return self.cancel_flags.get(run_id, False)
 
 
 state = RunState()
@@ -95,6 +130,7 @@ class RunRequest(BaseModel):
     profile: str = "full"
     description: str
     complexity: ComplexityOption = "medium"
+    estimate_usd: float | None = None
 
 
 class EstimateRequest(BaseModel):
@@ -329,10 +365,23 @@ async def resume_run(run_id: str, req: ResumeRequest):
 async def start_demo():
     """Start a demo run and return run_id (poll via /api/runs/{id} or connect WebSocket)."""
     run_id = str(uuid.uuid4())[:8]
-    state.create_run(run_id, "demo", "full", "Demo: Flask REST API")
-    # Fire and forget the demo in background
-    asyncio.create_task(_run_demo_async(run_id))
+    state.create_run(run_id, "demo", "full", "Demo: Flask REST API", is_sample=True)
+    task = asyncio.create_task(_run_demo_async(run_id))
+    state.tasks[run_id] = task
     return {"run_id": run_id}
+
+
+@app.post("/api/runs/{run_id}/cancel")
+async def cancel_run(run_id: str):
+    """Cancel a running run (cooperative cancel)."""
+    run = state.runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    terminal = {"complete", "error", "cancelled"}
+    if run["status"] in terminal:
+        raise HTTPException(status_code=400, detail=f"Run is already terminal ({run['status']})")
+    state.cancel_run(run_id)
+    return {"run_id": run_id, "status": "cancelling"}
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +403,7 @@ async def ws_run(websocket: WebSocket):
         req = RunRequest(**msg)
 
         run_id = str(uuid.uuid4())[:8]
-        state.create_run(run_id, req.backend, req.profile, req.description)
+        state.create_run(run_id, req.backend, req.profile, req.description, estimate_usd=req.estimate_usd, complexity=req.complexity)
         state.runs[run_id]["thread_id"] = run_id
         state.runs[run_id]["project_id"] = run_id
 
@@ -399,11 +448,12 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
                 )
                 break
 
-            if run["status"] in ("complete", "error"):
+            if run["status"] in ("complete", "error", "cancelled"):
                 final_type = "error" if run["status"] == "error" else "complete"
                 await websocket.send_json(
                     {
                         "type": final_type,
+                        "run_status": run["status"],
                         "data": data,
                         "message": run.get("error"),
                     }
@@ -545,6 +595,8 @@ async def _run_demo_async(run_id: str) -> None:
     ]
 
     async def step(fn, delay: float = 0.5):
+        if state.is_cancel_requested(run_id):
+            raise asyncio.CancelledError()
         fn()
         await asyncio.sleep(delay)
 
@@ -634,6 +686,8 @@ async def _run_demo_async(run_id: str) -> None:
         await step(lambda: monitor.on_phase_change("complete"), 2.0)
         state.finish_run(run_id, success=True)
 
+    except asyncio.CancelledError:
+        state.finish_cancelled(run_id)
     except Exception as e:
         state.finish_run(run_id, success=False, error=str(e))
 

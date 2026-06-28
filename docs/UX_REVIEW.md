@@ -97,6 +97,23 @@ panel appearing inline.
 *Recommendation:* when a run is `awaiting_human`, pin a high-contrast banner at the top
 of the Dashboard (and title-bar/tab indicator), since the user is now the bottleneck.
 
+**15. Artifacts are anonymous — there's no per-agent provenance.**
+The Artifacts browser shows the final file tree (`workspace`/`bundle`) as one
+undifferentiated blob. For a product whose whole pitch is a *team* of specialized
+agents, the UI never answers the obvious question: *which agent produced what?* The
+Architect's requirements/architecture docs, the Developers' source, QA's tests, and
+DevOps' Dockerfile/CI all land in the same tree with no attribution. This buries the
+single most compelling proof that the multi-agent system actually divided the work.
+*Current state:* `monitor.on_file_generated(path)` records only a path — no producing
+agent. But the workspace layout already encodes authorship implicitly (`CLAUDE.md`):
+`docs/` (Product Owner + Architect), `src/` (Developers), `tests/` (QA),
+Dockerfile/CI (DevOps), and `logs/phases.jsonl` + `audit.jsonl` (who acted, when).
+*Recommendation:* add a **"By agent" grouping** to the Artifacts tab so files cluster
+under their producing role with each agent's icon and a one-line summary of its
+contribution. Ship it now with a folder/phase→role **heuristic**, then follow up by
+threading true attribution through `on_file_generated` + the monitor/logs across all
+three backends. This turns a flat file dump into a visible hand-off story.
+
 ### P1 — Onboarding & clarity
 
 **7. The "Demo" button is ambiguous and overloaded.**
@@ -183,6 +200,10 @@ These go beyond generic UX and lean into what an *agentic* console should do:
 - **Comparison is your moat — narrate the verdict.** Compare highlights best-per-metric;
   add a one-line auto-summary ("LangGraph: lowest cost; Claude Agent SDK: most tests
   passed") so the table tells a story at a glance.
+- **Show the division of labor.** Per-agent artifact provenance (finding 15) is the
+  clearest evidence that a *team* — not one model — did the work. Pair the live agent
+  timeline (finding 4) with a "By agent" artifact grouping so the story is consistent
+  from "who's working" to "what they produced."
 
 ---
 
@@ -191,7 +212,8 @@ These go beyond generic UX and lean into what an *agentic* console should do:
 | Phase | Items | Outcome |
 |-------|-------|---------|
 | **Now (P0)** | 1 Stop/cancel · 2 Estimate-vs-actual · 3 Retry from failure | Users feel in control of cost and runs |
-| **Next (P1)** | 4 Agent timeline · 5 Log filters · 6 HITL banner · 7 Demo relabel · 8 Onboarding empty state · 9 Backend prereqs | The agentic story is legible; fewer wrong turns |
+| **Next (P1)** | 4 Agent timeline · 5 Log filters · 6 HITL banner · 15 Per-agent artifacts (heuristic) · 7 Demo relabel · 8 Onboarding empty state · 9 Backend prereqs | The agentic story is legible; fewer wrong turns |
+| **Later** | 15b True file attribution (backend) | Provenance is accurate, not heuristic |
 | **Polish (P2)** | 10 Palette keyboard · 11 Sidebar scale · 12 Brief affordances · 13 Compare direction glyphs · 14 A11y pass | A console that scales and screenshots clean |
 
 ---

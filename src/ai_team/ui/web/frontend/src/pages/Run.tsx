@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AlertBanner } from "../components/AlertBanner";
 import { EstimateTable } from "../components/EstimateTable";
 import { HumanReviewPanel } from "../components/HumanReviewPanel";
@@ -9,13 +9,22 @@ import { postDemo, postEstimate } from "../hooks/useApi";
 import { useRunWebSocket } from "../hooks/useWebSocket";
 import type { CostEstimate } from "../types";
 
+interface RunPrefill {
+  backend?: string;
+  profile?: string;
+  description?: string;
+  complexity?: string;
+}
+
 export function Run() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefill = (location.state as { prefill?: RunPrefill } | null)?.prefill;
   const { backends, profileNames, loading: catalogLoading, error: catalogError } = useCatalog();
-  const [backend, setBackend] = useState("langgraph");
-  const [profile, setProfile] = useState("full");
-  const [description, setDescription] = useState("");
-  const [complexity, setComplexity] = useState("medium");
+  const [backend, setBackend] = useState(prefill?.backend ?? "langgraph");
+  const [profile, setProfile] = useState(prefill?.profile ?? "full");
+  const [description, setDescription] = useState(prefill?.description ?? "");
+  const [complexity, setComplexity] = useState(prefill?.complexity ?? "medium");
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -42,7 +51,7 @@ export function Run() {
   const handleRun = () => {
     if (!canRun) return;
     setActionError(null);
-    startRun(backend, profile, description, complexity);
+    startRun(backend, profile, description, complexity, estimate?.total_usd ?? null);
   };
 
   const handleEstimate = async () => {
@@ -149,7 +158,7 @@ export function Run() {
             Estimate Cost
           </button>
           <button className="btn-warning" onClick={handleDemo} data-testid="run-demo">
-            Demo
+            Play sample run (free · no files)
           </button>
         </div>
         {estimate && !estimate.within_budget && (

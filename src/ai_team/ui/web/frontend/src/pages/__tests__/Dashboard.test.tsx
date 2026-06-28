@@ -3,12 +3,14 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Dashboard } from "../Dashboard";
 import { getRun, getRuns } from "../../hooks/useApi";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("../../hooks/useApi", () => ({
   getHealth: vi.fn().mockResolvedValue({ status: "ok" }),
   getRuns: vi.fn().mockResolvedValue({ runs: [] }),
   getRun: vi.fn(),
-  postDemo: vi.fn(),
+  postDemo: vi.fn().mockResolvedValue({ run_id: "demo-99" }),
+  postCancel: vi.fn(),
   getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0 }),
   getProjectArchitecture: vi.fn().mockResolvedValue({ system_overview: "" }),
 }));
@@ -96,5 +98,51 @@ describe("Dashboard", () => {
     );
     expect(screen.getByTestId("run-summary-card")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-view-artifacts")).toBeInTheDocument();
+  });
+
+  it("Demo button has updated label (T8)", async () => {
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+    const btn = await screen.findByTestId("dashboard-demo");
+    expect(btn).toHaveTextContent("Play sample run");
+  });
+
+  it("shows Sample tag for is_sample runs in sidebar (T8)", async () => {
+    vi.mocked(getRuns).mockResolvedValue({
+      runs: [
+        {
+          run_id: "sample-1",
+          backend: "demo",
+          profile: "full",
+          description: "Sample run",
+          status: "complete",
+          started_at: "2026-06-01T10:00:00Z",
+          finished_at: "2026-06-01T10:01:00Z",
+          error: null,
+          is_sample: true,
+        },
+      ],
+    });
+    vi.mocked(getRun).mockResolvedValue({
+      run_id: "sample-1",
+      backend: "demo",
+      profile: "full",
+      description: "Sample run",
+      status: "complete",
+      monitor: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sample-tag-sample-1")).toBeInTheDocument();
+    });
   });
 });
