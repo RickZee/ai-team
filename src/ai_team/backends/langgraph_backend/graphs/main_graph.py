@@ -74,7 +74,9 @@ def _node_human_review_full(
 
 def _node_retry_development(state: LangGraphProjectState) -> dict[str, Any]:
     rc = int(state.get("retry_count") or 0)
-    return {"retry_count": rc + 1, "current_phase": "development"}
+    # Clear errors so the retry attempt starts clean; the reset_or_extend_errors
+    # reducer treats an empty list as a reset.
+    return {"retry_count": rc + 1, "current_phase": "development", "errors": []}
 
 
 def _node_complete(state: LangGraphProjectState) -> dict[str, Any]:

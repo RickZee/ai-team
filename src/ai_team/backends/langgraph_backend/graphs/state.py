@@ -9,6 +9,23 @@ from langgraph.graph.message import add_messages
 from langgraph.managed import RemainingSteps
 
 
+def reset_or_extend_errors(
+    left: list[dict[str, Any]], right: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Reducer for ``errors``: an empty update clears the list, else appends.
+
+    Phase nodes return ``"errors": []`` after recovering (e.g. development
+    re-runs cleanly on retry) to signal "this phase is now healthy". Plain
+    ``operator.add`` would make that a no-op append, so a stale error from a
+    prior failed attempt would persist and force terminal routing. Treating an
+    empty right-hand update as a reset lets the retry loop recover, while a
+    non-empty update accumulates as before.
+    """
+    if not right:
+        return []
+    return list(left) + list(right)
+
+
 class LangGraphProjectState(TypedDict, total=False):
     """Top-level state flowing through the main LangGraph (migration plan §3.1)."""
 
@@ -21,7 +38,7 @@ class LangGraphProjectState(TypedDict, total=False):
     generated_files: Annotated[list[dict[str, Any]], operator.add]
     test_results: dict[str, Any] | None
     deployment_config: dict[str, Any] | None
-    errors: Annotated[list[dict[str, Any]], operator.add]
+    errors: Annotated[list[dict[str, Any]], reset_or_extend_errors]
     retry_count: int
     max_retries: int
     human_feedback: str | None

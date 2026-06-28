@@ -30,12 +30,12 @@ from ai_team.utils.demo_input import load_demo_input, resolve_team_profile
 DEFAULT_TIMEOUT_S = 900
 
 
-class DemoTimeout(Exception):
+class DemoTimeoutError(Exception):
     """Raised when a demo run exceeds the wall-clock budget."""
 
 
 def _install_timeout(seconds: int) -> bool:
-    """Arm a SIGALRM watchdog that raises DemoTimeout. Returns True if armed.
+    """Arm a SIGALRM watchdog that raises DemoTimeoutError. Returns True if armed.
 
     SIGALRM is Unix-only and only fires on the main thread; both hold here
     (run_demo.py runs the flow synchronously on the main thread). On platforms
@@ -45,7 +45,7 @@ def _install_timeout(seconds: int) -> bool:
         return False
 
     def _handler(_signum: int, _frame: object) -> None:
-        raise DemoTimeout(f"Run exceeded {seconds}s wall-clock budget")
+        raise DemoTimeoutError(f"Run exceeded {seconds}s wall-clock budget")
 
     signal.signal(signal.SIGALRM, _handler)
     signal.alarm(seconds)
@@ -251,7 +251,7 @@ def main() -> int:
         _print_error_summary(result, file=sys.stderr)
         print(json.dumps(result, indent=2, default=str))
         return 0 if _run_success(result) else 1
-    except DemoTimeout as e:
+    except DemoTimeoutError as e:
         print(
             f"Error: {e}. The run was aborted by the watchdog "
             f"(--timeout {args.timeout}). Re-run with a larger --timeout, "
@@ -267,6 +267,8 @@ def main() -> int:
         print(f"Error: {e}", file=sys.stderr)
         sys.stderr.flush()
         return 1
+    finally:
+        _cancel_timeout()
 
 
 if __name__ == "__main__":
