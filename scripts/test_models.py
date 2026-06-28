@@ -18,7 +18,7 @@ if __name__ == "__main__" and str(Path(__file__).resolve().parent.parent) not in
 try:
     import httpx
 except ImportError:
-    print("Error: httpx is required. Install with: poetry install", file=sys.stderr)
+    print("Error: httpx is required. Install with: uv sync", file=sys.stderr)
     sys.exit(1)
 
 

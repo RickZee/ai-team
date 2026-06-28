@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { postDemo } from "../hooks/useApi";
 import type { UnifiedRun } from "../hooks/useUnifiedRuns";
 
 interface CommandPaletteProps {
   runs: UnifiedRun[];
-  onEstimate?: () => void;
 }
 
 interface Command {
@@ -15,15 +15,22 @@ interface Command {
   action: () => void;
 }
 
-export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
+const SAMPLE_RUN_LABEL = "Play sample run (free · no files)";
+
+export function CommandPalette({ runs }: CommandPaletteProps) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
+    setSelectedIndex(0);
   }, []);
+
+  useFocusTrap(open, panelRef);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,11 +38,10 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
         e.preventDefault();
         setOpen((v) => !v);
       }
-      if (e.key === "Escape") close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [close]);
+  }, []);
 
   const commands: Command[] = useMemo(() => {
     const base: Command[] = [
@@ -54,8 +60,14 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
         action: () => navigate("/artifacts"),
       },
       {
+        id: "estimate",
+        label: "Estimate cost (opens Run page)",
+        group: "Actions",
+        action: () => navigate("/run?estimate=1"),
+      },
+      {
         id: "demo",
-        label: "Launch demo run",
+        label: SAMPLE_RUN_LABEL,
         group: "Actions",
         action: async () => {
           const { run_id } = await postDemo();
@@ -63,17 +75,6 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
         },
       },
     ];
-    if (onEstimate) {
-      base.push({
-        id: "estimate",
-        label: "Estimate cost (on Run page)",
-        group: "Actions",
-        action: () => {
-          navigate("/run");
-          onEstimate();
-        },
-      });
-    }
     for (const r of runs.slice(0, 12)) {
       base.push({
         id: `run-${r.run_id}`,
@@ -83,7 +84,7 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
       });
     }
     return base;
-  }, [navigate, runs, onEstimate]);
+  }, [navigate, runs]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -91,7 +92,51 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
     return commands.filter((c) => c.label.toLowerCase().includes(q));
   }, [commands, query]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, Command[]>();
+    for (const cmd of filtered) {
+      if (!map.has(cmd.group)) map.set(cmd.group, []);
+      map.get(cmd.group)!.push(cmd);
+    }
+    return [...map.entries()];
+  }, [filtered]);
+
+  const flatFiltered = useMemo(() => grouped.flatMap(([, items]) => items), [grouped]);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query]);
+
+  const runSelected = useCallback(
+    (cmd: Command) => {
+      cmd.action();
+      close();
+    },
+    [close],
+  );
+
+  const onPaletteKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+      return;
+    }
+    if (flatFiltered.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((i) => (i + 1) % flatFiltered.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((i) => (i - 1 + flatFiltered.length) % flatFiltered.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      runSelected(flatFiltered[selectedIndex]);
+    }
+  };
+
   if (!open) return null;
+
+  let flatIdx = 0;
 
   return (
     <div
@@ -102,8 +147,10 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
       onClick={close}
     >
       <div
+        ref={panelRef}
         className="command-palette panel"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onPaletteKeyDown}
         data-testid="command-palette"
       >
         <input
@@ -116,27 +163,35 @@ export function CommandPalette({ runs, onEstimate }: CommandPaletteProps) {
           data-testid="command-palette-input"
         />
         <ul className="command-palette-list">
-          {filtered.length === 0 ? (
+          {flatFiltered.length === 0 ? (
             <li className="dim">No matches</li>
           ) : (
-            filtered.map((cmd) => (
-              <li key={cmd.id}>
-                <button
-                  type="button"
-                  className="command-palette-item"
-                  onClick={() => {
-                    cmd.action();
-                    close();
-                  }}
-                >
-                  <span className="command-group">{cmd.group}</span>
-                  {cmd.label}
-                </button>
+            grouped.map(([group, items]) => (
+              <li key={group} className="command-palette-group">
+                <span className="command-group-header">{group}</span>
+                <ul>
+                  {items.map((cmd) => {
+                    const idx = flatIdx++;
+                    const isActive = idx === selectedIndex;
+                    return (
+                      <li key={cmd.id}>
+                        <button
+                          type="button"
+                          className={`command-palette-item ${isActive ? "active" : ""}`}
+                          onClick={() => runSelected(cmd)}
+                          onMouseEnter={() => setSelectedIndex(idx)}
+                        >
+                          {cmd.label}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               </li>
             ))
           )}
         </ul>
-        <p className="dim command-palette-hint">⌘K · Esc to close</p>
+        <p className="dim command-palette-hint">↑↓ navigate · Enter run · ⌘K · Esc close</p>
       </div>
     </div>
   );

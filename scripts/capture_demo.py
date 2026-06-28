@@ -7,8 +7,8 @@ Verifies generated files, runs tests with coverage, lints, builds Docker image,
 and smoke-tests the container. Writes demos/<demo_id>/RESULTS.md.
 
 Usage:
-  poetry run python scripts/capture_demo.py [--output-dir PATH] [--run-report PATH]
-  poetry run python scripts/capture_demo.py --output-dir demos/01_hello_world/output
+  uv run python scripts/capture_demo.py [--output-dir PATH] [--run-report PATH]
+  uv run python scripts/capture_demo.py --output-dir demos/01_hello_world/output
 """
 
 from __future__ import annotations

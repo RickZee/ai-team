@@ -113,7 +113,7 @@ UICallback = Callable[[str, dict[str, Any], list[str]], str]
 
 class HumanFeedbackHandler:
     """
-    Request feedback from the user via CLI (input()) or UI (Gradio callback).
+    Request feedback from the user via CLI (input()) or a registered UI callback (web/TUI).
 
     Supports configurable timeout with default action, structured options plus
     free-text, and audit logging for all human interactions.

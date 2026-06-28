@@ -365,6 +365,42 @@ class TestWebServerRunEstimate:
         assert entry["complexity"] == "complex"
 
 
+class TestWebServerDelete:
+    def test_delete_terminal_run_returns_200(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("del-1", "langgraph", "full", "Delete me")
+        web_server.state.finish_run("del-1", success=True)
+        r = web_client.delete("/api/runs/del-1")
+        assert r.status_code == 200
+        assert r.json()["deleted"] is True
+        assert "del-1" not in web_server.state.runs
+
+    def test_delete_unknown_run_returns_404(self, web_client: TestClient) -> None:
+        r = web_client.delete("/api/runs/nonexistent-delete")
+        assert r.status_code == 404
+
+    def test_delete_running_run_returns_400(self, web_client: TestClient) -> None:
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("del-2", "langgraph", "full", "Still running")
+        web_server.state.runs["del-2"]["status"] = "running"
+        r = web_client.delete("/api/runs/del-2")
+        assert r.status_code == 400
+
+
+class TestWebServerBackendsCatalog:
+    def test_backends_include_required_key_and_configured(self, web_client: TestClient) -> None:
+        r = web_client.get("/api/backends")
+        assert r.status_code == 200
+        backends = r.json()["backends"]
+        assert len(backends) == 3
+        for b in backends:
+            assert "required_key" in b
+            assert "configured" in b
+            assert isinstance(b["configured"], bool)
+
+
 class TestLanggraphHitlStatus:
     def test_langgraph_hitl_detects_awaiting_human_phase(self) -> None:
         from unittest.mock import MagicMock, patch

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertBanner } from "../components/AlertBanner";
+import { AutoGrowTextarea } from "../components/AutoGrowTextarea";
 import { EstimateTable } from "../components/EstimateTable";
 import { HumanReviewPanel } from "../components/HumanReviewPanel";
 import { RunLaunchStatus } from "../components/RunLaunchStatus";
@@ -16,10 +17,17 @@ interface RunPrefill {
   complexity?: string;
 }
 
+interface RunLocationState {
+  prefill?: RunPrefill;
+  autoStart?: boolean;
+}
+
 export function Run() {
   const navigate = useNavigate();
   const location = useLocation();
-  const prefill = (location.state as { prefill?: RunPrefill } | null)?.prefill;
+  const [searchParams] = useSearchParams();
+  const routeState = (location.state as RunLocationState | null) ?? {};
+  const prefill = routeState.prefill;
   const { backends, profileNames, loading: catalogLoading, error: catalogError } = useCatalog();
   const [backend, setBackend] = useState(prefill?.backend ?? "langgraph");
   const [profile, setProfile] = useState(prefill?.profile ?? "full");
@@ -27,6 +35,7 @@ export function Run() {
   const [complexity, setComplexity] = useState(prefill?.complexity ?? "medium");
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const autoStarted = useRef(false);
 
   const { runId, projectId, status, errorMessage, hitlPayload, startRun } = useRunWebSocket();
 
@@ -37,16 +46,44 @@ export function Run() {
     backends.length > 0
       ? backends
       : [
-          { name: "langgraph", label: "LangGraph", streaming: true },
-          { name: "crewai", label: "CrewAI", streaming: false },
-          { name: "claude-agent-sdk", label: "Claude Agent SDK", streaming: true },
+          { name: "langgraph", label: "LangGraph", streaming: true, required_key: "OPENROUTER_API_KEY" },
+          { name: "crewai", label: "CrewAI", streaming: false, required_key: "OPENROUTER_API_KEY" },
+          {
+            name: "claude-agent-sdk",
+            label: "Claude Agent SDK",
+            streaming: true,
+            required_key: "ANTHROPIC_API_KEY",
+          },
         ];
+
+  const selectedBackend = backendOptions.find((b) => b.name === backend);
 
   useEffect(() => {
     if (runId && (status === "running" || status === "connecting")) {
       navigate(`/runs/${runId}`, { replace: true });
     }
   }, [runId, status, navigate]);
+
+  useEffect(() => {
+    if (searchParams.get("estimate") === "1") {
+      void postEstimate(complexity)
+        .then(setEstimate)
+        .catch((e) => setActionError(e instanceof Error ? e.message : "Estimate failed"));
+    }
+  }, [searchParams, complexity]);
+
+  useEffect(() => {
+    if (routeState.autoStart && prefill?.description && !autoStarted.current && canRun) {
+      autoStarted.current = true;
+      startRun(
+        prefill.backend ?? backend,
+        prefill.profile ?? profile,
+        prefill.description,
+        prefill.complexity ?? complexity,
+        estimate?.total_usd ?? null,
+      );
+    }
+  }, [routeState.autoStart, prefill, canRun, startRun, backend, profile, complexity, estimate]);
 
   const handleRun = () => {
     if (!canRun) return;
@@ -96,12 +133,25 @@ export function Run() {
               disabled={catalogLoading}
             >
               {backendOptions.map((b) => (
-                <option key={b.name} value={b.name}>
+                <option
+                  key={b.name}
+                  value={b.name}
+                  disabled={b.configured === false}
+                >
                   {b.label}
                   {b.streaming ? " (streaming)" : ""}
+                  {b.configured === false ? " — key missing" : ""}
                 </option>
               ))}
             </select>
+            {selectedBackend?.required_key && (
+              <p className="dim backend-key-hint" data-testid="backend-key-hint">
+                Requires <code>{selectedBackend.required_key}</code>
+                {selectedBackend.configured === false && (
+                  <span className="yellow"> — not configured on server</span>
+                )}
+              </p>
+            )}
           </div>
           <div className="form-group">
             <label>Team Profile</label>
@@ -137,11 +187,10 @@ export function Run() {
         </div>
         <div className="form-group full-width">
           <label>Project Description</label>
-          <textarea
+          <AutoGrowTextarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             placeholder="Describe what to build..."
-            rows={3}
             data-testid="run-description"
           />
         </div>
@@ -161,6 +210,7 @@ export function Run() {
             Play sample run (free · no files)
           </button>
         </div>
+        <p className="dim demo-helper">Sample runs simulate agent activity with no files or cost.</p>
         {estimate && !estimate.within_budget && (
           <p className="estimate-budget-warn yellow">
             Estimated cost exceeds default budget — review before running.

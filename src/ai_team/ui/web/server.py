@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -185,20 +186,37 @@ async def list_profiles():
     }
 
 
+_BACKEND_CATALOG = [
+    {
+        "name": "crewai",
+        "label": "CrewAI",
+        "streaming": False,
+        "required_key": "OPENROUTER_API_KEY",
+    },
+    {
+        "name": "langgraph",
+        "label": "LangGraph",
+        "streaming": True,
+        "required_key": "OPENROUTER_API_KEY",
+    },
+    {
+        "name": "claude-agent-sdk",
+        "label": "Claude Agent SDK",
+        "streaming": True,
+        "required_key": "ANTHROPIC_API_KEY",
+    },
+]
+
+
 @app.get("/api/backends")
 async def list_backends():
-    """List available backends."""
-    return {
-        "backends": [
-            {"name": "crewai", "label": "CrewAI", "streaming": False},
-            {"name": "langgraph", "label": "LangGraph", "streaming": True},
-            {
-                "name": "claude-agent-sdk",
-                "label": "Claude Agent SDK",
-                "streaming": True,
-            },
-        ]
-    }
+    """List available backends with API key configuration hints."""
+    backends = []
+    for entry in _BACKEND_CATALOG:
+        env_key = entry["required_key"]
+        configured = bool(os.environ.get(env_key, "").strip())
+        backends.append({**entry, "configured": configured})
+    return {"backends": backends}
 
 
 @app.post("/api/estimate")
@@ -402,6 +420,31 @@ async def cancel_run(run_id: str):
     return {"run_id": run_id, "status": "cancelling"}
 
 
+@app.delete("/api/runs/{run_id}")
+async def delete_run_endpoint(run_id: str):
+    """Delete a terminal run from disk and in-memory state."""
+    from ai_team.core.results.cleanup import delete_run as delete_run_disk
+
+    run = state.runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    terminal = {"complete", "error", "cancelled"}
+    if run["status"] not in terminal:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run is not terminal ({run['status']}); cancel or wait before deleting",
+        )
+    disk_result = delete_run_disk(run_id)
+    with contextlib.suppress(KeyError):
+        state.remove_run(run_id)
+    logger.info("run_deleted", run_id=run_id, existed_on_disk=disk_result.existed)
+    return {
+        "run_id": run_id,
+        "deleted": True,
+        "disk": disk_result.model_dump(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # WebSocket — real-time streaming
 # ---------------------------------------------------------------------------
@@ -434,7 +477,22 @@ async def ws_run(websocket: WebSocket):
 
         await websocket.send_json({"type": "run_started", "run_id": run_id, "project_id": run_id})
 
-        await _execute_run(websocket, run_id, req)
+        task = asyncio.create_task(_execute_run(websocket, run_id, req))
+        state.tasks[run_id] = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            if state.is_cancel_requested(run_id):
+                monitor = state.monitors.get(run_id)
+                state.finish_cancelled(run_id)
+                await websocket.send_json(
+                    {
+                        "type": "complete",
+                        "run_status": "cancelled",
+                        "data": _serialize_monitor(monitor),
+                        "project_id": run_id,
+                    }
+                )
 
     except WebSocketDisconnect:
         logger.info("ws_client_disconnected")
@@ -495,6 +553,20 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
 # ---------------------------------------------------------------------------
 
 
+async def _send_cancelled(ws: WebSocket, run_id: str) -> None:
+    """Mark run cancelled and notify the WebSocket client."""
+    monitor = state.monitors.get(run_id)
+    state.finish_cancelled(run_id)
+    await ws.send_json(
+        {
+            "type": "complete",
+            "run_status": "cancelled",
+            "data": _serialize_monitor(monitor),
+            "project_id": run_id,
+        }
+    )
+
+
 async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
     """Execute a backend run, streaming events over WebSocket."""
     from ai_team.backends.registry import get_backend
@@ -507,6 +579,10 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
         monitor.metrics.start_time = datetime.now()
         state.monitors[run_id] = monitor
         state.runs[run_id]["status"] = "running"
+
+        if state.is_cancel_requested(run_id):
+            await _send_cancelled(ws, run_id)
+            return
 
         backend = get_backend(req.backend)
 
@@ -530,6 +606,9 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
 
                 events = await loop.run_in_executor(None, _stream)
                 for ev in events:
+                    if state.is_cancel_requested(run_id):
+                        await _send_cancelled(ws, run_id)
+                        return
                     await ws.send_json(
                         {
                             "type": "event",
@@ -538,6 +617,10 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     )
                     monitor_snap = _serialize_monitor(monitor)
                     await ws.send_json({"type": "monitor_update", "data": monitor_snap})
+
+                if state.is_cancel_requested(run_id):
+                    await _send_cancelled(ws, run_id)
+                    return
 
                 awaiting, hitl_payload = _langgraph_hitl_status(backend, thread_id)
                 if awaiting:
@@ -560,6 +643,9 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     monitor=monitor,
                     thread_id=run_id,
                 ):
+                    if state.is_cancel_requested(run_id):
+                        await _send_cancelled(ws, run_id)
+                        return
                     await ws.send_json(
                         {
                             "type": "event",
@@ -569,6 +655,9 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     monitor_snap = _serialize_monitor(monitor)
                     await ws.send_json({"type": "monitor_update", "data": monitor_snap})
         else:
+            if state.is_cancel_requested(run_id):
+                await _send_cancelled(ws, run_id)
+                return
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
                 None,
@@ -580,12 +669,19 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     thread_id=run_id,
                 ),
             )
+            if state.is_cancel_requested(run_id):
+                await _send_cancelled(ws, run_id)
+                return
             await ws.send_json(
                 {
                     "type": "result",
                     "data": json.loads(json.dumps(result.model_dump(), default=str)),
                 }
             )
+
+        if state.is_cancel_requested(run_id):
+            await _send_cancelled(ws, run_id)
+            return
 
         state.finish_run(run_id, success=True)
         await ws.send_json(
@@ -596,6 +692,10 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             }
         )
 
+    except asyncio.CancelledError:
+        if state.is_cancel_requested(run_id):
+            await _send_cancelled(ws, run_id)
+        raise
     except Exception as e:
         state.finish_run(run_id, success=False, error=str(e))
         await ws.send_json({"type": "error", "message": str(e)})

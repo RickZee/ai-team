@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -16,22 +17,56 @@ logger = structlog.get_logger(__name__)
 
 
 def _disable_crewai_console() -> None:
-    # crewai's EventListener singleton hardwires ConsoleFormatter(verbose=True).
-    # update_method_status() has no verbose gate and recurses into print() which
-    # calls rich.Live.update() — infinite mutual recursion in non-TTY subprocesses.
-    # Setting _is_streaming=True makes print() early-return on Tree args, breaking
-    # the cycle. verbose=False suppresses all other crew/task/agent rendering.
+    """Neutralize CrewAI Rich live console (required for eval subprocesses / non-TTY).
+
+    crewai's EventListener singleton hardwires ConsoleFormatter(verbose=True).
+    update_method_status() has no verbose gate and recurses into print() which
+    calls rich.Live.update() — infinite mutual recursion in non-TTY subprocesses.
+    Setting _is_streaming=True makes print() early-return on Tree args, breaking
+    the cycle. verbose=False suppresses all other crew/task/agent rendering.
+    """
     try:
         from crewai.events.event_listener import EventListener
+        from rich.console import Console
 
         el = EventListener()
         el.formatter.verbose = False
         el.formatter._is_streaming = True
+        el.formatter.console = Console(file=open(os.devnull, "w"), quiet=True)  # noqa: SIM115
     except Exception:
         pass  # crewai not installed or API changed — non-fatal
 
 
 _disable_crewai_console()
+
+
+def _flatten_crewai_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a JSON-safe subset of ``run_ai_team`` output for eval/transport."""
+    state_raw = payload.get("state")
+    if isinstance(state_raw, dict):
+        state_dict = state_raw
+    elif hasattr(state_raw, "model_dump"):
+        state_dict = state_raw.model_dump(mode="json")
+    else:
+        state_dict = {}
+
+    safe_state = {
+        "project_id": state_dict.get("project_id"),
+        "current_phase": state_dict.get("current_phase"),
+        "generated_files": state_dict.get("generated_files") or [],
+        "test_results": state_dict.get("test_results"),
+        "phase_history": state_dict.get("phase_history") or [],
+        "retry_counts": state_dict.get("retry_counts") or {},
+        "metadata": state_dict.get("metadata") or {},
+        "errors": state_dict.get("errors") or [],
+    }
+    project_id = safe_state.get("project_id")
+    current_phase = safe_state.get("current_phase", "unknown")
+    return {
+        "state": safe_state,
+        "project_id": project_id,
+        "success": current_phase == "complete",
+    }
 
 
 def _maybe_augment_with_rag(description: str) -> str:
@@ -81,13 +116,12 @@ class CrewAIBackend:
 
         register_crewai_spend_guard()
         reset_spend_guard(kwargs.get("run_budget_usd"))
+        _disable_crewai_console()
 
         try:
             ws_override = kwargs.get("workspace_dir")
             if ws_override:
-                import os as _os
-
-                _os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_override)
+                os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_override)
             payload = run_ai_team(
                 _maybe_augment_with_rag(description),
                 monitor=monitor,
@@ -97,39 +131,17 @@ class CrewAIBackend:
                 team_profile=profile.name,
                 verbose=kwargs.get("verbose", False),
             )
-            project_id = (payload.get("state") or {}).get("project_id")
-            # Drop "result" key (crewai FlowOutput) — contains circular refs.
-            enriched = {k: v for k, v in payload.items() if k != "result"}
+            enriched = _flatten_crewai_payload(payload)
             enriched.update(
                 {
                     "team_profile": profile.name,
                     "agents": profile.agents,
                     "phases": profile.phases,
-                    "project_id": project_id,
                 }
             )
-            # Sanitize to plain JSON-safe dict in-process before returning.
-            # flow.state.model_dump() may embed LangChain message objects with
-            # circular __dict__ refs that cause RecursionError in multiprocessing queue.
-            import json as _json
-            import sys as _sys
-
-            old_limit = _sys.getrecursionlimit()
-            _sys.setrecursionlimit(500)
-            try:
-                enriched = _json.loads(_json.dumps(enriched, default=str))
-            except Exception:
-                enriched = {
-                    "project_id": str(project_id),
-                    "team_profile": profile.name,
-                    "agents": profile.agents,
-                    "phases": profile.phases,
-                }
-            finally:
-                _sys.setrecursionlimit(old_limit)
             return ProjectResult(
                 backend_name=self.name,
-                success=True,
+                success=bool(enriched.get("success")),
                 raw=enriched,
                 team_profile=profile.name,
             )

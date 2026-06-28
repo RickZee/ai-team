@@ -1557,3 +1557,155 @@ a.btn-warning {
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
+
+/* UX task additions */
+.how-it-works {
+  margin: 1rem 0;
+  max-width: 36rem;
+}
+
+.how-it-works-steps {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+}
+
+.how-it-works-steps li {
+  margin-bottom: 0.5rem;
+}
+
+.demo-helper {
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.backend-key-hint {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.auto-grow-textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  overflow-y: auto;
+}
+
+.run-list-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.run-list-day-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0.75rem 0 0.35rem;
+}
+
+.run-list-item-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.run-list-item-wrap.active .run-list-item {
+  background: var(--bg-input);
+}
+
+.run-list-delete {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.agent-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.agent-timeline-phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.agent-timeline-phase {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.agent-timeline-phase.active {
+  background: var(--cyan);
+  color: var(--bg);
+}
+
+.agent-timeline-phase.done {
+  color: var(--green);
+}
+
+.agent-timeline-rows {
+  list-style: none;
+}
+
+.agent-timeline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-timeline-owner {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.self-correct-badge,
+.self-correct-text {
+  color: var(--green);
+  font-size: 0.85rem;
+}
+
+.log-level-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.log-level-toggle.active {
+  border-color: var(--cyan);
+}
+
+.command-palette-item.active {
+  background: var(--bg-input);
+  outline: 2px solid var(--cyan);
+}
+
+.command-group-header {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+
+.command-palette-group ul {
+  list-style: none;
+}
+
+.compare-verdict {
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.summary-direction {
+  font-size: 0.75rem;
+}

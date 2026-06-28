@@ -727,7 +727,7 @@ The `canUseTool` callback handles `AskUserQuestion`:
 ```python
 if tool_name == "AskUserQuestion":
     questions = input_data.get("questions", [])
-    answers = await show_ui_questions(questions)  # Gradio or TUI
+    answers = await show_ui_questions(questions)  # web dashboard or TUI
     return PermissionResultAllow(updated_input={**input_data, "answers": answers})
 ```
 
@@ -1488,12 +1488,10 @@ ai-team/
   - Display session ID after run for resume capability
   - *Note:* Budget flags: `--claude-budget` and alias `--budget`. `FEEDBACK_DEFAULT_RESPONSE` / human feedback default is passed as `hitl_default_answer` for `AskUserQuestion` auto-answer when set. Reuses `--resume` for Claude session id when using this backend.
 
-- [x] **T6.2** Update Gradio UI (`src/ai_team/ui/app.py`):
-  - Wire to `ClaudeAgentBackend.stream()` for real-time progress
-  - Show `AskUserQuestion` prompts in UI for HITL
-  - Display per-phase cost breakdown
-  - Show session ID for resume
-  - *Gap:* Streaming JSON log; HITL questions not surfaced as dedicated UI widgets. Run end shows a short **Claude summary** (session_id, cost_usd, stop_reason) after the event log.
+- [x] **T6.2** Web dashboard (`src/ai_team/ui/web/`):
+  - Wire to backends via WebSocket `/ws/run` and monitor `/ws/monitor/{id}`
+  - HITL via LangGraph resume endpoint; Claude streaming in activity log
+  - Run summary shows cost and session metadata when reported by backend
 
 - [x] **T6.3** Update Rich TUI (`monitor.py`):
   - Consume `StreamEvent` messages from Claude Agent SDK

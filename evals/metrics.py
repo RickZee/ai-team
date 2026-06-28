@@ -6,6 +6,7 @@ in both pytest tests and the comparison report.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from evals.fixtures import (
@@ -87,7 +88,7 @@ def compute_metrics(
     m["tokens_per_file"] = total_tokens / file_count if total_tokens else None
 
     # --- LLM judge scores ---
-    if run_judge and result.success and ws and ws.exists():
+    if run_judge and not os.environ.get("EVAL_NO_JUDGE") and result.success and ws and ws.exists():
         _judge = judge or LLMJudge()
         evidence = summarize_workspace(ws)
         # Append backend-reported test results so judge knows pytest exit status

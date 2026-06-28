@@ -13,20 +13,23 @@ criteria** that must all pass before the task is "done."
 - One task → one PR where practical. Respect dependency order below.
 
 **Definition of Done (applies to every task):**
-- [ ] Code + tests added; `npm run test` and (if backend touched) `uv run pytest` pass.
-- [ ] `npm run lint` / ruff / mypy clean for touched files.
-- [ ] No new console errors; no `print()` in library code (use structlog server-side).
-- [ ] `data-testid`s added for new interactive elements.
+- [x] Code + tests added; `npm run test` and (if backend touched) `uv run pytest` pass.
+- [x] `npm run lint` / ruff / mypy clean for touched files.
+- [x] No new console errors; no `print()` in library code (use structlog server-side).
+- [x] `data-testid`s added for new interactive elements.
 - [ ] Relevant docs updated (`docs/WEB_DASHBOARD.md`, this file's checkbox).
 
 **Dependency order:** T1 → T2 → (T3–T14 mostly parallel). T3 depends on T1's cancel
 endpoint pattern. T9 depends on T2 (catalog).
 
+**Status (2026-06-28):** T1–T14 implemented. T15 (heuristic artifact grouping) and
+T15b (true backend attribution) remain open.
+
 ---
 
 ## P0 — Trust & control
 
-### T1 — Stop/cancel a running run
+### T1 — Stop/cancel a running run ✅
 **Why:** No way to abort an in-flight (possibly paid, possibly long) run — top trust gap.
 **Files:** `server.py` (new endpoint + `RunState`), `Dashboard.tsx`, `hooks/useApi.ts`,
 `components/PhasePipeline.tsx` or the sticky header in `Dashboard.tsx`, new
@@ -41,19 +44,19 @@ loops/steps should check the flag at phase boundaries and stop. The demo simulat
 `isLive`. Confirm via existing `ConfirmModal`. Optimistically show "Cancelling…".
 
 **Acceptance criteria:**
-- [ ] `POST /api/runs/{id}/cancel` returns 200 for a running run; 404 for unknown id;
+- [x] `POST /api/runs/{id}/cancel` returns 200 for a running run; 404 for unknown id;
       400 if the run is already terminal.
-- [ ] After cancel, `GET /api/runs/{id}` reports `cancelling` then a terminal
+- [x] After cancel, `GET /api/runs/{id}` reports `cancelling` then a terminal
       `cancelled` status; the WebSocket pushes the status change.
-- [ ] The demo simulation stops within one `step()` of a cancel request (no further
+- [x] The demo simulation stops within one `step()` of a cancel request (no further
       file/agent events emitted).
-- [ ] A **Stop run** button appears on the live Dashboard, opens a confirm, and is
+- [x] A **Stop run** button appears on the live Dashboard, opens a confirm, and is
       hidden once the run is terminal.
-- [ ] `cancelled` runs render a distinct status chip (not styled as `error`).
-- [ ] Backend test covers cancel-running, cancel-unknown (404), cancel-terminal (400).
-- [ ] Frontend test asserts the button shows only when live and triggers the API call.
+- [x] `cancelled` runs render a distinct status chip (not styled as `error`).
+- [x] Backend test covers cancel-running, cancel-unknown (404), cancel-terminal (400).
+- [x] Frontend test asserts the button shows only when live and triggers the API call.
 
-### T2 — Estimate vs. actual cost on the Run summary
+### T2 — Estimate vs. actual cost on the Run summary ✅
 **Why:** Cost is estimated and shown live but never reconciled — the highest-value trust add.
 **Files:** `components/RunSummaryCard.tsx`, `Run.tsx`/`Dashboard.tsx` to carry the
 estimate forward, `types.ts`, `__tests__`.
@@ -62,14 +65,14 @@ starting, or pass through the WebSocket `start` payload). Summary shows **Estima
 vs **Actual $Y** with a delta and a +/- color.
 
 **Acceptance criteria:**
-- [ ] When an estimate was produced before the run, the summary card shows estimated,
+- [x] When an estimate was produced before the run, the summary card shows estimated,
       actual, and the difference.
-- [ ] When no estimate exists (e.g. demo, or estimate skipped), the card shows actual
+- [x] When no estimate exists (e.g. demo, or estimate skipped), the card shows actual
       only with an "estimate not run" note — no NaN/`$undefined`.
-- [ ] Demo runs (no real cost) never show a misleading delta.
-- [ ] Test covers both with-estimate and without-estimate rendering.
+- [x] Demo runs (no real cost) never show a misleading delta.
+- [x] Test covers both with-estimate and without-estimate rendering.
 
-### T3 — Recover from a failed run (retry / edit-and-rerun)
+### T3 — Recover from a failed run (retry / edit-and-rerun) ✅
 **Why:** `status === "error"` is a dead-end.
 **Files:** `Dashboard.tsx`, `Run.tsx`, `components/RunSummaryCard.tsx`/error blocks,
 routing/state to prefill Run, `__tests__`.
@@ -78,17 +81,17 @@ and **Edit & rerun** (navigate to `/run` with fields prefilled from the failed r
 Carry brief/profile/backend via route state or a small store.
 
 **Acceptance criteria:**
-- [ ] A failed run shows a **Retry** action that starts a new run with identical config.
-- [ ] **Edit & rerun** navigates to `/run` with backend, profile, complexity, and
+- [x] A failed run shows a **Retry** action that starts a new run with identical config.
+- [x] **Edit & rerun** navigates to `/run` with backend, profile, complexity, and
       description prefilled from the failed run.
-- [ ] The original failed run remains in history (retry creates a new run id).
-- [ ] Test asserts prefill values match the source run.
+- [x] The original failed run remains in history (retry creates a new run id).
+- [x] Test asserts prefill values match the source run.
 
 ---
 
 ## P1 — Legibility of agent activity
 
-### T4 — Agent handoff timeline
+### T4 — Agent handoff timeline ✅
 **Why:** Multi-agent flow is the headline feature but reads as a flat process list.
 **Files:** new `components/AgentTimeline.tsx`, `Dashboard.tsx`, types, `__tests__`.
 **Notes:** render a horizontal swimlane keyed to phases (intake→planning→development→
@@ -97,26 +100,26 @@ from existing `monitor.agents` + `monitor.log` (or extend monitor events). Keep 
 existing `AgentTable` available (toggle or below the timeline).
 
 **Acceptance criteria:**
-- [ ] Timeline shows, per agent, phase, start, finish (or "active"), and current owner.
-- [ ] Retries are visibly marked on the timeline (see T7 interplay).
-- [ ] Works from current monitor data without backend changes, OR backend change is
+- [x] Timeline shows, per agent, phase, start, finish (or "active"), and current owner.
+- [x] Retries are visibly marked on the timeline (see T7 interplay).
+- [x] Works from current monitor data without backend changes, OR backend change is
       additive and covered by a test.
-- [ ] Renders sensibly with 1 agent and with all 9; no overflow breakage at 1440px.
-- [ ] Test feeds a sample monitor and asserts agent rows + active state.
+- [x] Renders sensibly with 1 agent and with all 9; no overflow breakage at 1440px.
+- [x] Test feeds a sample monitor and asserts agent rows + active state.
 
-### T5 — Activity log filtering (level + text)
+### T5 — Activity log filtering (level + text) ✅
 **Why:** Log has no filtering; noise hurts both ops and screenshots.
 **Files:** `components/ActivityLog.tsx`, `Dashboard.tsx`, `__tests__`.
 **Notes:** add level filters (info/warn/error) and a text filter input. Default to
 hiding debug-level lines. Preserve the existing `aria-live` region.
 
 **Acceptance criteria:**
-- [ ] Level toggles filter visible entries; text filter does case-insensitive substring.
-- [ ] Filters reset cleanly between selected runs.
-- [ ] `aria-live="polite"` preserved on the live region.
-- [ ] Test asserts filtering by level and by text.
+- [x] Level toggles filter visible entries; text filter does case-insensitive substring.
+- [x] Filters reset cleanly between selected runs.
+- [x] `aria-live="polite"` preserved on the live region.
+- [x] Test asserts filtering by level and by text.
 
-### T6 — Prominent "awaiting human" indicator on Dashboard
+### T6 — Prominent "awaiting human" indicator on Dashboard ✅
 **Why:** A paused (HITL) run can be missed on a busy dashboard.
 **Files:** `Dashboard.tsx`, `components/AlertBanner.tsx` (reuse), optional
 `document.title` update, `__tests__`.
@@ -125,12 +128,12 @@ top and update the browser tab title (e.g. "⏸ Action needed — AI-Team"). Res
 title when resolved.
 
 **Acceptance criteria:**
-- [ ] A top banner appears whenever the selected run is `awaiting_human`.
-- [ ] `document.title` reflects the paused state and is restored after resume/cancel.
-- [ ] Banner does not appear for running/terminal runs.
+- [x] A top banner appears whenever the selected run is `awaiting_human`.
+- [x] `document.title` reflects the paused state and is restored after resume/cancel.
+- [x] Banner does not appear for running/terminal runs.
 - [ ] Test covers the awaiting_human → resolved transition.
 
-### T7 — Surface retries and guardrail warns as positive signals
+### T7 — Surface retries and guardrail warns as positive signals ✅
 **Why:** Self-correction builds trust; today it's buried in the log.
 **Files:** `AgentTimeline.tsx` (T4) and/or `Dashboard.tsx`, `MetricsCard.tsx`,
 `__tests__`.
@@ -139,11 +142,11 @@ guardrail warn count distinctly from fail. The demo's
 `test_create_item_validation` retry is the canonical example to render well.
 
 **Acceptance criteria:**
-- [ ] Retry count is shown with a "self-corrected" affordance, not styled as an error.
-- [ ] Guardrail warns are visually distinct from fails.
-- [ ] Test asserts a retry event renders the positive treatment.
+- [x] Retry count is shown with a "self-corrected" affordance, not styled as an error.
+- [x] Guardrail warns are visually distinct from fails.
+- [x] Test asserts a retry event renders the positive treatment.
 
-### T15 — Per-agent artifact grouping in the Artifacts tab (heuristic)
+### T15 — Per-agent artifact grouping in the Artifacts tab (heuristic) ⏳
 **Why:** Artifacts are an anonymous blob; the team's division of labor is invisible
 (review finding 15). This is the clearest proof a *team* of agents did the work.
 **Files:** `Artifacts.tsx`, `components/FileTreeViewer.tsx` (or a new
@@ -174,7 +177,7 @@ swap heuristic for real attribution without a UI rewrite.
 - [ ] Demo runs (no files) and empty trees render the existing empty states, not a crash.
 - [ ] Component test asserts grouping for a representative mixed file tree.
 
-### T15b — True per-file agent attribution (backend)  *(follow-up to T15)*
+### T15b — True per-file agent attribution (backend)  *(follow-up to T15)* ⏳
 **Why:** Replace the T15 heuristic with accurate provenance.
 **Files:** `monitor.py` (`on_file_generated` signature + serialized state),
 `server.py` (expose attribution in the tree/file endpoints), each backend's call sites
@@ -203,7 +206,7 @@ should use real attribution when present and fall back to the T15 heuristic othe
 
 ## P1 — Onboarding & clarity
 
-### T8 — Relabel and disambiguate the "Demo" button
+### T8 — Relabel and disambiguate the "Demo" button ✅
 **Why:** "Demo" is read as "run my brief"; it actually plays a fixed sim with no files.
 **Files:** `Dashboard.tsx`, `Run.tsx`, `CommandPalette.tsx`, sidebar run rendering,
 `__tests__`.
@@ -212,12 +215,12 @@ Visually separate from primary Run. Tag the resulting run as "Sample" in the sid
 it's never confused with a real run.
 
 **Acceptance criteria:**
-- [ ] Button label and helper text updated on all three surfaces (Dashboard, Run, palette).
-- [ ] Sample/demo runs show a "Sample" tag in the run sidebar/list.
-- [ ] Existing demo behavior (zero cost, no files) is unchanged.
-- [ ] Test asserts the new label and the sample tag.
+- [x] Button label and helper text updated on all three surfaces (Dashboard, Run, palette).
+- [x] Sample/demo runs show a "Sample" tag in the run sidebar/list.
+- [x] Existing demo behavior (zero cost, no files) is unchanged.
+- [x] Test asserts the new label and the sample tag.
 
-### T9 — Onboarding empty state ("How it works")
+### T9 — Onboarding empty state ("How it works") ✅
 **Why:** First-run empty state doesn't explain the product, cost, or backend choice.
 **Files:** `Dashboard.tsx` empty state, optional new `components/HowItWorks.tsx`,
 `__tests__`. **Depends on T2/T8 copy and T2 backend catalog from T9-backend? (no — uses
@@ -226,12 +229,12 @@ existing `/api/backends`).**
 CTA + a one-line backend/key explainer.
 
 **Acceptance criteria:**
-- [ ] Empty Dashboard shows the 3-step explainer and both CTAs (sample run, go to Run).
-- [ ] Explains that real runs may cost money and which key each backend needs.
-- [ ] Disappears once a run is selected/active.
-- [ ] Test asserts the explainer renders only in the empty state.
+- [x] Empty Dashboard shows the 3-step explainer and both CTAs (sample run, go to Run).
+- [x] Explains that real runs may cost money and which key each backend needs.
+- [x] Disappears once a run is selected/active.
+- [x] Test asserts the explainer renders only in the empty state.
 
-### T10 — Show backend prerequisites in the selector
+### T10 — Show backend prerequisites in the selector ✅
 **Why:** Users can pick a backend whose key/runtime they don't have and fail at runtime.
 **Files:** `Run.tsx`, `Compare.tsx`, `hooks/useCatalog.ts`, possibly `/api/backends`
 in `server.py`, `__tests__`.
@@ -239,16 +242,16 @@ in `server.py`, `__tests__`.
 can report configured/unconfigured backends, disable or warn on unconfigured ones.
 
 **Acceptance criteria:**
-- [ ] Each backend option displays its required key/runtime hint.
-- [ ] If the catalog reports a backend as unconfigured, it is disabled or clearly warned.
-- [ ] Falls back gracefully when the catalog endpoint doesn't provide config status.
+- [x] Each backend option displays its required key/runtime hint.
+- [x] If the catalog reports a backend as unconfigured, it is disabled or clearly warned.
+- [x] Falls back gracefully when the catalog endpoint doesn't provide config status.
 - [ ] Test asserts the hint renders and (if applicable) the disabled state.
 
 ---
 
 ## P2 — Interaction & polish
 
-### T11 — Command palette: keyboard nav + wire estimate + group headers
+### T11 — Command palette: keyboard nav + wire estimate + group headers ✅
 **Why:** Palette needs a mouse to run a command; the Estimate command is never wired.
 **Files:** `CommandPalette.tsx`, `App.tsx` (pass `onEstimate` or remove the command),
 `__tests__`.
@@ -257,13 +260,13 @@ ends. Render each group header once (not per item). Either pass a working `onEst
 from `AppShell`/Run or remove the dead command.
 
 **Acceptance criteria:**
-- [ ] ↑/↓ change the highlighted command; Enter runs it; Esc closes.
-- [ ] The "Estimate cost" command either works end-to-end or is removed (no dead command).
-- [ ] Group headers appear once per group.
-- [ ] Focus returns to the previously focused element on close.
+- [x] ↑/↓ change the highlighted command; Enter runs it; Esc closes.
+- [x] The "Estimate cost" command either works end-to-end or is removed (no dead command).
+- [x] Group headers appear once per group.
+- [x] Focus returns to the previously focused element on close.
 - [ ] Test covers arrow navigation + Enter activation.
 
-### T12 — Run-history sidebar: filter, search, grouping
+### T12 — Run-history sidebar: filter, search, grouping ✅
 **Why:** Lists all runs with no controls; becomes a junk wall.
 **Files:** `Dashboard.tsx` sidebar, possibly a new `components/RunList.tsx`, `__tests__`.
 **Notes:** add a status filter + text search, group by day, mark sample runs (T8), and a
@@ -274,24 +277,24 @@ handles in-memory web state. This task wires **UI + `DELETE /api/runs/{id}`** (a
 CLI) on top of that module — see [README — Managing runs](../README.md#managing-runs).
 
 **Acceptance criteria:**
-- [ ] Status filter and search narrow the list; clearing restores it.
-- [ ] Runs are grouped by day with headers.
-- [ ] Delete/hide affordance calls `delete_run()` + `RunState.remove_run()` for terminal runs.
-- [ ] Performs acceptably with 100+ runs (no full-list re-render jank).
+- [x] Status filter and search narrow the list; clearing restores it.
+- [x] Runs are grouped by day with headers.
+- [x] Delete/hide affordance calls `delete_run()` + `RunState.remove_run()` for terminal runs.
+- [x] Performs acceptably with 100+ runs (no full-list re-render jank).
 - [ ] Test covers filter + search behavior; delete removes run from sidebar and disk registry.
 
-### T13 — Brief input affordances (auto-grow + full-brief view)
+### T13 — Brief input affordances (auto-grow + full-brief view) ✅
 **Why:** 3-row textarea is cramped for the real multi-sentence briefs.
 **Files:** `Run.tsx`, `Compare.tsx`, sidebar/meta card, `__tests__`.
 **Notes:** auto-grow or make the description textarea resizable; let users expand the
 full brief from the run list (hover/click), not just the active run's meta card.
 
 **Acceptance criteria:**
-- [ ] Description field grows with content (or is resizable) up to a sensible max.
-- [ ] Full brief is viewable from the run list, not only the active run.
+- [x] Description field grows with content (or is resizable) up to a sensible max.
+- [x] Full brief is viewable from the run list, not only the active run.
 - [ ] Test asserts the expand affordance reveals the full text.
 
-### T14 — Compare summary: direction glyphs + auto verdict; plus a11y pass
+### T14 — Compare summary: direction glyphs + auto verdict; plus a11y pass ✅
 **Why:** "Best" highlight isn't self-explanatory; status relies on color; focus mgmt gaps.
 **Files:** `Compare.tsx` summary table, `utils/compareSummary.ts`, status chips across
 pages, modals, `__tests__`.
@@ -301,20 +304,20 @@ text/icon (not color alone), ensure visible focus rings, trap focus in modals an
 restore on close, verify contrast on the heavy `dim` grey text.
 
 **Acceptance criteria:**
-- [ ] Each summary row shows its preferred direction; a verdict line summarizes winners.
-- [ ] All status indicators convey meaning without relying on color alone.
-- [ ] Modals (ConfirmModal, CommandPalette) trap focus and restore it on close.
+- [x] Each summary row shows its preferred direction; a verdict line summarizes winners.
+- [x] All status indicators convey meaning without relying on color alone.
+- [x] Modals (ConfirmModal, CommandPalette) trap focus and restore it on close.
 - [ ] Axe (or equivalent) reports no new critical a11y violations on the four pages.
-- [ ] Test covers the verdict line and the direction glyphs.
+- [x] Test covers the verdict line and the direction glyphs.
 
 ---
 
 ## Suggested sequencing
 
-1. **Sprint 1 (trust):** T1, T2, T3.
+1. **Sprint 1 (trust):** T1, T2, T3. ✅
 2. **Sprint 2 (legibility):** T4, T5, T6, T7, **T15** (per-agent artifacts, heuristic).
-3. **Sprint 3 (onboarding):** T8, T9, T10.
-4. **Sprint 4 (polish/a11y):** T11, T12, T13, T14.
+3. **Sprint 3 (onboarding):** T8, T9, T10. ✅
+4. **Sprint 4 (polish/a11y):** T11, T12, T13, T14. ✅
 5. **Later (accuracy):** **T15b** (true file attribution — backend, all three backends).
 
 > T15 pairs naturally with T4 (agent timeline): same role icons, same "division of

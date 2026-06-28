@@ -248,7 +248,7 @@ The failure journal uses `category: "environment_error"` for these. The extracti
 These are surfaced in:
 - The run summary (`RESULTS.md` or `output/<project_id>/reports/summary.md`)
 - The CLI (`scripts/extract_lessons.py --show-infra`)
-- The Streamlit/Gradio UI (future)
+- Additional web dashboard polish (see `docs/UX_IMPLEMENTATION_TASKS.md`)
 
 They require human (or Cursor-assisted) code changes and cannot be auto-fixed by the agents.
 
