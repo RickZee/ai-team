@@ -6,7 +6,10 @@ const LEVEL_CLASS: Record<string, string> = {
   warn: "log-warn",
   success: "log-success",
   info: "log-info",
+  debug: "log-debug",
 };
+
+const LEVELS = ["info", "success", "warn", "error"] as const;
 
 export function ActivityLog({
   entries,
@@ -19,7 +22,9 @@ export function ActivityLog({
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [agentFilter, setAgentFilter] = useState("");
-  const [levelFilter, setLevelFilter] = useState("");
+  const [enabledLevels, setEnabledLevels] = useState<Set<string>>(
+    () => new Set(LEVELS),
+  );
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
 
@@ -28,10 +33,20 @@ export function ActivityLog({
     [entries],
   );
 
+  const toggleLevel = (level: string) => {
+    setEnabledLevels((prev) => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  };
+
   const filtered = useMemo(() => {
     return entries.filter((e) => {
+      if (e.level === "debug") return false;
       if (agentFilter && e.agent !== agentFilter) return false;
-      if (levelFilter && e.level !== levelFilter) return false;
+      if (!enabledLevels.has(e.level)) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
         if (
@@ -43,10 +58,10 @@ export function ActivityLog({
       }
       return true;
     });
-  }, [entries, agentFilter, levelFilter, search]);
+  }, [entries, agentFilter, enabledLevels, search]);
 
   useEffect(() => {
-    if (autoScroll) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (autoScroll) bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [filtered.length, autoScroll]);
 
   const jumpToGuardrail = () => {
@@ -76,23 +91,26 @@ export function ActivityLog({
               </option>
             ))}
           </select>
-          <select
-            value={levelFilter}
-            onChange={(e) => setLevelFilter(e.target.value)}
-            aria-label="Filter by level"
-          >
-            <option value="">All levels</option>
-            <option value="info">Info</option>
-            <option value="success">Success</option>
-            <option value="warn">Warn</option>
-            <option value="error">Error</option>
-          </select>
+          <div className="log-level-toggles" role="group" aria-label="Filter by level">
+            {LEVELS.map((level) => (
+              <button
+                key={level}
+                type="button"
+                className={`btn-secondary btn-sm log-level-toggle ${enabledLevels.has(level) ? "active" : ""}`}
+                onClick={() => toggleLevel(level)}
+                data-testid={`log-level-${level}`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
           <input
             type="search"
             placeholder="Search log…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search activity log"
+            data-testid="log-search"
           />
           <label className="log-autoscroll">
             <input

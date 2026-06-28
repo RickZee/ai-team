@@ -220,7 +220,10 @@ class MetricsPanel(Static):
         row("Elapsed", m.elapsed_str, "cyan")
         row("Tasks completed", str(m.tasks_completed), "green")
         row("Tasks failed", str(m.tasks_failed), "red" if m.tasks_failed else "dim")
-        row("Retries", str(m.retries), "yellow" if m.retries else "dim")
+        if m.retries:
+            row("Retries", f"✓ Self-corrected ×{m.retries}", "green")
+        else:
+            row("Retries", str(m.retries), "dim")
         row("Files generated", str(m.files_generated), "blue")
         lines.append(Text("  " + "\u2500" * 28, style="dim"))
         row("Guardrails total", str(gr_total))
@@ -286,14 +289,16 @@ class GuardrailsLog(Static):
 
 
 class BackendComparisonTable(Static):
-    """Side-by-side backend comparison."""
+    """Side-by-side backend comparison with direction hints."""
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._data: dict[str, dict] = {}
+        self._verdict: str = ""
 
-    def update_comparison(self, data: dict[str, dict]) -> None:
+    def update_comparison(self, data: dict[str, dict], verdict: str = "") -> None:
         self._data = data
+        self._verdict = verdict
         self.refresh()
 
     def render(self) -> Text:
@@ -301,6 +306,10 @@ class BackendComparisonTable(Static):
             return Text("  Run backends to see comparison...", style="dim italic")
 
         lines: list[Text] = []
+        if self._verdict:
+            lines.append(Text(f"  {self._verdict}", style="bold cyan"))
+            lines.append(Text(""))
+
         backends = list(self._data.keys())
 
         # Header
@@ -324,4 +333,105 @@ class BackendComparisonTable(Static):
                 row.append(f"{str(val):>16}", style="white")
             lines.append(row)
 
+        return Text("\n").join(lines)
+
+
+class AgentTimeline(Static):
+    """Agent handoff timeline derived from monitor agents."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._agents: dict[str, AgentStatus] = {}
+        self._phase: str = "intake"
+        self._retries: int = 0
+
+    def update_timeline(
+        self,
+        agents: dict[str, AgentStatus],
+        phase: str,
+        retries: int = 0,
+    ) -> None:
+        self._agents = agents
+        self._phase = phase
+        self._retries = retries
+        self.refresh()
+
+    def render(self) -> Text:
+        if not self._agents:
+            return Text("  Waiting for agents...", style="dim italic")
+
+        lines: list[Text] = []
+        phases = ["intake", "planning", "development", "testing", "deployment"]
+        phase_line = Text("  Phases: ", style="bold")
+        for i, p in enumerate(phases):
+            style = "bold yellow" if p == self._phase else "dim"
+            if self._phase in phases and phases.index(self._phase) > i:
+                style = "green"
+            phase_line.append(f"{p} ", style)
+        lines.append(phase_line)
+
+        if self._retries:
+            lines.append(Text(f"  ✓ Self-corrected ×{self._retries}", style="green"))
+
+        active = next((a for a in self._agents.values() if a.status == "working"), None)
+        if active:
+            lines.append(
+                Text(f"  Current owner: {active.role.replace('_', ' ')}", style="bold cyan")
+            )
+
+        for role, agent in self._agents.items():
+            icon = AGENT_ICONS.get(role, "\U0001f916")
+            style, status_text = STATUS_STYLES.get(agent.status, ("dim", "\u25cb IDLE"))
+            task = (agent.current_task or "")[:40]
+            line = Text.assemble(
+                (f"  {icon} {role.replace('_', ' '):<20} ", "bold"),
+                (status_text, style),
+                (f"  {task}", "dim" if not task else "white"),
+            )
+            lines.append(line)
+
+        return Text("\n").join(lines)
+
+
+class RunSummaryPanel(Static):
+    """Terminal run summary (estimate vs actual when available)."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._run: dict | None = None
+        self._monitor: dict | None = None
+
+    def update_summary(self, run: dict | None, monitor: dict | None) -> None:
+        self._run = run
+        self._monitor = monitor
+        self.refresh()
+
+    def render(self) -> Text:
+        if not self._run or not self._monitor:
+            return Text("")
+
+        run = self._run
+        monitor = self._monitor
+        lines: list[Text] = []
+        lines.append(Text("  Run summary", style="bold underline"))
+        lines.append(Text(f"  Outcome: {run.get('status', '—')}", style="bold"))
+        lines.append(Text(f"  Backend: {run.get('backend')} · Profile: {run.get('profile')}"))
+        lines.append(Text(f"  Elapsed: {monitor.get('elapsed', '—')}", style="cyan"))
+
+        estimate = run.get("estimate_usd")
+        actual = monitor.get("cost_usd")
+        if run.get("backend") != "demo":
+            if actual is not None:
+                cost = f"  Actual ${float(actual):.4f}"
+                if estimate is not None:
+                    delta = float(actual) - float(estimate)
+                    cost += f" · Est ${float(estimate):.4f} ({delta:+.4f})"
+                lines.append(Text(cost))
+            elif estimate is not None:
+                lines.append(Text(f"  Est ${float(estimate):.4f} (actual not recorded)", style="dim"))
+            else:
+                lines.append(Text("  estimate not run", style="dim"))
+
+        if run.get("error"):
+            lines.append(Text(f"  Error: {run['error']}", style="red"))
         return Text("\n").join(lines)

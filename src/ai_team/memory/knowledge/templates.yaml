@@ -62,8 +62,8 @@ dockerfile: |
   # Example skeleton:
   # FROM python:3.11-slim AS builder
   # WORKDIR /app
-  # COPY pyproject.toml poetry.lock ./
-  # RUN pip install --no-cache-dir poetry && poetry export -f requirements.txt -o requirements.txt
+  # COPY pyproject.toml uv.lock ./
+  # RUN uv sync --frozen --no-dev
   # FROM python:3.11-slim
   # WORKDIR /app
   # COPY --from=builder /app/requirements.txt .
@@ -99,7 +99,7 @@ github_actions: |
   # GitHub Actions workflow template
   # - Trigger: on push to main/develop; on pull_request to main/develop.
   # - Jobs: lint (ruff, mypy), test (pytest with coverage), optional integration.
-  # - Use actions/checkout; set up Python with actions/setup-python and cache (poetry or pip).
+  # - Use actions/checkout; set up Python with actions/setup-python; install uv (astral-sh/setup-uv).
   # - Run lint then test; upload coverage artifact (e.g. codecov) if desired.
   # - Fail fast; use matrix for multiple Python versions if needed.
   # Example skeleton:
@@ -112,16 +112,16 @@ github_actions: |
   #       - uses: actions/checkout@v4
   #       - uses: actions/setup-python@v5
   #         with: { python-version: "3.11" }
-  #       - run: pip install poetry && poetry install
-  #       - run: poetry run ruff check . && poetry run mypy .
+  #       - run: uv sync --frozen
+  #       - run: uv run ruff check . && uv run mypy .
   #   test:
   #     runs-on: ubuntu-latest
   #     steps:
   #       - uses: actions/checkout@v4
   #       - uses: actions/setup-python@v5
   #         with: { python-version: "3.11" }
-  #       - run: pip install poetry && poetry install
-  #       - run: poetry run pytest --cov=src --cov-report=xml
+  #       - run: uv sync --frozen
+  #       - run: uv run pytest --cov=src --cov-report=xml
   #       - uses: actions/upload-artifact@v4
   #         with: { name: coverage, path: coverage.xml }
 
@@ -130,8 +130,8 @@ readme: |
   # - Title and one-line description at the top.
   # - Badges: build status, coverage, version if applicable.
   # - Table of contents for long READMEs.
-  # - Installation: prerequisites, pip/poetry install, optional .env setup.
-  # - Quick start: minimal commands to run (e.g. docker-compose up, or poetry run app).
+  # - Installation: prerequisites, `uv sync`, optional .env setup.
+  # - Quick start: minimal commands to run (e.g. docker-compose up, or `uv run ai-team-web`).
   # - Configuration: env vars or config file; link to .env.example.
   # - Usage: main commands or API overview; link to full docs if needed.
   # - Testing: how to run tests (pytest, npm test).

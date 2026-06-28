@@ -8,7 +8,7 @@ description: >-
 
 # Fix CI (ai-team)
 
-Mirror `.github/workflows/ci.yml`. Run from **repository root** with `uv run …` locally (GitHub Actions still uses Poetry).
+Mirror `.github/workflows/ci.yml`. Run from **repository root** with `uv run …` locally and in CI.
 
 For **pip-audit / bandit** only, use the `pre-push-checks` skill (`.cursor/skills/pre-push-checks/`).
 

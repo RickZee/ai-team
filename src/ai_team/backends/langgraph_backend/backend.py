@@ -294,7 +294,7 @@ class LangGraphBackend:
         **kwargs: Any,
     ) -> Iterator[dict[str, Any]]:
         """
-        Stream LangGraph ``updates`` (and final state) for CLI/TUI/Gradio progress.
+        Stream LangGraph ``updates`` (and final state) for CLI/TUI/web progress.
 
         Yields dicts with ``type`` of ``langgraph_update`` | ``langgraph_done`` | ``langgraph_error``.
         """

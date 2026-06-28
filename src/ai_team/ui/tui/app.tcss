@@ -4,73 +4,100 @@ Screen {
     background: $surface;
 }
 
-#header-bar {
-    dock: top;
-    height: 3;
-    background: $primary-darken-2;
-    color: $text;
-    text-align: center;
-    padding: 1 2;
+.hidden {
+    display: none;
 }
 
-#footer-bar {
-    dock: bottom;
-    height: 3;
+#connection-banner, #hitl-banner {
+    height: auto;
+    padding: 0 1;
     background: $primary-darken-3;
-    color: $text-muted;
-    text-align: center;
-    padding: 1 2;
 }
 
-/* --- Dashboard screen layout --- */
+#dashboard-layout {
+    height: 1fr;
+}
 
-#dashboard-grid {
-    layout: grid;
-    grid-size: 2 3;
-    grid-columns: 3fr 2fr;
-    grid-rows: auto 1fr 1fr;
-    grid-gutter: 1;
-    padding: 1;
+#run-sidebar {
+    width: 32;
+    border: solid $primary;
+    padding: 0 1;
+}
+
+#run-list {
+    height: 1fr;
+    border: solid $primary-darken-2;
+}
+
+#dashboard-main {
+    height: 1fr;
+}
+
+#dashboard-panels {
+    height: 12;
+}
+
+#dashboard-log-row {
+    height: 1fr;
 }
 
 #phase-pipeline {
-    column-span: 2;
     height: 3;
     border: solid $primary;
+    padding: 0 1;
+}
+
+#agent-timeline {
+    height: auto;
+    max-height: 8;
+    border: solid cyan;
+    padding: 0 1;
+}
+
+#run-summary {
+    height: auto;
+    border: solid green;
     padding: 0 1;
 }
 
 #agents-panel {
     border: solid green;
     padding: 0;
-    height: 100%;
-    overflow-y: auto;
+    width: 1fr;
 }
 
 #metrics-panel {
     border: solid magenta;
     padding: 0;
-    height: 100%;
+    width: 1fr;
 }
 
 #log-panel {
     border: solid yellow;
     padding: 0;
+    width: 1fr;
     height: 100%;
-    overflow-y: auto;
 }
 
 #guardrails-panel {
     border: solid red;
     padding: 0;
+    width: 1fr;
     height: 100%;
-    overflow-y: auto;
 }
 
-/* --- Run screen --- */
+#how-it-works {
+    padding: 1;
+    border: dashed $primary-darken-1;
+}
+
+#hitl-panel {
+    padding: 1;
+    border: solid yellow;
+}
 
 #run-form {
-    padding: 2 4;
+    padding: 1 2;
     height: auto;
 }
 
@@ -78,44 +105,50 @@ Screen {
     margin: 1 0 0 0;
 }
 
-#run-form Input, #run-form Select, #run-form TextArea {
-    margin: 0 0 1 0;
-}
-
 #run-output {
     border: solid $primary;
     padding: 1;
     height: 1fr;
-    overflow-y: auto;
 }
 
-/* --- Compare screen --- */
+#compare-form {
+    padding: 1;
+    height: auto;
+}
 
 #compare-grid {
     layout: grid;
-    grid-size: 2 1;
+    grid-size: 3 1;
     grid-gutter: 1;
     padding: 1;
     height: 1fr;
 }
 
-#compare-left, #compare-right {
+#compare-crewai, #compare-langgraph, #compare-claude {
     border: solid $primary;
     padding: 0;
     overflow-y: auto;
 }
 
 #compare-summary {
-    dock: bottom;
-    height: 12;
+    height: 14;
     border: solid cyan;
     padding: 0;
 }
 
-/* Tabs */
-
-ContentSwitcher {
+#artifacts-layout {
     height: 1fr;
+}
+
+#artifact-files-panel {
+    width: 40%;
+    border: solid $primary;
+}
+
+#artifact-content-panel {
+    width: 1fr;
+    border: solid green;
+    padding: 1;
 }
 
 TabPane {

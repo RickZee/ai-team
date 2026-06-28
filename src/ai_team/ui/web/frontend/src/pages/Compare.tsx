@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { AlertBanner } from "../components/AlertBanner";
+import { AutoGrowTextarea } from "../components/AutoGrowTextarea";
 import { CompareColumn } from "../components/CompareColumn";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EstimateTable } from "../components/EstimateTable";
@@ -7,7 +8,7 @@ import { useCatalog } from "../hooks/useCatalog";
 import { postDemo, postEstimate } from "../hooks/useApi";
 import { useMonitorWebSocket, useRunWebSocket } from "../hooks/useWebSocket";
 import type { CostEstimate, MonitorState } from "../types";
-import { bestColumnKey, parseElapsedSeconds } from "../utils/compareSummary";
+import { bestColumnKey, buildCompareVerdict, directionHint, parseElapsedSeconds } from "../utils/compareSummary";
 
 const BACKENDS = [
   { key: "crewai", title: "CrewAI", titleClass: "crewai-title", testId: "compare-crewai" },
@@ -286,6 +287,16 @@ export function Compare() {
     [summaryRows],
   );
 
+  const verdictLine = useMemo(
+    () =>
+      buildCompareVerdict(summaryRows, [
+        { label: "cost", prefer: "min", numeric: (m) => m.cost_usd ?? 999999 },
+        { label: "tests passed", prefer: "max", numeric: (m) => m.metrics.tests_passed },
+        { label: "elapsed", prefer: "min", numeric: (m) => parseElapsedSeconds(m.elapsed) },
+      ]),
+    [summaryRows],
+  );
+
   const anyHitl = BACKENDS.some((b) => getColumnState(b.key).status === "awaiting_human");
 
   const failedColumns = BACKENDS.filter((b) => getColumnState(b.key).status === "error").map(
@@ -367,11 +378,10 @@ export function Compare() {
         </div>
         <div className="form-group full-width">
           <label>Project Description</label>
-          <textarea
+          <AutoGrowTextarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             placeholder="Describe what to build..."
-            rows={3}
             data-testid="compare-description"
           />
         </div>
@@ -391,7 +401,7 @@ export function Compare() {
             disabled={isRunning || demoLoading}
             data-testid="compare-demo"
           >
-            {demoLoading ? "Starting demos…" : "Compare Demo ($0)"}
+            {demoLoading ? "Starting demos…" : "Play sample runs (free · no files)"}
           </button>
           <button type="button" className="btn-secondary" onClick={handleEstimate}>
             Estimate Cost
@@ -438,6 +448,11 @@ export function Compare() {
       {summaryRows.length > 0 && (
         <div className="compare-summary panel" data-testid="compare-summary">
           <h3>Comparison Summary</h3>
+          {verdictLine && (
+            <p className="compare-verdict" data-testid="compare-verdict">
+              {verdictLine}
+            </p>
+          )}
           <table className="summary-table">
             <thead>
               <tr>
@@ -452,7 +467,15 @@ export function Compare() {
                 const bestKey = bestForRow(row);
                 return (
                   <tr key={row.label}>
-                    <td>{row.label}</td>
+                    <td>
+                      {row.label}
+                      {row.prefer != null && (
+                        <span className="summary-direction dim" data-testid={`direction-${row.label}`}>
+                          {" "}
+                          {directionHint(row.prefer)}
+                        </span>
+                      )}
+                    </td>
                     {summaryRows.map((r) => {
                       if (r.failed) {
                         return (

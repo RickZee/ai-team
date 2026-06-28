@@ -7,9 +7,9 @@ or input.json), optional ``team_profile`` from input.json, sets AI_TEAM_ENV=dev,
 and invokes the flow.
 
 Usage:
-    poetry run python scripts/run_demo.py demos/01_hello_world
-    poetry run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
-    poetry run python scripts/run_demo.py demos/02_todo_app [--skip-estimate] [--monitor] [--team backend-api]
+    uv run python scripts/run_demo.py demos/01_hello_world
+    uv run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
+    uv run python scripts/run_demo.py demos/02_todo_app [--skip-estimate] [--monitor] [--team backend-api]
 
 Requires OPENROUTER_API_KEY in the environment (e.g. from .env).
 """

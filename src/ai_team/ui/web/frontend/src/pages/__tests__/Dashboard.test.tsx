@@ -10,6 +10,7 @@ vi.mock("../../hooks/useApi", () => ({
   getRun: vi.fn(),
   postDemo: vi.fn().mockResolvedValue({ run_id: "demo-99" }),
   postCancel: vi.fn(),
+  deleteRun: vi.fn(),
   getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0 }),
   getProjectArchitecture: vi.fn().mockResolvedValue({ system_overview: "" }),
 }));
@@ -35,6 +36,7 @@ describe("Dashboard", () => {
       </MemoryRouter>,
     );
     expect(await screen.findByTestId("dashboard-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("how-it-works")).toBeInTheDocument();
     expect(screen.getByText("Go to Run")).toBeInTheDocument();
     expect(screen.getByTestId("dashboard-demo")).toBeInTheDocument();
   });

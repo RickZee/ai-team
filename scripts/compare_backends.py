@@ -5,9 +5,9 @@ Compare CrewAI vs LangGraph (optional Claude Agent SDK) on the same demo input.
 Produces JSON (stdout) and optional markdown file.
 
 Usage:
-  poetry run python scripts/compare_backends.py demos/01_hello_world --env dev
-  poetry run python scripts/compare_backends.py demos/01_hello_world --team backend-api --markdown out.md
-  poetry run python scripts/compare_backends.py demos/01_hello_world --with-claude
+  uv run python scripts/compare_backends.py demos/01_hello_world --env dev
+  uv run python scripts/compare_backends.py demos/01_hello_world --team backend-api --markdown out.md
+  uv run python scripts/compare_backends.py demos/01_hello_world --with-claude
 """
 
 from __future__ import annotations

@@ -18,7 +18,16 @@ def profile() -> TeamProfile:
 class TestCrewAIBackendRun:
     def test_run_success_maps_result(self, profile: TeamProfile) -> None:
         backend = CrewAIBackend()
-        payload = {"phase": "complete", "ok": True}
+        payload = {
+            "state": {
+                "project_id": "test-id",
+                "current_phase": "complete",
+                "generated_files": [],
+                "phase_history": [],
+                "retry_counts": {},
+                "metadata": {},
+            }
+        }
         with patch(
             "ai_team.backends.crewai_backend.backend.run_ai_team",
             return_value=payload,
@@ -29,6 +38,33 @@ class TestCrewAIBackendRun:
         assert r.backend_name == "crewai"
         assert r.team_profile == "full"
         assert r.raw.get("team_profile") == "full"
+        assert r.raw.get("project_id") == "test-id"
+
+    def test_run_incomplete_phase_maps_failure(self, profile: TeamProfile) -> None:
+        backend = CrewAIBackend()
+        payload = {
+            "state": {
+                "project_id": "test-id",
+                "current_phase": "testing",
+            }
+        }
+        with patch(
+            "ai_team.backends.crewai_backend.backend.run_ai_team",
+            return_value=payload,
+        ):
+            r = backend.run("build a thing", profile, skip_estimate=True)
+        assert r.success is False
+
+    def test_console_formatter_disabled(self) -> None:
+        from ai_team.backends.crewai_backend.backend import _disable_crewai_console
+
+        pytest.importorskip("crewai")
+        from crewai.events.event_listener import EventListener
+
+        _disable_crewai_console()
+        el = EventListener()
+        assert el.formatter.verbose is False
+        assert el.formatter._is_streaming is True
 
     def test_run_failure_returns_error_result(self, profile: TeamProfile) -> None:
         backend = CrewAIBackend()

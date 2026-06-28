@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import { useFocusTrap } from "../hooks/useFocusTrap";
+
 interface ConfirmModalProps {
   open: boolean;
   title: string;
@@ -17,11 +20,14 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(open, cardRef);
+
   if (!open) return null;
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="modal-card panel">
+      <div ref={cardRef} className="modal-card panel">
         <h3 id="confirm-title">{title}</h3>
         <p className="modal-message">{message}</p>
         <div className="modal-actions">

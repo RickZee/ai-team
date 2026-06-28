@@ -6,8 +6,8 @@ as soon as a failure pattern is seen so you can fix issues before
 running long jobs.
 
 Usage:
-    poetry run python scripts/run_with_fail_fast.py [--monitor] [--project-name NAME] "Project description"
-    poetry run python scripts/run_with_fail_fast.py --stop-on-guardrail-block --monitor "Create a REST API"
+    uv run python scripts/run_with_fail_fast.py [--monitor] [--project-name NAME] "Project description"
+    uv run python scripts/run_with_fail_fast.py --stop-on-guardrail-block --monitor "Create a REST API"
 
 Failure patterns (stop run and exit 1):
   - [ERROR] in log output
