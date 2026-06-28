@@ -8,7 +8,7 @@ artifacts, and catalog endpoints stay aligned with ``ui.web.server``.
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import structlog
@@ -44,7 +44,7 @@ class DashboardApiClient:
         return response.json()
 
     def health(self) -> dict[str, Any]:
-        return self._request("GET", "/health")
+        return cast(dict[str, Any], self._request("GET", "/health"))
 
     def is_available(self) -> bool:
         try:
@@ -55,50 +55,62 @@ class DashboardApiClient:
             return False
 
     def backends(self) -> list[dict[str, Any]]:
-        return self._request("GET", "/backends")["backends"]
+        return cast(list[dict[str, Any]], self._request("GET", "/backends")["backends"])
 
     def profiles(self) -> dict[str, Any]:
-        return self._request("GET", "/profiles")
+        return cast(dict[str, Any], self._request("GET", "/profiles"))
 
     def estimate(self, complexity: str = "medium") -> dict[str, Any]:
-        return self._request("POST", "/estimate", json={"complexity": complexity})
+        return cast(
+            dict[str, Any],
+            self._request("POST", "/estimate", json={"complexity": complexity}),
+        )
 
     def list_runs(self) -> list[dict[str, Any]]:
-        return self._request("GET", "/runs")["runs"]
+        return cast(list[dict[str, Any]], self._request("GET", "/runs")["runs"])
 
     def get_run(self, run_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/runs/{run_id}")
+        return cast(dict[str, Any], self._request("GET", f"/runs/{run_id}"))
 
     def start_demo(self) -> dict[str, Any]:
-        return self._request("POST", "/demo")
+        return cast(dict[str, Any], self._request("POST", "/demo"))
 
     def cancel_run(self, run_id: str) -> dict[str, Any]:
-        return self._request("POST", f"/runs/{run_id}/cancel")
+        return cast(dict[str, Any], self._request("POST", f"/runs/{run_id}/cancel"))
 
     def delete_run(self, run_id: str) -> dict[str, Any]:
-        return self._request("DELETE", f"/runs/{run_id}")
+        return cast(dict[str, Any], self._request("DELETE", f"/runs/{run_id}"))
 
     def resume_run(self, run_id: str, feedback: str) -> dict[str, Any]:
-        return self._request("POST", f"/runs/{run_id}/resume", json={"feedback": feedback})
+        return cast(
+            dict[str, Any],
+            self._request("POST", f"/runs/{run_id}/resume", json={"feedback": feedback}),
+        )
 
     def registry_runs(self) -> list[dict[str, Any]]:
-        return self._request("GET", "/registry/runs")["runs"]
+        return cast(list[dict[str, Any]], self._request("GET", "/registry/runs")["runs"])
 
     def project_tree(self, project_id: str, root: str = "workspace") -> list[dict[str, Any]]:
-        return self._request("GET", f"/projects/{project_id}/tree", params={"root": root})["tree"]
+        return cast(
+            list[dict[str, Any]],
+            self._request("GET", f"/projects/{project_id}/tree", params={"root": root})["tree"],
+        )
 
     def project_file(self, project_id: str, path: str, root: str = "workspace") -> dict[str, Any]:
-        return self._request(
-            "GET",
-            f"/projects/{project_id}/file",
-            params={"path": path, "root": root},
+        return cast(
+            dict[str, Any],
+            self._request(
+                "GET",
+                f"/projects/{project_id}/file",
+                params={"path": path, "root": root},
+            ),
         )
 
     def project_tests(self, project_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/projects/{project_id}/tests")
+        return cast(dict[str, Any], self._request("GET", f"/projects/{project_id}/tests"))
 
     def project_architecture(self, project_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/projects/{project_id}/architecture")
+        return cast(dict[str, Any], self._request("GET", f"/projects/{project_id}/architecture"))
 
     @property
     def ws_base(self) -> str:

@@ -12,6 +12,7 @@ from ai_team.core.result import ProjectResult
 from ai_team.core.team_profile import TeamProfile
 from ai_team.flows.main_flow import run_ai_team
 from ai_team.monitor import TeamMonitor
+from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
 
@@ -45,7 +46,7 @@ def _flatten_crewai_payload(payload: dict[str, Any]) -> dict[str, Any]:
     state_raw = payload.get("state")
     if isinstance(state_raw, dict):
         state_dict = state_raw
-    elif hasattr(state_raw, "model_dump"):
+    elif isinstance(state_raw, BaseModel):
         state_dict = state_raw.model_dump(mode="json")
     else:
         state_dict = {}

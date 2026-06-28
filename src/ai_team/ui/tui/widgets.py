@@ -428,7 +428,9 @@ class RunSummaryPanel(Static):
                     cost += f" · Est ${float(estimate):.4f} ({delta:+.4f})"
                 lines.append(Text(cost))
             elif estimate is not None:
-                lines.append(Text(f"  Est ${float(estimate):.4f} (actual not recorded)", style="dim"))
+                lines.append(
+                    Text(f"  Est ${float(estimate):.4f} (actual not recorded)", style="dim")
+                )
             else:
                 lines.append(Text("  estimate not run", style="dim"))
 
