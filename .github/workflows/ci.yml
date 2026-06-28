@@ -257,7 +257,7 @@ jobs:
         run: poetry run pip install bandit
 
       - name: Upgrade pip (audit tooling CVEs)
-        run: poetry run python -m pip install --upgrade "pip>=26.1"
+        run: poetry run python -m pip install --upgrade "pip>=26.1.2"
 
       - name: Bandit security scan
         run: poetry run bandit -r src/ -f json -o bandit-report.json || true
@@ -266,19 +266,9 @@ jobs:
       # litellm is pinned at 1.74.9 for CrewAI/Pydantic compatibility (see pyproject.toml).
       # uv/pyjwt/langchain-community advisories are transitive via crewai until upstream resolves.
       # starlette 1.0.1+ requires fastapi to lift starlette<1.0.0 (see fastapi pin).
+      # chromadb/msgpack advisories: transitive; no fix on current chromadb pin (<1.2).
       - name: Pip-audit dependency vulnerabilities
-        run: |
-          poetry run pip-audit \
-            --ignore-vuln CVE-2025-69872 \
-            --ignore-vuln PYSEC-2022-42969 \
-            --ignore-vuln PYSEC-2024-278 \
-            --ignore-vuln PYSEC-2025-183 \
-            --ignore-vuln CVE-2026-35029 \
-            --ignore-vuln CVE-2026-35030 \
-            --ignore-vuln GHSA-69x8-hrgq-fjj8 \
-            --ignore-vuln CVE-2026-42271 \
-            --ignore-vuln GHSA-pjjw-68hj-v9mw \
-            --ignore-vuln PYSEC-2026-161
+        run: ./scripts/pip_audit.sh
 
       - name: Upload bandit report
         uses: actions/upload-artifact@v4

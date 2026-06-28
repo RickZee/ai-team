@@ -31,7 +31,15 @@ Install with dev dependencies (already included in `poetry install`):
 poetry run pre-commit install
 ```
 
-Hooks can run ruff, black, and mypy before each commit.
+Hooks run ruff check (with fix) and ruff format before each commit.
+
+### Before push (matches CI)
+
+```bash
+./scripts/pre_push_check.sh
+```
+
+Runs ruff, mypy, and pip-audit (same ignores as `.github/workflows/ci.yml`).
 
 ## Code style guide
 

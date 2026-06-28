@@ -20,7 +20,7 @@ For **pip-audit / bandit** only, use the `pre-push-checks` skill (`.cursor/skill
 | **Test** | `poetry run pytest tests/unit -v --tb=short` |
 | **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
 | **Integration test** (main push only) | `poetry run pytest tests/integration -v --tb=short` |
-| **Security** | `pre-push-checks` skill |
+| **Security** | `./scripts/pre_push_check.sh` (or `./scripts/pip_audit.sh` only) |
 
 With `gh` authenticated:
 
@@ -121,7 +121,12 @@ poetry run pytest tests/integration -v --tb=short
 
 ## 6. Security job
 
-Follow the `pre-push-checks` skill. CI uses extra `--ignore-vuln` flags — copy the full `pip-audit` command from `ci.yml` `security` job if local audit differs from CI.
+```bash
+poetry run python -m pip install --upgrade "pip>=26.1.2"
+./scripts/pip_audit.sh
+```
+
+Same ignore list as `.github/workflows/ci.yml` (single source: `scripts/pip_audit.sh`). For the full local gate, use `./scripts/pre_push_check.sh`.
 
 ## 7. Exit criteria
 
@@ -135,7 +140,7 @@ poetry run pytest tests/unit -q
 poetry run pytest tests/e2e/web -m web_e2e -q --timeout=120
 ```
 
-Optional if touching dependencies: pre-push pip-audit per pre-push-checks skill.
+Optional if touching dependencies: `./scripts/pip_audit.sh` (included in `./scripts/pre_push_check.sh`).
 
 ## 8. Node.js 20 deprecation warnings
 

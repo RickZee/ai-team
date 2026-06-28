@@ -1,12 +1,12 @@
 ---
 name: pre-push-checks
 description: >-
-  Runs Ruff and pip-audit before git push or when preparing for CI/PR. Use when
-  pushing code, opening a pull request, or when CI failed on ruff, pip-audit, or
-  dependency vulnerabilities.
+  Runs Ruff, mypy, and pip-audit before git push or when preparing for CI/PR.
+  Use when pushing code, opening a pull request, or when CI failed on ruff,
+  pip-audit, or security.
 ---
 
-# Pre-push checks (Ruff + pip-audit)
+# Pre-push checks (Ruff + mypy + pip-audit)
 
 ## When to apply
 
@@ -16,34 +16,32 @@ description: >-
 
 ## Required steps
 
-From the **repository root**, run in order:
+From the **repository root**, run the shared script (mirrors CI lint + security jobs):
 
-### 1. Ruff
+```bash
+./scripts/pre_push_check.sh
+```
+
+- **If it fails**: fix issues, then re-run until **exit code 0**.
+- Do **not** hand-roll pip-audit flags; use `./scripts/pip_audit.sh` (same ignores as `ci.yml`).
+
+### Manual breakdown (if iterating on one gate)
 
 ```bash
 poetry run ruff check .
+poetry run ruff format --check .   # or: poetry run ruff format .
+poetry run mypy src/
+poetry run python -m pip install --upgrade "pip>=26.1.2"
+./scripts/pip_audit.sh
 ```
-
-- **If it fails**: fix issues (or `poetry run ruff check . --fix` where safe), then re-run until **exit code 0**.
-
-### 2. pip-audit (match CI)
-
-Use the same ignore list as the **security** job in `.github/workflows/ci.yml`:
-
-```bash
-poetry run pip-audit \
-  --ignore-vuln CVE-2025-69872 \
-  --ignore-vuln PYSEC-2022-42969
-```
-
-- **If it fails**: upgrade or pin vulnerable packages in `pyproject.toml` / `poetry.lock` (then `poetry lock` / `poetry update <pkg>` as appropriate), re-run until **exit code 0**.
-- **Skip line for `ai-team`**: pip-audit reports *Dependency not found on PyPI* for the local editable package; that is informational and does **not** fail the audit when there are no CVEs.
 
 ## Project defaults
 
 - Use **`poetry run …`** so tools use the project virtualenv.
 - **`pip-audit`** is a Poetry **dev** dependency; do not assume a global install.
+- A **Cursor hook** (`.cursor/hooks.json`) blocks `git push` when `./scripts/pre_push_check.sh` fails.
+- Optional **pre-commit**: `poetry run pre-commit install` (ruff + ruff-format on commit).
 
 ## Optional (not required by this skill)
 
-Mypy, pytest, `black --check`, or **bandit** — run only when the user asks or workspace rules require them.
+pytest, bandit — run when the user asks or the `fix-ci` skill applies.

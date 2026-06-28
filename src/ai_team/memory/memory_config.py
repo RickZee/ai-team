@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
-
 from ai_team.config.settings import MemorySettings
 
 logger = structlog.get_logger(__name__)

@@ -86,7 +86,7 @@ def _coerce_float(value: Any) -> float | None:
     if isinstance(value, bool):
         # bool is a subclass of int; treat as 1.0/0.0 explicitly.
         return 1.0 if value else 0.0
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return float(value)
     return None
 
