@@ -180,7 +180,7 @@ Then the manager agent wrote a self-improvement report — not a log dump, but a
 
 One catch: lesson extraction still requires running `scripts/extract_lessons.py` manually between runs. For an "autonomous" system, that's a contradiction. The fix is trivial — call `extract_lessons(threshold=2)` at the start of every run, one SQLite query, zero LLM calls, ~1ms. It's on the list.
 
-Also added a Cursor pre-push skill (`.cursor/skills/pre-push-ruff/SKILL.md`) that auto-runs `ruff check` before any push or PR. Small investment, catches lint issues before they hit CI.
+Also added Cursor pre-push skills (`.cursor/skills/pre-push-ruff/SKILL.md`, `.cursor/skills/pre-push-checks/SKILL.md`) and `./scripts/pre_push_check.sh` plus a `git push` hook (`.cursor/hooks.json`) that auto-runs the same gates as CI before push.
 
 Stepped back from building and did a proper audit of the self-improvement mechanism. Not "does it work on the happy path" but "could an organization actually deploy this and trust it to improve over time?"
 
