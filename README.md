@@ -7,7 +7,9 @@
 
 > A multi-agent software development system that transforms natural language into production-ready code — and a **framework comparison platform** for evaluating orchestration approaches side by side.
 
-![AI-Team web dashboard — live phase pipeline, agent status, metrics, and guardrails](docs/images/dashboard.png)
+You describe a project in plain language; AI-Team routes it through a **shared agent pipeline** — Manager, Product Owner, Architect, developers, QA, and DevOps — backed by the same tools, guardrails, and workspace layout regardless of orchestration engine. Swap **CrewAI**, **LangGraph**, or the **Claude Agent SDK** at runtime (`--backend`) and compare how each framework handles planning, development, testing, and deployment. Every run produces a structured workspace (`docs/`, `src/`, `tests/`, deployment artifacts) with audit logs, cost tracking, and optional self-improvement feedback.
+
+![AI-Team architecture — multi-backend agent pipeline with shared tools, guardrails, and workspace output](docs/images/architecture_diagram.svg)
 
 ## Project goals
 
@@ -170,7 +172,7 @@ Detailed log of this project: [docs/journey.md](docs/journey.md).
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                         UI Layer (3 interfaces)                              │
-│  Web Dashboard (FastAPI+React) │ Textual TUI │ Rich CLI Monitor             │
+│  Web Dashboard (FastAPI+React) │ Textual TUI │ Rich CLI Monitor              │
 │       --backend crewai | langgraph | claude-agent-sdk  --team <profile>      │
 └──────────────────────────────┬───────────────────────────────────────────────┘
                                ▼
