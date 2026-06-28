@@ -86,6 +86,26 @@ class TestCodeBlockExtraction:
         written = sr._extract_and_write_code_blocks([AIMessage(content=prose)])
         assert all(w["path"] != "main.py" for w in written)
 
+    def test_salvages_app_module_when_other_files_already_exist(self, workspace: Path) -> None:
+        """Regression: dev writes the app module as prose while test files already exist.
+
+        The old dev-node gate (`if not generated`) skipped salvage whenever the
+        workspace was non-empty, dropping main.py and causing a tests-but-no-app
+        retry loop. The extractor itself must still recover main.py here.
+        """
+        (workspace / "tests").mkdir()
+        (workspace / "tests" / "test_api.py").write_text("def test_x(): assert True\n")
+        written = sr._extract_and_write_code_blocks([AIMessage(content=DEV_SUPERVISOR_PROSE)])
+        assert "main.py" in {w["path"] for w in written}
+        assert (workspace / "main.py").read_text().startswith("from flask import Flask")
+
+    def test_overwrites_with_latest_prose_version(self, workspace: Path) -> None:
+        """A retry's corrected prose overwrites a stale on-disk file."""
+        (workspace / "main.py").write_text("# stale\n")
+        prose = "### `main.py`\n```python\nfrom flask import Flask  # fixed\n```\n"
+        sr._extract_and_write_code_blocks([AIMessage(content=prose)])
+        assert "fixed" in (workspace / "main.py").read_text()
+
     def test_ignores_non_ai_messages(self, workspace: Path) -> None:
         written = sr._extract_and_write_code_blocks([HumanMessage(content=QA_PROSE)])
         assert written == []
