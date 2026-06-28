@@ -49,7 +49,11 @@ def _completion_body(
     message: dict = {"role": "assistant", "content": "ok"}
     if tool_call_args is not None:
         message["tool_calls"] = [
-            {"id": "c1", "type": "function", "function": {"name": "file_writer", "arguments": tool_call_args}}
+            {
+                "id": "c1",
+                "type": "function",
+                "function": {"name": "file_writer", "arguments": tool_call_args},
+            }
         ]
     return {
         "id": "gen-1",
@@ -59,7 +63,9 @@ def _completion_body(
     }
 
 
-def _make_response(body: dict, url: str = "https://openrouter.ai/api/v1/chat/completions") -> httpx.Response:
+def _make_response(
+    body: dict, url: str = "https://openrouter.ai/api/v1/chat/completions"
+) -> httpx.Response:
     req = httpx.Request("POST", url)
     return httpx.Response(200, json=body, request=req)
 
@@ -105,7 +111,9 @@ class TestHookEndToEnd:
             _fix_chat_completion_response(resp)
 
     def test_hook_ignores_non_completion_urls(self) -> None:
-        resp = _make_response(_completion_body(cost=0.10), url="https://openrouter.ai/api/v1/models")
+        resp = _make_response(
+            _completion_body(cost=0.10), url="https://openrouter.ai/api/v1/models"
+        )
         _fix_chat_completion_response(resp)
         assert current_spend()["calls"] == 0
 
