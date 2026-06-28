@@ -138,7 +138,9 @@ def _run_compare(scenario: str, no_judge: bool, verbose: bool) -> int:
                             log_text = log_path.read_text(errors="replace")
                             eval_passed = " passed in " in log_text and "=====" in log_text
                             exit_codes[backend] = 0 if eval_passed else 1
-                            status = "PASSED" if eval_passed else "FAILED (hang after project_complete)"
+                            status = (
+                                "PASSED" if eval_passed else "FAILED (hang after project_complete)"
+                            )
                             print(
                                 f"[compare] {backend} {status} after {elapsed:.0f}s",
                                 flush=True,

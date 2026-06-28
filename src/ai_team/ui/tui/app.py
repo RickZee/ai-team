@@ -85,8 +85,14 @@ class DashboardPane(Vertical):
                 yield Label("Runs")
                 yield Input(placeholder="Search runs…", id="run-search")
                 yield Select(
-                    [("All statuses", ""), ("Running", "running"), ("Awaiting human", "awaiting_human"),
-                     ("Complete", "complete"), ("Error", "error"), ("Cancelled", "cancelled")],
+                    [
+                        ("All statuses", ""),
+                        ("Running", "running"),
+                        ("Awaiting human", "awaiting_human"),
+                        ("Complete", "complete"),
+                        ("Error", "error"),
+                        ("Cancelled", "cancelled"),
+                    ],
                     id="run-status-filter",
                     value="",
                 )
@@ -126,7 +132,11 @@ class RunPane(Vertical):
         with Vertical(id="run-form"):
             yield Label("Backend")
             yield Select(
-                [("LangGraph", "langgraph"), ("CrewAI", "crewai"), ("Claude Agent SDK", "claude-agent-sdk")],
+                [
+                    ("LangGraph", "langgraph"),
+                    ("CrewAI", "crewai"),
+                    ("Claude Agent SDK", "claude-agent-sdk"),
+                ],
                 id="backend-select",
                 value="langgraph",
             )
@@ -145,7 +155,9 @@ class RunPane(Vertical):
                 yield Button("Run", variant="success", id="run-btn")
                 yield Button("Estimate Cost", variant="primary", id="estimate-btn")
                 yield Button(SAMPLE_RUN_LABEL, variant="warning", id="demo-btn")
-            yield Static("Sample runs simulate agent activity with no files or cost.", id="demo-helper")
+            yield Static(
+                "Sample runs simulate agent activity with no files or cost.", id="demo-helper"
+            )
         yield RichLog(id="run-output", highlight=True, markup=True)
 
 
@@ -318,7 +330,9 @@ class AITeamTUI(App):
                 first = next(iter(profiles.keys()))
                 self.query_one("#team-input", Input).value = first
             registry = self._api.registry_runs()
-            proj_opts = [(r.get("run_id", "?"), r.get("run_id")) for r in registry if r.get("run_id")]
+            proj_opts = [
+                (r.get("run_id", "?"), r.get("run_id")) for r in registry if r.get("run_id")
+            ]
             if proj_opts:
                 self.query_one("#artifact-project-select", Select).set_options(proj_opts)
         except Exception as exc:
@@ -558,7 +572,9 @@ class AITeamTUI(App):
 
     @on(Button.Pressed, "#hitl-changes")
     def _hitl_changes(self) -> None:
-        self.query_one("#hitl-feedback", TextArea).text = "Request changes: please revise before continuing."
+        self.query_one(
+            "#hitl-feedback", TextArea
+        ).text = "Request changes: please revise before continuing."
 
     @on(Button.Pressed, "#hitl-reject")
     def _hitl_reject(self) -> None:
@@ -747,10 +763,10 @@ class AITeamTUI(App):
             }
             monitor_data: dict[str, Any] = {}
 
-            def make_cb(log_id: str, key: str):
+            def make_cb(log_id: str, key: str, snapshot: dict[str, Any] = monitor_data):
                 def cb(msg: dict[str, Any]) -> None:
                     if msg.get("type") == "monitor_update":
-                        monitor_data.update(msg.get("data") or {})
+                        snapshot.update(msg.get("data") or {})
                     self.call_from_thread(self._log_to, log_id, json.dumps(msg, default=str)[:200])
 
                 return cb
@@ -779,10 +795,17 @@ class AITeamTUI(App):
                 run_id = str(result.get("run_id"))
                 monitor_data: dict[str, Any] = {}
 
-                def cb(msg: dict[str, Any], _log=log_id) -> None:
+                def cb(
+                    msg: dict[str, Any],
+                    _log=log_id,
+                    snapshot: dict[str, Any] = monitor_data,
+                    demo_run_id: str = run_id,
+                ) -> None:
                     if msg.get("type") == "monitor_update":
-                        monitor_data.update(msg.get("data") or {})
-                    self.call_from_thread(self._log_to, _log, f"demo {run_id}: {msg.get('type')}")
+                        snapshot.update(msg.get("data") or {})
+                    self.call_from_thread(
+                        self._log_to, _log, f"demo {demo_run_id}: {msg.get('type')}"
+                    )
 
                 run_monitor_sync(self._api.ws_base, run_id, cb)
                 if monitor_data:
@@ -804,8 +827,7 @@ class AITeamTUI(App):
             for k, v in self._compare_results.items()
         }
         rows = [
-            {"key": k, "label": k, "failed": False, **v}
-            for k, v in self._compare_results.items()
+            {"key": k, "label": k, "failed": False, **v} for k, v in self._compare_results.items()
         ]
         verdict = build_compare_verdict(
             rows,
@@ -880,7 +902,7 @@ class AITeamTUI(App):
             backend_name = self.query_one("#backend-select", Select).value
             team_name = self.query_one("#team-input", Input).value or "full"
             description = self.query_one("#description-area", TextArea).text
-            complexity = str(self.query_one("#complexity-select", Select).value)
+            _complexity = str(self.query_one("#complexity-select", Select).value)
         except Exception:
             return
         if not description.strip():
@@ -900,7 +922,9 @@ class AITeamTUI(App):
                 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 
                 if isinstance(backend, LangGraphBackend):
-                    for ev in backend.iter_stream_events(description.strip(), profile, monitor=monitor):
+                    for ev in backend.iter_stream_events(
+                        description.strip(), profile, monitor=monitor
+                    ):
                         self._log_run_output(json.dumps(ev, default=str)[:300])
                         self.call_from_thread(self._refresh_dashboard)
             elif str(backend_name) == "claude-agent-sdk":
@@ -911,7 +935,9 @@ class AITeamTUI(App):
                 if isinstance(backend, ClaudeAgentBackend):
 
                     async def _consume() -> None:
-                        async for ev in backend.stream(description.strip(), profile, monitor=monitor):
+                        async for ev in backend.stream(
+                            description.strip(), profile, monitor=monitor
+                        ):
                             self._log_run_output(json.dumps(ev, default=str)[:300])
                             self.call_from_thread(self._refresh_dashboard)
 
@@ -997,7 +1023,9 @@ class AITeamTUI(App):
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI-Team TUI Dashboard")
     parser.add_argument("--demo", action="store_true", help="Start with simulated demo")
-    parser.add_argument("--api-url", default=None, help=f"Web API base URL (default: {DEFAULT_API_BASE})")
+    parser.add_argument(
+        "--api-url", default=None, help=f"Web API base URL (default: {DEFAULT_API_BASE})"
+    )
     parser.add_argument(
         "--local",
         action="store_true",

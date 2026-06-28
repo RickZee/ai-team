@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, Literal
+from collections.abc import Callable
+from typing import Any, Literal
 
 
 def parse_elapsed_seconds(elapsed: str) -> int:
@@ -27,9 +28,7 @@ def best_column_key(
     best_val = extract(best)
     for row in rows[1:]:
         val = extract(row)
-        if prefer == "min" and val < best_val:
-            best, best_val = row, val
-        elif prefer == "max" and val > best_val:
+        if prefer == "min" and val < best_val or prefer == "max" and val > best_val:
             best, best_val = row, val
     return str(best.get("key"))
 
