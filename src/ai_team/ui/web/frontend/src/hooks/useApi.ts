@@ -121,3 +121,9 @@ export function postResume(runId: string, feedback: string) {
     body: JSON.stringify({ feedback }),
   });
 }
+
+export function postCancel(runId: string) {
+  return fetchJson<{ run_id: string; status: string }>(`/runs/${runId}/cancel`, {
+    method: "POST",
+  });
+}

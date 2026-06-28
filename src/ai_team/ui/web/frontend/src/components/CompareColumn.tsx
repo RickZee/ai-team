@@ -88,8 +88,11 @@ export function CompareColumn({
         </div>
       )}
       {status === "error" && (
-        <div className="run-error" data-testid={`${testIdPrefix}-error`}>
-          {errorMessage ?? "Run failed"}
+        <div className="run-error compare-col-error" data-testid={`${testIdPrefix}-error`}>
+          <span className="compare-col-error-label">Failed</span>
+          <p className="compare-col-error-reason" data-testid={`${testIdPrefix}-error-reason`}>
+            {errorMessage ?? "Run failed"}
+          </p>
           {runId && (
             <Link to={`/runs/${runId}`} className="btn-secondary btn-sm">
               View run

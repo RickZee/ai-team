@@ -4,13 +4,14 @@ import { ActivityLog } from "../components/ActivityLog";
 import { AgentTable } from "../components/AgentTable";
 import { AlertBanner } from "../components/AlertBanner";
 import { ArtifactPreview } from "../components/ArtifactPreview";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { GuardrailsPanel } from "../components/GuardrailsPanel";
 import { HumanReviewPanel } from "../components/HumanReviewPanel";
 import { LoadingState } from "../components/LoadingState";
 import { MetricsCard } from "../components/MetricsCard";
 import { PhasePipeline } from "../components/PhasePipeline";
 import { RunSummaryCard } from "../components/RunSummaryCard";
-import { getHealth, getRun, getRuns, postDemo } from "../hooks/useApi";
+import { getHealth, getRun, getRuns, postCancel, postDemo } from "../hooks/useApi";
 import { useMonitorWebSocket } from "../hooks/useWebSocket";
 import type { MonitorState, RunInfo } from "../types";
 import { formatRunDate, sortRunsByDate } from "../utils/formatRun";
@@ -29,12 +30,16 @@ export function Dashboard() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [showGuardrails, setShowGuardrails] = useState(false);
   const [showFullLog, setShowFullLog] = useState(true);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const activeRun = runs.find((r) => r.run_id === selectedRunId);
   const isLive =
     activeRun?.status === "running" || activeRun?.status === "awaiting_human";
   const isTerminal =
-    activeRun?.status === "complete" || activeRun?.status === "error";
+    activeRun?.status === "complete" ||
+    activeRun?.status === "error" ||
+    activeRun?.status === "cancelled";
 
   const live = useMonitorWebSocket(isLive ? selectedRunId : null);
 
@@ -137,6 +142,21 @@ export function Dashboard() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!selectedRunId) return;
+    setCancelLoading(true);
+    try {
+      await postCancel(selectedRunId);
+      setShowCancelConfirm(false);
+      await pollRuns();
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : "Cancel failed");
+      setShowCancelConfirm(false);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   const alerts = (
     <>
       {healthOk === false && (
@@ -176,6 +196,9 @@ export function Dashboard() {
                     </span>
                     <span className="run-list-meta">
                       <span className={`status-chip status-${r.status}`}>{r.status}</span>
+                      {r.is_sample && (
+                        <span className="run-list-sample-tag" data-testid={`sample-tag-${r.run_id}`}>Sample</span>
+                      )}
                       <span className="run-list-backend">{r.backend}</span>
                     </span>
                   </button>
@@ -198,7 +221,7 @@ export function Dashboard() {
                   disabled={demoLoading}
                   data-testid="dashboard-demo"
                 >
-                  {demoLoading ? "Starting demo…" : "Launch Demo"}
+                  {demoLoading ? "Starting…" : "Play sample run (free · no files)"}
                 </button>
                 <Link to="/run" className="btn-primary">
                   Go to Run
@@ -221,22 +244,43 @@ export function Dashboard() {
                     <>
                       <span className="dim">Run {activeRun.run_id}</span>
                       <span className={`status-chip status-${activeRun.status}`}>
-                        {activeRun.status}
+                        {activeRun.status === "cancelling" ? "Cancelling…" : activeRun.status}
                       </span>
                       <span className="dim">{displayMonitor.elapsed}</span>
                       {displayMonitor.cost_usd != null && (
                         <span className="dim">${displayMonitor.cost_usd.toFixed(4)}</span>
                       )}
+                      {isLive && activeRun.status !== "cancelling" && (
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() => setShowCancelConfirm(true)}
+                          disabled={cancelLoading}
+                          data-testid="stop-run-btn"
+                        >
+                          Stop run
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
               </div>
+              <ConfirmModal
+                open={showCancelConfirm}
+                title="Stop run?"
+                message="The run will be cancelled after the current step completes. This cannot be undone."
+                confirmLabel={cancelLoading ? "Stopping…" : "Stop run"}
+                cancelLabel="Keep running"
+                onConfirm={handleCancel}
+                onCancel={() => setShowCancelConfirm(false)}
+              />
 
               {isTerminal && activeRun && (
                 <RunSummaryCard
                   run={activeRun}
                   monitor={displayMonitor}
                   artifactProjectId={activeRun.run_id}
+                  estimateUsd={activeRun.estimate_usd ?? null}
                 />
               )}
 
