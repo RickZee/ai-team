@@ -18,4 +18,4 @@ Any engineer setting up the system for the first time, or debugging a broken env
 
 ---
 
-> **Note for the team:** This demo uses the `prototype` profile (Architect + Fullstack + QA). Smallest real crew that exercises planning → development → testing phases. If this passes, move to demo 01.
+> **Note for the team:** This demo uses the `prototype` profile (Architect + Fullstack + QA). Smallest real crew that exercises planning → development → testing phases. If this passes, move to the To-do app scenario (`demos/02_todo_app`).
