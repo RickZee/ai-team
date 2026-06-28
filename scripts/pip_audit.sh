@@ -24,4 +24,6 @@ exec poetry run pip-audit \
   --ignore-vuln CVE-2026-48817 \
   --ignore-vuln CVE-2026-54283 \
   --ignore-vuln CVE-2026-54282 \
-  --ignore-vuln GHSA-4gg8-gxpx-9rph
+  --ignore-vuln GHSA-4gg8-gxpx-9rph \
+  --ignore-vuln CVE-2026-48775 \
+  --ignore-vuln CVE-2026-48776

@@ -52,7 +52,11 @@ def sdk_result(tmp_path_factory) -> tuple[EvalResult, Path]:
     wall = time.time() - t0
 
     result = eval_result_from_run(
-        BACKEND, SCENARIO["id"], {**raw.raw, "success": raw.success}, workspace_dir=ws, wall_time_s=wall
+        BACKEND,
+        SCENARIO["id"],
+        {**raw.raw, "success": raw.success},
+        workspace_dir=ws,
+        wall_time_s=wall,
     )
     # Also pull cost from raw.raw directly if available
     if result.cost_usd is None:
@@ -65,6 +69,7 @@ def sdk_result(tmp_path_factory) -> tuple[EvalResult, Path]:
 # ---------------------------------------------------------------------------
 # Task success
 # ---------------------------------------------------------------------------
+
 
 class TestSDKTaskSuccess:
     def test_completes_successfully(self, sdk_result):
@@ -98,14 +103,15 @@ class TestSDKTaskSuccess:
 # Cost & latency
 # ---------------------------------------------------------------------------
 
+
 class TestSDKCostLatency:
     def test_within_budget(self, sdk_result):
         result, _ = sdk_result
         if result.cost_usd is None:
             pytest.skip("Cost not reported by SDK backend")
-        assert result.cost_usd <= SCENARIO["budget_usd_max"], (
-            f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
-        )
+        assert (
+            result.cost_usd <= SCENARIO["budget_usd_max"]
+        ), f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
 
     def test_completes_within_timeout(self, sdk_result):
         result, _ = sdk_result
@@ -117,6 +123,7 @@ class TestSDKCostLatency:
 # ---------------------------------------------------------------------------
 # Quality
 # ---------------------------------------------------------------------------
+
 
 class TestSDKQuality:
     def test_goal_alignment(self, sdk_result):

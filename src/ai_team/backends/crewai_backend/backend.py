@@ -23,6 +23,7 @@ def _disable_crewai_console() -> None:
     # the cycle. verbose=False suppresses all other crew/task/agent rendering.
     try:
         from crewai.events.event_listener import EventListener
+
         el = EventListener()
         el.formatter.verbose = False
         el.formatter._is_streaming = True
@@ -77,6 +78,7 @@ class CrewAIBackend:
             ws_override = kwargs.get("workspace_dir")
             if ws_override:
                 import os as _os
+
                 _os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_override)
             payload = run_ai_team(
                 _maybe_augment_with_rag(description),
@@ -90,17 +92,20 @@ class CrewAIBackend:
             project_id = (payload.get("state") or {}).get("project_id")
             # Drop "result" key (crewai FlowOutput) — contains circular refs.
             enriched = {k: v for k, v in payload.items() if k != "result"}
-            enriched.update({
-                "team_profile": profile.name,
-                "agents": profile.agents,
-                "phases": profile.phases,
-                "project_id": project_id,
-            })
+            enriched.update(
+                {
+                    "team_profile": profile.name,
+                    "agents": profile.agents,
+                    "phases": profile.phases,
+                    "project_id": project_id,
+                }
+            )
             # Sanitize to plain JSON-safe dict in-process before returning.
             # flow.state.model_dump() may embed LangChain message objects with
             # circular __dict__ refs that cause RecursionError in multiprocessing queue.
             import json as _json
             import sys as _sys
+
             old_limit = _sys.getrecursionlimit()
             _sys.setrecursionlimit(500)
             try:

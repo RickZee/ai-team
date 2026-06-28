@@ -219,6 +219,8 @@ def _devops_configuration_guardrail(result: Any):
             logger.warning("devops_configuration guardrail failed", reason=msg)
             return (False, msg)
 
+    assert cfg is not None
+
     if not (cfg.dockerfile or cfg.docker_compose):
         msg = "DeploymentConfig must include at least a Dockerfile or docker-compose content."
         logger.warning("devops_configuration guardrail failed", reason=msg)
