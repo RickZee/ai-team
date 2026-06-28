@@ -40,12 +40,51 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
+# The development supervisor's real prose shape: numbered headers with the
+# filename in backticks plus trailing descriptive text. The strict header regex
+# misses these, which previously left main.py unwritten (tests but no app).
+DEV_SUPERVISOR_PROSE = """I'll fix the QA failures. Here are the file updates:
+
+### 1. `main.py` (Flask Application)
+```python
+from flask import Flask
+
+app = Flask(__name__)
+```
+
+### 2. Updated `tests/test_api.py`
+```python
+from main import app
+
+
+def test_health():
+    assert app is not None
+```
+
+Would you like me to proceed with saving these files?
+"""
+
+
 class TestCodeBlockExtraction:
     def test_extracts_markdown_header_named_blocks(self, workspace: Path) -> None:
         written = sr._extract_and_write_code_blocks([AIMessage(content=QA_PROSE)])
         names = {w["path"] for w in written}
         assert names == {"calc.py", "test_calc.py"}
         assert (workspace / "test_calc.py").read_text().startswith("from calc import add")
+
+    def test_extracts_numbered_and_suffixed_dev_headers(self, workspace: Path) -> None:
+        """'### 1. `main.py` (Flask App)' and 'Updated `tests/test_api.py`' shapes."""
+        written = sr._extract_and_write_code_blocks([AIMessage(content=DEV_SUPERVISOR_PROSE)])
+        names = {w["path"] for w in written}
+        assert names == {"main.py", "tests/test_api.py"}
+        assert (workspace / "main.py").read_text().startswith("from flask import Flask")
+        assert (workspace / "tests" / "test_api.py").exists()
+
+    def test_does_not_match_prose_mention_without_backticks(self, workspace: Path) -> None:
+        """A header that names a file without backticks must not over-capture a fence."""
+        prose = "### Update main.py now\n```python\nx = 1\n```\n"
+        written = sr._extract_and_write_code_blocks([AIMessage(content=prose)])
+        assert all(w["path"] != "main.py" for w in written)
 
     def test_ignores_non_ai_messages(self, workspace: Path) -> None:
         written = sr._extract_and_write_code_blocks([HumanMessage(content=QA_PROSE)])
