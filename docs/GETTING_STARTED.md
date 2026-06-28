@@ -82,6 +82,24 @@ uv run pytest tests/unit -v
    bash scripts/quickstart.sh
    ```
 
+## Deleting old runs
+
+Runs accumulate under `workspace/<run_id>/` and `output/runs/<run_id>/`. To remove a run as a unit (workspace, artifact bundle, and registry entry):
+
+```python
+from ai_team.core.results import delete_run
+
+result = delete_run("my-run-id")
+print(result.existed, result.workspace_deleted, result.bundle_deleted)
+```
+
+- **Idempotent** — safe to call on a run that is already gone.
+- **Cancel is not delete** — stopping a run via the Dashboard (`POST /api/runs/{id}/cancel`) does not remove its files.
+
+If you use the web dashboard and want to drop a finished run from the in-memory sidebar (without restarting the server), call `RunState.remove_run(run_id)` on a terminal run (`complete`, `error`, or `cancelled`) after `delete_run()`.
+
+REST `DELETE /api/runs/{id}`, a CLI `clean` subcommand, and a Dashboard delete button are planned; see [UX_IMPLEMENTATION_TASKS.md](UX_IMPLEMENTATION_TASKS.md) (T12). Full detail: [README — Managing runs](../README.md#managing-runs).
+
 ## Troubleshooting common issues
 
 ### OpenRouter not configured

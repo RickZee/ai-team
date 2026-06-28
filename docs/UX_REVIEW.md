@@ -156,7 +156,9 @@ them once per group.
 The sidebar lists *all* runs with no search, grouping, or status filter. After a few
 sessions it becomes the junk wall called out in the screenshot guide.
 *Recommendation:* add a status filter + search, group by day, and visually mark
-sample/demo runs. Consider a "clear/hide" affordance for old runs.
+sample/demo runs. Consider a "clear/hide" affordance for old runs. **Update:** programmatic
+disk cleanup is implemented (`delete_run()` in `src/ai_team/core/results/cleanup.py`); UI/API
+wiring is tracked in [UX_IMPLEMENTATION_TASKS.md](UX_IMPLEMENTATION_TASKS.md) T12.
 
 **12. Long briefs are cramped.**
 Run/Compare use a 3-row textarea for the project description; the real briefs in these

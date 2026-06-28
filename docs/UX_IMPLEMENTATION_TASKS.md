@@ -267,13 +267,18 @@ from `AppShell`/Run or remove the dead command.
 **Why:** Lists all runs with no controls; becomes a junk wall.
 **Files:** `Dashboard.tsx` sidebar, possibly a new `components/RunList.tsx`, `__tests__`.
 **Notes:** add a status filter + text search, group by day, mark sample runs (T8), and a
-hide/clear affordance for old runs.
+hide/clear affordance for old runs. **Disk cleanup core exists:** `delete_run()` in
+[`src/ai_team/core/results/cleanup.py`](../src/ai_team/core/results/cleanup.py) removes
+`workspace/<id>`, `output/runs/<id>`, and rebuilds `output/index.json`; `RunState.remove_run()`
+handles in-memory web state. This task wires **UI + `DELETE /api/runs/{id}`** (and optionally
+CLI) on top of that module — see [README — Managing runs](../README.md#managing-runs).
 
 **Acceptance criteria:**
 - [ ] Status filter and search narrow the list; clearing restores it.
 - [ ] Runs are grouped by day with headers.
+- [ ] Delete/hide affordance calls `delete_run()` + `RunState.remove_run()` for terminal runs.
 - [ ] Performs acceptably with 100+ runs (no full-list re-render jank).
-- [ ] Test covers filter + search behavior.
+- [ ] Test covers filter + search behavior; delete removes run from sidebar and disk registry.
 
 ### T13 — Brief input affordances (auto-grow + full-brief view)
 **Why:** 3-row textarea is cramped for the real multi-sentence briefs.
