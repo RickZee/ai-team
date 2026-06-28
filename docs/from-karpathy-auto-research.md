@@ -17,10 +17,10 @@ So the extension is **not** a rewrite—it’s a natural, high-leverage addition
 
 ```bash
 # 1. Normal build (unchanged)
-poetry run ai-team "Build a fast REST API for todo lists" --team backend-api
+uv run ai-team "Build a fast REST API for todo lists" --team backend-api
 
 # 2. New optimization mode (the extension)
-poetry run ai-team "Optimize the todo API we just built" \
+uv run ai-team "Optimize the todo API we just built" \
   --mode=karpathy-loop \
   --metric="requests-per-second-under-100ms-p99" \
   --budget="4 hours OR 50 experiments" \
@@ -30,7 +30,7 @@ poetry run ai-team "Optimize the todo API we just built" \
 
 Or as a post-build phase:
 ```bash
-poetry run ai-team ... --optimize --metric=... --budget=...
+uv run ai-team ... --optimize --metric=... --budget=...
 ```
 
 ### Core Components of the Extension (Minimal & Clean)

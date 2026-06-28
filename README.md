@@ -32,9 +32,9 @@ All backends share the same `Backend` protocol, tools, guardrails, Pydantic mode
 | **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Available | Nested subagents + session persistence | Anthropic API | Extended thinking, prompt caching, file rollback, native MCP, streaming |
 
 ```bash
-ai-team --backend crewai            "Build a REST API"   # CrewAI (default)
-ai-team --backend langgraph         "Build a REST API"   # LangGraph
-ai-team --backend claude-agent-sdk  "Build a REST API"   # Claude Agent SDK (ANTHROPIC_API_KEY + Claude Code)
+ai-team run --backend crewai            "Build a REST API"   # CrewAI (default)
+ai-team run --backend langgraph         "Build a REST API"   # LangGraph
+ai-team run --backend claude-agent-sdk  "Build a REST API"   # Claude Agent SDK (ANTHROPIC_API_KEY + Claude Code)
 ```
 
 ### Backend comparison
@@ -42,8 +42,8 @@ ai-team --backend claude-agent-sdk  "Build a REST API"   # Claude Agent SDK (ANT
 Run the same demo through multiple backends and compare:
 
 ```bash
-python scripts/compare_backends.py demos/01_hello_world --env dev
-python scripts/compare_backends.py demos/01_hello_world --env dev --with-claude
+uv run python scripts/compare_backends.py demos/01_hello_world --env dev
+uv run python scripts/compare_backends.py demos/01_hello_world --env dev --with-claude
 ```
 
 Produces a side-by-side report: output quality, cost, latency, token usage, error rate. Use `--with-claude` to include the Claude Agent SDK (requires `ANTHROPIC_API_KEY`).
@@ -289,8 +289,8 @@ Six ready-to-run scenarios that exercise the full pipeline:
 | 6 | `06_karpathy_optimization` | AutoOptimizer Loop — iterative metric-driven optimization with keep/revert and RAG lessons |
 
 ```bash
-poetry run python scripts/run_demo.py demos/01_hello_world
-poetry run python scripts/run_demo.py demos/02_todo_app --skip-estimate
+uv run python scripts/run_demo.py demos/01_hello_world
+uv run python scripts/run_demo.py demos/02_todo_app --skip-estimate
 
 # Demo 06: AutoOptimizer Loop
 ai-team optimize demos/06_karpathy_optimization/workspace \
@@ -309,7 +309,7 @@ The CLI has two top-level subcommands: `run` (build a project) and `optimize` (A
 
 ```bash
 # Build subcommand (default)
-poetry run python -m ai_team run "Build a minimal Flask API" \
+uv run python -m ai_team run "Build a minimal Flask API" \
   --backend langgraph --team backend-api --env dev --skip-estimate
 
 # Optimize subcommand
@@ -356,12 +356,12 @@ A production-grade browser UI with real-time WebSocket streaming, GitHub-dark th
 
 ```bash
 # Development (hot reload)
-poetry run ai-team-web &                          # FastAPI on :8421
+uv run ai-team-web &                          # FastAPI on :8421
 cd src/ai_team/ui/web/frontend && npm run dev     # React on :5173 (proxies API)
 
 # Production (single server)
 cd src/ai_team/ui/web/frontend && npm run build
-poetry run ai-team-web                            # Serves React build + API on :8421
+uv run ai-team-web                            # Serves React build + API on :8421
 ```
 
 **Pages:**
@@ -403,8 +403,8 @@ The React app uses same-origin `/api` and `/ws` (Vite proxies in dev; production
 A Textual-based interactive terminal dashboard with keyboard navigation.
 
 ```bash
-poetry run ai-team-tui              # Launch TUI
-poetry run ai-team-tui --demo       # Launch with simulated demo
+uv run ai-team-tui              # Launch TUI
+uv run ai-team-tui --demo       # Launch with simulated demo
 ```
 
 **Tabs:** Dashboard (`d`), Run (`r`), Compare (`c`), Quit (`q`)
@@ -416,7 +416,7 @@ Features: real-time phase pipeline, agent status table, metrics panel, activity 
 The original Rich-based live display, embedded in CLI runs.
 
 ```bash
-poetry run ai-team --monitor "Create a REST API for a todo list"
+uv run ai-team run --monitor "Create a REST API for a todo list"
 python -m ai_team.monitor   # Simulated demo
 ```
 
@@ -424,15 +424,15 @@ python -m ai_team.monitor   # Simulated demo
 
 ```bash
 # All tests
-poetry run pytest
+uv run pytest
 
 # With coverage
-poetry run pytest --cov=src/ai_team --cov-report=term-missing
+uv run pytest --cov=src/ai_team --cov-report=term-missing
 
 # By layer
-poetry run pytest tests/unit
-poetry run pytest tests/integration
-poetry run pytest tests/e2e
+uv run pytest tests/unit
+uv run pytest tests/integration
+uv run pytest tests/e2e
 ```
 
 Integration full-flow tests use a manual flow driver (no `flow.kickoff()`), so they run with the rest of the suite and do not hang or spike memory.
@@ -442,12 +442,12 @@ When crews use memory (`memory=True`), they use an OpenRouter-backed embedder (s
 To run **crew-level** integration tests (planning, development, testing) against **real OpenRouter** instead of mocks, set `AI_TEAM_USE_REAL_LLM=1` and `OPENROUTER_API_KEY`. Tests will skip if the key is missing. Full-flow tests remain mock-only by design.
 
 ```bash
-AI_TEAM_USE_REAL_LLM=1 poetry run pytest tests/integration -m real_llm -v
+AI_TEAM_USE_REAL_LLM=1 uv run pytest tests/integration -m real_llm -v
 ```
 
-Optional **memory/embedder** tests: set `OPENROUTER_API_KEY`, then `AI_TEAM_USE_REAL_LLM=1 AI_TEAM_TEST_MEMORY=1 poetry run pytest tests/integration -m test_memory -v`.
+Optional **memory/embedder** tests: set `OPENROUTER_API_KEY`, then `AI_TEAM_USE_REAL_LLM=1 AI_TEAM_TEST_MEMORY=1 uv run pytest tests/integration -m test_memory -v`.
 
-To run only the **OpenRouter connectivity** test (minimal cost; uses a free-tier model), set `OPENROUTER_API_KEY` in `.env` and run: `AI_TEAM_USE_REAL_LLM=1 poetry run pytest tests/integration/test_openrouter.py::TestOpenRouterGated::test_openrouter_connectivity -v`.
+To run only the **OpenRouter connectivity** test (minimal cost; uses a free-tier model), set `OPENROUTER_API_KEY` in `.env` and run: `AI_TEAM_USE_REAL_LLM=1 uv run pytest tests/integration/test_openrouter.py::TestOpenRouterGated::test_openrouter_connectivity -v`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 
@@ -523,10 +523,12 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design — UI layer, flows, crews, agents, tools, guardrails, memory |
 | [FLOWS.md](docs/FLOWS.md) | Orchestration flows (CrewAI and LangGraph) |
 | [AGENTS.md](docs/AGENTS.md) | Agent roles, prompts, model mapping |
+| [TEAM_PROFILES.md](docs/TEAM_PROFILES.md) | Team profiles — agents, phases, backend parity, demos |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [TOOLS.md](docs/TOOLS.md) | Tool specifications |
 | [MEMORY.md](docs/MEMORY.md) | Memory and knowledge management |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema, capture/verification |
+| [WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) | Web dashboard user journeys and UX notes |
 | [EVALS.md](docs/EVALS.md) | Eval methodology, role-specific evals, LLM judges, April 2026 benchmark landscape |
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
 | [HARDWARE.md](docs/HARDWARE.md) | Hardware requirements and recommendations |

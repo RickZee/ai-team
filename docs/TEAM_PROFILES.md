@@ -38,7 +38,7 @@ Select a profile with `--team <name>` on the CLI, in the web dashboard run form,
 For the leanest real run (e.g. demo `00_smoke_test` with `prototype`), prefer:
 
 ```bash
-poetry run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
+uv run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
 ```
 
 `team_profile` in `input.json` is picked up automatically; override with `--team` on the CLI.
@@ -49,13 +49,13 @@ poetry run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --back
 
 ```bash
 # Default full team
-poetry run ai-team run "Build a todo API" --backend langgraph
+uv run ai-team run "Build a todo API" --backend langgraph
 
 # Backend API profile
-poetry run ai-team run "Build a todo API" --backend langgraph --team backend-api
+uv run ai-team run "Build a todo API" --backend langgraph --team backend-api
 
 # Optimizer loop (demo 06)
-poetry run ai-team optimize ./workspace/... --team research-optimizer ...
+uv run ai-team optimize ./workspace/... --team research-optimizer ...
 ```
 
 - **REST:** `GET /api/profiles` — returns agents, phases, and model overrides per profile from YAML.

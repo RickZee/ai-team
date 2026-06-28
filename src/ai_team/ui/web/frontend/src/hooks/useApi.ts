@@ -43,18 +43,7 @@ export function postEstimate(complexity: string) {
 }
 
 export function getRuns() {
-  return fetchJson<{
-    runs: {
-      run_id: string;
-      status: string;
-      backend: string;
-      profile: string;
-      description: string;
-      started_at: string;
-      finished_at?: string | null;
-      error?: string | null;
-    }[];
-  }>("/runs");
+  return fetchJson<{ runs: import("../types").RunInfo[] }>("/runs");
 }
 
 export function getRun(runId: string) {
