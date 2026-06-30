@@ -1,9 +1,6 @@
 """Shared utilities and helpers for the ai-team package."""
 
 from ai_team.utils.callbacks import AITeamCallback, MetricsReport
-
-__all__ = ["AITeamCallback", "MetricsReport"]
-
 from ai_team.utils.reasoning import (
     JSON_SCHEMA_TEMPLATES,
     OUTPUT_FORMAT_INSTRUCTIONS,
@@ -17,6 +14,8 @@ from ai_team.utils.reasoning import (
 )
 
 __all__ = [
+    "AITeamCallback",
+    "MetricsReport",
     "REASONING_TEMPLATES",
     "SELF_REFLECTION_PROMPT",
     "OUTPUT_FORMAT_INSTRUCTIONS",

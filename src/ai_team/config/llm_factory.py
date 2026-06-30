@@ -13,6 +13,7 @@ from typing import Any
 
 import structlog
 from ai_team.config.models import OpenRouterSettings
+from ai_team.config.settings import get_settings
 from crewai import LLM
 
 logger = structlog.get_logger(__name__)
@@ -78,9 +79,12 @@ def get_embedder_config() -> dict[str, Any]:
 
     :return: Dict with 'provider' and 'config' for CrewAI embedder (openai-compatible).
     """
+    memory = get_settings().memory
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
-    base_url = os.environ.get("OPENROUTER_API_BASE", _OPENROUTER_EMBED_BASE).rstrip("/")
-    model = os.environ.get("OPENROUTER_EMBEDDING_MODEL", _DEFAULT_EMBEDDING_MODEL)
+    base_url = (
+        memory.embedding_api_base or os.environ.get("OPENROUTER_API_BASE", _OPENROUTER_EMBED_BASE)
+    ).rstrip("/")
+    model = memory.embedding_model
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
         os.environ["OPENAI_API_BASE"] = base_url

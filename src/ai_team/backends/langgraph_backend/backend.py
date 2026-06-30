@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import os
 from collections.abc import AsyncIterator, Iterator
@@ -22,9 +21,11 @@ from ai_team.backends.langgraph_backend.graphs.spend_guard import (
     reset_spend_guard,
 )
 from ai_team.config.settings import reload_settings
+from ai_team.core.payload_flatten import flatten_state_payload
 from ai_team.core.result import ProjectResult
 from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
 from ai_team.core.run_naming import resolve_run_id
+from ai_team.core.stream_helpers import stream_via_threaded_run
 from ai_team.core.team_profile import TeamProfile
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
@@ -214,7 +215,7 @@ class LangGraphBackend:
                 success=bool(
                     (final.get("current_phase") if isinstance(final, dict) else None) == "complete"
                 ),
-                raw={"state": final, "thread_id": thread_id},
+                raw={"state": flatten_state_payload(final), "thread_id": thread_id},
                 team_profile=profile.name,
             )
         except BudgetExceededError as e:
@@ -279,7 +280,7 @@ class LangGraphBackend:
             return ProjectResult(
                 backend_name=self.name,
                 success=True,
-                raw={"state": final, "thread_id": thread_id},
+                raw={"state": flatten_state_payload(final), "thread_id": thread_id},
                 team_profile=profile.name,
             )
         except Exception as e:
@@ -450,15 +451,12 @@ class LangGraphBackend:
             for ev in self.iter_stream_events(description, profile, **kwargs):
                 yield ev
             return
-        yield {
-            "type": "run_started",
-            "backend": self.name,
-            "team_profile": profile.name,
-        }
-        result = await asyncio.to_thread(self.run, description, profile, env, **kwargs)
-        yield {
-            "type": "run_finished",
-            "backend": self.name,
-            "success": result.success,
-            "result": result.model_dump(),
-        }
+        async for event in stream_via_threaded_run(
+            backend_name=self.name,
+            run_fn=self.run,
+            description=description,
+            profile=profile,
+            env=env,
+            **kwargs,
+        ):
+            yield event

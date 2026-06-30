@@ -40,6 +40,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --quick)
       RUN_UNIT=false
+      RUN_INTEGRATION=false
+      RUN_FRONTEND=false
+      RUN_E2E=false
       ;;
     -h | --help)
       usage
@@ -65,6 +68,10 @@ uv run mypy src/
 if [[ "$RUN_UNIT" == true ]]; then
   echo "==> pytest tests/unit"
   uv run pytest tests/unit -q --tb=short
+fi
+
+if [[ "$RUN_INTEGRATION" == true || "$RUN_FRONTEND" == true ]]; then
+  echo "==> extended gates (integration and/or frontend — may take a few minutes)"
 fi
 
 if [[ "$RUN_INTEGRATION" == true ]]; then

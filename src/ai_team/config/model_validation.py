@@ -98,7 +98,7 @@ def _validate_embedding_model(
         return
     if resp.status_code == 400:
         body = resp.text
-        if "does not exist" in body.lower() or "not found" in body.lower() or "400" in body:
+        if "does not exist" in body.lower() or "not found" in body.lower():
             raise ModelValidationError(
                 [embedding_model],
                 message=f"Embedding model '{embedding_model}' is not available on OpenRouter (400). "

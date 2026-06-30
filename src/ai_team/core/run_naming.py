@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
-_INDEX_SUFFIX_RE = re.compile(r"^(\d{2})$")
+_INDEX_SUFFIX_RE = re.compile(r"^(\d{2,})$")
 
 
 def slugify_run_label(text: str, *, max_len: int = 32) -> str:

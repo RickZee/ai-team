@@ -272,7 +272,7 @@ def create_backend_implementation_task(
         ),
         agent=agent,
         context=list(context) if context else [],
-        output_json=CodeFileList,
+        output_pydantic=CodeFileList,
         guardrail=guardrail_fn,
         guardrail_max_retries=guardrail_max_retries,
     )
