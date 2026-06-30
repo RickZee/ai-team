@@ -155,6 +155,20 @@ class AnthropicAgentSdkSettings(BaseSettings):
         default="",
         description="API key for Claude Agent SDK / Anthropic Messages API (maps to ANTHROPIC_API_KEY).",
     )
+    smoke_loop_enabled: bool = Field(
+        default=True,
+        description=(
+            "Run the runtime self-improvement loop: after a clean run, boot the "
+            "generated app and probe it; on smoke failure, feed the defect back "
+            "and retry so a green test suite over a broken app cannot pass."
+        ),
+    )
+    smoke_max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        description="Max orchestrator attempts when the runtime smoke loop is enabled.",
+    )
 
 
 class HumanFeedbackSettings(BaseSettings):

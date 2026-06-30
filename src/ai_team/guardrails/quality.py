@@ -9,6 +9,7 @@ fix suggestions.
 from __future__ import annotations
 
 import ast
+import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -535,4 +536,83 @@ def deployment_artifacts_guardrail(
         passed=True,
         score=100,
         message=f"Deployment README present ({readme.name})",
+    )
+
+
+# Runtime smoke contract the testing phase writes (boots the app, probes HTTP).
+_SMOKE_RESULTS = "docs/smoke_results.json"
+
+
+def runtime_smoke_guardrail(
+    workspace_dir: str | Path,
+    phases: Iterable[str],
+) -> GuardrailResult:
+    """Verify the running app passed a runtime smoke test, not just unit tests.
+
+    Backend-agnostic gate that reads ``docs/smoke_results.json`` (written by the
+    shared ``run_app_smoke`` tool). It exists because unit tests exercise route
+    handlers with an in-process client and can pass while the *running* app is
+    broken — the exact failure mode where every real request 500s on a
+    logging/config mismatch. By enforcing the smoke contract, a run cannot
+    report success over an app that does not actually serve traffic.
+
+    Severity model (matches ``deployment_artifacts_guardrail``): the result is a
+    *signal*; the shared post-run wiring treats a failure as a warning. The
+    self-improvement loop is what turns it into a blocking, fix-and-retry gate.
+
+    No-op pass when ``testing`` is not an active phase, or when the smoke was
+    legitimately skipped (no bootable entrypoint, or Docker unavailable) — those
+    are environment gaps, not app defects.
+    """
+    phase_set = {str(p).strip().lower() for p in phases}
+    if "testing" not in phase_set:
+        return GuardrailResult(
+            passed=True, score=100, message="No testing phase; runtime smoke not required"
+        )
+
+    workspace = Path(workspace_dir)
+    smoke_path = workspace / _SMOKE_RESULTS
+    if not smoke_path.is_file():
+        return GuardrailResult(
+            passed=False,
+            score=0,
+            message="Testing phase produced no docs/smoke_results.json",
+            suggestions=[
+                "QA agent must call run_app_smoke after pytest to verify the app "
+                "actually boots and serves requests, then write smoke_results.json",
+            ],
+        )
+
+    try:
+        data = json.loads(smoke_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return GuardrailResult(
+            passed=False,
+            score=0,
+            message=f"smoke_results.json is unreadable: {e}",
+        )
+
+    if not data.get("ran", False):
+        return GuardrailResult(
+            passed=True,
+            score=100,
+            message=f"Runtime smoke skipped: {data.get('message', 'no bootable entrypoint')}",
+        )
+
+    if data.get("success", False):
+        return GuardrailResult(
+            passed=True,
+            score=100,
+            message=f"Runtime smoke passed: {data.get('message', 'app booted and responded')}",
+        )
+
+    return GuardrailResult(
+        passed=False,
+        score=0,
+        message=f"Runtime smoke FAILED: {data.get('message', 'app did not serve requests')}",
+        suggestions=[
+            "The app passed unit tests but failed when actually run. Fix the "
+            "runtime defect (boot error or 5xx from a real request) and re-run; "
+            "do not report success while smoke_results.json shows success=false.",
+        ],
     )

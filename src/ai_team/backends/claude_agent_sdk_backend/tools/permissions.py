@@ -8,6 +8,7 @@ MCP_SERVER_KEY = "ai_team_tools"
 # Exposed MCP tools (decorator names) — referenced as mcp__{key}__{name}
 MCP_RUN_GUARDRAILS = f"mcp__{MCP_SERVER_KEY}__run_guardrails"
 MCP_RUN_PROJECT_TESTS = f"mcp__{MCP_SERVER_KEY}__run_project_tests"
+MCP_RUN_APP_SMOKE = f"mcp__{MCP_SERVER_KEY}__run_app_smoke"
 MCP_VALIDATE_CODE_SAFETY = f"mcp__{MCP_SERVER_KEY}__validate_code_safety"
 MCP_SEARCH_KNOWLEDGE = f"mcp__{MCP_SERVER_KEY}__search_knowledge"
 
@@ -63,12 +64,13 @@ def qa_allowed_tools() -> list[str]:
         "Glob",
         "Grep",
         MCP_RUN_PROJECT_TESTS,
+        MCP_RUN_APP_SMOKE,
         MCP_RUN_GUARDRAILS,
     ]
 
 
 def devops_allowed_tools() -> list[str]:
-    return ["Read", "Write", "Glob", "Grep", MCP_SEARCH_KNOWLEDGE]
+    return ["Read", "Write", "Glob", "Grep", MCP_RUN_APP_SMOKE, MCP_SEARCH_KNOWLEDGE]
 
 
 def get_disallowed_tools_for_yaml_role(role: str) -> list[str]:
