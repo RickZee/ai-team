@@ -140,9 +140,7 @@ def _interpolate(value: Any, variables: dict[str, str]) -> Any:
     return value
 
 
-def _run_probe_sequence(
-    base_url: str, specs: list[dict[str, Any]]
-) -> list[ProbeResult]:
+def _run_probe_sequence(base_url: str, specs: list[dict[str, Any]]) -> list[ProbeResult]:
     """Run probes in order, threading captured variables between them.
 
     Each spec is ``{method, path, body?, save?}``. ``save`` maps a variable name
@@ -240,7 +238,11 @@ def run_app_smoke(workspace_dir: str | Path, *, write_results: bool = True) -> S
         return SmokeResult(message=f"Workspace not found: {workspace}")
 
     compose = next(
-        (workspace / n for n in ("docker-compose.yml", "docker-compose.yaml") if (workspace / n).is_file()),
+        (
+            workspace / n
+            for n in ("docker-compose.yml", "docker-compose.yaml")
+            if (workspace / n).is_file()
+        ),
         None,
     )
     if compose is not None:

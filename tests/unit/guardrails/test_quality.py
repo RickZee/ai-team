@@ -25,6 +25,7 @@ def _write_smoke(workspace, **fields) -> None:
     docs.mkdir(parents=True, exist_ok=True)
     (docs / "smoke_results.json").write_text(json.dumps(fields))
 
+
 # -----------------------------------------------------------------------------
 # GuardrailResult
 # -----------------------------------------------------------------------------

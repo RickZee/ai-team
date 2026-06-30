@@ -269,8 +269,12 @@ class TestExpectedProbesContract:
             json.dumps(
                 {
                     "smoke": [
-                        {"method": "POST", "path": "/todos", "body": {"title": "x"},
-                         "save": {"id": "id"}},
+                        {
+                            "method": "POST",
+                            "path": "/todos",
+                            "body": {"title": "x"},
+                            "save": {"id": "id"},
+                        },
                         {"method": "DELETE", "path": "/todos/{id}"},
                     ]
                 }
@@ -287,8 +291,12 @@ def _crud_contract(workspace) -> None:
             {
                 "smoke": [
                     {"method": "GET", "path": "/health"},
-                    {"method": "POST", "path": "/todos", "body": {"title": "demo"},
-                     "save": {"id": "id"}},
+                    {
+                        "method": "POST",
+                        "path": "/todos",
+                        "body": {"title": "demo"},
+                        "save": {"id": "id"},
+                    },
                     {"method": "GET", "path": "/todos/{id}"},
                     {"method": "DELETE", "path": "/todos/{id}"},
                 ]
