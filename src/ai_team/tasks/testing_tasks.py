@@ -15,7 +15,7 @@ from typing import Any
 import structlog
 from ai_team.guardrails.quality import coverage_guardrail
 from ai_team.models.qa_models import CodeReviewReport
-from ai_team.tools.test_tools import validate_test_quality
+from ai_team.tools.test_tools import agent_test_result_matches_verified, validate_test_quality
 from crewai import Task
 
 logger = structlog.get_logger(__name__)
@@ -96,6 +96,9 @@ def _make_test_execution_guardrail(min_coverage: float = MIN_COVERAGE_THRESHOLD)
             data = None
 
         if data:
+            ok, msg = agent_test_result_matches_verified(data)
+            if not ok:
+                return (False, f"Test execution guardrail: {msg}")
             failed = int(data.get("failed", 0))
             errors = int(data.get("errors", 0))
             if failed > 0 or errors > 0:
@@ -252,10 +255,11 @@ def test_execution_task(
     cov_str = f"{int(min_coverage_pct or MIN_COVERAGE_THRESHOLD * 100)}%"
     return Task(
         description=(
-            "Run all generated tests and report results. Use run_pytest (or equivalent) with "
-            "coverage. Report pass/fail counts, duration, and line and branch coverage. "
+            "Run all generated tests and report results. You MUST call the run_pytest tool "
+            "(do not invent pytest output). Use coverage when configured. "
             "Return a JSON object with keys: total, passed, failed, errors, skipped, warnings, "
-            "duration_seconds, line_coverage_pct, branch_coverage_pct, raw_output, success."
+            "duration_seconds, line_coverage_pct, branch_coverage_pct, raw_output, success — "
+            "copied from the run_pytest tool result."
         ),
         agent=qa_agent,
         context=context or [],
