@@ -435,7 +435,7 @@ class QualityGuardrails:
             try:
                 compile(code, f"<block_{i}>", "exec")
             except SyntaxError as e:
-                errors.append(f"Block {i+1}: {e.msg} at line {e.lineno}")
+                errors.append(f"Block {i + 1}: {e.msg} at line {e.lineno}")
 
         if errors:
             return (False, "Python syntax errors:\n" + "\n".join(errors))
