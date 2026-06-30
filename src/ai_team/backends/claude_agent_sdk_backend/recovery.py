@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +31,12 @@ def _runtime_smoke_failure(workspace: Path) -> str | None:
     skipped (no bootable entrypoint / Docker unavailable) — those are not defects.
     """
     try:
-        from ai_team.tools.smoke_tools import run_app_smoke
+        from ai_team.tools.smoke_tools import load_or_run_smoke
 
-        result = run_app_smoke(workspace)
+        # Reuse a fresh smoke result if the QA agent already booted the app this
+        # attempt; otherwise boot it. Avoids a redundant (and for compose,
+        # expensive) second boot per recovery attempt.
+        result = load_or_run_smoke(workspace)
     except Exception as e:  # noqa: BLE001 - never let the gate crash the run
         logger.warning("claude_smoke_gate_error", error=str(e))
         return None
@@ -173,6 +177,11 @@ async def run_orchestrator_with_recovery(
             if attempt >= recovery_max_attempts:
                 logs.append("runtime smoke still failing at final attempt")
                 return last, logs
+            # Invalidate this attempt's smoke result so the next attempt is
+            # evaluated against a fresh boot (load_or_run_smoke would otherwise
+            # reuse the just-written failing result).
+            with contextlib.suppress(OSError):
+                (workspace / "docs" / "smoke_results.json").unlink(missing_ok=True)
             prompt = description + "\n\n" + smoke_fix
             resume = None
             fork_session = False
