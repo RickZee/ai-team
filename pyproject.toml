@@ -210,6 +210,7 @@ markers = [
 [tool.coverage.run]
 source = ["src/ai_team"]
 branch = true
+data_file = ".coverage-data/.coverage"
 
 [tool.coverage.report]
 # Fail the run if total coverage drops below this floor. Conservative starting
