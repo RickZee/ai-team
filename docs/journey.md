@@ -315,3 +315,30 @@ Spent the day chasing why the LangGraph todo-app demo would run for 10+ minutes 
 **The honest verdict on the todo demo:** still doesn't fully pass on LangGraph. The salvage lands the files now, but the agents don't agree on a project layout — QA writes `from main import app`, dev writes `todoapp/app.py` — because no agent *owns* the structure; each phase invents its own paths. That's the next real problem, and it's an agent-*coordination* problem, not a parsing one. Probably needs the planning phase to pin a file layout and inject it into both dev and QA prompts so the imports line up.
 
 **Meta-note:** every guardrail I added this session is defending against the model not doing what it's told. Timeout, spend cap, salvage, retry-routing — all of it is "the agent misbehaved, don't let that hang/bankrupt/crash the run." The uncomfortable takeaway: a big chunk of "building an agent system" is really *building the harness that survives the agent*. The smarter the model, the less of this you need — Claude via the SDK shows almost none of it — but you can't assume the model, so you build the harness anyway.
+
+## Jun 30
+
+Came back with one question: **do we keep CrewAI at all, or is it the wrong tool for this kind of file-handoff orchestration?** Ran the documented smoke-test eval — `add(a, b)` plus one pytest, the most trivial scenario we have — across all three backends and let the numbers answer.
+
+| Backend | Result | Wall time |
+|---|---|---|
+| langgraph | ✅ 12 passed, 4 skipped | **60s** |
+| claude-agent-sdk | ✅ 10 passed, 2 skipped | **200s** |
+| crewai | ❌ never produced a result — hung inside the first test | killed by hand at ~12 min |
+
+The two graph/SDK backends were green and fast. CrewAI **hung on the calculator** — collected its 12 tests, entered the run, and stopped emitting progress. Worse: it didn't even respect its own `--timeout=1100`. The `signal`-based pytest timeout couldn't reap it because the live CrewAI `Live`/event-bus threads swallow the alarm (open item #6 from the 06-28 handoff, now reproduced cleanly). I had to `kill -9` the process group; it would have sat there forever.
+
+**The verdict: CrewAI is the wrong abstraction for *this* workflow, but not worthless.** The reason is structural, not a model quirk:
+
+- **Our coordination model is file-on-disk handoff between phases.** LangGraph's `StateGraph` makes every transition explicit, so "dev wrote nothing → route to retry" is a first-class, observable, *interruptible* edge. The Claude SDK runs each phase as a real subagent that reliably calls tools. CrewAI's `Flow` + `Crew` model wants to coordinate through *agent conversation and structured task outputs* — which is exactly the layer that breaks when the model emits prose instead of tool calls, and which we then have to fight with salvage + verified-pytest guardrails.
+- **CrewAI fights the harness.** The non-TTY Rich console recursion, the `RecursionError` on `json.dumps` of flow state, the embedder segfault, the post-`project_complete` re-trigger loop, and now a timeout it can ignore — every one of those was *CrewAI's runtime*, not the LLM. We've spent two full sessions adding CrewAI-specific defenses (`_disable_crewai_console`, `_flatten_crewai_payload`, `crew_memory_enabled`, orchestrated-pytest-outside-the-crew) and the smoke test *still* won't go green. That's a bad effort-to-reliability ratio.
+- **It is not a model problem.** Same model (deepseek-v3 via OpenRouter) passes on LangGraph in 60s. So "use a better model" doesn't rescue CrewAI here; the orchestration runtime itself is the blocker on the trivial case.
+
+**Path forward (decided):** keep CrewAI as a **comparison datapoint, demoted from a supported path**. Concretely:
+- It stays in the eval matrix precisely *because* it fails — "the framework whose runtime fights non-TTY orchestration" is a real finding worth showing, not something to hide.
+- It is **not** a recommended backend for production file-handoff pipelines. LangGraph is the default for reliability+speed; Claude SDK for safety/Anthropic-native.
+- We stop pouring fix-effort into making CrewAI smoke-green. The remaining open items (#6 thread-hang, #5 false-pytest retry loop) get a single bounded attempt — a hard `subprocess`-level kill wrapper and a "tests-exist-on-disk → don't retry" short-circuit — and if that doesn't land it green, CrewAI is documented as *known-red on file-handoff workflows* and we move on. No more whack-a-mole against its event bus.
+
+**Why not drop it entirely?** The whole thesis of the project is honest multi-backend comparison, and "we tried CrewAI for autonomous file-handoff orchestration and it fought us at the runtime level" is the most useful thing we can tell someone evaluating these frameworks. Deleting it would erase the finding. Keeping it *as a supported production path* would be dishonest given the data. Demoting-but-documenting is the truthful middle.
+
+**Updated the substack post** accordingly — the old "Use CrewAI if you have an existing CrewAI codebase" verdict undersold the problem (it framed CrewAI as merely *slower*). The corrected verdict says the runtime actively fights non-interactive, file-handoff orchestration and hangs on a task the other two finish in a minute.
