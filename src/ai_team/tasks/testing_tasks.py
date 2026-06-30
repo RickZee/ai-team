@@ -107,11 +107,8 @@ def _make_test_execution_guardrail(min_coverage: float = MIN_COVERAGE_THRESHOLD)
             if line_pct is not None:
                 cov_ratio = line_pct / 100.0 if line_pct > 1 else line_pct
                 return (cov_ratio >= min_coverage, s)
-            total_coverage = data.get("line_coverage_pct")
-            if total_coverage is not None:
-                total_coverage = total_coverage / 100.0 if total_coverage > 1 else total_coverage
             coverage_report = {
-                "total_coverage": total_coverage or 0.0,
+                "total_coverage": 0.0,
                 "files": data.get("per_file_coverage", {}),
             }
         else:
@@ -303,46 +300,3 @@ def code_review_task(
         guardrail_max_retries=guardrail_max_retries,
         output_pydantic=output_pydantic or CodeReviewReport,
     )
-
-
-def get_testing_tasks(
-    qa_agent: Any,
-    backend_implementation_task: Task | None = None,
-    frontend_implementation_task: Task | None = None,
-) -> list[Task]:
-    """
-    Build the full testing task chain: test_generation → test_execution → code_review.
-
-    Context is wired so that:
-    - test_generation depends on backend_implementation and frontend_implementation.
-    - test_execution depends on test_generation.
-    - code_review depends on backend_implementation, frontend_implementation, and test_execution.
-
-    Retry logic: if tests fail, feedback should be returned to development tasks for fixes.
-    Maximum MAX_TEST_RETRY_CYCLES (3) retry cycles before escalating to human.
-
-    Args:
-        qa_agent: QA Engineer agent.
-        backend_implementation_task: Optional Task that produced backend code.
-        frontend_implementation_task: Optional Task that produced frontend code.
-
-    Returns:
-        List of [test_generation_task, test_execution_task, code_review_task].
-    """
-    dev_context = []
-    if backend_implementation_task is not None:
-        dev_context.append(backend_implementation_task)
-    if frontend_implementation_task is not None:
-        dev_context.append(frontend_implementation_task)
-
-    t_gen = test_generation_task(qa_agent, context=dev_context if dev_context else None)
-    t_exec = test_execution_task(qa_agent, context=[t_gen])
-    review_context: list[Task] = list(dev_context) + [t_exec]
-    t_review = code_review_task(qa_agent, context=review_context if review_context else [t_exec])
-
-    logger.info(
-        "testing_tasks_created",
-        has_backend_context=backend_implementation_task is not None,
-        has_frontend_context=frontend_implementation_task is not None,
-    )
-    return [t_gen, t_exec, t_review]

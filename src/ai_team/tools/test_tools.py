@@ -272,28 +272,36 @@ class TestQualityReport(BaseModel):
 # -----------------------------------------------------------------------------
 
 
+def _pytest_summary_line(combined: str) -> str:
+    """Return the last line that looks like a pytest short summary."""
+    for line in reversed(combined.splitlines()):
+        stripped = line.strip()
+        if re.search(r"\b(passed|failed|error|skipped)\b", stripped, re.IGNORECASE):
+            return stripped
+    return ""
+
+
+def _count_pytest_token(label: str, text: str) -> int:
+    match = re.search(rf"(\d+)\s+{label}\b", text, re.IGNORECASE)
+    return int(match.group(1)) if match else 0
+
+
 def _parse_pytest_summary(stdout: str, stderr: str) -> dict[str, Any]:
     """Parse pytest -v output for counts and duration."""
     combined = stdout + "\n" + stderr
-    total = passed = failed = errors = skipped = warnings = 0
+    passed = failed = errors = skipped = warnings = 0
     duration_seconds = 0.0
 
-    # e.g. "3 passed in 0.12s" or "2 failed, 1 passed in 0.45s" or "1 error in 0.10s"
-    summary_match = re.search(
-        r"(?:(\d+)\s+passed)?\s*(?:(\d+)\s+failed)?\s*(?:(\d+)\s+error(?:s)?)?\s*(?:(\d+)\s+skipped)?\s*(?:in\s+([\d.]+)\s*s)?",
-        combined,
-        re.IGNORECASE,
-    )
-    if summary_match:
-        g = summary_match.groups()
-        passed = int(g[0] or 0)
-        failed = int(g[1] or 0)
-        errors = int(g[2] or 0)
-        skipped = int(g[3] or 0)
-        if g[4]:
-            duration_seconds = float(g[4])
+    summary_line = _pytest_summary_line(combined)
+    if summary_line:
+        passed = _count_pytest_token("passed", summary_line)
+        failed = _count_pytest_token("failed", summary_line)
+        errors = _count_pytest_token("error", summary_line)
+        skipped = _count_pytest_token("skipped", summary_line)
+        duration_match = re.search(r"in\s+([\d.]+)\s*s", summary_line, re.IGNORECASE)
+        if duration_match:
+            duration_seconds = float(duration_match.group(1))
 
-    # Warnings: "X warnings" or "X passed, Y warnings"
     warn_match = re.search(r"(\d+)\s+warnings?", combined, re.IGNORECASE)
     if warn_match:
         warnings = int(warn_match.group(1))
@@ -316,8 +324,8 @@ def _parse_coverage_terminal(stdout: str) -> dict[str, Any]:
     branch_pct: float | None = None
     per_file: list[CoverageSummary] = []
 
-    # TOTAL line: "TOTAL    120   45   62%"
-    total_match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", stdout)
+    # TOTAL line (tolerates extra branch columns from --cov-branch)
+    total_match = re.search(r"TOTAL\s+(?:\d+\s+)+(\d+)%", stdout)
     if total_match:
         line_pct = float(total_match.group(1))
 
@@ -538,7 +546,7 @@ def generate_coverage_report(source_path: str) -> CoverageReport:
     # Parse summary for overall %
     line_pct = 0.0
     branch_pct: float | None = None
-    total_match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", raw_summary)
+    total_match = re.search(r"TOTAL\s+(?:\d+\s+)+(\d+)%", raw_summary)
     if total_match:
         line_pct = float(total_match.group(1))
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -299,6 +300,16 @@ def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
     - Runs in a temporary directory; no network isolation at OS level.
     """
     _audit_log("execute_shell", extra={"command_preview": command[:200], "timeout": timeout})
+    command_stripped = command.strip()
+    if re.search(r"[|&;<>$`]", command_stripped):
+        return ExecutionResult(
+            stdout="",
+            stderr="Command rejected: Shell metacharacters are not allowed",
+            return_code=-1,
+            timed_out=False,
+            duration_seconds=0.0,
+        )
+
     allowed, reason = _is_shell_command_allowed(command)
     if not allowed:
         return ExecutionResult(
@@ -309,13 +320,32 @@ def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
             duration_seconds=0.0,
         )
 
+    try:
+        argv = shlex.split(command_stripped)
+    except ValueError as e:
+        return ExecutionResult(
+            stdout="",
+            stderr=f"Command parse error: {e}",
+            return_code=-1,
+            timed_out=False,
+            duration_seconds=0.0,
+        )
+    if not argv:
+        return ExecutionResult(
+            stdout="",
+            stderr="Command rejected: Empty command",
+            return_code=-1,
+            timed_out=False,
+            duration_seconds=0.0,
+        )
+
     start = time.perf_counter()
     tmpdir: Path | None = None
     try:
         tmpdir = Path(tempfile.mkdtemp(prefix="ai_team_shell_"))
         proc = subprocess.run(
-            command,
-            shell=True,
+            argv,
+            shell=False,
             capture_output=True,
             cwd=str(tmpdir),
             timeout=timeout,

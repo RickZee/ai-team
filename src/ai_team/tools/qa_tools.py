@@ -28,7 +28,7 @@ def _safe_path(relative_path: str) -> Path:
     """Resolve path under workspace; prevent path traversal."""
     root = _workspace_root()
     path = (root / relative_path).resolve()
-    if not str(path).startswith(str(root)):
+    if not path.is_relative_to(root):
         raise ValueError(f"Path must be under workspace: {relative_path}")
     return path
 
@@ -76,12 +76,11 @@ def test_runner(
         extra_args: Optional extra pytest args (e.g. '-v -x').
     """
     root = _workspace_root()
-    work_dir = root / target if target != "." else root
-    if not work_dir.is_dir():
+    if target == ".":
+        work_dir = root
+    else:
         work_dir = _safe_path(target)
-        if work_dir.is_dir():
-            pass
-        else:
+        if not work_dir.is_dir() and work_dir.is_file():
             work_dir = work_dir.parent
     cmd: list[str] = ["pytest", str(work_dir), "-v", "--tb=short"]
     if extra_args:
