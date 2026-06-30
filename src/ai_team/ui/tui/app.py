@@ -385,7 +385,7 @@ class AITeamTUI(App):
             if status_filter and run.get("status") != status_filter:
                 continue
             if search:
-                hay = f"{run.get('description','')} {run.get('backend','')} {run.get('run_id','')}".lower()
+                hay = f"{run.get('description', '')} {run.get('backend', '')} {run.get('run_id', '')}".lower()
                 if search not in hay:
                     continue
             filtered.append(run)
@@ -396,7 +396,7 @@ class AITeamTUI(App):
         for run in filtered:
             sample = " [sample]" if run.get("is_sample") else ""
             desc = (run.get("description") or "No assignment")[:36]
-            label = f"{run.get('status','?'):<12} {desc}{sample}"
+            label = f"{run.get('status', '?'):<12} {desc}{sample}"
             item = ListItem(Label(label))
             item.run_id = run.get("run_id")  # type: ignore[attr-defined]
             list_view.append(item)

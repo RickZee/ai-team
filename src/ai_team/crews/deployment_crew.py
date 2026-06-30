@@ -163,7 +163,7 @@ class DeploymentCrew:
         doc_description_extra = ""
         if product_owner_doc_context:
             doc_description_extra = (
-                "\n\nProduct Owner expectations for documentation:\n" f"{product_owner_doc_context}"
+                f"\n\nProduct Owner expectations for documentation:\n{product_owner_doc_context}"
             )
 
         task_docs = create_documentation_generation_task(

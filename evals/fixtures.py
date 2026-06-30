@@ -264,7 +264,7 @@ def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
     # Write conftest at ws root AND in every src dir that has test files
     # so pytest always finds the sys.path additions regardless of rootdir.
     conftest_body = (
-        "import sys\nfrom pathlib import Path\n" "_here = Path(__file__).parent\n"
+        "import sys\nfrom pathlib import Path\n_here = Path(__file__).parent\n"
     ) + "".join(
         "sys.path.insert(0, str(_here))\n" if d == ws else f'sys.path.insert(0, r"{d}")\n'
         for d in src_dirs

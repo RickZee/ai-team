@@ -188,9 +188,7 @@ def bug_reporter(
     sev = severity.lower()
     if sev not in ("critical", "high", "medium", "low"):
         sev = "medium"
-    summary = (
-        f"Bug recorded: {title}\n" f"Severity: {sev}\n" f"Reproduction: {reproduction_steps}\n"
-    )
+    summary = f"Bug recorded: {title}\nSeverity: {sev}\nReproduction: {reproduction_steps}\n"
     if expected_behavior:
         summary += f"Expected: {expected_behavior}\n"
     if actual_behavior:
