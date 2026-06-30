@@ -269,15 +269,12 @@ def _cmd_run(
             if "testing" not in {str(p).strip().lower() for p in profile.phases}:
                 return
             try:
-                from pathlib import Path
-
                 from ai_team.guardrails.quality import runtime_smoke_guardrail
-                from ai_team.tools.smoke_tools import run_app_smoke
+                from ai_team.tools.smoke_tools import load_or_run_smoke
 
-                # If the backend's own agents didn't already smoke the app
-                # (no smoke_results.json), boot it now so the gate has evidence.
-                if not (Path(ws) / "docs" / "smoke_results.json").is_file():
-                    run_app_smoke(ws)
+                # Reuse the backend's smoke result if it already booted the app
+                # this run; otherwise boot it now so the gate has evidence.
+                load_or_run_smoke(ws)
                 res = runtime_smoke_guardrail(ws, profile.phases)
                 if not res.passed:
                     logger.warning(

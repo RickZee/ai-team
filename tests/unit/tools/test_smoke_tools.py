@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import time
 
 import pytest
 from ai_team.tools.smoke_tools import (
     SmokeResult,
     _compose_published_port,
     _host_port,
+    _port_in_use,
+    load_or_run_smoke,
     run_app_smoke,
 )
 
@@ -125,3 +128,84 @@ class TestRuntimeBoot:
         assert any(p.status == 500 for p in result.probes)
         written = json.loads((tmp_path / "docs" / "smoke_results.json").read_text())
         assert written["success"] is False
+
+
+class TestPortInUse:
+    def test_free_port_is_not_in_use(self) -> None:
+        from ai_team.tools.smoke_tools import _free_port
+
+        # _free_port reserves then releases; the port is very likely free after.
+        assert _port_in_use(_free_port()) is False
+
+    def test_bound_port_is_in_use(self) -> None:
+        import socket
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            s.listen(1)
+            port = s.getsockname()[1]
+            assert _port_in_use(port) is True
+
+
+def _write_results(workspace, **fields) -> None:
+    docs = workspace / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    payload = {"ran": True, "success": True, "entrypoint": "module", "message": "ok", **fields}
+    (docs / "smoke_results.json").write_text(json.dumps(payload))
+
+
+class TestLoadOrRunSmoke:
+    def test_reuses_fresh_cache_without_booting(self, tmp_path, monkeypatch) -> None:
+        _write_results(tmp_path, message="cached")
+
+        def _boom(*_a, **_k):
+            raise AssertionError("run_app_smoke should not be called when cache is fresh")
+
+        monkeypatch.setattr("ai_team.tools.smoke_tools.run_app_smoke", _boom)
+        result = load_or_run_smoke(tmp_path, max_age_s=600)
+        assert result.success is True
+        assert result.message == "cached"
+
+    def test_stale_cache_triggers_reboot(self, tmp_path, monkeypatch) -> None:
+        _write_results(tmp_path, message="stale")
+        # Age the cache file beyond the freshness window.
+        old = time.time() - 10_000
+        import os
+
+        os.utime(tmp_path / "docs" / "smoke_results.json", (old, old))
+
+        called = {"n": 0}
+
+        def _fake(_ws, **_k):
+            called["n"] += 1
+            return SmokeResult(ran=True, success=False, entrypoint="module", message="rebooted")
+
+        monkeypatch.setattr("ai_team.tools.smoke_tools.run_app_smoke", _fake)
+        result = load_or_run_smoke(tmp_path, max_age_s=600)
+        assert called["n"] == 1
+        assert result.message == "rebooted"
+
+    def test_missing_cache_boots(self, tmp_path, monkeypatch) -> None:
+        called = {"n": 0}
+
+        def _fake(_ws, **_k):
+            called["n"] += 1
+            return SmokeResult(ran=False, success=False, message="booted")
+
+        monkeypatch.setattr("ai_team.tools.smoke_tools.run_app_smoke", _fake)
+        load_or_run_smoke(tmp_path)
+        assert called["n"] == 1
+
+    def test_malformed_cache_boots(self, tmp_path, monkeypatch) -> None:
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "smoke_results.json").write_text("{ not json")
+        called = {"n": 0}
+
+        def _fake(_ws, **_k):
+            called["n"] += 1
+            return SmokeResult(ran=False, success=False)
+
+        monkeypatch.setattr("ai_team.tools.smoke_tools.run_app_smoke", _fake)
+        load_or_run_smoke(tmp_path)
+        assert called["n"] == 1
