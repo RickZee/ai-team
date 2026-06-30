@@ -194,6 +194,7 @@ def _cmd_run(
     output_mode: str,
     skip_estimate: bool,
     project_name: str,
+    run_name: str = "",
     backend_name: str = "crewai",
     team: str = "full",
     thread_id: str = "",
@@ -282,6 +283,7 @@ def _cmd_run(
                 "monitor": monitor_obj if use_tui else None,
                 "skip_estimate": skip_estimate,
                 "complexity_override": complexity,
+                "run_label": run_name,
             }
             if thread_id.strip():
                 run_kw["thread_id"] = thread_id.strip()
@@ -316,6 +318,7 @@ def _cmd_run(
                 "monitor": monitor_obj if use_tui else None,
                 "skip_estimate": skip_estimate,
                 "complexity_override": complexity,
+                "run_label": run_name,
             }
             if thread_id.strip():
                 run_kw_claude["thread_id"] = thread_id.strip()
@@ -345,6 +348,7 @@ def _cmd_run(
             "monitor": monitor_obj,
             "skip_estimate": skip_estimate,
             "complexity_override": complexity,
+            "run_label": run_name,
         }
         if thread_id.strip() and backend_name == "langgraph":
             run_kw["thread_id"] = thread_id.strip()
@@ -471,6 +475,11 @@ def main() -> int:
         "--project-name",
         default="AI-Team Project",
         help="Project name shown in the monitor.",
+    )
+    run_p.add_argument(
+        "--run-name",
+        default="",
+        help="Optional slug for workspace/output directory (overrides description-based slug).",
     )
     run_p.add_argument(
         "--thread-id",
@@ -643,6 +652,7 @@ def main() -> int:
             output_mode=output_mode,
             skip_estimate=args.skip_estimate,
             project_name=args.project_name,
+            run_name=getattr(args, "run_name", "") or "",
             backend_name=args.backend,
             team=args.team,
             thread_id=getattr(args, "thread_id", "") or "",

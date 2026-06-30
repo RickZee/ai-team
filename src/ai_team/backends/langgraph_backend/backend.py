@@ -8,7 +8,6 @@ import os
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
 from typing import Any, cast
-from uuid import uuid4
 
 import structlog
 from ai_team.backends.langgraph_backend.checkpointer import (
@@ -25,6 +24,7 @@ from ai_team.backends.langgraph_backend.graphs.spend_guard import (
 from ai_team.config.settings import reload_settings
 from ai_team.core.result import ProjectResult
 from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
+from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.team_profile import TeamProfile
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph
@@ -124,7 +124,12 @@ class LangGraphBackend:
             )
         try:
             mode = self._graph_mode(kwargs)
-            thread_id = str(kwargs.get("thread_id") or uuid4())
+            thread_id = resolve_run_id(
+                description=description,
+                team_profile=profile.name,
+                run_label=str(kwargs.get("run_label") or ""),
+                thread_id=str(kwargs.get("thread_id") or ""),
+            )
             # Per-run workspace isolation (tools write under workspace/<project_id>/).
             try:
                 ws_override = kwargs.get("workspace_dir")
@@ -299,7 +304,12 @@ class LangGraphBackend:
         Yields dicts with ``type`` of ``langgraph_update`` | ``langgraph_done`` | ``langgraph_error``.
         """
         mode = self._graph_mode(kwargs)
-        thread_id = str(kwargs.get("thread_id") or uuid4())
+        thread_id = resolve_run_id(
+            description=description,
+            team_profile=profile.name,
+            run_label=str(kwargs.get("run_label") or ""),
+            thread_id=str(kwargs.get("thread_id") or ""),
+        )
         try:
             os.environ["PROJECT_WORKSPACE_DIR"] = os.path.join("./workspace", thread_id)
             reload_settings()

@@ -24,6 +24,7 @@ from ai_team.config.model_validation import ModelValidationError, validate_model
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings, reload_settings
 from ai_team.core.results import ResultsBundle, scorecard_from_project_state
+from ai_team.core.run_naming import resolve_run_id
 from ai_team.flows.error_handling import (
     handle_deployment_error as handle_deployment_error_fn,
 )
@@ -54,7 +55,8 @@ from ai_team.flows.state import ProjectPhase, ProjectState
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.monitor import MonitorCallback, TeamMonitor
-from ai_team.tools.file_tools import write_file as safe_write_file, normalize_pytest_path
+from ai_team.tools.file_tools import normalize_pytest_path
+from ai_team.tools.file_tools import write_file as safe_write_file
 from crewai import Flow
 from crewai.flow.flow import listen, router, start
 
@@ -1268,6 +1270,8 @@ def run_ai_team(
     complexity_override: str | None = None,
     team_profile: str | None = None,
     verbose: bool | None = None,
+    run_label: str | None = None,
+    project_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Main entry point to run the AI Team flow.
@@ -1278,6 +1282,7 @@ def run_ai_team(
     If env_override is set (dev/test/prod), AI_TEAM_ENV is set for this run.
     If complexity_override is set (simple/medium/complex), cost estimation uses it instead of inferring.
     If team_profile is set, it is stored in state metadata (see ``config/team_profiles.yaml``).
+    If run_label is set, it overrides the slug used in the workspace directory name.
     Returns the final result and full state dump.
     """
     if env_override is not None:
@@ -1298,6 +1303,15 @@ def run_ai_team(
     try:
         sys.setrecursionlimit(FLOW_RECURSION_LIMIT)
         flow = AITeamFlow(monitor=monitor, verbose=verbose)
+
+        if project_id and project_id.strip():
+            flow.state.project_id = project_id.strip()
+        else:
+            flow.state.project_id = resolve_run_id(
+                description=project_description,
+                team_profile=profile_name,
+                run_label=run_label or "",
+            )
         flow.state.project_description = project_description
         flow.state.metadata["skip_estimate"] = skip_estimate
         flow.state.metadata["team_profile"] = profile_name
