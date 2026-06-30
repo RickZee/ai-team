@@ -49,7 +49,7 @@ same contract so the Compare tab stays apples-to-apples.
 | Backend | Loop mechanism | Status |
 |---------|----------------|--------|
 | claude-agent-sdk | `run_orchestrator_with_recovery` applies the smoke gate between attempts; on failure feeds `{endpoint, status, traceback, logs}` back as a fix prompt and retries. Gated by `settings.anthropic.smoke_loop_enabled` (default on) / `smoke_max_attempts` (default 2). QA + DevOps agents also get the `run_app_smoke` MCP tool to self-correct *within* an attempt. | **Done** |
-| langgraph | Add a `smoke` node after testing + a conditional edge back to development when `smoke_results.json.success == false`, bounded by a retry counter in graph state. | **TODO** |
+| langgraph | A `smoke` node sits between `testing` and `deployment`: `route_after_testing` sends a passing test suite to `smoke`, and `route_after_smoke` returns `deployment` (pass/skip) or `retry_development` (fail), bounded by `retry_count`/`max_retries`, then `human_review`. Results land in `metadata.smoke_results`. Placeholder mode records a skip so unit tests stay deterministic; full mode calls `run_app_smoke`. | **Done** |
 | crewai | Demoted (comparison-only); covered by the shared post-run gate, no inner loop. | n/a |
 
 ## Why this closes the gap
