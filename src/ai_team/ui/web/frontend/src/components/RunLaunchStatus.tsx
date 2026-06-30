@@ -13,6 +13,7 @@ const STATUS_LABEL: Record<RunWsStatus, string> = {
   running: "Run started — opening dashboard…",
   awaiting_human: "Paused for human review",
   complete: "Run complete",
+  cancelled: "Run cancelled",
   error: "Run failed",
 };
 

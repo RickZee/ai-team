@@ -127,9 +127,9 @@ class CrewAIBackend:
             ws_override = kwargs.get("workspace_dir")
             if ws_override:
                 os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_override)
-            explicit_id = str(
-                kwargs.get("thread_id") or kwargs.get("project_id") or ""
-            ).strip() or None
+            explicit_id = (
+                str(kwargs.get("thread_id") or kwargs.get("project_id") or "").strip() or None
+            )
             payload = run_ai_team(
                 _maybe_augment_with_rag(description),
                 monitor=monitor,

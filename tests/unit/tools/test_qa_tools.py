@@ -62,7 +62,7 @@ class TestCoverageAnalyzer:
     def test_invokes_pytest_with_cov_flags(self, qa_workspace: Path) -> None:
         captured: dict[str, object] = {}
 
-        def fake_run(cmd, cwd, capture_output, text, timeout):  # noqa: ANN001
+        def fake_run(cmd, cwd, capture_output, text, timeout, env=None):  # noqa: ANN001
             captured["cmd"] = cmd
             return MagicMock(returncode=0, stdout="TOTAL ...\n", stderr="")
 
