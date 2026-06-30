@@ -35,8 +35,15 @@ app = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        o.strip()
+        for o in os.environ.get(
+            "AI_TEAM_CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8421",
+        ).split(",")
+        if o.strip()
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

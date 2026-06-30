@@ -107,11 +107,8 @@ def _make_test_execution_guardrail(min_coverage: float = MIN_COVERAGE_THRESHOLD)
             if line_pct is not None:
                 cov_ratio = line_pct / 100.0 if line_pct > 1 else line_pct
                 return (cov_ratio >= min_coverage, s)
-            total_coverage = data.get("line_coverage_pct")
-            if total_coverage is not None:
-                total_coverage = total_coverage / 100.0 if total_coverage > 1 else total_coverage
             coverage_report = {
-                "total_coverage": total_coverage or 0.0,
+                "total_coverage": 0.0,
                 "files": data.get("per_file_coverage", {}),
             }
         else:

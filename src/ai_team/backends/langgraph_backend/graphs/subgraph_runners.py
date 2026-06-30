@@ -244,9 +244,7 @@ def _snapshot_workspace_files() -> list[dict[str, Any]]:
     file set to operate like an engineering organization.
     """
     root = get_settings().project.workspace_dir
-    base = (get_settings().project.workspace_dir and get_settings().project.workspace_dir) or ""
-    _ = base
-    p = __import__("pathlib").Path(root).resolve()
+    p = Path(root).resolve()
     if not p.exists():
         return []
     out: list[dict[str, Any]] = []

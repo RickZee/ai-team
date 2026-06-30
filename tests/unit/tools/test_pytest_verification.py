@@ -16,6 +16,19 @@ def _clear_registry() -> None:
     tt.clear_verified_pytest_run()
 
 
+class TestPytestSummaryParsing:
+    def test_parse_summary_counts_passed(self) -> None:
+        stdout = "===== 3 passed in 0.12s =====\n"
+        summary = tt._parse_pytest_summary(stdout, "")
+        assert summary["passed"] == 3
+        assert summary["total"] == 3
+
+    def test_parse_coverage_total_with_branch_columns(self) -> None:
+        stdout = "TOTAL    120   45   30   10   62%\n"
+        cov = tt._parse_coverage_terminal(stdout)
+        assert cov["line_coverage_pct"] == 62.0
+
+
 class TestFabricatedOutputDetection:
     def test_detects_linux_platform_on_darwin(self) -> None:
         raw = "============================= test session starts ==============================\nplatform linux -- Python 3.8.10"

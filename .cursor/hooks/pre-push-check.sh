@@ -22,7 +22,7 @@ if [[ "$branch" == "main" ]]; then
   extra_args=(--main)
 fi
 
-if ! (cd "$repo_root" && ./scripts/pre_push_check.sh "${extra_args[@]}"); then
+if ! (cd "$repo_root" && ./scripts/pre_push_check.sh ${extra_args[@]+"${extra_args[@]}"}); then
   echo '{
     "permission": "deny",
     "user_message": "Pre-push checks failed. Run ./scripts/pre_push_check.sh and fix errors before pushing.",
