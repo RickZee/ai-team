@@ -18,16 +18,19 @@ def test_claude_backend_run_collects_workspace_artifacts(
     workspace = tmp_path / "ws"
     workspace.mkdir()
 
-    async def fake_run(*_a: object, **_k: object) -> ResultMessage:
-        return ResultMessage(
-            subtype="success",
-            duration_ms=1,
-            duration_api_ms=1,
-            is_error=False,
-            num_turns=1,
-            session_id="sess-integ",
-            total_cost_usd=0.01,
-            usage={"input_tokens": 1},
+    async def fake_recovery(*_a: object, **_k: object) -> tuple[ResultMessage, list[str]]:
+        return (
+            ResultMessage(
+                subtype="success",
+                duration_ms=1,
+                duration_api_ms=1,
+                is_error=False,
+                num_turns=1,
+                session_id="sess-integ",
+                total_cost_usd=0.01,
+                usage={"input_tokens": 1},
+            ),
+            [],
         )
 
     profile = TeamProfile(
@@ -37,8 +40,8 @@ def test_claude_backend_run_collects_workspace_artifacts(
     )
 
     with patch(
-        "ai_team.backends.claude_agent_sdk_backend.backend.run_orchestrator",
-        new=fake_run,
+        "ai_team.backends.claude_agent_sdk_backend.backend.run_orchestrator_with_recovery",
+        new=fake_recovery,
     ):
         backend = ClaudeAgentBackend()
         pr = backend.run(
