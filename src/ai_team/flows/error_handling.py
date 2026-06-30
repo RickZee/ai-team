@@ -94,6 +94,8 @@ RETRYABLE_INDICATORS = [
     # CrewAI agent_utils: LLM returned None/empty — transient provider issue
     "invalid response from llm call",
     "none or empty",
+    "wall-clock",
+    "exceeded",
 ]
 FATAL_INDICATORS = [
     "model not found",
@@ -104,7 +106,6 @@ FATAL_INDICATORS = [
     "security violation",
     "fatal",
     "cannot load",
-    "not found",
     # Do not retry planning/crews on Python recursion exhaustion (often worsens or crashes native libs).
     "maximum recursion depth",
     "recursionerror",

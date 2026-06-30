@@ -10,8 +10,11 @@ from __future__ import annotations
 
 from enum import Enum
 
+import structlog
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = structlog.get_logger(__name__)
 
 
 class Environment(str, Enum):
@@ -216,4 +219,6 @@ class OpenRouterSettings(BaseSettings):
         key = role.lower()
         if key == "devops_engineer":
             key = "devops"
+        if key not in models:
+            logger.warning("unknown_role_model", role=role, fallback="manager")
         return models.get(key, models["manager"])

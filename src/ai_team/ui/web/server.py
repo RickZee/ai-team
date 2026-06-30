@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import json
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -35,8 +36,15 @@ app = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        o.strip()
+        for o in os.environ.get(
+            "AI_TEAM_CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8421",
+        ).split(",")
+        if o.strip()
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -497,7 +505,10 @@ async def ws_run(websocket: WebSocket):
         try:
             await asyncio.shield(task)
         except asyncio.CancelledError:
-            if state.is_cancel_requested(run_id):
+            if (
+                state.is_cancel_requested(run_id)
+                and state.runs.get(run_id, {}).get("status") != "cancelled"
+            ):
                 monitor = state.monitors.get(run_id)
                 state.finish_cancelled(run_id)
                 with contextlib.suppress(Exception):
@@ -607,6 +618,8 @@ async def _safe_send(ws: WebSocket, payload: dict[str, Any]) -> None:
 
 async def _send_cancelled(ws: WebSocket, run_id: str) -> None:
     """Mark run cancelled and notify the WebSocket client."""
+    if state.runs.get(run_id, {}).get("status") == "cancelled":
+        return
     monitor = state.monitors.get(run_id)
     state.finish_cancelled(run_id)
     await _safe_send(
@@ -618,6 +631,54 @@ async def _send_cancelled(ws: WebSocket, run_id: str) -> None:
             "project_id": run_id,
         },
     )
+
+
+async def _stream_langgraph_events_to_ws(
+    ws: WebSocket,
+    run_id: str,
+    backend: Any,
+    description: str,
+    profile: Any,
+    monitor: Any,
+    thread_id: str,
+) -> tuple[bool, dict[str, Any] | None]:
+    """Incrementally stream LangGraph events to the client via a thread-safe queue."""
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+    def _producer() -> None:
+        try:
+            for ev in backend.iter_stream_events(
+                description,
+                profile,
+                monitor=monitor,
+                thread_id=thread_id,
+            ):
+                if state.is_cancel_requested(run_id):
+                    break
+                loop.call_soon_threadsafe(queue.put_nowait, ev)
+        finally:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+
+    threading.Thread(target=_producer, daemon=True).start()
+
+    while True:
+        if state.is_cancel_requested(run_id):
+            await _send_cancelled(ws, run_id)
+            return False, None
+        ev = await queue.get()
+        if ev is None:
+            break
+        await _safe_send(
+            ws,
+            {
+                "type": "event",
+                "data": json.loads(json.dumps(ev, default=str)),
+            },
+        )
+        await _safe_send(ws, {"type": "monitor_update", "data": _serialize_monitor(monitor)})
+
+    return _langgraph_hitl_status(backend, thread_id)
 
 
 async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
@@ -643,40 +704,18 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 
             if isinstance(backend, LangGraphBackend):
-                loop = asyncio.get_event_loop()
                 thread_id = run_id
-
-                def _stream():
-                    events = []
-                    for ev in backend.iter_stream_events(
-                        req.description,
-                        profile,
-                        monitor=monitor,
-                        thread_id=thread_id,
-                    ):
-                        events.append(ev)
-                    return events
-
-                events = await loop.run_in_executor(None, _stream)
-                for ev in events:
-                    if state.is_cancel_requested(run_id):
-                        await _send_cancelled(ws, run_id)
-                        return
-                    await _safe_send(
-                        ws,
-                        {
-                            "type": "event",
-                            "data": json.loads(json.dumps(ev, default=str)),
-                        },
-                    )
-                    monitor_snap = _serialize_monitor(monitor)
-                    await _safe_send(ws, {"type": "monitor_update", "data": monitor_snap})
-
+                awaiting, hitl_payload = await _stream_langgraph_events_to_ws(
+                    ws,
+                    run_id,
+                    backend,
+                    req.description,
+                    profile,
+                    monitor,
+                    thread_id,
+                )
                 if state.is_cancel_requested(run_id):
-                    await _send_cancelled(ws, run_id)
                     return
-
-                awaiting, hitl_payload = _langgraph_hitl_status(backend, thread_id)
                 if awaiting:
                     payload = {
                         **(hitl_payload or {}),

@@ -1,4 +1,9 @@
-"""Pydantic models for agent outputs and shared state."""
+"""Pydantic models for agent outputs and shared state.
+
+Crew flows use domain models in ``requirements``, ``architecture``, ``development``,
+and ``qa_models``. LLM structured-output parsing with extra validators lives in
+``outputs`` — import from there for task ``output_pydantic`` schemas.
+"""
 
 from ai_team.models.architecture import (
     ArchitectureDecisionRecord,

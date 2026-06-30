@@ -11,9 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import yaml
-from ai_team.agents.base import _load_agents_config
-from ai_team.agents.developer_base import DeveloperBase
+from ai_team.agents.developer_base import DeveloperBase, create_developer_agent
 from ai_team.tools.developer_tools import get_backend_developer_tools
 
 
@@ -39,44 +37,17 @@ def create_backend_developer(
     agents_config: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> BackendDeveloper:
-    """
-    Create a BackendDeveloper from agents.yaml (backend_developer entry).
-
-    :param tools: Optional override for full tool list.
-    :param before_task: Optional callback before task.
-    :param after_task: Optional callback after task.
-    :param guardrail_tools: Wrap tools with guardrails.
-    :param config_path: Override path to agents YAML.
-    :param agents_config: Pre-loaded config dict (overrides file).
-    :param kwargs: Passed to DeveloperBase (e.g. architecture_path, requirements_path).
-    :return: Configured BackendDeveloper instance.
-    """
-    if agents_config is None:
-        if config_path and config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
-                agents_config = yaml.safe_load(f) or {}
-        else:
-            agents_config = _load_agents_config()
-
-    role_key = "backend_developer"
-    if role_key not in agents_config:
-        raise KeyError(f"'{role_key}' not in agents config. Known: {list(agents_config.keys())}")
-
-    cfg = agents_config[role_key]
-    extra_tools = None if tools is not None else get_backend_developer_tools()
-    return BackendDeveloper(
-        role_name=role_key,
-        role=cfg.get("role", "Senior Backend Developer"),
-        goal=cfg.get("goal", ""),
-        backstory=cfg.get("backstory", ""),
+    """Create a BackendDeveloper from agents.yaml (backend_developer entry)."""
+    return create_developer_agent(
+        "backend_developer",
+        BackendDeveloper,
+        tool_getter=get_backend_developer_tools,
         tools=tools,
-        extra_tools=extra_tools,
-        verbose=cfg.get("verbose", True),
-        allow_delegation=cfg.get("allow_delegation", False),
-        max_iter=cfg.get("max_iter", 15),
-        memory=cfg.get("memory", True),
         before_task=before_task,
         after_task=after_task,
         guardrail_tools=guardrail_tools,
+        config_path=config_path,
+        agents_config=agents_config,
+        default_role="Senior Backend Developer",
         **kwargs,
     )

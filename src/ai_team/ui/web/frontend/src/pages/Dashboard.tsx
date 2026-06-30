@@ -115,8 +115,23 @@ export function Dashboard() {
     };
   }, [selectedRunId]);
 
+  useEffect(() => {
+    if (!selectedRunId || !isTerminal) return;
+    let cancelled = false;
+    getRun(selectedRunId)
+      .then((data) => {
+        if (!cancelled) setStaticMonitor(data.monitor ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setStaticMonitor(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRunId, isTerminal, activeRun?.status]);
+
   const monitor: MonitorState | null =
-    isLive && live.monitor ? live.monitor : staticMonitor ?? live.monitor;
+    live.monitor ?? (isLive ? null : staticMonitor);
 
   const displayMonitor = monitor?.phase ? monitor : null;
   const hasMonitor = displayMonitor !== null;

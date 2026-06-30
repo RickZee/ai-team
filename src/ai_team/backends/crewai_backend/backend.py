@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 from collections.abc import AsyncIterator
 from typing import Any
 
 import structlog
 from ai_team.core.result import ProjectResult
+from ai_team.core.stream_helpers import stream_via_threaded_run
 from ai_team.core.team_profile import TeamProfile
 from ai_team.flows.main_flow import run_ai_team
 from ai_team.monitor import TeamMonitor
 from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
+
+_CONSOLE_DISABLED = False
+_DEVNULL_HANDLE: Any | None = None
 
 
 def _disable_crewai_console() -> None:
@@ -26,19 +29,22 @@ def _disable_crewai_console() -> None:
     Setting _is_streaming=True makes print() early-return on Tree args, breaking
     the cycle. verbose=False suppresses all other crew/task/agent rendering.
     """
+    global _CONSOLE_DISABLED, _DEVNULL_HANDLE
+    if _CONSOLE_DISABLED:
+        return
     try:
         from crewai.events.event_listener import EventListener
         from rich.console import Console
 
+        if _DEVNULL_HANDLE is None:
+            _DEVNULL_HANDLE = open(os.devnull, "w")  # noqa: SIM115
         el = EventListener()
         el.formatter.verbose = False
         el.formatter._is_streaming = True
-        el.formatter.console = Console(file=open(os.devnull, "w"), quiet=True)  # noqa: SIM115
-    except Exception:
-        pass  # crewai not installed or API changed — non-fatal
-
-
-_disable_crewai_console()
+        el.formatter.console = Console(file=_DEVNULL_HANDLE, quiet=True)
+        _CONSOLE_DISABLED = True
+    except Exception as exc:
+        logger.debug("crewai_console_disable_skipped", error=str(exc))
 
 
 def _flatten_crewai_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -173,15 +179,12 @@ class CrewAIBackend:
         **kwargs: Any,
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield a start event, run synchronously in a thread pool, then a finish event."""
-        yield {
-            "type": "run_started",
-            "backend": self.name,
-            "team_profile": profile.name,
-        }
-        result = await asyncio.to_thread(self.run, description, profile, env, **kwargs)
-        yield {
-            "type": "run_finished",
-            "backend": self.name,
-            "success": result.success,
-            "result": result.model_dump(),
-        }
+        async for event in stream_via_threaded_run(
+            backend_name=self.name,
+            run_fn=self.run,
+            description=description,
+            profile=profile,
+            env=env,
+            **kwargs,
+        ):
+            yield event
