@@ -14,6 +14,7 @@ from typing import Any
 import structlog
 from ai_team.agents.qa_engineer import create_qa_engineer
 from ai_team.config.llm_factory import get_embedder_config
+from ai_team.crews.memory_flag import crew_memory_enabled
 from ai_team.config.settings import get_settings
 from ai_team.models.development import CodeFile
 from ai_team.models.qa_models import CodeReviewReport
@@ -22,85 +23,17 @@ from ai_team.tasks.testing_tasks import (
     test_execution_task,
     test_generation_task,
 )
-from ai_team.tools.test_tools import TestRunResult
+from ai_team.tools.file_tools import write_file as safe_write_file, normalize_pytest_path
+from ai_team.tools.test_tools import (
+    TestRunResult,
+    clear_verified_pytest_run,
+    get_verified_pytest_run,
+    run_pytest_discover_workspace,
+)
 from crewai import Crew, Process
 from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
-
-
-# -----------------------------------------------------------------------------
-# Pytest stdout fallback parser
-# -----------------------------------------------------------------------------
-
-
-def _extract_test_result_from_pytest_stdout(raw_outputs: list[str]) -> TestRunResult | None:
-    """
-    Scan all raw task outputs for embedded pytest stdout and build a TestRunResult.
-
-    Used when the LLM returns tool-call arguments instead of TestRunResult JSON
-    (observed with Devstral-2512 when output_pydantic is set on the task).
-    """
-    pytest_markers = ("passed", "failed", "error", "collected", "test session")
-    combined = "\n".join(raw_outputs)
-
-    if not any(m in combined.lower() for m in pytest_markers):
-        return None
-
-    # Parse counts from pytest summary line
-    total = passed = failed = errors = skipped = warnings = 0
-    duration_seconds = 0.0
-
-    summary_match = re.search(
-        r"(?:(\d+)\s+passed)?\s*"
-        r"(?:(\d+)\s+failed)?\s*"
-        r"(?:(\d+)\s+error(?:s)?)?\s*"
-        r"(?:(\d+)\s+skipped)?\s*"
-        r"(?:in\s+([\d.]+)\s*s)?",
-        combined,
-        re.IGNORECASE,
-    )
-    if summary_match:
-        g = summary_match.groups()
-        passed = int(g[0] or 0)
-        failed = int(g[1] or 0)
-        errors = int(g[2] or 0)
-        skipped = int(g[3] or 0)
-        duration_seconds = float(g[4] or 0)
-
-    warn_match = re.search(r"(\d+)\s+warnings?", combined, re.IGNORECASE)
-    if warn_match:
-        warnings = int(warn_match.group(1))
-
-    total = passed + failed + errors + skipped
-    if total == 0 and passed == 0:
-        return None  # couldn't parse anything useful
-
-    # Coverage: TOTAL line from pytest-cov
-    line_pct: float | None = None
-    cov_match = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", combined)
-    if cov_match:
-        line_pct = float(cov_match.group(1))
-
-    logger.info(
-        "test_result_parsed_from_stdout_fallback",
-        total=total,
-        passed=passed,
-        failed=failed,
-        line_coverage_pct=line_pct,
-    )
-    return TestRunResult(
-        total=total,
-        passed=passed,
-        failed=failed,
-        errors=errors,
-        skipped=skipped,
-        warnings=warnings,
-        duration_seconds=duration_seconds,
-        line_coverage_pct=line_pct,
-        raw_output=combined[:4000],
-        success=(failed == 0 and errors == 0 and total > 0),
-    )
 
 
 # -----------------------------------------------------------------------------
@@ -146,6 +79,72 @@ def _code_files_to_summary(code_files: list[CodeFile], max_chars: int = 12000) -
         parts.append(block)
         total += len(block)
     return "\n".join(parts) if parts else "(no code files provided)"
+
+
+def _parse_code_files_from_task_raw(raw: str) -> list[CodeFile]:
+    """Best-effort parse of test generation task output into CodeFile objects."""
+    if not raw or not raw.strip():
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
+        cleaned = re.sub(r"\n?```$", "", cleaned)
+    try:
+        data = json.loads(cleaned)
+    except json.JSONDecodeError:
+        return []
+    items: list[dict[str, Any]] = []
+    if isinstance(data, dict) and isinstance(data.get("files"), list):
+        items = [i for i in data["files"] if isinstance(i, dict)]
+    elif isinstance(data, list):
+        items = [i for i in data if isinstance(i, dict)]
+    files: list[CodeFile] = []
+    for item in items:
+        if "path" not in item or "content" not in item:
+            continue
+        try:
+            files.append(
+                CodeFile(**{k: v for k, v in item.items() if k in CodeFile.model_fields})
+            )
+        except (TypeError, ValueError):
+            continue
+    return files
+
+
+def _persist_test_files_from_code_files(code_files: list[CodeFile]) -> int:
+    """Write test files from Development Crew output before QA runs."""
+    written = 0
+    for cf in code_files:
+        if "test" not in cf.path.lower():
+            continue
+        try:
+            safe_write_file(normalize_pytest_path(cf.path), cf.content)
+            written += 1
+        except Exception as exc:
+            logger.warning(
+                "testing_crew_dev_test_write_failed",
+                path=cf.path,
+                error=str(exc),
+            )
+    if written:
+        logger.info("testing_crew_dev_tests_persisted", count=written)
+    return written
+
+
+def _persist_test_files_from_generation(raw: str) -> int:
+    """Write test files from QA test_generation output to the workspace."""
+    written = 0
+    for cf in _parse_code_files_from_task_raw(raw):
+        if "test" not in cf.path.lower():
+            continue
+        try:
+            safe_write_file(normalize_pytest_path(cf.path), cf.content)
+            written += 1
+        except Exception as exc:
+            logger.warning("testing_crew_test_write_failed", path=cf.path, error=str(exc))
+    if written:
+        logger.info("testing_crew_tests_persisted", count=written)
+    return written
 
 
 def _parse_task_output_as_model(raw: Any, model: type[BaseModel]) -> BaseModel | None:
@@ -200,22 +199,40 @@ def _quality_gate_passed(
     return True
 
 
+def _run_orchestrated_pytest() -> TestRunResult | None:
+    """Run pytest in-process when the QA agent skips ``run_pytest`` (eval reliability)."""
+    result = run_pytest_discover_workspace()
+    if result is not None:
+        logger.info(
+            "testing_crew_orchestrated_pytest",
+            passed=result.passed,
+            failed=result.failed,
+            success=result.success,
+        )
+    return result
+
+
 def create_testing_crew(
     qa_agent: Any | None = None,
     guardrail_max_retries: int | None = None,
-    memory: bool = False,
+    memory: bool | None = None,
     verbose: bool = False,
     step_callback: Any | None = None,
     task_callback: Any | None = None,
     min_coverage_pct: float | None = None,
+    agent_test_execution: bool = False,
 ) -> Crew:
     """
     Build the Testing Crew: sequential process, QA Engineer only.
 
-    Tasks: test_generation (with code_files_summary input) → test_execution → code_review.
-    Guardrails: test quality validation, coverage enforcement (from settings when available).
+    Tasks: test_generation → (optional agent test_execution) → code_review.
+    By default pytest is orchestrated in ``kickoff()`` after generation — the agent
+    ``test_execution`` task is skipped because OpenRouter models often omit ``run_pytest``
+    and guardrail retries exhaust with empty LLM responses.
     """
     agent = qa_agent if qa_agent is not None else create_qa_engineer()
+    if memory is None:
+        memory = crew_memory_enabled()
     retries = guardrail_max_retries
     if retries is None:
         try:
@@ -230,18 +247,32 @@ def create_testing_crew(
         guardrail_max_retries=retries,
         use_input_placeholder=True,
     )
-    t_exec = test_execution_task(
-        agent, context=[t_gen], guardrail_max_retries=retries, min_coverage_pct=min_coverage_pct
-    )
+    tasks: list[Any] = [t_gen]
+    task_names = ["test_generation"]
+    if agent_test_execution:
+        t_exec = test_execution_task(
+            agent,
+            context=[t_gen],
+            guardrail_max_retries=retries,
+            min_coverage_pct=min_coverage_pct,
+        )
+        tasks.append(t_exec)
+        task_names.append("test_execution")
+        review_context = [t_gen, t_exec]
+    else:
+        review_context = [t_gen]
+
     t_review = code_review_task(
         agent,
-        context=[t_gen, t_exec],
+        context=review_context,
         guardrail_max_retries=retries,
     )
+    tasks.append(t_review)
+    task_names.append("code_review")
 
     crew = Crew(
         agents=[agent],
-        tasks=[t_gen, t_exec, t_review],
+        tasks=tasks,
         process=Process.sequential,
         memory=memory,
         embedder=get_embedder_config() if memory else None,
@@ -252,7 +283,9 @@ def create_testing_crew(
     logger.info(
         "testing_crew_created",
         process="sequential",
-        tasks=["test_generation", "test_execution", "code_review"],
+        memory=memory,
+        agent_test_execution=agent_test_execution,
+        tasks=task_names,
     )
     return crew
 
@@ -261,11 +294,12 @@ def kickoff(
     code_files: list[CodeFile],
     qa_agent: Any | None = None,
     guardrail_max_retries: int | None = None,
-    memory: bool = False,
+    memory: bool | None = None,
     verbose: bool = False,
     step_callback: Any | None = None,
     task_callback: Any | None = None,
     min_coverage_pct: float | None = None,
+    agent_test_execution: bool = False,
 ) -> TestingCrewOutput:
     """
     Run the Testing Crew on the given code files from the Development Crew.
@@ -280,6 +314,9 @@ def kickoff(
     Returns:
         TestingCrewOutput with test_run_result, code_review_report, and quality_gate_passed.
     """
+    clear_verified_pytest_run()
+    _persist_test_files_from_code_files(code_files)
+
     crew = create_testing_crew(
         qa_agent=qa_agent,
         guardrail_max_retries=guardrail_max_retries,
@@ -288,31 +325,46 @@ def kickoff(
         step_callback=step_callback,
         task_callback=task_callback,
         min_coverage_pct=min_coverage_pct,
+        agent_test_execution=agent_test_execution,
     )
     code_files_summary = _code_files_to_summary(code_files)
     inputs = {"code_files_summary": code_files_summary}
 
-    crew_result = crew.kickoff(inputs=inputs)
-
     raw_outputs: list[str] = []
-    if getattr(crew_result, "tasks_output", None):
-        for out in crew_result.tasks_output:
-            raw = out.raw if hasattr(out, "raw") else str(out)
-            raw_outputs.append(raw)
-    elif hasattr(crew_result, "raw"):
-        raw_outputs.append(crew_result.raw or "")
+    crew_result: Any = None
+    try:
+        crew_result = crew.kickoff(inputs=inputs)
+    except Exception as exc:
+        logger.warning(
+            "testing_crew_kickoff_failed",
+            error=str(exc),
+            reason="continuing with orchestrated pytest salvage",
+        )
 
-    test_run_result: TestRunResult | None = None
-    code_review_report: CodeReviewReport | None = None
-    if len(raw_outputs) >= 2:
-        test_run_result = _parse_task_output_as_model(raw_outputs[1], TestRunResult)
-    if len(raw_outputs) >= 3:
-        code_review_report = _parse_task_output_as_model(raw_outputs[2], CodeReviewReport)
+    if crew_result is not None:
+        if getattr(crew_result, "tasks_output", None):
+            for out in crew_result.tasks_output:
+                raw = out.raw if hasattr(out, "raw") else str(out)
+                raw_outputs.append(raw)
+        elif hasattr(crew_result, "raw"):
+            raw_outputs.append(crew_result.raw or "")
 
-    # Fallback: if the model returned tool-call args instead of TestRunResult JSON,
-    # scan all raw outputs for pytest stdout and parse it directly.
+    if raw_outputs:
+        _persist_test_files_from_generation(raw_outputs[0])
+
+    test_run_result: TestRunResult | None = get_verified_pytest_run()
     if test_run_result is None:
-        test_run_result = _extract_test_result_from_pytest_stdout(raw_outputs)
+        test_run_result = _run_orchestrated_pytest()
+        if test_run_result is None:
+            logger.warning(
+                "testing_crew_no_verified_pytest",
+                reason="run_pytest not called and no tests found",
+            )
+
+    code_review_report: CodeReviewReport | None = None
+    review_idx = 2 if agent_test_execution else 1
+    if len(raw_outputs) > review_idx:
+        code_review_report = _parse_task_output_as_model(raw_outputs[review_idx], CodeReviewReport)
 
     min_line = 0.8
     min_branch: float | None = None

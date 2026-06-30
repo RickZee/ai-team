@@ -14,7 +14,7 @@ import structlog
 from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.manager import create_manager_agent
 from ai_team.agents.product_owner import create_product_owner_agent
-from ai_team.config.llm_factory import get_embedder_config
+from ai_team.crews.memory_flag import crew_memory_enabled
 from ai_team.config.settings import get_settings
 from ai_team.tasks.planning_tasks import create_planning_tasks
 from ai_team.utils.llm_wrapper import NoFunctionCallingLLMWrapper
@@ -43,7 +43,7 @@ def create_planning_crew(
     agents_config: dict[str, Any] | None = None,
     verbose: bool | None = None,
     max_rpm: int | None = None,
-    memory: bool = True,
+    memory: bool | None = None,
     planning: bool = True,
     on_task_start: Callable[[str, dict[str, Any]], None] | None = None,
     on_task_complete: Callable[[str, Any], None] | None = None,
@@ -69,6 +69,8 @@ def create_planning_crew(
     :return: Configured Crew instance (not yet run).
     """
     settings = get_settings()
+    if memory is None:
+        memory = crew_memory_enabled()
     if verbose is None:
         verbose = settings.project.crew_verbose
     if max_rpm is None:

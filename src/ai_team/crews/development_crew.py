@@ -21,6 +21,7 @@ from ai_team.agents.backend_developer import create_backend_developer
 from ai_team.agents.devops_engineer import create_devops_engineer
 from ai_team.agents.frontend_developer import create_frontend_developer
 from ai_team.config.llm_factory import get_embedder_config
+from ai_team.crews.memory_flag import crew_memory_enabled
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
@@ -233,7 +234,7 @@ def _extract_outputs_from_crew_result(
 def create_development_crew(
     *,
     verbose: bool = True,
-    memory: bool = True,
+    memory: bool | None = None,
     max_iterations: int = DEVELOPMENT_MAX_ITERATIONS,
 ) -> Crew:
     """
@@ -272,6 +273,9 @@ def create_development_crew(
         requirements=placeholder_req,
     )
 
+    if memory is None:
+        memory = crew_memory_enabled()
+
     manager_llm = getattr(architect, "llm", None)
     crew = Crew(
         agents=[backend_agent, frontend_agent, devops_agent],
@@ -291,7 +295,7 @@ def kickoff(
     architecture: ArchitectureDocument,
     *,
     verbose: bool = True,
-    memory: bool = True,
+    memory: bool | None = None,
     max_iterations: int = DEVELOPMENT_MAX_ITERATIONS,
     step_callback: Any | None = None,
     task_callback: Any | None = None,
@@ -304,6 +308,9 @@ def kickoff(
     implementation task(s) are included. Returns (list of CodeFile, DeploymentConfig or None).
     """
     include_backend, include_frontend = _implementation_tasks_from_architecture(architecture)
+
+    if memory is None:
+        memory = crew_memory_enabled()
 
     # Manager agent must have no tools (CrewAI hierarchical requirement).
     architect = create_architect_agent(tools=[])

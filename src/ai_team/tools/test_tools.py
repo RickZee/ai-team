@@ -5,8 +5,10 @@ Used by the QA agent to run tests, collect coverage, run lint, and validate test
 """
 
 import contextlib
+import platform
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +58,131 @@ class TestRunResult(BaseModel):
     )
     raw_output: str = Field("", description="Raw pytest/cov output for debugging.")
     success: bool = Field(..., description="True if all tests passed and no errors.")
+
+
+# Last in-process run_pytest result (tool invocation). Cleared at testing crew kickoff.
+_verified_pytest_run: TestRunResult | None = None
+
+
+def clear_verified_pytest_run() -> None:
+    """Reset verified pytest state before a new testing crew run."""
+    global _verified_pytest_run
+    _verified_pytest_run = None
+
+
+def get_verified_pytest_run() -> TestRunResult | None:
+    """Return the last ``run_pytest`` tool result for this process, if any."""
+    return _verified_pytest_run
+
+
+def _register_verified_pytest_run(result: TestRunResult) -> None:
+    global _verified_pytest_run
+    _verified_pytest_run = result
+    logger.info(
+        "pytest_run_verified",
+        total=result.total,
+        passed=result.passed,
+        failed=result.failed,
+        success=result.success,
+    )
+
+
+def looks_like_fabricated_pytest_output(raw_output: str) -> bool:
+    """Heuristics for LLM-invented pytest stdout (wrong platform/Python version)."""
+    if not raw_output or not raw_output.strip():
+        return False
+    lower = raw_output.lower()
+    system = platform.system().lower()
+    if "platform linux" in lower and system != "linux":
+        return True
+    if "platform darwin" in lower and system != "darwin":
+        return True
+    if "platform win32" in lower and system != "windows":
+        return True
+    ver_match = re.search(r"python (\d+\.\d+)", lower)
+    if ver_match:
+        expected = f"{sys.version_info.major}.{sys.version_info.minor}"
+        if ver_match.group(1) != expected:
+            return True
+    if re.search(r"\d+\s+passed", lower) and "test session starts" not in lower and "collected" not in lower:
+        return True
+    return False
+
+
+def agent_test_result_matches_verified(data: dict[str, Any]) -> tuple[bool, str]:
+    """Ensure agent JSON matches a real ``run_pytest`` invocation in this process."""
+    verified = get_verified_pytest_run()
+    if verified is None:
+        return False, "run_pytest tool was not called — results cannot be verified."
+
+    raw_output = str(data.get("raw_output") or "")
+    for key in ("total", "passed", "failed", "errors"):
+        if key not in data:
+            continue
+        try:
+            reported = int(data[key])
+        except (TypeError, ValueError):
+            return False, f"Agent-reported {key} is not an integer."
+        actual = int(getattr(verified, key))
+        if reported != actual:
+            return (
+                False,
+                f"Agent-reported {key}={reported} does not match run_pytest ({actual}).",
+            )
+
+    if int(data.get("passed", 0)) > 0 and verified.total == 0:
+        return False, "Agent claims passing tests but run_pytest collected 0 tests."
+
+    if raw_output.strip() and verified.raw_output.strip():
+        if (
+            raw_output.strip() in verified.raw_output
+            or verified.raw_output.strip() in raw_output
+        ):
+            return True, "ok"
+        if looks_like_fabricated_pytest_output(raw_output):
+            return False, "raw_output appears fabricated (platform/Python mismatch)."
+        return False, "raw_output does not match run_pytest tool output."
+
+    return True, "ok"
+
+
+def _project_workspace_root() -> Path:
+    """Resolved project workspace directory from settings."""
+    try:
+        from ai_team.config.settings import get_settings
+
+        return Path(get_settings().project.workspace_dir).resolve()
+    except Exception:
+        return Path.cwd().resolve()
+
+
+def run_pytest_discover_workspace(test_glob: str = "test_*.py") -> TestRunResult | None:
+    """Discover tests under the project workspace and run pytest (agent fallback).
+
+    Uses ``settings.project.workspace_dir`` — not ``Path.cwd()`` — so eval subprocesses
+    that inherit the repo cwd do not accidentally collect ``evals/**/test_*.py``.
+    """
+    workspace = _project_workspace_root()
+    if not workspace.is_dir():
+        return None
+
+    candidates: list[Path] = []
+    tests_sub = workspace / "tests"
+    if tests_sub.is_dir():
+        candidates = [p for p in tests_sub.glob(test_glob) if p.is_file()]
+    if not candidates:
+        candidates = [p for p in workspace.glob(test_glob) if p.is_file()]
+    if not candidates:
+        return None
+
+    test_dir_rel = candidates[0].parent.relative_to(workspace)
+    logger.info(
+        "pytest_discover_fallback",
+        workspace=str(workspace),
+        test_dir=str(test_dir_rel),
+        count=len(candidates),
+    )
+    return run_pytest(str(test_dir_rel), ".", workspace=workspace)
 
 
 class TestResult(BaseModel):
@@ -217,16 +344,16 @@ def _parse_coverage_terminal(stdout: str) -> dict[str, Any]:
     }
 
 
-def run_pytest(test_path: str, source_path: str) -> TestRunResult:
+def run_pytest(test_path: str, source_path: str, *, workspace: Path | None = None) -> TestRunResult:
     """
     Execute pytest with coverage collection and return structured results.
     Retries once on failure (flaky test handling).
     """
-    cwd = Path.cwd()
+    cwd = workspace.resolve() if workspace is not None else Path.cwd()
     test_dir = cwd / test_path if not Path(test_path).is_absolute() else Path(test_path)
     source_dir = cwd / source_path if not Path(source_path).is_absolute() else Path(source_path)
     if not source_dir.exists():
-        source_dir = cwd / "src" / "ai_team"
+        source_dir = cwd
 
     cmd = [
         "python",
@@ -285,7 +412,7 @@ def run_pytest(test_path: str, source_path: str) -> TestRunResult:
             break
 
     success = last_summary.get("failed", 0) == 0 and last_summary.get("errors", 0) == 0
-    return TestRunResult(
+    result = TestRunResult(
         total=last_summary.get("total", 0),
         passed=last_summary.get("passed", 0),
         failed=last_summary.get("failed", 0),
@@ -299,6 +426,8 @@ def run_pytest(test_path: str, source_path: str) -> TestRunResult:
         raw_output=raw_output[:4096],
         success=success,
     )
+    _register_verified_pytest_run(result)
+    return result
 
 
 def run_specific_test(test_file: str, test_name: str) -> TestResult:

@@ -119,6 +119,10 @@ class CrewAIBackend:
         reset_spend_guard(kwargs.get("run_budget_usd"))
         _disable_crewai_console()
 
+        from ai_team.config.settings import reload_settings
+
+        reload_settings()
+
         try:
             ws_override = kwargs.get("workspace_dir")
             if ws_override:

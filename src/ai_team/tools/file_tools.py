@@ -173,6 +173,16 @@ def read_file(path: str) -> str:
     return text
 
 
+def normalize_pytest_path(path: str) -> str:
+    """Relocate root-level ``test_*.py`` files into ``tests/`` for pytest discovery."""
+    if ".." in path:
+        return path
+    p = Path(path)
+    if p.suffix == ".py" and p.name.startswith("test_") and len(p.parts) == 1:
+        return str(Path("tests") / p.name)
+    return path
+
+
 def write_file(path: str, content: str) -> bool:
     """
     Write file with directory whitelist and dangerous-pattern scanning.
@@ -191,6 +201,7 @@ def write_file(path: str, content: str) -> bool:
     if dangerous:
         raise ValueError(f"Content contains dangerous pattern: {dangerous}")
     _scan_pii_warn(content)
+    path = normalize_pytest_path(path)
     resolved = _resolve_and_validate_path(path, allow_new_file=True)
     # Prevent accidental creation of pytest-collected scratch files at workspace root.
     # Root-level files named "test_*.py" will be collected by pytest and can break runs.
