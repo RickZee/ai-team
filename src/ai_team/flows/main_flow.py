@@ -326,15 +326,15 @@ class AITeamFlow(Flow[ProjectState]):
             or_settings = OpenRouterSettings()
             tracker = TokenTracker(or_settings)
             tracker.register_crewai_hook()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("kickoff_token_tracker_skipped", error=str(exc))
 
         try:
             from ai_team.config.llm_observability import register_llm_observability_hooks
 
             register_llm_observability_hooks()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("kickoff_observability_hooks_skipped", error=str(exc))
 
         # Per-run workspace isolation: tools resolve relative paths under workspace/<project_id>/.
         try:
@@ -349,9 +349,8 @@ class AITeamFlow(Flow[ProjectState]):
                 )
             os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_path)
             reload_settings()
-        except Exception:
-            # If settings reload fails, continue with default shared workspace.
-            pass
+        except Exception as exc:
+            logger.warning("kickoff_workspace_setup_failed", error=str(exc))
 
         # Initialize results bundle (output/runs/<project_id>/ + workspace/<project_id>/).
         try:
@@ -376,8 +375,8 @@ class AITeamFlow(Flow[ProjectState]):
                     "ts": datetime.now(UTC).isoformat(),
                 }
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("kickoff_results_bundle_init_skipped", error=str(exc))
 
         if not skip:
             try:
@@ -387,7 +386,6 @@ class AITeamFlow(Flow[ProjectState]):
                     estimate_run_cost,
                     get_complexity_from_description,
                 )
-                from pydantic import ValidationError
 
                 or_settings = OpenRouterSettings()
                 if or_settings.show_cost_estimate:
@@ -417,9 +415,8 @@ class AITeamFlow(Flow[ProjectState]):
                         raise SystemExit("Cost estimation declined or over budget. Exiting.")
             except SystemExit:
                 raise
-            except (ValidationError, Exception):
-                # OpenRouter not configured or cost estimation skipped
-                pass
+            except Exception as exc:
+                logger.debug("kickoff_cost_estimate_skipped", error=str(exc))
 
         result = super().kickoff(*args, **kwargs)
 
@@ -1334,4 +1331,7 @@ def run_ai_team(
 
 if __name__ == "__main__":
     result = run_ai_team("Create a simple REST API for managing a todo list")
-    print(result)
+    logger.info(
+        "demo_run_complete",
+        result_keys=list(result.keys()) if isinstance(result, dict) else str(type(result)),
+    )

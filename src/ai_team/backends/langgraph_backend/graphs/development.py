@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import structlog
 from ai_team.backends.langgraph_backend.agents.prompts import build_system_prompt
 from ai_team.backends.langgraph_backend.agents.tools import get_langchain_tools_for_role
@@ -14,8 +12,8 @@ from ai_team.backends.langgraph_backend.graphs.langgraph_guardrail_nodes import 
     wrap_agents_with_guardrails,
 )
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphSubgraphState
+from ai_team.backends.langgraph_backend.graphs.subgraph_utils import passthrough_subgraph
 from langchain_core.language_models import BaseChatModel
-from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
 from langgraph_supervisor import create_supervisor
@@ -44,15 +42,7 @@ def _make_worker(
 
 def _passthrough_subgraph() -> CompiledStateGraph:
     """Minimal graph that returns state unchanged (no workers in profile)."""
-
-    def noop(_state: LangGraphSubgraphState) -> dict[str, Any]:
-        return {}
-
-    g = StateGraph(LangGraphSubgraphState)
-    g.add_node("noop", noop)
-    g.add_edge(START, "noop")
-    g.add_edge("noop", END)
-    return g.compile()
+    return passthrough_subgraph()
 
 
 def compile_development_subgraph(
