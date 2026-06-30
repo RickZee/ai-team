@@ -15,7 +15,6 @@ import asyncio
 import contextlib
 import json
 import os
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -400,7 +399,13 @@ async def resume_run(run_id: str, req: ResumeRequest):
 @app.post("/api/demo")
 async def start_demo():
     """Start a demo run and return run_id (poll via /api/runs/{id} or connect WebSocket)."""
-    run_id = str(uuid.uuid4())[:8]
+    from ai_team.core.run_naming import resolve_run_id
+
+    run_id = resolve_run_id(
+        description="Demo: Flask REST API",
+        team_profile="full",
+        run_label="demo",
+    )
     state.create_run(run_id, "demo", "full", "Demo: Flask REST API", is_sample=True)
     task = asyncio.create_task(_run_demo_async(run_id))
     state.tasks[run_id] = task
@@ -463,7 +468,12 @@ async def ws_run(websocket: WebSocket):
         msg = await websocket.receive_json()
         req = RunRequest(**msg)
 
-        run_id = str(uuid.uuid4())[:8]
+        from ai_team.core.run_naming import resolve_run_id
+
+        run_id = resolve_run_id(
+            description=req.description,
+            team_profile=req.profile,
+        )
         state.create_run(
             run_id,
             req.backend,
