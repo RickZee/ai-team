@@ -1,9 +1,9 @@
-<svg viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui, -apple-system, sans-serif">
+<svg viewBox="0 0 860 644" xmlns="http://www.w3.org/2000/svg" role="img" font-family="system-ui, -apple-system, sans-serif">
   <title>ai-team Architecture: Multi-Backend Agent Pipeline</title>
-  <desc>System diagram showing the ai-team architecture with three backends (CrewAI, LangGraph, Claude SDK), nine specialized agents, guardrail layers, and self-improvement loop</desc>
+  <desc>System diagram showing the ai-team architecture: three backends (LangGraph and Claude Agent SDK supported, CrewAI demoted to comparison-only), nine specialized agents, security/behavioral/quality/operational guardrail layers, a self-improvement loop, and 2026-06-30 smoke-test benchmark results.</desc>
 
   <!-- Background -->
-  <rect width="860" height="620" fill="#0f1117" rx="12"/>
+  <rect width="860" height="644" fill="#0f1117" rx="12"/>
 
   <!-- Title -->
   <text x="430" y="38" text-anchor="middle" fill="#e2e8f0" font-size="17" font-weight="700" letter-spacing="0.3">ai-team: Multi-Backend Agent Architecture</text>
@@ -27,10 +27,12 @@
   <text x="302" y="97" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">LangGraph</text>
   <text x="302" y="113" text-anchor="middle" fill="#86efac" font-size="9">StateGraph · streaming</text>
 
-  <!-- CrewAI -->
-  <rect x="230" y="134" width="145" height="44" rx="8" fill="#1a1a2e" stroke="#6366f1" stroke-width="1.5"/>
+  <!-- CrewAI (demoted to comparison-only) -->
+  <rect x="230" y="134" width="145" height="44" rx="8" fill="#1a1a2e" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.85"/>
   <text x="302" y="151" text-anchor="middle" fill="#a5b4fc" font-size="11" font-weight="700">CrewAI</text>
-  <text x="302" y="167" text-anchor="middle" fill="#c7d2fe" font-size="9">Flows · OpenRouter</text>
+  <text x="302" y="167" text-anchor="middle" fill="#c7d2fe" font-size="9">Flows · comparison-only</text>
+  <rect x="338" y="128" width="56" height="14" rx="7" fill="#7f1d1d"/>
+  <text x="366" y="138" text-anchor="middle" fill="#fca5a5" font-size="7.5" font-weight="700">DEMOTED</text>
 
   <!-- Claude SDK -->
   <rect x="230" y="188" width="145" height="44" rx="8" fill="#1a1207" stroke="#d97706" stroke-width="1.5"/>
@@ -136,6 +138,11 @@
   <text x="485" y="387" text-anchor="middle" fill="#fbbf24" font-size="9.5" font-weight="700">Quality</text>
   <text x="485" y="401" text-anchor="middle" fill="#fde68a" font-size="8">coverage · complexity · docs</text>
 
+  <!-- Operational guardrails (harness that survives the agent) -->
+  <rect x="590" y="416" width="250" height="36" rx="6" fill="#180d12" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="600" y="431" fill="#f87171" font-size="9.5" font-weight="700">Operational</text>
+  <text x="600" y="444" fill="#fca5a5" font-size="8">spend cap · wall-clock timeout · prose-salvage · retry bound</text>
+
   <!-- SELF-IMPROVEMENT label -->
   <text x="590" y="270" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">SELF-IMPROVEMENT LOOP</text>
 
@@ -157,52 +164,52 @@
   <text x="622" y="388" fill="#4ade80" font-size="9.5" font-weight="600">Injected into prompts next run</text>
 
   <!-- BENCHMARK label -->
-  <text x="30" y="440" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">BENCHMARK RESULTS (smoke-test: write add(a,b) + pytest)</text>
+  <text x="30" y="464" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">BENCHMARK RESULTS (smoke-test: write add(a,b) + pytest · 2026-06-30)</text>
 
   <!-- Table header -->
-  <rect x="30" y="448" width="800" height="24" rx="4" fill="#1e293b"/>
-  <text x="100" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">BACKEND</text>
-  <text x="270" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">RESULT</text>
-  <text x="400" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">TIME</text>
-  <text x="600" y="464" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">NOTES</text>
+  <rect x="30" y="472" width="800" height="24" rx="4" fill="#1e293b"/>
+  <text x="100" y="488" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">BACKEND</text>
+  <text x="270" y="488" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">RESULT</text>
+  <text x="400" y="488" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">TIME</text>
+  <text x="600" y="488" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">NOTES</text>
 
   <!-- LangGraph row -->
-  <rect x="30" y="472" width="800" height="28" rx="3" fill="#0f1a0f"/>
-  <rect x="30" y="472" width="4" height="28" rx="2" fill="#16a34a"/>
-  <text x="100" y="490" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">LangGraph</text>
-  <rect x="240" y="477" width="58" height="16" rx="8" fill="#16a34a"/>
-  <text x="269" y="489" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">PASSED</text>
-  <text x="400" y="490" text-anchor="middle" fill="#86efac" font-size="10">~80s</text>
-  <text x="600" y="490" text-anchor="middle" fill="#64748b" font-size="9">Most reliable · deterministic · OpenRouter</text>
+  <rect x="30" y="496" width="800" height="28" rx="3" fill="#0f1a0f"/>
+  <rect x="30" y="496" width="4" height="28" rx="2" fill="#16a34a"/>
+  <text x="100" y="514" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="600">LangGraph</text>
+  <rect x="240" y="501" width="58" height="16" rx="8" fill="#16a34a"/>
+  <text x="269" y="513" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">PASSED</text>
+  <text x="400" y="514" text-anchor="middle" fill="#86efac" font-size="10">~60s</text>
+  <text x="600" y="514" text-anchor="middle" fill="#64748b" font-size="9">Most reliable · fastest · explicit StateGraph</text>
 
   <!-- Claude SDK row -->
-  <rect x="30" y="500" width="800" height="28" rx="3" fill="#1a130a"/>
-  <rect x="30" y="500" width="4" height="28" rx="2" fill="#d97706"/>
-  <text x="100" y="518" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">Claude Agent SDK</text>
-  <rect x="240" y="505" width="58" height="16" rx="8" fill="#16a34a"/>
-  <text x="269" y="517" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">PASSED</text>
-  <text x="400" y="518" text-anchor="middle" fill="#fde68a" font-size="10">~200s</text>
-  <text x="600" y="518" text-anchor="middle" fill="#64748b" font-size="9">Native guardrails · blocks injection · Anthropic</text>
+  <rect x="30" y="524" width="800" height="28" rx="3" fill="#1a130a"/>
+  <rect x="30" y="524" width="4" height="28" rx="2" fill="#d97706"/>
+  <text x="100" y="542" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">Claude Agent SDK</text>
+  <rect x="240" y="529" width="58" height="16" rx="8" fill="#16a34a"/>
+  <text x="269" y="541" text-anchor="middle" fill="white" font-size="8.5" font-weight="700">PASSED</text>
+  <text x="400" y="542" text-anchor="middle" fill="#fde68a" font-size="10">~200s</text>
+  <text x="600" y="542" text-anchor="middle" fill="#64748b" font-size="9">Native guardrails · blocks injection · Anthropic</text>
 
   <!-- CrewAI row -->
-  <rect x="30" y="528" width="800" height="28" rx="3" fill="#1a0d0d"/>
-  <rect x="30" y="528" width="4" height="28" rx="2" fill="#dc2626"/>
-  <text x="100" y="546" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">CrewAI</text>
-  <rect x="230" y="533" width="80" height="16" rx="8" fill="#7f1d1d"/>
-  <text x="270" y="545" text-anchor="middle" fill="#fca5a5" font-size="8.5" font-weight="700">~50% pass</text>
-  <text x="400" y="546" text-anchor="middle" fill="#fca5a5" font-size="10">~340s</text>
-  <text x="600" y="546" text-anchor="middle" fill="#64748b" font-size="9">Threading deadlock bug in crewai core</text>
+  <rect x="30" y="552" width="800" height="28" rx="3" fill="#1a0d0d"/>
+  <rect x="30" y="552" width="4" height="28" rx="2" fill="#dc2626"/>
+  <text x="100" y="570" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">CrewAI</text>
+  <rect x="234" y="557" width="72" height="16" rx="8" fill="#7f1d1d"/>
+  <text x="270" y="569" text-anchor="middle" fill="#fca5a5" font-size="8.5" font-weight="700">HUNG</text>
+  <text x="400" y="570" text-anchor="middle" fill="#fca5a5" font-size="10">killed ~12m</text>
+  <text x="600" y="570" text-anchor="middle" fill="#64748b" font-size="9">Wedged in test 1 · ignored own timeout · demoted</text>
 
   <!-- WORKSPACE label -->
-  <text x="30" y="584" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">PER-RUN WORKSPACE  workspace/&lt;run-id&gt;/</text>
-  <rect x="30" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
-  <text x="75" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">docs/</text>
-  <rect x="130" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
-  <text x="175" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">src/</text>
-  <rect x="230" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
-  <text x="275" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">tests/</text>
-  <rect x="330" y="592" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
-  <text x="375" y="606" text-anchor="middle" fill="#94a3b8" font-size="8.5">logs/</text>
+  <text x="30" y="608" fill="#64748b" font-size="10" font-weight="600" letter-spacing="1.2">PER-RUN WORKSPACE  workspace/&lt;run-id&gt;/</text>
+  <rect x="30" y="616" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="75" y="630" text-anchor="middle" fill="#94a3b8" font-size="8.5">docs/</text>
+  <rect x="130" y="616" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="175" y="630" text-anchor="middle" fill="#94a3b8" font-size="8.5">src/</text>
+  <rect x="230" y="616" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="275" y="630" text-anchor="middle" fill="#94a3b8" font-size="8.5">tests/</text>
+  <rect x="330" y="616" width="90" height="20" rx="4" fill="#1e293b" stroke="#334155"/>
+  <text x="375" y="630" text-anchor="middle" fill="#94a3b8" font-size="8.5">logs/</text>
 
   <defs>
     <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
