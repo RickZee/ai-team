@@ -238,6 +238,28 @@ def _cmd_run(
             persist_run_metrics,
         )
 
+        def _warn_if_missing_deployment_readme() -> None:
+            """Backend-agnostic check: a deployment-phase run must leave a README.
+
+            Runs for every backend (incl. future ones) from the shared post-run
+            path, independent of each backend's internal guardrail plumbing.
+            Warn-only: a missing README never fails an otherwise-good run.
+            """
+            try:
+                from ai_team.guardrails.quality import deployment_artifacts_guardrail
+
+                ws = get_settings().project.workspace_dir
+                res = deployment_artifacts_guardrail(ws, profile.phases)
+                if not res.passed:
+                    logger.warning(
+                        "deployment_artifacts_check",
+                        message=res.message,
+                        suggestions=res.suggestions,
+                        workspace=str(ws),
+                    )
+            except Exception as exc:  # never let a doc check abort a run
+                logger.debug("deployment_artifacts_check_skipped", error=str(exc))
+
         if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
             maybe_extract_lessons_at_startup()
 
@@ -260,6 +282,7 @@ def _cmd_run(
             )
             if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
                 persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
+                _warn_if_missing_deployment_readme()
             raw = pr.raw
             out: dict[str, object] = {
                 "backend": pr.backend_name,
@@ -376,6 +399,7 @@ def _cmd_run(
         )
         if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
             persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
+            _warn_if_missing_deployment_readme()
         raw = pr.raw
         out = {
             "backend": pr.backend_name,

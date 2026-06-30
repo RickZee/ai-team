@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from ai_team.config.settings import get_settings
 
@@ -439,4 +441,98 @@ def dependency_guardrail(requirements: str) -> GuardrailResult:
         score=max(0, score),
         message="Dependency issues found" if suggestions else "Dependency checks passed",
         suggestions=suggestions,
+    )
+
+
+# -----------------------------------------------------------------------------
+# 6. Deployment artifacts guardrail (shared across all backends)
+# -----------------------------------------------------------------------------
+
+# Root-level README the deployment phase is expected to produce, regardless of
+# which backend ran. Backends emit it via their DevOps agent / packaging step;
+# this guardrail is the backend-agnostic enforcement so a new backend (or a
+# regression in an existing one) can't silently ship a deployment-phase run
+# without project docs.
+_README_CANDIDATES = ("README.md", "readme.md", "README.MD", "Readme.md")
+_MIN_README_CHARS = 20
+
+
+def _find_readme(workspace: Path) -> Path | None:
+    """Return the shallowest non-empty README under ``workspace`` (root preferred)."""
+    for name in _README_CANDIDATES:
+        candidate = workspace / name
+        if (
+            candidate.is_file()
+            and len(candidate.read_text(encoding="utf-8", errors="ignore").strip())
+            >= _MIN_README_CHARS
+        ):
+            return candidate
+    # Fall back to a README one level down (e.g. backends nesting under <id>/).
+    try:
+        for candidate in sorted(workspace.glob("*/README.md")):
+            if (
+                candidate.is_file()
+                and len(candidate.read_text(encoding="utf-8", errors="ignore").strip())
+                >= _MIN_README_CHARS
+            ):
+                return candidate
+    except OSError:
+        pass
+    return None
+
+
+def deployment_artifacts_guardrail(
+    workspace_dir: str | Path,
+    phases: Iterable[str],
+) -> GuardrailResult:
+    """
+    Verify a deployment-phase run produced the expected project docs.
+
+    Backend-agnostic: every ``Backend`` writes generated files into a per-run
+    workspace, so this scans the filesystem rather than any backend-specific
+    state. When ``deployment`` is not in ``phases`` (e.g. the ``prototype`` /
+    ``smoke`` profiles) the check is a no-op pass — README is a deployment
+    deliverable, not required for plan→dev→test runs.
+
+    Returns ``passed=False`` only as a *signal* (a missing README is reported as
+    a suggestion); callers decide severity. The shared post-run wiring in
+    ``main.py`` treats it as a warning, not a fatal error.
+
+    :param workspace_dir: Per-run workspace root (where generated files land).
+    :param phases: Active profile phases, e.g. ``["planning", "development",
+        "testing", "deployment"]``.
+    """
+    phase_set = {str(p).strip().lower() for p in phases}
+    if "deployment" not in phase_set:
+        return GuardrailResult(
+            passed=True,
+            score=100,
+            message="No deployment phase; README not required",
+        )
+
+    workspace = Path(workspace_dir)
+    if not workspace.is_dir():
+        return GuardrailResult(
+            passed=False,
+            score=0,
+            message="Deployment phase ran but workspace directory is missing",
+            suggestions=[f"Expected generated artifacts under {workspace}"],
+        )
+
+    readme = _find_readme(workspace)
+    if readme is None:
+        return GuardrailResult(
+            passed=False,
+            score=0,
+            message="Deployment phase produced no non-empty README.md",
+            suggestions=[
+                "DevOps agent must generate a root README.md (overview, setup, "
+                "run instructions, API reference) during the deployment phase",
+            ],
+        )
+
+    return GuardrailResult(
+        passed=True,
+        score=100,
+        message=f"Deployment README present ({readme.name})",
     )
