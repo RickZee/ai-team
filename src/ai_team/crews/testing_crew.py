@@ -14,8 +14,8 @@ from typing import Any
 import structlog
 from ai_team.agents.qa_engineer import create_qa_engineer
 from ai_team.config.llm_factory import get_embedder_config
-from ai_team.crews.memory_flag import crew_memory_enabled
 from ai_team.config.settings import get_settings
+from ai_team.crews.memory_flag import crew_memory_enabled
 from ai_team.models.development import CodeFile
 from ai_team.models.qa_models import CodeReviewReport
 from ai_team.tasks.testing_tasks import (
@@ -23,7 +23,8 @@ from ai_team.tasks.testing_tasks import (
     test_execution_task,
     test_generation_task,
 )
-from ai_team.tools.file_tools import write_file as safe_write_file, normalize_pytest_path
+from ai_team.tools.file_tools import normalize_pytest_path
+from ai_team.tools.file_tools import write_file as safe_write_file
 from ai_team.tools.test_tools import (
     TestRunResult,
     clear_verified_pytest_run,
@@ -103,9 +104,7 @@ def _parse_code_files_from_task_raw(raw: str) -> list[CodeFile]:
         if "path" not in item or "content" not in item:
             continue
         try:
-            files.append(
-                CodeFile(**{k: v for k, v in item.items() if k in CodeFile.model_fields})
-            )
+            files.append(CodeFile(**{k: v for k, v in item.items() if k in CodeFile.model_fields}))
         except (TypeError, ValueError):
             continue
     return files

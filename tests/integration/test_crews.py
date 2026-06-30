@@ -201,7 +201,11 @@ class TestTestingCrewProducesValidTestResult:
             mock_crew.kickoff.return_value = mock_crew_result
             mock_create.return_value = mock_crew
 
-            output = testing_crew_mod.kickoff(sample_code_files)
+            with patch(
+                "ai_team.crews.testing_crew._run_orchestrated_pytest",
+                return_value=sample_test_run_result_passed,
+            ):
+                output = testing_crew_mod.kickoff(sample_code_files)
 
         assert isinstance(output, TestingCrewOutput)
         assert output.test_run_result is not None
@@ -301,7 +305,11 @@ class TestCrewToCrewHandoffs:
             )
             mock_create.return_value = mock_crew
 
-            output = testing_crew_mod.kickoff(sample_code_files)
+            with patch(
+                "ai_team.crews.testing_crew._run_orchestrated_pytest",
+                return_value=sample_test_run_result_passed,
+            ):
+                output = testing_crew_mod.kickoff(sample_code_files)
 
             mock_crew.kickoff.assert_called_once()
             inputs = mock_crew.kickoff.call_args[1].get("inputs", {})

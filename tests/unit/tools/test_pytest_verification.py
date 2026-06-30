@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from ai_team.tasks.testing_tasks import _make_test_execution_guardrail
 from ai_team.tools import test_tools as tt
@@ -133,7 +135,9 @@ class TestDiscoverWorkspace:
         reload_settings()
         monkeypatch.chdir(tmp_path)
 
-        def _fake_run(test_path: str, source_path: str, *, workspace: Path | None = None) -> tt.TestRunResult:
+        def _fake_run(
+            test_path: str, source_path: str, *, workspace: Path | None = None
+        ) -> tt.TestRunResult:
             return tt.TestRunResult(
                 total=1,
                 passed=1,

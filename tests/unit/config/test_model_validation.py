@@ -56,7 +56,10 @@ class TestValidateModelsBeforeRun:
 
     @pytest.fixture
     def memory_settings(self) -> MemorySettings:
-        return MemorySettings(embedding_model="openai/text-embedding-3-small")
+        return MemorySettings(
+            embedding_model="openai/text-embedding-3-small",
+            memory_enabled=True,
+        )
 
     def test_passes_when_all_chat_and_embedding_available(
         self,

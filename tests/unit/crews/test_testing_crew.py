@@ -19,7 +19,9 @@ def _clear_pytest_registry() -> None:
 
 
 class TestPersistDevTestFiles:
-    def test_writes_root_level_test_to_tests_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_writes_root_level_test_to_tests_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path))
         from ai_team.config.settings import reload_settings
 
@@ -46,7 +48,9 @@ class TestPersistDevTestFiles:
 
 
 class TestOrchestratedPytestSalvage:
-    def test_kickoff_runs_pytest_when_crew_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_kickoff_runs_pytest_when_crew_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path))
         from ai_team.config.settings import reload_settings
 
@@ -69,7 +73,9 @@ class TestOrchestratedPytestSalvage:
             ),
         ]
         mock_crew = MagicMock()
-        mock_crew.kickoff.side_effect = ValueError("Invalid response from LLM call - None or empty.")
+        mock_crew.kickoff.side_effect = ValueError(
+            "Invalid response from LLM call - None or empty."
+        )
 
         with patch.object(tc, "create_testing_crew", return_value=mock_crew):
             output = tc.kickoff(code_files, verbose=False)
@@ -83,12 +89,14 @@ class TestOrchestratedPytestSalvage:
 class TestCreateTestingCrewTasks:
     def test_default_does_not_add_test_execution_task(self) -> None:
         fake_task = MagicMock()
-        with patch.object(tc, "test_generation_task", return_value=fake_task):
-            with patch.object(tc, "code_review_task", return_value=fake_task):
-                with patch.object(tc, "test_execution_task") as mock_exec:
-                    with patch.object(tc, "Crew") as mock_crew_cls:
-                        mock_crew_cls.return_value = MagicMock()
-                        with patch.object(tc, "create_qa_engineer", return_value=MagicMock()):
-                            with patch.object(tc, "crew_memory_enabled", return_value=False):
-                                tc.create_testing_crew(verbose=False, agent_test_execution=False)
+        with (
+            patch.object(tc, "test_generation_task", return_value=fake_task),
+            patch.object(tc, "code_review_task", return_value=fake_task),
+            patch.object(tc, "test_execution_task") as mock_exec,
+            patch.object(tc, "Crew") as mock_crew_cls,
+            patch.object(tc, "create_qa_engineer", return_value=MagicMock()),
+            patch.object(tc, "crew_memory_enabled", return_value=False),
+        ):
+            mock_crew_cls.return_value = MagicMock()
+            tc.create_testing_crew(verbose=False, agent_test_execution=False)
         mock_exec.assert_not_called()

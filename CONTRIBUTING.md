@@ -36,10 +36,12 @@ Hooks run ruff check (with fix) and ruff format before each commit.
 ### Before push (matches CI)
 
 ```bash
-./scripts/pre_push_check.sh
+./scripts/pre_push_check.sh           # ruff, mypy, unit tests, pip-audit
+./scripts/pre_push_check.sh --main    # + integration tests + frontend build (main)
+./scripts/pre_push_check.sh --e2e     # + Playwright web E2E (after UI changes)
 ```
 
-Runs ruff, mypy, and pip-audit (same ignores as `.github/workflows/ci.yml`).
+Runs the same gates as `.github/workflows/ci.yml`. Use `--quick` to skip tests/npm during lint-only iteration.
 
 ## Code style guide
 

@@ -317,8 +317,8 @@ class TestFlowCrewVerboseFromMonitor:
         call_kw = mock_planning_kickoff.call_args[1]
         assert call_kw["verbose"] is False
 
-    def test_planning_crew_receives_verbose_none_when_no_monitor(self) -> None:
-        """Without monitor, planning crew kickoff is called with verbose=None (use settings)."""
+    def test_planning_crew_receives_verbose_false_when_no_monitor(self) -> None:
+        """Without monitor, planning crew kickoff is called with verbose=False (eval/subprocess safe)."""
         from unittest.mock import patch
 
         from ai_team.flows.main_flow import AITeamFlow
@@ -334,4 +334,4 @@ class TestFlowCrewVerboseFromMonitor:
                 flow.run_planning_crew()
         mock_planning_kickoff.assert_called_once()
         call_kw = mock_planning_kickoff.call_args[1]
-        assert call_kw["verbose"] is None
+        assert call_kw["verbose"] is False

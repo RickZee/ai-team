@@ -345,7 +345,11 @@ class TestTestingCrewIntegration:
             mock_crew.kickoff.return_value = MagicMock(tasks_output=task_outs)
             mock_create.return_value = mock_crew
 
-            output = run_testing_crew(code_files)
+            with patch(
+                "ai_team.crews.testing_crew._run_orchestrated_pytest",
+                return_value=passed_result,
+            ):
+                output = run_testing_crew(code_files)
 
             mock_crew.kickoff.assert_called_once()
             assert output.test_run_result is not None

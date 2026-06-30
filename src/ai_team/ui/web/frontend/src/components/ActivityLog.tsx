@@ -44,7 +44,6 @@ export function ActivityLog({
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
-      if (e.level === "debug") return false;
       if (agentFilter && e.agent !== agentFilter) return false;
       if (!enabledLevels.has(e.level)) return false;
       if (search.trim()) {

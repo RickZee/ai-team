@@ -106,7 +106,11 @@ def looks_like_fabricated_pytest_output(raw_output: str) -> bool:
         expected = f"{sys.version_info.major}.{sys.version_info.minor}"
         if ver_match.group(1) != expected:
             return True
-    if re.search(r"\d+\s+passed", lower) and "test session starts" not in lower and "collected" not in lower:
+    if (
+        re.search(r"\d+\s+passed", lower)
+        and "test session starts" not in lower
+        and "collected" not in lower
+    ):
         return True
     return False
 
@@ -136,10 +140,7 @@ def agent_test_result_matches_verified(data: dict[str, Any]) -> tuple[bool, str]
         return False, "Agent claims passing tests but run_pytest collected 0 tests."
 
     if raw_output.strip() and verified.raw_output.strip():
-        if (
-            raw_output.strip() in verified.raw_output
-            or verified.raw_output.strip() in raw_output
-        ):
+        if raw_output.strip() in verified.raw_output or verified.raw_output.strip() in raw_output:
             return True, "ok"
         if looks_like_fabricated_pytest_output(raw_output):
             return False, "raw_output appears fabricated (platform/Python mismatch)."

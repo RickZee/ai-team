@@ -34,5 +34,5 @@ Re-run check until exit code 0.
 
 ## Notes
 
-- CI also runs `mypy src/` — use `./scripts/pre_push_check.sh` before push.
+- CI also runs `mypy src/` and unit tests — use `./scripts/pre_push_check.sh` before push.
 - Cursor hook blocks `git push` when the full pre-push script fails.

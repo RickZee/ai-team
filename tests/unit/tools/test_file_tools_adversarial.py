@@ -37,6 +37,6 @@ class TestFileToolsAdversarialTraversal:
 
 
 class TestFileToolsPytestGuard:
-    def test_write_rejects_root_level_test_py(self, tmp_workspace: Path) -> None:
-        with pytest.raises(ValueError, match="pytest"):
-            write_file("test_collect_me.py", "# not a real test")
+    def test_write_relocates_root_level_test_py(self, tmp_workspace: Path) -> None:
+        write_file("test_collect_me.py", "# not a real test")
+        assert (tmp_workspace / "tests" / "test_collect_me.py").is_file()

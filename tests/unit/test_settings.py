@@ -24,7 +24,8 @@ from pydantic import ValidationError
 class TestSettingsLoadFromEnv:
     def test_default_settings_load_without_env(self) -> None:
         """With no .env, Settings() uses defaults."""
-        with patch.dict(os.environ, {}, clear=False):
+        env = {k: v for k, v in os.environ.items() if k != "MEMORY_MEMORY_ENABLED"}
+        with patch.dict(os.environ, env, clear=True):
             s = Settings()
         assert s.memory.memory_enabled is True
         assert s.memory.embedding_api_base == "https://openrouter.ai/api/v1"

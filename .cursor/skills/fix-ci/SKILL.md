@@ -20,7 +20,7 @@ For **pip-audit / bandit** only, use the `pre-push-checks` skill (`.cursor/skill
 | **Test** | `uv run pytest tests/unit -v --tb=short` |
 | **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
 | **Integration test** (main push only) | `uv run pytest tests/integration -v --tb=short` |
-| **Security** | `./scripts/pre_push_check.sh` (or `./scripts/pip_audit.sh` only) |
+| **Security** | `./scripts/pre_push_check.sh` (default includes unit tests; `--main` adds integration + frontend) |
 
 With `gh` authenticated:
 
@@ -133,14 +133,18 @@ Same ignore list as `.github/workflows/ci.yml` (single source: `scripts/pip_audi
 Before declaring CI fixed locally:
 
 ```bash
+./scripts/pre_push_check.sh --main
+# or step by step:
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src/
 uv run pytest tests/unit -q
+uv run pytest tests/integration -q
+cd src/ai_team/ui/web/frontend && npm ci && npm run build
 uv run pytest tests/e2e/web -m web_e2e -q --timeout=120
 ```
 
-Optional if touching dependencies: `./scripts/pip_audit.sh` (included in `./scripts/pre_push_check.sh`).
+Optional if touching dependencies only: `./scripts/pip_audit.sh` (included in `./scripts/pre_push_check.sh`).
 
 ## 8. Node.js 20 deprecation warnings
 
