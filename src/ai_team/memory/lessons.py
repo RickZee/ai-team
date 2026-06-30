@@ -180,6 +180,20 @@ def _parse_failure_record(row: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _existing_pattern_keys(
+    store: LongTermStore, pattern_type: str, field: str, *, limit: int = 1000
+) -> set[str]:
+    keys: set[str] = set()
+    for row in store.get_patterns(pattern_type=pattern_type, limit=limit):
+        try:
+            data = json.loads(str(row.get("content") or ""))
+        except Exception:
+            continue
+        if isinstance(data, dict) and data.get(field):
+            keys.add(str(data[field]))
+    return keys
+
+
 def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str, int]:
     """
     Deterministically promote recurring failure patterns into `lesson` patterns.
@@ -213,6 +227,8 @@ def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str
 
     promoted = 0
     infra_flagged = 0
+    existing_lessons = _existing_pattern_keys(store, LESSON_PATTERN_TYPE, "lesson_id", limit=limit)
+    existing_infra = _existing_pattern_keys(store, INFRA_PATTERN_TYPE, "id", limit=limit)
     for key, items in buckets.items():
         if len(items) < promote_threshold:
             continue
@@ -229,6 +245,8 @@ def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str
         is_infra = ("ModuleNotFoundError" in pytest_out) or ("No module named" in pytest_out)
 
         if is_infra:
+            if key in existing_infra:
+                continue
             infra = {
                 "id": key,
                 "created_at": _now_iso(),
@@ -247,6 +265,8 @@ def extract_lessons(*, promote_threshold: int = 2, limit: int = 500) -> dict[str
             continue
 
         agent_role = str(sample.get("agent_role") or ("qa_engineer" if is_guardrail else "manager"))
+        if key in existing_lessons:
+            continue
         title = "Avoid guardrail violations" if is_guardrail else "Prevent recurring failure"
         text = (
             f"Recurring failure detected ({len(items)} runs). "

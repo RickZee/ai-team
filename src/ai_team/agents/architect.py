@@ -78,8 +78,9 @@ def validate_architecture_against_requirements(
             ):
                 gaps.append(f"Functional requirement not clearly addressed: {ref}")
 
-        # Non-functional: NFRs should be addressed in stack, ADRs, or deployment
-        " ".join(nfr.description.lower() for nfr in requirements.non_functional_requirements)
+        nfr_text = " ".join(
+            nfr.description.lower() for nfr in requirements.non_functional_requirements
+        )
         adr_and_topology = (
             " ".join(
                 a.context.lower() + a.decision.lower() + a.consequences.lower()
@@ -89,7 +90,7 @@ def validate_architecture_against_requirements(
             + architecture.deployment_topology.lower()
         )
         stack_text = " ".join(t.justification.lower() for t in architecture.technology_stack)
-        combined = adr_and_topology + " " + stack_text
+        combined = nfr_text + " " + adr_and_topology + " " + stack_text
         for nfr in requirements.non_functional_requirements:
             # Check if NFR category or key terms appear in architecture
             category = nfr.category.lower()

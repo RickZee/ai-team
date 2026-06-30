@@ -102,9 +102,7 @@ def route_after_planning(planning_result: dict[str, Any], state: ProjectState) -
     confidence = planning_result.get("confidence")
     if confidence is None:
         confidence = 0.0 if needs_clarification else 1.0
-    requirements_ok = state.requirements is not None and (
-        not state.requirements.user_stories or len(state.requirements.user_stories) >= 3
-    )
+    requirements_ok = state.requirements is not None and (len(state.requirements.user_stories) >= 3)
     architecture_ok = state.architecture is not None
 
     if needs_clarification or confidence < PLANNING_CONFIDENCE_THRESHOLD:

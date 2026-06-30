@@ -204,7 +204,7 @@ def _parse_planning_output(
         data = _extract_json_block(raw_list[0])
         if data:
             requirements = _dict_to_requirements_document(data)
-        if not requirements or (requirements.user_stories and len(requirements.user_stories) < 3):
+        if not requirements or len(requirements.user_stories) < 3:
             needs_clarification = True
 
     if len(raw_list) >= 2:

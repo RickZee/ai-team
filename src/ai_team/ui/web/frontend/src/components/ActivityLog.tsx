@@ -96,6 +96,7 @@ export function ActivityLog({
                 key={level}
                 type="button"
                 className={`btn-secondary btn-sm log-level-toggle ${enabledLevels.has(level) ? "active" : ""}`}
+                aria-pressed={enabledLevels.has(level)}
                 onClick={() => toggleLevel(level)}
                 data-testid={`log-level-${level}`}
               >
