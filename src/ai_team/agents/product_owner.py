@@ -190,7 +190,9 @@ def requirements_from_agent_output(
             project_name = "Untitled Project"
     doc = RequirementsDocument(
         project_name=project_name or "Untitled Project",
-        description=description or raw_output.strip()[:500] if raw_output else "No description.",
+        description=(
+            description or (raw_output.strip()[:500] if raw_output else "No description.")
+        ),
         target_users=[],
         user_stories=[
             UserStory(

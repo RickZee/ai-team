@@ -6,11 +6,15 @@ self-review discipline, code style awareness (PEP8/ESLint), context awareness
 (architecture doc and requirements), and guardrail integration for code quality.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import structlog
-from ai_team.agents.base import BaseAgent
+import yaml
+from ai_team.agents.base import BaseAgent, _load_agents_config
 from ai_team.guardrails import QualityGuardrails, SecurityGuardrails
 from ai_team.tools.developer_tools import get_developer_common_tools
 
@@ -19,6 +23,8 @@ logger = structlog.get_logger(__name__)
 # Default context paths (relative to project root) for context awareness
 DEFAULT_ARCHITECTURE_PATH = "docs/architecture.md"
 DEFAULT_REQUIREMENTS_PATH = "docs/requirements.md"
+
+TDev = TypeVar("TDev", bound="DeveloperBase")
 
 
 class DeveloperBase(BaseAgent):
@@ -43,17 +49,6 @@ class DeveloperBase(BaseAgent):
         extra_tools: list[Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        """
-        Initialize DeveloperBase with common developer tools.
-
-        :param role_name: Config key (e.g. backend_developer, frontend_developer).
-        :param role: Human-readable role.
-        :param goal: Agent goal.
-        :param backstory: Agent backstory (should mention self-review, PEP8/ESLint, context).
-        :param tools: Override full tool list; if None, common tools + extra_tools are used.
-        :param extra_tools: Additional tools (e.g. backend- or frontend-specific) appended to common.
-        :param kwargs: Passed to BaseAgent (llm, verbose, allow_delegation, etc.).
-        """
         if tools is None:
             common = get_developer_common_tools()
             extra = list(extra_tools) if extra_tools else []
@@ -75,25 +70,13 @@ class DeveloperBase(BaseAgent):
 
     @property
     def architecture_path(self) -> str:
-        """Path to architecture doc for context awareness."""
         return object.__getattribute__(self, "_architecture_path")
 
     @property
     def requirements_path(self) -> str:
-        """Path to requirements doc for context awareness."""
         return object.__getattribute__(self, "_requirements_path")
 
     def validate_generated_code(self, content: str) -> tuple[bool, str]:
-        """
-        Run code quality and security guardrails on generated code.
-
-        Use this in task callbacks or after code generation to ensure output
-        passes security checks, optional Python/JS syntax checks, and no
-        dangerous placeholders. Integrates with guardrail integration requirement.
-
-        :param content: Generated code or mixed output (may contain markdown/code blocks).
-        :return: (True, content) if valid; (False, error_message) otherwise.
-        """
         valid, msg = SecurityGuardrails.validate_code_safety(content)
         if not valid:
             logger.warning("developer_guardrail_code_safety", reason=msg)
@@ -106,7 +89,6 @@ class DeveloperBase(BaseAgent):
         if not valid:
             logger.warning("developer_guardrail_placeholders", reason=msg)
             return (False, msg)
-        # Python syntax check when content looks like Python
         if "def " in content or "class " in content or "import " in content:
             valid, msg = QualityGuardrails.validate_python_syntax(content)
             if not valid:
@@ -115,12 +97,6 @@ class DeveloperBase(BaseAgent):
         return (True, content)
 
     def context_instruction(self, workspace_root: Path | None = None) -> str:
-        """
-        Return an instruction string for the agent to read architecture and requirements.
-
-        Use when building task descriptions so the developer stays consistent
-        with architecture doc and requirements.
-        """
         root = workspace_root or Path.cwd()
         arch = root / self.architecture_path
         req = root / self.requirements_path
@@ -132,3 +108,50 @@ class DeveloperBase(BaseAgent):
         if not parts:
             return "No architecture or requirements paths found; proceed from task description."
         return " ".join(parts)
+
+
+def create_developer_agent(
+    role_key: str,
+    agent_cls: type[TDev],
+    *,
+    tool_getter: Callable[[], list[Any]] | None = None,
+    tools: list[Any] | None = None,
+    before_task: Callable[[str, dict[str, Any]], None] | None = None,
+    after_task: Callable[[str, Any], None] | None = None,
+    guardrail_tools: bool = True,
+    config_path: Path | None = None,
+    agents_config: dict[str, Any] | None = None,
+    default_role: str | None = None,
+    **kwargs: Any,
+) -> TDev:
+    """Create a developer agent from agents.yaml with optional role-specific tools."""
+    if agents_config is None:
+        if config_path and config_path.exists():
+            with open(config_path, encoding="utf-8") as f:
+                agents_config = yaml.safe_load(f) or {}
+        else:
+            agents_config = _load_agents_config()
+
+    if role_key not in agents_config:
+        raise KeyError(f"'{role_key}' not in agents config. Known: {list(agents_config.keys())}")
+
+    cfg = agents_config[role_key]
+    extra_tools = None
+    if tools is None and tool_getter is not None:
+        extra_tools = tool_getter()
+    return agent_cls(
+        role_name=role_key,
+        role=cfg.get("role", default_role or role_key),
+        goal=cfg.get("goal", ""),
+        backstory=cfg.get("backstory", ""),
+        tools=tools,
+        extra_tools=extra_tools,
+        verbose=cfg.get("verbose", True),
+        allow_delegation=cfg.get("allow_delegation", False),
+        max_iter=cfg.get("max_iter", 15),
+        memory=cfg.get("memory", True),
+        before_task=before_task,
+        after_task=after_task,
+        guardrail_tools=guardrail_tools,
+        **kwargs,
+    )

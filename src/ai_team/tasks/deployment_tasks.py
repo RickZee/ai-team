@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ai_team.guardrails import crewai_code_safety_guardrail, crewai_iac_security_guardrail
+from ai_team.guardrails import crewai_code_safety_guardrail
 from crewai import Task
 
 if TYPE_CHECKING:
@@ -52,26 +52,6 @@ def _documentation_content_guardrail(result: Any) -> tuple[bool, Any]:
     if missing:
         return (False, f"Documentation must cover: {', '.join(missing)}.")
     return (True, result)
-
-
-def create_infrastructure_design_task(
-    agent: Agent,
-    context: list[Task],
-) -> Task:
-    """
-    Create the infrastructure_design task: design cloud infrastructure for the application.
-
-    Depends on: architecture_design, devops_configuration.
-    Guardrail: IaC must follow security best practices, least privilege.
-    """
-    return Task(
-        name="infrastructure_design",
-        description="Design cloud infrastructure for the application",
-        agent=agent,
-        context=context,
-        expected_output="IaC templates (Terraform/CloudFormation)",
-        guardrails=[crewai_code_safety_guardrail, crewai_iac_security_guardrail],
-    )
 
 
 def create_deployment_packaging_task(
