@@ -17,8 +17,8 @@ Given a project description (and workspace/docs/project_brief.md), you will:
 1. Use the planning-agent when planning is in scope to produce requirements and architecture under workspace/docs/.
 2. Review planning outputs (requirements.md, architecture.md) before continuing.
 3. Use the development-agent when development is in scope to implement code under workspace/src/.
-4. Use the testing-agent when testing is in scope to add tests and record results under workspace/docs/.
-5. If tests fail and retries remain, coordinate fixes via the development-agent with concrete failure details.
+4. Use the testing-agent when testing is in scope to add tests, run a runtime smoke test (mcp__ai_team_tools__run_app_smoke), and record results under workspace/docs/ (test_results.json, smoke_results.json).
+5. If unit tests OR the runtime smoke test fail and retries remain, coordinate fixes via the development-agent with concrete failure details (failing endpoint, status code, server traceback) — a green unit suite over a 500-ing app is a failure, not a pass.
 6. Use the deployment-agent when deployment is in scope for Docker, CI, and infrastructure files.
 7. Write phase transition entries to workspace/logs/phases.jsonl (JSON lines: phase, status, timestamp).
 8. Produce a concise final summary in the chat referencing key artifacts.
@@ -89,12 +89,21 @@ def testing_agent_prompt() -> str:
 2. Add or update tests under workspace/tests/
 3. Run pytest via Bash from the workspace root when safe
 4. Write workspace/docs/test_results.json (JSON) and workspace/docs/test_report.md
+5. RUNTIME SMOKE (required for any web/API app): after pytest passes, call
+   mcp__ai_team_tools__run_app_smoke to actually boot the app and hit its real
+   endpoints. Passing unit tests are NOT sufficient — an in-process test client
+   can pass while the running app fails to boot or returns 500 on every request
+   (e.g. a logging/config mismatch only triggered by the real server). Treat a
+   smoke failure as a release blocker: write the failing endpoint, status code,
+   and server traceback into workspace/docs/test_report.md so developers can fix
+   the root cause, then re-test. Only report the run as passing when both pytest
+   and run_app_smoke succeed.
 
 On failure, capture actionable details for developers.
 
 If the user or brief references UI screenshots, image paths, or visual acceptance criteria, treat them as multimodal context: read any image paths under the workspace with Read, describe what you observe, and align tests or bug reports with that evidence.
 
-You may call MCP tools: mcp__ai_team_tools__run_project_tests, mcp__ai_team_tools__run_guardrails."""
+You may call MCP tools: mcp__ai_team_tools__run_project_tests, mcp__ai_team_tools__run_app_smoke, mcp__ai_team_tools__run_guardrails."""
 
 
 def deployment_coordinator_prompt(available: str) -> str:
