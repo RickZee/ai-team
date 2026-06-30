@@ -29,10 +29,15 @@ same contract so the Compare tab stays apples-to-apples.
   2. A Flask `module:app` (or `create_app()`) under `src/` → boot with the
      stdlib server on a free port; terminated after.
   Probes default to `GET /health`; a demo may declare a `smoke` list in
-  `expected_output.json` (`{method, path, body}`) for richer CRUD probes.
-  Skips cleanly (`ran=false`) when there's no bootable entrypoint or Docker is
-  unavailable — an environment gap, not an app defect. Subprocess calls use
-  argument lists with `shell=False` (project security rule).
+  `expected_output.json` for a full stateful round-trip. Each entry is
+  `{method, path, body?, save?}`: `save` captures a field from the JSON response
+  into a variable (e.g. `{"id": "id"}`), and `{var}` tokens in a later `path` or
+  `body` are interpolated — so a contract can drive create → read → update →
+  delete against the running app (the toggle/delete paths a single POST can't
+  reach). Skips cleanly (`ran=false`) when there's no bootable entrypoint or
+  Docker is unavailable — an environment gap, not an app defect. The compose
+  path skips rather than probe a host port already bound by another service.
+  Subprocess calls use argument lists with `shell=False` (project security rule).
 
 - **`docs/smoke_results.json`** — the contract: `{ran, success, entrypoint,
   base_url, probes[], message, logs}`.
