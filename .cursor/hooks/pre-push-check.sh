@@ -16,11 +16,17 @@ if [[ -z "$repo_root" || ! -f "$repo_root/scripts/pre_push_check.sh" ]]; then
   exit 0
 fi
 
-if ! (cd "$repo_root" && ./scripts/pre_push_check.sh); then
+extra_args=()
+branch=$(cd "$repo_root" && git branch --show-current 2>/dev/null || true)
+if [[ "$branch" == "main" ]]; then
+  extra_args=(--main)
+fi
+
+if ! (cd "$repo_root" && ./scripts/pre_push_check.sh "${extra_args[@]}"); then
   echo '{
     "permission": "deny",
-    "user_message": "Pre-push checks failed (ruff / mypy / pip-audit). Run ./scripts/pre_push_check.sh and fix errors before pushing.",
-    "agent_message": "git push blocked: ./scripts/pre_push_check.sh failed. Fix lint or security issues first."
+    "user_message": "Pre-push checks failed. Run ./scripts/pre_push_check.sh and fix errors before pushing.",
+    "agent_message": "git push blocked: ./scripts/pre_push_check.sh failed. Fix lint, tests, or security issues first."
   }'
   exit 0
 fi

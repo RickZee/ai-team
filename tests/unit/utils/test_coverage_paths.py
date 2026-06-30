@@ -6,7 +6,6 @@ from pathlib import Path
 
 from ai_team.utils.coverage_paths import (
     coverage_data_dir,
-    coverage_data_file,
     coverage_subprocess_env,
     ensure_coverage_data_dir,
 )

@@ -14,8 +14,9 @@ import structlog
 from ai_team.agents.architect import create_architect_agent
 from ai_team.agents.manager import create_manager_agent
 from ai_team.agents.product_owner import create_product_owner_agent
-from ai_team.crews.memory_flag import crew_memory_enabled
+from ai_team.config.llm_factory import get_embedder_config
 from ai_team.config.settings import get_settings
+from ai_team.crews.memory_flag import crew_memory_enabled
 from ai_team.tasks.planning_tasks import create_planning_tasks
 from ai_team.utils.llm_wrapper import NoFunctionCallingLLMWrapper
 from crewai import Crew, Process
