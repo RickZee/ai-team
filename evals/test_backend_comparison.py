@@ -50,7 +50,11 @@ def _run_backend(name: str, ws: Path) -> EvalResult:
 
     backend = get_backend(name)
     profile = load_team_profile("prototype")
-    kwargs: dict[str, Any] = {"skip_estimate": True, "workspace_dir": str(ws)}
+    kwargs: dict[str, Any] = {
+        "skip_estimate": True,
+        "workspace_dir": str(ws),
+        "run_label": SCENARIO_ID,
+    }
     if name == "langgraph":
         kwargs["graph_mode"] = "full"
 

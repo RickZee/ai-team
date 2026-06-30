@@ -7,7 +7,6 @@ import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 import structlog
 from ai_team.backends.claude_agent_sdk_backend.costs import default_total_budget_usd
@@ -37,6 +36,7 @@ from ai_team.backends.claude_agent_sdk_backend.workspace_snapshots import (
 )
 from ai_team.config.settings import reload_settings
 from ai_team.core.result import ProjectResult
+from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.team_profile import TeamProfile
 from claude_agent_sdk import ResultMessage, StreamEvent
 
@@ -48,11 +48,22 @@ class ClaudeAgentBackend:
 
     name: str = "claude-agent-sdk"
 
-    def _workspace_path(self, kwargs: dict[str, Any]) -> Path:
-        tid = str(kwargs.get("thread_id") or uuid4())
+    def _workspace_path(
+        self,
+        kwargs: dict[str, Any],
+        *,
+        description: str = "",
+        team_profile: str = "",
+    ) -> Path:
         raw = kwargs.get("workspace_dir")
         if raw:
             return Path(str(raw)).resolve()
+        tid = resolve_run_id(
+            description=description,
+            team_profile=team_profile,
+            run_label=str(kwargs.get("run_label") or ""),
+            thread_id=str(kwargs.get("thread_id") or ""),
+        )
         return (Path.cwd() / "workspace" / tid).resolve()
 
     def run(
@@ -64,7 +75,11 @@ class ClaudeAgentBackend:
     ) -> ProjectResult:
         """Execute orchestrator ``query()``; map workspace artifacts to :class:`ProjectResult`."""
         _ = env
-        workspace = self._workspace_path(kwargs)
+        workspace = self._workspace_path(
+            kwargs,
+            description=description,
+            team_profile=profile.name,
+        )
         try:
             os.environ["PROJECT_WORKSPACE_DIR"] = str(workspace)
             reload_settings()
@@ -215,7 +230,11 @@ class ClaudeAgentBackend:
     ) -> AsyncIterator[dict[str, Any]]:
         """Yield stream events; optionally forward to ``monitor`` (Rich TUI)."""
         _ = env
-        workspace = self._workspace_path(kwargs)
+        workspace = self._workspace_path(
+            kwargs,
+            description=description,
+            team_profile=profile.name,
+        )
         try:
             os.environ["PROJECT_WORKSPACE_DIR"] = str(workspace)
             reload_settings()
