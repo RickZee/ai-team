@@ -340,6 +340,12 @@ ai-team/
   - Add validation in `guardrails/` (Behavioral, Security, or Quality).  
   - Optionally add to `create_full_guardrail_chain()` or call from task/agent callbacks.
 
+- **Adding a backend**  
+  - Implement the `Backend` protocol (`core/backend.py`): `run()` and `stream()`, returning a normalized `ProjectResult`. Register it by name in `backends/registry.py`.  
+  - **Deliverable contract (backend-agnostic):** generated files land in the per-run workspace (`settings.project.workspace_dir/<id>/`). When the active profile includes the `deployment` phase, the run **must** produce a non-empty root `README.md` (overview, setup, run instructions, API reference). The DevOps agent owns it — the shared `devops_engineer` goal in `config/agents.yaml` (CrewAI + LangGraph) and `devops_prompt()` in the Claude SDK backend both require it.  
+  - **Enforcement is shared, not per-backend:** `deployment_artifacts_guardrail(workspace_dir, phases)` in `guardrails/quality.py` runs from the common post-run path in `main.py` for *every* backend, so a new backend is automatically checked. It is **warn-only** (logs `deployment_artifacts_check`; never fails the run) and a no-op for profiles without a `deployment` phase (e.g. `prototype`, `smoke`).  
+  - Plan→dev→test deliverables (code, tests) are validated by the testing phase; only the README/deployment docs are gated by this extra check.
+
 - **Changing state shape**  
   - Extend `ProjectState` or nested models in `flows/main_flow.py`.  
   - Update crew tasks and routers that read/write those fields.
