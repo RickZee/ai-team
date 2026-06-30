@@ -58,7 +58,10 @@ def extract_metric(cfg: MetricConfig, workspace: Path) -> float | None:
             return None
         if cfg.json_key:
             data = json.loads(output)
-            return float(_nested_get(data, cfg.json_key))
+            value = _nested_get(data, cfg.json_key)
+            if isinstance(value, int | float | str):
+                return float(value)
+            return None
         # Fallback: last non-empty line is the metric value
         lines = [ln for ln in output.splitlines() if ln.strip()]
         return float(lines[-1]) if lines else None
