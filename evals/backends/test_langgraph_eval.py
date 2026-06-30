@@ -53,6 +53,7 @@ def lg_result(tmp_path_factory) -> tuple[EvalResult, Path]:
         skip_estimate=True,
         graph_mode="full",
         workspace_dir=str(ws),
+        run_label=SCENARIO["id"],
     )
     wall = time.time() - t0
 

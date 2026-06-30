@@ -48,6 +48,7 @@ def crewai_result(tmp_path_factory) -> tuple[EvalResult, Path]:
         env="dev",
         skip_estimate=True,
         workspace_dir=str(ws),
+        run_label=SCENARIO["id"],
     )
     wall = time.time() - t0
 
