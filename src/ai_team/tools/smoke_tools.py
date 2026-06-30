@@ -70,6 +70,12 @@ def _free_port() -> int:
         return int(s.getsockname()[1])
 
 
+def _port_in_use(port: int) -> bool:
+    """True if something is already listening on ``port`` (localhost)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
 def _detect_flask_app_target(workspace: Path) -> str | None:
     """Find a ``module:attr`` Flask entrypoint under ``src`` (best-effort)."""
     src = workspace / "src"
@@ -159,10 +165,11 @@ def run_app_smoke(workspace_dir: str | Path, *, write_results: bool = True) -> S
     """Boot the generated app from ``workspace_dir`` and probe it over HTTP.
 
     Launch strategy, in priority order:
-      1. ``docker-compose.yml`` -> ``docker compose up -d`` (mapped to a free
-         host port when the compose file publishes a port).
-      2. A Flask ``module:app`` entrypoint under ``src`` -> run with the
-         workspace's Python via the stdlib server.
+      1. ``docker-compose.yml`` -> ``docker compose up -d`` on the host port the
+         compose file publishes. If that port is already bound by something
+         else, the smoke is skipped rather than risk probing a foreign service.
+      2. A Flask ``module:app`` entrypoint under ``src`` -> run on a free
+         ephemeral port with the workspace's Python via the stdlib server.
 
     The server is always torn down. When ``write_results`` is set, the outcome
     is written to ``docs/smoke_results.json`` so guardrails and the agent loop
@@ -188,6 +195,27 @@ def run_app_smoke(workspace_dir: str | Path, *, write_results: bool = True) -> S
     return result
 
 
+def load_or_run_smoke(workspace_dir: str | Path, *, max_age_s: float = 600.0) -> SmokeResult:
+    """Reuse a recent ``docs/smoke_results.json`` if present, else boot the app.
+
+    Booting the app (especially ``docker compose up --build``) is expensive, so
+    every consumer in a single run — the QA agent (via the MCP tool), the SDK
+    recovery loop, the LangGraph smoke node, and the shared post-run gate —
+    shares one result rather than re-booting. The file is trusted only when it
+    is at most ``max_age_s`` old, so a stale result from a previous run does not
+    mask the current one.
+    """
+    workspace = Path(workspace_dir).resolve()
+    cached = workspace / "docs" / "smoke_results.json"
+    try:
+        if cached.is_file() and (time.time() - cached.stat().st_mtime) <= max_age_s:
+            data = json.loads(cached.read_text(encoding="utf-8"))
+            return SmokeResult.model_validate(data)
+    except (OSError, ValueError):
+        pass  # unreadable / malformed cache -> fall through and boot
+    return run_app_smoke(workspace)
+
+
 def _smoke_flask_module(workspace: Path) -> SmokeResult:
     """Boot a Flask app module with the stdlib server and probe it."""
     target = _detect_flask_app_target(workspace)
@@ -197,14 +225,12 @@ def _smoke_flask_module(workspace: Path) -> SmokeResult:
             message="No bootable entrypoint found (no docker-compose.yml, no Flask app under src/)",
         )
 
-    module = target.split(":", 1)[0]
-    factory = target.endswith("()")
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
-    # `flask --app <target> run` resolves both `module:app` and `module:create_app()`.
-    cmd = ["python", "-m", "flask", "--app", target.rstrip("()"), "run", "--port", str(port)]
-    if factory:
-        cmd = ["python", "-m", "flask", "--app", module, "run", "--port", str(port)]
+    # `flask --app <spec> run` resolves both `module:app` and a `module:create_app()`
+    # factory; strip the call parens flask doesn't expect on the CLI.
+    app_spec = target.rstrip("()")
+    cmd = ["python", "-m", "flask", "--app", app_spec, "run", "--port", str(port)]
 
     env_src = str(workspace / "src")
     proc = subprocess.Popen(  # noqa: S603 - arg list, shell=False
@@ -230,6 +256,16 @@ def _smoke_compose(workspace: Path, compose: Path) -> SmokeResult:
         return SmokeResult(
             entrypoint="compose",
             message="Could not determine a published port from docker-compose.yml",
+        )
+    if _port_in_use(published):
+        # Something already listens on the publish port. Probing it would test a
+        # foreign service (false pass/fail); skip rather than report a bogus result.
+        return SmokeResult(
+            entrypoint="compose",
+            message=(
+                f"Host port {published} is already in use; skipping compose smoke "
+                "to avoid probing an unrelated service"
+            ),
         )
     base_url = f"http://127.0.0.1:{published}"
     up = subprocess.run(  # noqa: S603
