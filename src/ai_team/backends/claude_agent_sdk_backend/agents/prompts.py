@@ -124,7 +124,7 @@ def fullstack_developer_prompt() -> str:
 
 
 def devops_prompt() -> str:
-    return """You are a DevOps Engineer. Add Dockerfile, optional compose, and .github/workflows/ci.yml under the workspace."""
+    return """You are a DevOps Engineer. Add Dockerfile, optional compose, and .github/workflows/ci.yml under the workspace. Always write a root README.md (project overview, setup, run instructions, and API reference) so the run is self-documenting."""
 
 
 def cloud_prompt() -> str:

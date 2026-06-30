@@ -70,6 +70,8 @@ devops_engineer:
     Design and implement CI/CD pipelines for automated testing and deployment.
     Create Docker configurations and Kubernetes manifests.
     Set up monitoring, logging, and alerting infrastructure.
+    Always produce a root README.md (project overview, setup, run instructions,
+    and API reference) so every deployed run is self-documenting.
     Ensure applications are observable, reliable, and easy to deploy.
   backstory: >
     You are a Site Reliability Engineer who has worked at companies known for

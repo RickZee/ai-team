@@ -8,8 +8,12 @@ from ai_team.guardrails.quality import (
     code_quality_guardrail,
     coverage_guardrail,
     dependency_guardrail,
+    deployment_artifacts_guardrail,
     documentation_guardrail,
 )
+
+_DEPLOY_PHASES = ["planning", "development", "testing", "deployment"]
+_NON_DEPLOY_PHASES = ["intake", "planning", "development", "testing"]
 
 # -----------------------------------------------------------------------------
 # GuardrailResult
@@ -220,3 +224,46 @@ class TestDependencyGuardrail:
         result = dependency_guardrail(reqs)
         assert isinstance(result, GuardrailResult)
         assert result.suggestions
+
+
+# -----------------------------------------------------------------------------
+# Deployment artifacts guardrail (shared across backends)
+# -----------------------------------------------------------------------------
+
+
+class TestDeploymentArtifactsGuardrail:
+    def test_no_deployment_phase_is_noop_pass(self, tmp_path) -> None:
+        # prototype/smoke profiles skip deployment: README not required even if absent.
+        result = deployment_artifacts_guardrail(tmp_path, _NON_DEPLOY_PHASES)
+        assert result.passed
+        assert "not required" in result.message.lower()
+
+    def test_deployment_with_readme_passes(self, tmp_path) -> None:
+        (tmp_path / "README.md").write_text("# My App\n\nSetup and run instructions.\n")
+        result = deployment_artifacts_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert result.passed
+        assert "readme" in result.message.lower()
+
+    def test_deployment_without_readme_fails(self, tmp_path) -> None:
+        (tmp_path / "app.py").write_text("print('hi')\n")
+        result = deployment_artifacts_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert not result.passed
+        assert result.suggestions
+        assert any("readme" in s.lower() for s in result.suggestions)
+
+    def test_empty_readme_fails(self, tmp_path) -> None:
+        (tmp_path / "README.md").write_text("   \n")  # whitespace only
+        result = deployment_artifacts_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert not result.passed
+
+    def test_nested_readme_one_level_down_passes(self, tmp_path) -> None:
+        # Some backends nest output under <workspace>/<project_id>/.
+        sub = tmp_path / "run-123"
+        sub.mkdir()
+        (sub / "README.md").write_text("# Nested project README with real content.\n")
+        result = deployment_artifacts_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert result.passed
+
+    def test_missing_workspace_dir_fails(self, tmp_path) -> None:
+        result = deployment_artifacts_guardrail(tmp_path / "does-not-exist", _DEPLOY_PHASES)
+        assert not result.passed
