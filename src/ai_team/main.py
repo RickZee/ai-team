@@ -238,17 +238,23 @@ def _cmd_run(
             persist_run_metrics,
         )
 
-        def _warn_if_missing_deployment_readme() -> None:
-            """Backend-agnostic check: a deployment-phase run must leave a README.
+        def _run_post_run_quality_gates() -> None:
+            """Backend-agnostic post-run gates: deployment README + runtime smoke.
 
             Runs for every backend (incl. future ones) from the shared post-run
-            path, independent of each backend's internal guardrail plumbing.
-            Warn-only: a missing README never fails an otherwise-good run.
+            path, independent of each backend's internal guardrail plumbing —
+            these scan the per-run workspace on disk, not backend state, so a new
+            or regressed backend cannot silently ship a non-booting app or a
+            run with no docs. Warn-only here: failures are logged, the run is
+            not aborted. The smoke gate also *produces* the evidence — it boots
+            the generated app and writes docs/smoke_results.json even when the
+            backend's agents never ran a runtime check themselves, so LangGraph
+            and CrewAI get the same coverage as the Claude Agent SDK agents.
             """
+            ws = get_settings().project.workspace_dir
             try:
                 from ai_team.guardrails.quality import deployment_artifacts_guardrail
 
-                ws = get_settings().project.workspace_dir
                 res = deployment_artifacts_guardrail(ws, profile.phases)
                 if not res.passed:
                     logger.warning(
@@ -259,6 +265,29 @@ def _cmd_run(
                     )
             except Exception as exc:  # never let a doc check abort a run
                 logger.debug("deployment_artifacts_check_skipped", error=str(exc))
+
+            if "testing" not in {str(p).strip().lower() for p in profile.phases}:
+                return
+            try:
+                from pathlib import Path
+
+                from ai_team.guardrails.quality import runtime_smoke_guardrail
+                from ai_team.tools.smoke_tools import run_app_smoke
+
+                # If the backend's own agents didn't already smoke the app
+                # (no smoke_results.json), boot it now so the gate has evidence.
+                if not (Path(ws) / "docs" / "smoke_results.json").is_file():
+                    run_app_smoke(ws)
+                res = runtime_smoke_guardrail(ws, profile.phases)
+                if not res.passed:
+                    logger.warning(
+                        "runtime_smoke_check",
+                        message=res.message,
+                        suggestions=res.suggestions,
+                        workspace=str(ws),
+                    )
+            except Exception as exc:  # never let the smoke gate abort a run
+                logger.debug("runtime_smoke_check_skipped", error=str(exc))
 
         if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
             maybe_extract_lessons_at_startup()
@@ -282,7 +311,7 @@ def _cmd_run(
             )
             if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
                 persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
-                _warn_if_missing_deployment_readme()
+                _run_post_run_quality_gates()
             raw = pr.raw
             out: dict[str, object] = {
                 "backend": pr.backend_name,
@@ -399,7 +428,7 @@ def _cmd_run(
         )
         if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
             persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
-            _warn_if_missing_deployment_readme()
+            _run_post_run_quality_gates()
         raw = pr.raw
         out = {
             "backend": pr.backend_name,

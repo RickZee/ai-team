@@ -17,6 +17,46 @@ from claude_agent_sdk import ResultMessage
 logger = structlog.get_logger(__name__)
 
 
+def _runtime_smoke_failure(workspace: Path) -> str | None:
+    """Return a fix instruction if the booted app fails its runtime smoke test.
+
+    This is the *quality* gate (distinct from SDK/CLI transient failures): a run
+    can finish with ``is_error=False`` and a green pytest suite while the actual
+    app does not boot or 500s on every request. We boot it and probe real HTTP
+    endpoints; on failure we return a concrete, developer-actionable instruction
+    so the next attempt fixes the runtime defect instead of re-asserting success.
+
+    Returns ``None`` when the app smokes clean, or when the smoke was legitimately
+    skipped (no bootable entrypoint / Docker unavailable) — those are not defects.
+    """
+    try:
+        from ai_team.tools.smoke_tools import run_app_smoke
+
+        result = run_app_smoke(workspace)
+    except Exception as e:  # noqa: BLE001 - never let the gate crash the run
+        logger.warning("claude_smoke_gate_error", error=str(e))
+        return None
+    if not result.ran or result.success:
+        return None
+    failing = next((p for p in result.probes if not p.ok), None)
+    detail = result.message
+    if failing is not None:
+        detail = (
+            f"{failing.method} {failing.path} returned "
+            f"{failing.status if failing.status is not None else 'no response'}: "
+            f"{failing.detail[:300]}"
+        )
+    logs = (result.logs or "").strip()
+    log_hint = f"\nServer logs:\n{logs[-1500:]}" if logs else ""
+    return (
+        "[System: Unit tests passed but the RUNNING app failed a runtime smoke "
+        f"test. {detail}{log_hint}\n"
+        "Fix the runtime defect (boot error or 5xx from a real request) at its "
+        "root cause — not by changing tests — then re-run pytest and "
+        "run_app_smoke until both pass.]"
+    )
+
+
 def _recoverable_failure(msg: ResultMessage) -> bool:
     """Heuristic: budget, turns, rate limits, and transient server errors."""
     parts: list[str] = []
@@ -122,8 +162,21 @@ async def run_orchestrator_with_recovery(
             )
             continue
         if not last.is_error:
-            logs.append(f"attempt {attempt}: success")
-            return last, logs
+            # SDK run finished cleanly — now apply the runtime quality gate.
+            # A green run over a non-booting / 5xx-ing app is not a real success;
+            # feed the smoke failure back and let the team self-correct.
+            smoke_fix = _runtime_smoke_failure(workspace)
+            if smoke_fix is None:
+                logs.append(f"attempt {attempt}: success")
+                return last, logs
+            logs.append(f"attempt {attempt}: runtime smoke failed")
+            if attempt >= recovery_max_attempts:
+                logs.append("runtime smoke still failing at final attempt")
+                return last, logs
+            prompt = description + "\n\n" + smoke_fix
+            resume = None
+            fork_session = False
+            continue
         reason = last.stop_reason or "error"
         logs.append(f"attempt {attempt}: is_error=True stop_reason={reason!r}")
         if attempt >= recovery_max_attempts or not _recoverable_failure(last):
