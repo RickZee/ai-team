@@ -4,11 +4,13 @@ bug reporter, and lint runner. Used by the QA Engineer agent for test automation
 and quality gates.
 """
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from ai_team.config.settings import get_settings
+from ai_team.utils.coverage_paths import coverage_subprocess_env
 from crewai.tools import tool
 
 # Default minimum coverage for guardrail (generated code >80%)
@@ -144,6 +146,7 @@ def coverage_analyzer(
             capture_output=True,
             text=True,
             timeout=300,
+            env={**os.environ, **coverage_subprocess_env(root)},
         )
         out = (result.stdout or "") + (result.stderr or "")
         if result.returncode != 0:

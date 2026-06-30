@@ -5,6 +5,7 @@ Used by the QA agent to run tests, collect coverage, run lint, and validate test
 """
 
 import contextlib
+import os
 import platform
 import re
 import subprocess
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from ai_team.utils.coverage_paths import coverage_subprocess_env
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 
@@ -379,6 +381,7 @@ def run_pytest(test_path: str, source_path: str, *, workspace: Path | None = Non
                 capture_output=True,
                 text=True,
                 timeout=300,
+                env={**os.environ, **coverage_subprocess_env(cwd)},
             )
             raw_output = proc.stdout + "\n" + proc.stderr
             last_summary = _parse_pytest_summary(proc.stdout, proc.stderr)
