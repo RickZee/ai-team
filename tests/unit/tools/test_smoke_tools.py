@@ -16,7 +16,9 @@ import pytest
 from ai_team.tools.smoke_tools import (
     SmokeResult,
     _compose_published_port,
+    _expected_probes,
     _host_port,
+    _interpolate,
     _port_in_use,
     load_or_run_smoke,
     run_app_smoke,
@@ -60,6 +62,41 @@ def _boom():
 @app.get("/health")
 def health():
     return jsonify({"status": "ok"})
+"""
+
+# In-memory CRUD app used to exercise chained probes (create -> read -> delete).
+_CRUD_APP = """
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+_db = {}
+_seq = {"n": 0}
+
+
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
+@app.post("/todos")
+def create():
+    _seq["n"] += 1
+    tid = _seq["n"]
+    _db[tid] = {"id": tid, "title": (request.get_json() or {}).get("title", ""), "done": False}
+    return jsonify(_db[tid]), 201
+
+
+@app.get("/todos/<int:tid>")
+def get(tid):
+    if tid not in _db:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(_db[tid])
+
+
+@app.delete("/todos/<int:tid>")
+def delete(tid):
+    _db.pop(tid, None)
+    return ("", 204)
 """
 
 
@@ -209,3 +246,76 @@ class TestLoadOrRunSmoke:
         monkeypatch.setattr("ai_team.tools.smoke_tools.run_app_smoke", _fake)
         load_or_run_smoke(tmp_path)
         assert called["n"] == 1
+
+
+class TestProbeInterpolation:
+    def test_interpolate_string(self) -> None:
+        assert _interpolate("/todos/{id}", {"id": "7"}) == "/todos/7"
+
+    def test_interpolate_dict(self) -> None:
+        out = _interpolate({"ref": "{id}", "n": 1}, {"id": "3"})
+        assert out == {"ref": "3", "n": 1}
+
+    def test_interpolate_no_vars_unchanged(self) -> None:
+        assert _interpolate("/todos", {}) == "/todos"
+
+
+class TestExpectedProbesContract:
+    def test_default_health_probe_without_contract(self, tmp_path) -> None:
+        assert _expected_probes(tmp_path) == [{"method": "GET", "path": "/health"}]
+
+    def test_reads_smoke_sequence_with_save(self, tmp_path) -> None:
+        (tmp_path / "expected_output.json").write_text(
+            json.dumps(
+                {
+                    "smoke": [
+                        {"method": "POST", "path": "/todos", "body": {"title": "x"},
+                         "save": {"id": "id"}},
+                        {"method": "DELETE", "path": "/todos/{id}"},
+                    ]
+                }
+            )
+        )
+        probes = _expected_probes(tmp_path)
+        assert probes[0]["save"] == {"id": "id"}
+        assert probes[1]["path"] == "/todos/{id}"
+
+
+def _crud_contract(workspace) -> None:
+    (workspace / "expected_output.json").write_text(
+        json.dumps(
+            {
+                "smoke": [
+                    {"method": "GET", "path": "/health"},
+                    {"method": "POST", "path": "/todos", "body": {"title": "demo"},
+                     "save": {"id": "id"}},
+                    {"method": "GET", "path": "/todos/{id}"},
+                    {"method": "DELETE", "path": "/todos/{id}"},
+                ]
+            }
+        )
+    )
+
+
+@_flask_required
+class TestChainedCrudProbes:
+    def test_create_read_delete_round_trip_passes(self, tmp_path) -> None:
+        # A POST creates a todo, its id is captured, and the subsequent GET and
+        # DELETE reference it — proving stateful CRUD probes work end-to-end.
+        _make_app(tmp_path, _CRUD_APP)
+        _crud_contract(tmp_path)
+        result = run_app_smoke(tmp_path)
+        assert result.success is True, result.message
+        paths = [p.path for p in result.probes]
+        assert "/todos/1" in paths  # {id} was interpolated from the POST response
+        assert all(p.ok for p in result.probes)
+
+    def test_chained_probe_failure_is_caught(self, tmp_path) -> None:
+        # GET on an id that was never created must fail the sequence.
+        _make_app(tmp_path, _CRUD_APP)
+        (tmp_path / "expected_output.json").write_text(
+            json.dumps({"smoke": [{"method": "GET", "path": "/todos/999"}]})
+        )
+        result = run_app_smoke(tmp_path)
+        assert result.success is False
+        assert any(p.status == 404 for p in result.probes)
