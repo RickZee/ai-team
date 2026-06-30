@@ -15,6 +15,7 @@ from ai_team.backends.langgraph_backend.graphs.routing import (
     route_after_human_review,
     route_after_intake,
     route_after_planning,
+    route_after_smoke,
     route_after_testing,
 )
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
@@ -45,6 +46,38 @@ def _node_testing(state: LangGraphProjectState) -> dict[str, Any]:
 
 def _node_deployment(state: LangGraphProjectState) -> dict[str, Any]:
     return {"current_phase": "deployment"}
+
+
+def _node_smoke_placeholder(state: LangGraphProjectState) -> dict[str, Any]:
+    """No-LLM stub: record a skipped smoke so routing proceeds to deployment."""
+    meta = dict(state.get("metadata") or {})
+    meta["smoke_results"] = {"ran": False, "success": False, "message": "placeholder"}
+    return {"current_phase": "smoke", "metadata": meta}
+
+
+def _node_smoke_full(state: LangGraphProjectState) -> dict[str, Any]:
+    """Runtime smoke gate: boot the generated app and probe real HTTP endpoints.
+
+    Backend-agnostic check shared with the Claude Agent SDK loop — a green unit
+    suite over an app that does not boot (or 5xx's on every request) is not a
+    pass. The result lands in ``metadata.smoke_results`` for ``route_after_smoke``
+    to act on, and is also written to ``docs/smoke_results.json`` for the shared
+    post-run guardrail.
+    """
+    from ai_team.config.settings import get_settings
+    from ai_team.tools.smoke_tools import run_app_smoke
+
+    meta = dict(state.get("metadata") or {})
+    try:
+        workspace = get_settings().project.workspace_dir
+        result = run_app_smoke(workspace)
+        meta["smoke_results"] = result.model_dump()
+        if result.ran and not result.success:
+            logger.warning("langgraph_smoke_failed", message=result.message)
+    except Exception as e:  # never let the gate crash the graph
+        logger.warning("langgraph_smoke_error", error=str(e))
+        meta["smoke_results"] = {"ran": False, "success": False, "message": str(e)}
+    return {"current_phase": "smoke", "metadata": meta}
 
 
 def _node_human_review_placeholder(state: LangGraphProjectState) -> dict[str, Any]:
@@ -166,12 +199,14 @@ def build_main_graph(
         g.add_node("planning", planning_subgraph_node)
         g.add_node("development", development_subgraph_node)
         g.add_node("testing", testing_subgraph_node)
+        g.add_node("smoke", _node_smoke_full)
         g.add_node("deployment", deployment_subgraph_node)
         g.add_node("human_review", _node_human_review_full)
     else:
         g.add_node("planning", _node_planning)
         g.add_node("development", _node_development)
         g.add_node("testing", _node_testing)
+        g.add_node("smoke", _node_smoke_placeholder)
         g.add_node("deployment", _node_deployment)
         g.add_node("human_review", _node_human_review_placeholder)
 
@@ -219,10 +254,20 @@ def build_main_graph(
         "testing",
         route_after_testing,
         {
+            "smoke": "smoke",
             "deployment": "deployment",
             "retry_development": "retry_development",
             "human_review": "human_review",
             "error": "error",
+        },
+    )
+    g.add_conditional_edges(
+        "smoke",
+        route_after_smoke,
+        {
+            "deployment": "deployment",
+            "retry_development": "retry_development",
+            "human_review": "human_review",
         },
     )
     g.add_edge("retry_development", "development")

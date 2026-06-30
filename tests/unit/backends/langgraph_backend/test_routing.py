@@ -9,6 +9,7 @@ from ai_team.backends.langgraph_backend.graphs.routing import (
     route_after_human_review,
     route_after_intake,
     route_after_planning,
+    route_after_smoke,
     route_after_testing,
 )
 
@@ -48,9 +49,45 @@ def test_route_after_development() -> None:
     assert route_after_development({"errors": [{"e": 1}]}) == "error"
 
 
-def test_route_after_testing_passed() -> None:
+def test_route_after_testing_passed_goes_to_smoke() -> None:
+    # Unit tests passing now routes through the runtime smoke gate, not straight
+    # to deployment — a green suite over a broken app must still be caught.
     state = {"errors": [], "test_results": {"passed": True}}
-    assert route_after_testing(state) == "deployment"
+    assert route_after_testing(state) == "smoke"
+
+
+def test_route_after_smoke_success_to_deployment() -> None:
+    state = {"metadata": {"smoke_results": {"ran": True, "success": True}}}
+    assert route_after_smoke(state) == "deployment"
+
+
+def test_route_after_smoke_skipped_to_deployment() -> None:
+    # No bootable entrypoint / Docker unavailable -> skip is not a defect.
+    state = {"metadata": {"smoke_results": {"ran": False, "success": False}}}
+    assert route_after_smoke(state) == "deployment"
+
+
+def test_route_after_smoke_no_results_to_deployment() -> None:
+    # Absent results behave like a skip; never block on missing evidence here.
+    assert route_after_smoke({"metadata": {}}) == "deployment"
+
+
+def test_route_after_smoke_failure_retries() -> None:
+    state = {
+        "metadata": {"smoke_results": {"ran": True, "success": False}},
+        "retry_count": 0,
+        "max_retries": 3,
+    }
+    assert route_after_smoke(state) == "retry_development"
+
+
+def test_route_after_smoke_failure_exhausted_to_human() -> None:
+    state = {
+        "metadata": {"smoke_results": {"ran": True, "success": False}},
+        "retry_count": 3,
+        "max_retries": 3,
+    }
+    assert route_after_smoke(state) == "human_review"
 
 
 def test_route_after_testing_retry() -> None:

@@ -34,7 +34,7 @@ from ai_team.backends.claude_agent_sdk_backend.workspace_snapshots import (
     restore_workspace_subtrees,
     snapshot_workspace_subtrees,
 )
-from ai_team.config.settings import reload_settings
+from ai_team.config.settings import get_settings, reload_settings
 from ai_team.core.result import ProjectResult
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.team_profile import TeamProfile
@@ -103,6 +103,20 @@ class ClaudeAgentBackend:
         max_turns_i = int(max_turns) if max_turns is not None else None
         checkpointing = bool(kwargs.get("enable_file_checkpointing", False))
         recovery_attempts = max(1, int(kwargs.get("recovery_max_attempts", 1)))
+        # Runtime self-improvement loop: when the profile has a testing phase and
+        # the smoke loop is enabled, allow extra attempts so a clean run over a
+        # non-booting / 5xx-ing app is caught and fixed (run_orchestrator_with_
+        # recovery applies the smoke gate between attempts). This is independent
+        # of the transient-failure retry budget above.
+        if "testing" in {str(p).strip().lower() for p in profile.phases}:
+            try:
+                sdk_cfg = get_settings().anthropic
+                if getattr(sdk_cfg, "smoke_loop_enabled", True):
+                    recovery_attempts = max(
+                        recovery_attempts, int(getattr(sdk_cfg, "smoke_max_attempts", 2))
+                    )
+            except Exception:  # noqa: BLE001 - settings issues must not block a run
+                pass
         orch_kw: dict[str, Any] = {
             "resume": resume,
             "fork_session": fork_session,

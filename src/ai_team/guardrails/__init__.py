@@ -32,6 +32,7 @@ from ai_team.guardrails.quality import (
     dependency_guardrail,
     deployment_artifacts_guardrail,
     documentation_guardrail,
+    runtime_smoke_guardrail,
     test_coverage_guardrail,
 )
 
@@ -79,6 +80,7 @@ __all__ = [
     "code_quality_guardrail",
     "dependency_guardrail",
     "deployment_artifacts_guardrail",
+    "runtime_smoke_guardrail",
     "documentation_guardrail",
     "test_coverage_guardrail",
     # Legacy APIs

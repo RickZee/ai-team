@@ -97,6 +97,37 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
         }
 
     @tool(
+        "run_app_smoke",
+        (
+            "Boot the generated app from the workspace and probe it over HTTP "
+            "(docker compose or a Flask app module). Catches runtime breakage "
+            "that passing unit tests miss (app won't boot, every request 500s). "
+            "Writes docs/smoke_results.json. Run after pytest, before declaring "
+            "the run complete."
+        ),
+        {},
+    )
+    async def run_app_smoke(_args: dict[str, Any]) -> dict[str, Any]:
+        from ai_team.tools.smoke_tools import run_app_smoke as _run_smoke
+
+        try:
+            result = _run_smoke(workspace)
+        except Exception as e:  # noqa: BLE001 - report, don't crash the agent
+            logger.warning("mcp_run_app_smoke_failed", error=str(e))
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
+                "is_error": True,
+            }
+        payload = json.dumps(result.model_dump(), default=str)
+        # A run that booted but failed probes is a real failure the agent must
+        # fix; a skipped smoke (no Docker / no entrypoint) is not an error.
+        is_error = bool(result.ran and not result.success)
+        return {
+            "content": [{"type": "text", "text": payload}],
+            "is_error": is_error,
+        }
+
+    @tool(
         "validate_code_safety",
         "Check a code string for dangerous patterns (eval, exec, etc.).",
         {"code": str},
@@ -138,7 +169,13 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             text = f"Knowledge search failed: {e}"
         return {"content": [{"type": "text", "text": text}]}
 
-    return [run_guardrails, run_project_tests, validate_code_safety, search_knowledge]
+    return [
+        run_guardrails,
+        run_project_tests,
+        run_app_smoke,
+        validate_code_safety,
+        search_knowledge,
+    ]
 
 
 def build_ai_team_mcp_server(workspace: Path) -> Any:

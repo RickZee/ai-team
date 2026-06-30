@@ -65,7 +65,7 @@ def route_after_development(
 
 def route_after_testing(
     state: LangGraphProjectState,
-) -> Literal["deployment", "retry_development", "human_review", "error"]:
+) -> Literal["smoke", "deployment", "retry_development", "human_review", "error"]:
     """Route after testing: deployment, retry development, human escalation, or error.
 
     A *testing-phase* error (e.g. the QA agent emitting prose instead of a
@@ -95,7 +95,31 @@ def route_after_testing(
         if rc < mx:
             return "retry_development"
         return "human_review"
-    return "deployment"
+    return "smoke"
+
+
+def route_after_smoke(
+    state: LangGraphProjectState,
+) -> Literal["deployment", "retry_development", "human_review"]:
+    """Route after the runtime smoke gate.
+
+    Unit tests passing is not enough — the smoke node boots the generated app
+    and probes real HTTP. A smoke failure (app won't boot / 5xx on a real
+    request) is recoverable the same way a test failure is: re-run development
+    up to ``max_retries``, then escalate to a human. A skipped smoke (no
+    bootable entrypoint / Docker unavailable) or a clean pass proceeds to
+    deployment.
+    """
+    meta = state.get("metadata") or {}
+    smoke = meta.get("smoke_results") or {}
+    # ran=False -> legitimately skipped (not a defect); success=True -> clean.
+    if not smoke.get("ran", False) or smoke.get("success", False):
+        return "deployment"
+    rc = int(state.get("retry_count") or 0)
+    mx = int(state.get("max_retries") or 3)
+    if rc < mx:
+        return "retry_development"
+    return "human_review"
 
 
 def route_after_deployment(

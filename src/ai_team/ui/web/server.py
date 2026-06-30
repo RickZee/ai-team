@@ -487,22 +487,30 @@ async def ws_run(websocket: WebSocket):
 
         await websocket.send_json({"type": "run_started", "run_id": run_id, "project_id": run_id})
 
-        task = asyncio.create_task(_execute_run(websocket, run_id, req))
+        # The run executes in a detached task tracked by run_id so it survives
+        # this socket. If the client navigates away (Run tab -> Dashboard) the
+        # /ws/run socket closes, but the run keeps going and is observed via
+        # /ws/monitor/{run_id}. We only cancel on an explicit cancel request
+        # (state.cancel_run), never on client disconnect.
+        task = _spawn_detached_run(websocket, run_id, req)
         state.tasks[run_id] = task
         try:
-            await task
+            await asyncio.shield(task)
         except asyncio.CancelledError:
             if state.is_cancel_requested(run_id):
                 monitor = state.monitors.get(run_id)
                 state.finish_cancelled(run_id)
-                await websocket.send_json(
-                    {
-                        "type": "complete",
-                        "run_status": "cancelled",
-                        "data": _serialize_monitor(monitor),
-                        "project_id": run_id,
-                    }
-                )
+                with contextlib.suppress(Exception):
+                    await websocket.send_json(
+                        {
+                            "type": "complete",
+                            "run_status": "cancelled",
+                            "data": _serialize_monitor(monitor),
+                            "project_id": run_id,
+                        }
+                    )
+            # Client disconnect (not an explicit cancel): the detached run task
+            # keeps running; do not propagate cancellation to it.
 
     except WebSocketDisconnect:
         logger.info("ws_client_disconnected")
@@ -563,17 +571,52 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
 # ---------------------------------------------------------------------------
 
 
+# Strong references to detached run tasks so they are not garbage-collected
+# while running (asyncio only keeps weak references to tasks).
+_DETACHED_RUNS: set[asyncio.Task] = set()
+
+
+def _spawn_detached_run(ws: WebSocket, run_id: str, req: RunRequest) -> asyncio.Task:
+    """Run ``_execute_run`` detached from the request's task scope.
+
+    The task is created on the running loop and retried once if it is
+    cancelled by request teardown (client disconnect) without an explicit
+    cancel having been requested. This guarantees that closing the ``/ws/run``
+    socket — e.g. navigating from the Run tab to the Dashboard — never aborts
+    an in-flight backend run.
+    """
+
+    task = asyncio.ensure_future(_execute_run(ws, run_id, req))
+    _DETACHED_RUNS.add(task)
+    task.add_done_callback(_DETACHED_RUNS.discard)
+    return task
+
+
+async def _safe_send(ws: WebSocket, payload: dict[str, Any]) -> None:
+    """Send to the run WebSocket, ignoring a disconnected client.
+
+    The run executes in a detached task that must outlive the ``/ws/run``
+    socket: a user navigating from the Run tab to the Dashboard closes that
+    socket, but the backend run keeps going and is observed via
+    ``/ws/monitor/{run_id}``. Swallowing send failures here prevents a closed
+    client socket from aborting an in-flight run.
+    """
+    with contextlib.suppress(Exception):
+        await ws.send_json(payload)
+
+
 async def _send_cancelled(ws: WebSocket, run_id: str) -> None:
     """Mark run cancelled and notify the WebSocket client."""
     monitor = state.monitors.get(run_id)
     state.finish_cancelled(run_id)
-    await ws.send_json(
+    await _safe_send(
+        ws,
         {
             "type": "complete",
             "run_status": "cancelled",
             "data": _serialize_monitor(monitor),
             "project_id": run_id,
-        }
+        },
     )
 
 
@@ -619,14 +662,15 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     if state.is_cancel_requested(run_id):
                         await _send_cancelled(ws, run_id)
                         return
-                    await ws.send_json(
+                    await _safe_send(
+                        ws,
                         {
                             "type": "event",
                             "data": json.loads(json.dumps(ev, default=str)),
-                        }
+                        },
                     )
                     monitor_snap = _serialize_monitor(monitor)
-                    await ws.send_json({"type": "monitor_update", "data": monitor_snap})
+                    await _safe_send(ws, {"type": "monitor_update", "data": monitor_snap})
 
                 if state.is_cancel_requested(run_id):
                     await _send_cancelled(ws, run_id)
@@ -640,7 +684,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                         "monitor": _serialize_monitor(monitor),
                     }
                     state.set_awaiting_human(run_id, payload)
-                    await ws.send_json({"type": "hitl_required", "data": payload})
+                    await _safe_send(ws, {"type": "hitl_required", "data": payload})
                     return
         elif req.backend in ("claude-agent-sdk", "claude-sdk"):
             from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
@@ -656,14 +700,15 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     if state.is_cancel_requested(run_id):
                         await _send_cancelled(ws, run_id)
                         return
-                    await ws.send_json(
+                    await _safe_send(
+                        ws,
                         {
                             "type": "event",
                             "data": json.loads(json.dumps(ev, default=str)),
-                        }
+                        },
                     )
                     monitor_snap = _serialize_monitor(monitor)
-                    await ws.send_json({"type": "monitor_update", "data": monitor_snap})
+                    await _safe_send(ws, {"type": "monitor_update", "data": monitor_snap})
         else:
             if state.is_cancel_requested(run_id):
                 await _send_cancelled(ws, run_id)
@@ -682,11 +727,12 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             if state.is_cancel_requested(run_id):
                 await _send_cancelled(ws, run_id)
                 return
-            await ws.send_json(
+            await _safe_send(
+                ws,
                 {
                     "type": "result",
                     "data": json.loads(json.dumps(result.model_dump(), default=str)),
-                }
+                },
             )
 
         if state.is_cancel_requested(run_id):
@@ -694,12 +740,13 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             return
 
         state.finish_run(run_id, success=True)
-        await ws.send_json(
+        await _safe_send(
+            ws,
             {
                 "type": "complete",
                 "data": _serialize_monitor(monitor),
                 "project_id": run_id,
-            }
+            },
         )
 
     except asyncio.CancelledError:
@@ -708,7 +755,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
         raise
     except Exception as e:
         state.finish_run(run_id, success=False, error=str(e))
-        await ws.send_json({"type": "error", "message": str(e)})
+        await _safe_send(ws, {"type": "error", "message": str(e)})
 
 
 async def _run_demo_async(run_id: str) -> None:

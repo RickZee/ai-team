@@ -1,5 +1,6 @@
 """Unit tests for quality guardrails with passing and failing examples."""
 
+import json
 from unittest.mock import patch
 
 from ai_team.guardrails.quality import (
@@ -10,10 +11,19 @@ from ai_team.guardrails.quality import (
     dependency_guardrail,
     deployment_artifacts_guardrail,
     documentation_guardrail,
+    runtime_smoke_guardrail,
 )
 
 _DEPLOY_PHASES = ["planning", "development", "testing", "deployment"]
 _NON_DEPLOY_PHASES = ["intake", "planning", "development", "testing"]
+_NO_TEST_PHASES = ["intake", "planning", "development"]
+
+
+def _write_smoke(workspace, **fields) -> None:
+    """Write a docs/smoke_results.json with the given fields."""
+    docs = workspace / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "smoke_results.json").write_text(json.dumps(fields))
 
 # -----------------------------------------------------------------------------
 # GuardrailResult
@@ -266,4 +276,55 @@ class TestDeploymentArtifactsGuardrail:
 
     def test_missing_workspace_dir_fails(self, tmp_path) -> None:
         result = deployment_artifacts_guardrail(tmp_path / "does-not-exist", _DEPLOY_PHASES)
+        assert not result.passed
+
+
+# -----------------------------------------------------------------------------
+# Runtime smoke guardrail (shared across backends) — the gate that catches a
+# green unit suite over an app that does not actually serve requests.
+# -----------------------------------------------------------------------------
+
+
+class TestRuntimeSmokeGuardrail:
+    def test_no_testing_phase_is_noop_pass(self, tmp_path) -> None:
+        result = runtime_smoke_guardrail(tmp_path, _NO_TEST_PHASES)
+        assert result.passed
+        assert "not required" in result.message.lower()
+
+    def test_missing_smoke_results_fails(self, tmp_path) -> None:
+        # Testing ran but nobody booted the app: the gate must flag it.
+        result = runtime_smoke_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert not result.passed
+        assert any("run_app_smoke" in s for s in result.suggestions)
+
+    def test_smoke_success_passes(self, tmp_path) -> None:
+        _write_smoke(tmp_path, ran=True, success=True, message="app booted and responded")
+        result = runtime_smoke_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert result.passed
+
+    def test_smoke_failure_fails(self, tmp_path) -> None:
+        # The exact bug class: tests pass, the running app 500s on every request.
+        _write_smoke(
+            tmp_path,
+            ran=True,
+            success=False,
+            message="GET /health -> 500: internal server error",
+        )
+        result = runtime_smoke_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert not result.passed
+        assert "500" in result.message
+        assert result.suggestions
+
+    def test_skipped_smoke_is_pass(self, tmp_path) -> None:
+        # No bootable entrypoint / Docker unavailable -> environment gap, not a defect.
+        _write_smoke(tmp_path, ran=False, success=False, message="no bootable entrypoint")
+        result = runtime_smoke_guardrail(tmp_path, _DEPLOY_PHASES)
+        assert result.passed
+        assert "skipped" in result.message.lower()
+
+    def test_unreadable_smoke_results_fails(self, tmp_path) -> None:
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "smoke_results.json").write_text("{ not json")
+        result = runtime_smoke_guardrail(tmp_path, _DEPLOY_PHASES)
         assert not result.passed
