@@ -428,7 +428,7 @@ def _parse_llm_response(
             data = json.loads(raw)
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"{label}: Invalid JSON from LLM: {e!s}. " "Ensure the response is valid JSON."
+                f"{label}: Invalid JSON from LLM: {e!s}. Ensure the response is valid JSON."
             ) from e
     else:
         data = raw

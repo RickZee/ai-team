@@ -161,7 +161,7 @@ def backend_result(request, tmp_path_factory) -> tuple[EvalResult, Path]:
     name = request.param
     ws = tmp_path_factory.mktemp(name.replace("-", "_"))
     result = _run_backend(name, ws)
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(format_scorecard(result))
     return result, ws
 

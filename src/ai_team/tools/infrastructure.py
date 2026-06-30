@@ -115,9 +115,9 @@ def ci_pipeline_generator(
 name: CI
 on:
   push:
-    branches: [{', '.join(b.strip() for b in on_branches.split(','))}]
+    branches: [{", ".join(b.strip() for b in on_branches.split(","))}]
   pull_request:
-    branches: [{', '.join(b.strip() for b in on_branches.split(','))}]
+    branches: [{", ".join(b.strip() for b in on_branches.split(","))}]
 jobs:
   lint:
     runs-on: ubuntu-latest

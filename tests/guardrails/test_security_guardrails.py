@@ -131,11 +131,7 @@ def test_output_containing_password_hardcoded_detected_and_fails(task_output_fac
 
 def test_output_referencing_environment_variables_properly_passes(task_output_factory: Any) -> None:
     """Output referencing environment variables properly should pass."""
-    raw = (
-        "import os\n"
-        "db_url = os.environ.get('DATABASE_URL')\n"
-        "api_key = os.getenv('API_KEY', '')\n"
-    )
+    raw = "import os\ndb_url = os.environ.get('DATABASE_URL')\napi_key = os.getenv('API_KEY', '')\n"
     result = secret_detection_guardrail(raw)
     assert result.status == "pass"
     ok, _ = crewai_secret_detection_guardrail(task_output_factory(raw))

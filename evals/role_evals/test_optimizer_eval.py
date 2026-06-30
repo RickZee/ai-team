@@ -358,7 +358,7 @@ class TestExperimentLog:
                     baseline=0.80,
                     kept=(i % 2 == 0),
                     cost_usd=0.01,
-                    snapshot_tag=f"iter_{i+1:03d}",
+                    snapshot_tag=f"iter_{i + 1:03d}",
                 ),
             )
         summary = summarise_experiments(load_experiments(tmp_path))
