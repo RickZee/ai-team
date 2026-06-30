@@ -46,6 +46,10 @@ class OpenRouterChromaEmbeddingFunction:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self._api_key_env = api_key_env
+        self._embed_dim = 1536
+
+    def _zero_vector(self) -> list[float]:
+        return [0.0] * self._embed_dim
 
     def name(self) -> str:
         """ChromaDB embedding function identifier."""
@@ -73,13 +77,13 @@ class OpenRouterChromaEmbeddingFunction:
         api_key = os.environ.get(self._api_key_env, "")
         if not api_key:
             logger.warning("openrouter_embedding_skip", reason="OPENROUTER_API_KEY not set")
-            return [[0.0] * 1536 for _ in input]
+            return [self._zero_vector() for _ in input]
         out: list[list[float]] = []
         url = f"{self.base_url}/embeddings"
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        for doc in input:
-            try:
-                with httpx.Client(timeout=60.0) as client:
+        with httpx.Client(timeout=60.0) as client:
+            for doc in input:
+                try:
                     r = client.post(
                         url,
                         headers=headers,
@@ -89,10 +93,14 @@ class OpenRouterChromaEmbeddingFunction:
                     data = r.json()
                     emb = data.get("data", [{}])
                     vec = emb[0].get("embedding", []) if emb else []
-                    out.append(vec if vec else [0.0] * 1536)
-            except Exception as e:
-                logger.warning("openrouter_embedding_failed", doc_len=len(doc), error=str(e))
-                out.append([0.0] * 1536)
+                    if vec:
+                        self._embed_dim = len(vec)
+                        out.append(vec)
+                    else:
+                        out.append(self._zero_vector())
+                except Exception as e:
+                    logger.warning("openrouter_embedding_failed", doc_len=len(doc), error=str(e))
+                    out.append(self._zero_vector())
         return out
 
 

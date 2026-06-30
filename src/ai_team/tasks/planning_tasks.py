@@ -165,32 +165,8 @@ def _extract_json_block_for_requirements(text: str) -> dict[str, Any] | None:
 
 
 def _extract_json_block_for_arch(text: str) -> dict[str, Any] | None:
-    """Extract JSON from markdown block, raw JSON, or first top-level {...} in text."""
-    if not text or not text.strip():
-        return None
-    # 1) Markdown code block
-    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
-    if match:
-        try:
-            obj = json.loads(match.group(1).strip())
-            return obj if isinstance(obj, dict) else None
-        except json.JSONDecodeError:
-            pass
-    # 2) Whole text is JSON
-    try:
-        obj = json.loads(text.strip())
-        return obj if isinstance(obj, dict) else None
-    except json.JSONDecodeError:
-        pass
-    # 3) First top-level JSON object in text (e.g. prose then { ... })
-    candidate = _find_balanced_brace_json(text)
-    if candidate:
-        try:
-            obj = json.loads(candidate)
-            return obj if isinstance(obj, dict) else None
-        except json.JSONDecodeError:
-            pass
-    return None
+    """Alias: architecture and requirements tasks share the same JSON extraction."""
+    return _extract_json_block_for_requirements(text)
 
 
 def _dict_to_architecture_document(data: dict[str, Any]) -> ArchitectureDocument | None:

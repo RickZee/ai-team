@@ -65,8 +65,8 @@ def _load_agents_config() -> dict[str, Any]:
                     + lesson_text
                     + "\n"
                 )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("agent_lessons_injection_skipped", error=str(exc))
     return data
 
 

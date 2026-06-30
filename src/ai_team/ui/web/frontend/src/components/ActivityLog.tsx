@@ -6,7 +6,6 @@ const LEVEL_CLASS: Record<string, string> = {
   warn: "log-warn",
   success: "log-success",
   info: "log-info",
-  debug: "log-debug",
 };
 
 const LEVELS = ["info", "success", "warn", "error"] as const;
@@ -64,9 +63,9 @@ export function ActivityLog({
   }, [filtered.length, autoScroll]);
 
   const jumpToGuardrail = () => {
-    const idx = [...entries].reverse().findIndex((e) => e.level === "warn" || e.level === "error");
+    const idx = [...filtered].reverse().findIndex((e) => e.level === "warn" || e.level === "error");
     if (idx < 0) return;
-    const el = document.querySelectorAll(".activity-log .log-line")[entries.length - 1 - idx];
+    const el = document.querySelectorAll(".activity-log .log-line")[filtered.length - 1 - idx];
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
