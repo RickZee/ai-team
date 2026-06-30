@@ -62,7 +62,7 @@ def extract_metric(cfg: MetricConfig, workspace: Path) -> float | None:
         # Fallback: last non-empty line is the metric value
         lines = [ln for ln in output.splitlines() if ln.strip()]
         return float(lines[-1]) if lines else None
-    except (subprocess.TimeoutExpired, ValueError, KeyError, json.JSONDecodeError):
+    except (subprocess.TimeoutExpired, ValueError, KeyError, json.JSONDecodeError, TypeError):
         return None
 
 
@@ -71,8 +71,11 @@ def load_metric_config(path: Path) -> MetricConfig:
     return MetricConfig.model_validate(data)
 
 
-def _nested_get(d: dict, key: str):
-    """Dot-notation access: 'results.p99_ms' → d['results']['p99_ms']."""
+def _nested_get(d: object, key: str) -> object:
+    """Dot-notation access: 'results.p99_ms' → nested value."""
+    current: object = d
     for part in key.split("."):
-        d = d[part]
-    return d
+        if not isinstance(current, dict):
+            raise TypeError(f"Expected dict while resolving {key!r}, got {type(current).__name__}")
+        current = current[part]
+    return current

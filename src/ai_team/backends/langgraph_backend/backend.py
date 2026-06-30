@@ -208,8 +208,8 @@ class LangGraphBackend:
                     if test_out:
                         b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                 b.write_scorecard(scorecard_from_langgraph_state(thread_id, state_dict))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("langgraph_artifact_persist_skipped", error=str(exc))
             return ProjectResult(
                 backend_name=self.name,
                 success=bool(
