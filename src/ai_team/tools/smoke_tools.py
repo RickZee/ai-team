@@ -96,8 +96,15 @@ def _detect_flask_app_target(workspace: Path) -> str | None:
     return None
 
 
-def _probe(base_url: str, method: str, path: str, *, body: dict | None = None) -> ProbeResult:
-    """Make one HTTP request and capture status + a short body excerpt."""
+def _probe(
+    base_url: str, method: str, path: str, *, body: dict | None = None
+) -> tuple[ProbeResult, str]:
+    """Make one HTTP request; return the result and the raw response body.
+
+    The raw body (separate from the truncated ``detail`` excerpt) lets a probe
+    sequence capture a field — e.g. the id a ``POST`` returned — for use in a
+    later probe's path or body.
+    """
     url = base_url.rstrip("/") + path
     data = json.dumps(body).encode() if body is not None else None
     headers = {"Content-Type": "application/json"} if body is not None else {}
@@ -105,19 +112,61 @@ def _probe(base_url: str, method: str, path: str, *, body: dict | None = None) -
     try:
         with urllib.request.urlopen(req, timeout=_PROBE_TIMEOUT_S) as resp:  # noqa: S310
             status = int(resp.status)
-            excerpt = resp.read(512).decode("utf-8", errors="replace")
-            return ProbeResult(
-                method=method, path=path, status=status, ok=200 <= status < 300, detail=excerpt
+            raw = resp.read(2048).decode("utf-8", errors="replace")
+            res = ProbeResult(
+                method=method, path=path, status=status, ok=200 <= status < 300, detail=raw[:512]
             )
+            return res, raw
     except urllib.error.HTTPError as e:
-        excerpt = ""
+        raw = ""
         with contextlib.suppress(Exception):
-            excerpt = e.read(512).decode("utf-8", errors="replace")
-        return ProbeResult(
-            method=method, path=path, status=int(e.code), ok=False, detail=excerpt or str(e)
+            raw = e.read(2048).decode("utf-8", errors="replace")
+        res = ProbeResult(
+            method=method, path=path, status=int(e.code), ok=False, detail=(raw or str(e))[:512]
         )
+        return res, raw
     except (urllib.error.URLError, TimeoutError, OSError) as e:
-        return ProbeResult(method=method, path=path, status=None, ok=False, detail=str(e))
+        return ProbeResult(method=method, path=path, status=None, ok=False, detail=str(e)), ""
+
+
+def _interpolate(value: Any, variables: dict[str, str]) -> Any:
+    """Substitute ``{name}`` tokens in a string (or recursively in a dict)."""
+    if isinstance(value, str):
+        for k, v in variables.items():
+            value = value.replace("{" + k + "}", v)
+        return value
+    if isinstance(value, dict):
+        return {k: _interpolate(v, variables) for k, v in value.items()}
+    return value
+
+
+def _run_probe_sequence(
+    base_url: str, specs: list[dict[str, Any]]
+) -> list[ProbeResult]:
+    """Run probes in order, threading captured variables between them.
+
+    Each spec is ``{method, path, body?, save?}``. ``save`` maps a variable name
+    to a key in the JSON response, e.g. ``{"id": "id"}`` captures the created
+    resource id so a later ``DELETE /todos/{id}`` can reference it. ``{name}``
+    tokens in ``path`` and ``body`` are interpolated from captured variables.
+    """
+    variables: dict[str, str] = {}
+    results: list[ProbeResult] = []
+    for spec in specs:
+        method = str(spec.get("method") or "GET").upper()
+        path = str(_interpolate(spec.get("path") or "", variables))
+        raw_body = spec.get("body")
+        body = _interpolate(raw_body, variables) if isinstance(raw_body, dict) else None
+        res, raw = _probe(base_url, method, path, body=body)
+        results.append(res)
+        save = spec.get("save")
+        if isinstance(save, dict) and raw:
+            with contextlib.suppress(ValueError, TypeError):
+                payload = json.loads(raw)
+                for var, key in save.items():
+                    if isinstance(payload, dict) and key in payload:
+                        variables[str(var)] = str(payload[key])
+    return results
 
 
 def _wait_for_boot(base_url: str, health_paths: tuple[str, ...], deadline: float) -> ProbeResult:
@@ -125,7 +174,7 @@ def _wait_for_boot(base_url: str, health_paths: tuple[str, ...], deadline: float
     last = ProbeResult(method="GET", path=health_paths[0], status=None, ok=False, detail="no boot")
     while time.monotonic() < deadline:
         for path in health_paths:
-            res = _probe(base_url, "GET", path)
+            res, _ = _probe(base_url, "GET", path)
             if res.status is not None:
                 return res
             last = res
@@ -133,13 +182,17 @@ def _wait_for_boot(base_url: str, health_paths: tuple[str, ...], deadline: float
     return last
 
 
-def _expected_probes(workspace: Path) -> list[tuple[str, str, dict | None]]:
-    """Derive probes from the acceptance contract; default to a health GET.
+def _expected_probes(workspace: Path) -> list[dict[str, Any]]:
+    """Derive an ordered probe sequence from the acceptance contract.
 
-    Reads ``expected_output.json`` (``endpoints`` / ``smoke`` hints) when the
-    demo provides one; otherwise probes ``/health``.
+    Reads a ``smoke`` list from ``expected_output.json`` when the demo provides
+    one; otherwise probes ``GET /health``. Each entry is
+    ``{method, path, body?, save?}`` — ``save`` captures a JSON response field
+    into a variable (e.g. ``{"id": "id"}``) and ``{var}`` tokens in later
+    ``path``/``body`` are interpolated, so a contract can drive a full CRUD
+    round-trip (create → read → update → delete) against the running app.
     """
-    default: list[tuple[str, str, dict | None]] = [("GET", "/health", None)]
+    default: list[dict[str, Any]] = [{"method": "GET", "path": "/health"}]
     contract = workspace / "expected_output.json"
     if not contract.is_file():
         return default
@@ -148,16 +201,23 @@ def _expected_probes(workspace: Path) -> list[tuple[str, str, dict | None]]:
     except (OSError, ValueError):
         return default
     smoke = spec.get("smoke") if isinstance(spec, dict) else None
-    probes: list[tuple[str, str, dict | None]] = []
+    probes: list[dict[str, Any]] = []
     if isinstance(smoke, list):
         for item in smoke:
             if not isinstance(item, dict):
                 continue
-            method = str(item.get("method") or "GET").upper()
             path = str(item.get("path") or "").strip()
-            body = item.get("body") if isinstance(item.get("body"), dict) else None
-            if path:
-                probes.append((method, path, body))
+            if not path:
+                continue
+            entry: dict[str, Any] = {
+                "method": str(item.get("method") or "GET").upper(),
+                "path": path,
+            }
+            if isinstance(item.get("body"), dict):
+                entry["body"] = item["body"]
+            if isinstance(item.get("save"), dict):
+                entry["save"] = item["save"]
+            probes.append(entry)
     return probes or default
 
 
@@ -325,7 +385,7 @@ def _probe_running(
             logs=logs,
         )
 
-    probes = [_probe(base_url, m, p, body=b) for (m, p, b) in _expected_probes(workspace)]
+    probes = _run_probe_sequence(base_url, _expected_probes(workspace))
     failed = [p for p in probes if not p.ok]
     success = not failed
     if failed:
@@ -349,27 +409,33 @@ def _probe_running(
 
 
 def _drain_logs(proc: subprocess.Popen | None) -> str:
-    """Best-effort non-blocking capture of a process's buffered output."""
+    """Best-effort non-blocking capture of a live process's buffered output.
+
+    Reads directly from the pipe fd with ``os.read`` after ``select`` reports it
+    readable, so a server that wrote a partial (newline-less) line and is still
+    running cannot block us — unlike ``readline()``, which waits for a full line.
+    """
     if proc is None or proc.stdout is None:
         return ""
-    # Only read what is already buffered without blocking on a live server.
+    import os
     import select
 
-    chunks: list[str] = []
+    fd = proc.stdout.fileno()
+    chunks: list[bytes] = []
+    total = 0
     try:
-        while True:
-            ready, _, _ = select.select([proc.stdout], [], [], 0)
+        while total < 4000:
+            ready, _, _ = select.select([fd], [], [], 0)
             if not ready:
                 break
-            line = proc.stdout.readline()
-            if not line:
+            data = os.read(fd, 4096)  # returns what's buffered, no newline wait
+            if not data:  # EOF (process exited and pipe drained)
                 break
-            chunks.append(line)
-            if sum(len(c) for c in chunks) > 4000:
-                break
+            chunks.append(data)
+            total += len(data)
     except (OSError, ValueError):
         pass
-    return "".join(chunks)[-4000:]
+    return b"".join(chunks).decode("utf-8", errors="replace")[-4000:]
 
 
 def _has_docker() -> bool:
