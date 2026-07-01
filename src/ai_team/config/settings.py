@@ -5,6 +5,9 @@ This module provides centralized configuration management using Pydantic setting
 Configuration is loaded from .env by default; alternative YAML loading is supported.
 """
 
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -297,3 +300,31 @@ def reload_settings() -> Settings:
     global _settings
     _settings = Settings()
     return _settings
+
+
+@contextmanager
+def scoped_workspace_dir(workspace: str) -> Iterator[None]:
+    """Set ``PROJECT_WORKSPACE_DIR`` for the duration of the ``with`` block, then restore it.
+
+    Backends set this env var so downstream tools/guardrails can read the
+    active per-run workspace via the global :func:`get_settings` singleton
+    without threading a path through every call. A bare
+    ``os.environ["PROJECT_WORKSPACE_DIR"] = ...`` never restores the previous
+    value, so it leaks into any later call in the same process that forgets to
+    override it — observed as stray ``workspace/<literal-thread-id-value>/``
+    directories accumulating from a test that set ``thread_id="tid"`` and left
+    that value stuck in the environment for the rest of the process. Always
+    reloads settings on entry and exit so ``get_settings()`` reflects the
+    scoped value inside the block and the prior value outside it.
+    """
+    prev = os.environ.get("PROJECT_WORKSPACE_DIR")
+    os.environ["PROJECT_WORKSPACE_DIR"] = workspace
+    reload_settings()
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop("PROJECT_WORKSPACE_DIR", None)
+        else:
+            os.environ["PROJECT_WORKSPACE_DIR"] = prev
+        reload_settings()

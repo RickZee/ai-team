@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -34,7 +33,7 @@ from ai_team.backends.claude_agent_sdk_backend.workspace_snapshots import (
     restore_workspace_subtrees,
     snapshot_workspace_subtrees,
 )
-from ai_team.config.settings import get_settings, reload_settings
+from ai_team.config.settings import get_settings, scoped_workspace_dir
 from ai_team.core.result import ProjectResult
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.team_profile import TeamProfile
@@ -80,12 +79,20 @@ class ClaudeAgentBackend:
             description=description,
             team_profile=profile.name,
         )
-        try:
-            os.environ["PROJECT_WORKSPACE_DIR"] = str(workspace)
-            reload_settings()
-        except Exception:
-            pass
+        # Scoped, not a bare os.environ write: a permanent mutation here leaks
+        # this run's workspace into any later call in the same process that
+        # forgets to override it (observed as stray workspace/<value>/ dirs
+        # accumulating from a test that left PROJECT_WORKSPACE_DIR stuck).
+        with scoped_workspace_dir(str(workspace)):
+            return self._run_impl(description, profile, workspace, kwargs)
 
+    def _run_impl(
+        self,
+        description: str,
+        profile: TeamProfile,
+        workspace: Path,
+        kwargs: dict[str, Any],
+    ) -> ProjectResult:
         ensure_workspace_layout(workspace, description)
         write_profile_claude_context(workspace, profile)
 
@@ -249,12 +256,20 @@ class ClaudeAgentBackend:
             description=description,
             team_profile=profile.name,
         )
-        try:
-            os.environ["PROJECT_WORKSPACE_DIR"] = str(workspace)
-            reload_settings()
-        except Exception:
-            pass
+        # Scoped, not a bare os.environ write: see the comment in run() — a
+        # permanent mutation here would leak into any later call in this
+        # process that forgets to set its own workspace.
+        with scoped_workspace_dir(str(workspace)):
+            async for ev in self._stream_impl(description, profile, workspace, kwargs):
+                yield ev
 
+    async def _stream_impl(
+        self,
+        description: str,
+        profile: TeamProfile,
+        workspace: Path,
+        kwargs: dict[str, Any],
+    ) -> AsyncIterator[dict[str, Any]]:
         ensure_workspace_layout(workspace, description)
         write_profile_claude_context(workspace, profile)
         monitor = kwargs.get("monitor")

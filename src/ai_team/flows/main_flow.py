@@ -22,7 +22,7 @@ from typing import Any
 import structlog
 from ai_team.config.model_validation import ModelValidationError, validate_models_before_run
 from ai_team.config.models import OpenRouterSettings
-from ai_team.config.settings import get_settings, reload_settings
+from ai_team.config.settings import get_settings, scoped_workspace_dir
 from ai_team.core.results import ResultsBundle, scorecard_from_project_state
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.flows.error_handling import (
@@ -315,6 +315,13 @@ class AITeamFlow(Flow[ProjectState]):
         If user declines or over budget, raises SystemExit. After execution, displays
         token tracker summary (estimated vs actual) and saves logs/cost_report_*.json.
         """
+        ws_stack = contextlib.ExitStack()
+        try:
+            return self._kickoff_impl(ws_stack, *args, **kwargs)
+        finally:
+            ws_stack.close()
+
+    def _kickoff_impl(self, ws_stack: contextlib.ExitStack, *args: Any, **kwargs: Any) -> Any:
         from ai_team.config.cost_estimator import RoleCostRow
         from ai_team.config.models import OpenRouterSettings
         from ai_team.config.token_tracker import TokenTracker
@@ -337,6 +344,15 @@ class AITeamFlow(Flow[ProjectState]):
             logger.debug("kickoff_observability_hooks_skipped", error=str(exc))
 
         # Per-run workspace isolation: tools resolve relative paths under workspace/<project_id>/.
+        # Scoped via the ExitStack passed in from kickoff() (closed in its
+        # finally, covering the rest of this method including the SystemExit
+        # cost-decline path below) rather than a bare os.environ write — a
+        # permanent mutation here leaks this run's workspace into any later
+        # call in the same process that forgets to override it (observed as
+        # stray workspace/<value>/ dirs accumulating from a test that left
+        # PROJECT_WORKSPACE_DIR stuck; the single caller of this Flow,
+        # CrewAIBackend.run(), already scopes its own call, but
+        # main_flow.kickoff() can also run standalone in scripts/tests).
         try:
             preset = os.environ.get("PROJECT_WORKSPACE_DIR", "").strip()
             if preset:
@@ -347,8 +363,7 @@ class AITeamFlow(Flow[ProjectState]):
                 ws_path = (
                     Path(get_settings().project.workspace_dir).resolve() / self.state.project_id
                 )
-            os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_path)
-            reload_settings()
+            ws_stack.enter_context(scoped_workspace_dir(str(ws_path)))
         except Exception as exc:
             logger.warning("kickoff_workspace_setup_failed", error=str(exc))
 

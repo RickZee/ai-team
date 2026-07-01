@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import AsyncIterator
 from typing import Any
@@ -125,14 +126,29 @@ class CrewAIBackend:
         reset_spend_guard(kwargs.get("run_budget_usd"))
         _disable_crewai_console()
 
-        from ai_team.config.settings import reload_settings
+        from ai_team.config.settings import reload_settings, scoped_workspace_dir
 
         reload_settings()
 
+        # Scoped, not a bare os.environ write: a permanent mutation here leaks
+        # this run's workspace into any later call in this process that
+        # forgets to override it (see langgraph/claude-sdk backends for the
+        # same fix — observed as stray workspace/<value>/ dirs accumulating
+        # from a test that left PROJECT_WORKSPACE_DIR stuck).
+        ws_override = kwargs.get("workspace_dir")
+        ws_scope = scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
+        with ws_scope:
+            return self._run_scoped(description, profile, env, kwargs, monitor)
+
+    def _run_scoped(
+        self,
+        description: str,
+        profile: TeamProfile,
+        env: str | None,
+        kwargs: dict[str, Any],
+        monitor: TeamMonitor | None,
+    ) -> ProjectResult:
         try:
-            ws_override = kwargs.get("workspace_dir")
-            if ws_override:
-                os.environ["PROJECT_WORKSPACE_DIR"] = str(ws_override)
             explicit_id = (
                 str(kwargs.get("thread_id") or kwargs.get("project_id") or "").strip() or None
             )
