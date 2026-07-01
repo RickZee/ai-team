@@ -32,6 +32,20 @@ logger = structlog.get_logger(__name__)
 
 ComplexityOption = Literal["simple", "medium", "complex"]
 
+# LangGraph's checkpointer defaults to an in-memory SQLite DB per compile() call
+# when AI_TEAM_LANGGRAPH_SQLITE_PATH is unset. The web server compiles the graph
+# more than once per run (the streaming dispatch, then a separate compile in
+# _langgraph_hitl_status to read back state for HITL detection) — with two
+# independent in-memory DBs, the status check can never see the streaming
+# call's checkpoints, so a run that actually paused on human_review silently
+# reports as "complete" instead of "awaiting_human". Default to a persistent
+# file so every compile in this process shares the same checkpoint store;
+# an explicit env var still overrides.
+os.environ.setdefault(
+    "AI_TEAM_LANGGRAPH_SQLITE_PATH",
+    str(Path(__file__).resolve().parents[4] / "workspace" / ".langgraph_checkpoints.sqlite"),
+)
+
 app = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
 
 app.add_middleware(
