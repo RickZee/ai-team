@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import cast
 
 from ai_team.backends.langgraph_backend.graphs.langgraph_guardrail_nodes import (
+    _LOW_SCOPE_RELEVANCE_ROLES,
     make_behavioral_guardrail_node,
     quality_guardrail_node,
     security_guardrail_node,
@@ -126,3 +127,59 @@ def add(a: int, b: int) -> int:
         """Conversational stubs must not fail ``ast.parse`` in quality."""
         out = quality_guardrail_node(_state_with_ai("Stub assistant reply for testing."))
         assert out["guardrail_checks"][-1]["status"] == "pass"
+
+
+class TestLowScopeRelevanceRoles:
+    """Regression: a real planning run errored out because the manager
+    supervisor's short routing/delegation text failed scope-control at the
+    default 0.5 threshold, exhausting all 3 guardrail retries.
+
+    architect/product_owner (structured docs that use their own vocabulary)
+    get the lowered threshold alongside the pre-existing code roles. manager
+    is exempted from scope-control entirely when acting as a supervisor
+    (``is_supervisor=True``) — pure delegation text ("assign X to architect")
+    can legitimately share zero keywords with the brief, which no threshold
+    can distinguish from off-topic wandering; role_adherence still checks it
+    stays in its delegation lane.
+    """
+
+    def test_architect_and_product_owner_use_low_threshold(self) -> None:
+        for role in ("architect", "product_owner", "qa_engineer"):
+            assert role in _LOW_SCOPE_RELEVANCE_ROLES
+
+    def test_manager_supervisor_routing_text_skips_scope_control(self) -> None:
+        node = make_behavioral_guardrail_node(
+            "manager", behavioral_only_message_names=frozenset({"manager"})
+        )
+        # Pure delegation commentary: zero keyword overlap with the brief even
+        # though it is correctly on-scope, since it's meta ("who does what"),
+        # not the substantive document. Message must carry name="manager" or
+        # the only_message_names filter drops it and the check never runs.
+        routing_text = "Delegating requirements analysis to the product owner, then architecture design to the architect."
+        state: LangGraphSubgraphState = {
+            "messages": [
+                HumanMessage("User"),
+                AIMessage(content=routing_text, name="manager"),
+            ],
+            "guardrail_checks": [],
+            "project_description": (
+                "Build a Flask REST API with SQLite persistence for a TODO app, "
+                "packaged with Docker and pytest tests."
+            ),
+        }
+        out = node(state)
+        assert out["guardrail_checks"][-1]["status"] in ("pass", "warn")
+
+    def test_manager_non_supervisor_still_scope_checked(self) -> None:
+        # A non-supervisor "manager" call (is_supervisor False) still runs
+        # scope-control at its (low) threshold — only the supervisor path is
+        # exempted, not the role generally.
+        node = make_behavioral_guardrail_node("manager", min_scope_relevance=0.25)
+        off_topic = _state_with_ai(
+            "The weather today is sunny. Frogs are amphibians.",
+            project_description=(
+                "Build a Flask REST API with SQLite persistence for a TODO app."
+            ),
+        )
+        out = node(off_topic)
+        assert out["guardrail_checks"][-1]["status"] == "fail"

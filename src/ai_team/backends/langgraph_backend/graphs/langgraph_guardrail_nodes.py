@@ -71,7 +71,13 @@ def _behavioral_stack(
     min_scope_relevance: float = 0.5,
 ) -> BehavioralGR:
     parts: list[BehavioralGR] = []
-    if project_description and project_description.strip():
+    # Supervisor/manager text is routing & delegation commentary ("assign X to
+    # architect, then Y to QA") — it has no reason to restate domain nouns from
+    # the brief, so keyword-overlap scope-control has nothing meaningful to
+    # measure and only produces false failures (observed: 0% overlap on
+    # correctly-on-scope delegation text, unrescuable by any threshold).
+    # role_adherence still checks the supervisor stays in its delegation lane.
+    if not is_supervisor and project_description and project_description.strip():
         parts.append(
             scope_control_guardrail(text, project_description, min_relevance=min_scope_relevance)
         )
@@ -311,10 +317,26 @@ def route_after_quality(
     return "retry_wrap"
 
 
-# Roles where test/code output vocabulary diverges from project description prose.
-# Lower scope relevance threshold so well-formed test output isn't falsely rejected.
+# Roles whose structured output vocabulary diverges from project description prose
+# (test code, ADR/architecture terms, requirements-doc structure, supervisor
+# routing/delegation commentary) — correct, on-scope output naturally introduces
+# its own domain vocabulary rather than echoing the brief's exact words. Lower
+# scope relevance threshold so well-formed output isn't falsely rejected. The
+# "manager" supervisor role is included because its routing/delegation text is
+# short meta-commentary about *who does what*, not substantive content, so it
+# scores low on requirement-word recall even when correctly on-scope (observed:
+# a real planning-phase run failed 3x and errored out on the manager's routing
+# message at ~23-25% relevance under the default 0.5 threshold).
 _LOW_SCOPE_RELEVANCE_ROLES: frozenset[str] = frozenset(
-    {"qa_engineer", "backend_developer", "frontend_developer", "fullstack_developer"}
+    {
+        "qa_engineer",
+        "backend_developer",
+        "frontend_developer",
+        "fullstack_developer",
+        "architect",
+        "product_owner",
+        "manager",
+    }
 )
 _DEFAULT_SCOPE_RELEVANCE = 0.5
 _CODE_ROLE_SCOPE_RELEVANCE = 0.25

@@ -140,6 +140,33 @@ def test_scope_control_guardrail_creep_warn():
     assert result.status in ("pass", "warn")
 
 
+def test_scope_control_guardrail_terse_elaboration_not_false_positive():
+    """A short, correct elaboration that introduces its own vocabulary must not
+    fail purely because it doesn't recall most of the brief's own words.
+
+    Regression: a real architecture doc for a Flask+SQLite TODO app brief was
+    rejected by requirement-word recall alone (~23% overlap) despite being
+    fully on-scope — it used "Repository"/"ACID"/"responsibilities" instead of
+    repeating "Flask"/"SQLite"/"todos". Precision (how much of the *output* is
+    itself requirement-derived) should let a terse, correct answer through.
+    """
+    requirements = (
+        "Build a Flask REST API with SQLite persistence exposing GET /todos, "
+        "POST /todos, and DELETE /todos, packaged with Docker and pytest tests."
+    )
+    terse_elaboration = "Flask API with SQLite repository layer, Docker packaging."
+    result = scope_control_guardrail(terse_elaboration, requirements, min_relevance=0.5)
+    assert result.status in ("pass", "warn")
+
+
+def test_scope_control_guardrail_precision_does_not_rescue_true_off_topic():
+    """Precision must not let genuinely off-topic output slip through."""
+    requirements = "Build a Flask REST API with SQLite persistence for a TODO app."
+    off_topic = "The weather today is sunny. Frogs are amphibians. Coffee is great."
+    result = scope_control_guardrail(off_topic, requirements, min_relevance=0.5)
+    assert result.status == "fail"
+
+
 # -----------------------------------------------------------------------------
 # reasoning_guardrail
 # -----------------------------------------------------------------------------
