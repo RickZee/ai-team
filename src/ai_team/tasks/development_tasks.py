@@ -8,8 +8,6 @@ for task start, progress, and completion (logging is applied at crew/flow level 
 via guardrail execution).
 """
 
-from __future__ import annotations
-
 import json
 import re
 from collections.abc import Sequence
