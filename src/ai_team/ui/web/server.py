@@ -389,7 +389,13 @@ async def resume_run(run_id: str, req: ResumeRequest):
     loop = asyncio.get_event_loop()
 
     def _resume() -> None:
-        backend.resume(thread_id, feedback, profile)
+        # Match the graph_mode the original run used (see _stream_langgraph_events_to_ws).
+        backend.resume(
+            thread_id,
+            feedback,
+            profile,
+            graph_mode=os.environ.get("AI_TEAM_LANGGRAPH_GRAPH_MODE", "full"),
+        )
 
     try:
         await loop.run_in_executor(None, _resume)
@@ -653,6 +659,12 @@ async def _stream_langgraph_events_to_ws(
                 profile,
                 monitor=monitor,
                 thread_id=thread_id,
+                # Web runs are real runs, not unit-test scaffolding: match the
+                # CLI's run_demo.py default (graph_mode="full") so the LangGraph
+                # column on the Compare tab actually executes the subgraphs
+                # instead of the placeholder no-LLM stub completing instantly
+                # with 0 files. AI_TEAM_LANGGRAPH_GRAPH_MODE still overrides.
+                graph_mode=os.environ.get("AI_TEAM_LANGGRAPH_GRAPH_MODE", "full"),
             ):
                 if state.is_cancel_requested(run_id):
                     break
