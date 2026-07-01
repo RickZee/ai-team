@@ -68,14 +68,36 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 
+def _build_run_store() -> Any:
+    """Construct the SQLite-backed RunStore; None (in-memory only) if that fails.
+
+    Never lets a persistence-layer problem stop the server from starting.
+    """
+    try:
+        from ai_team.config.settings import get_settings
+        from ai_team.core.run_store import RunStore
+
+        return RunStore(get_settings().memory.sqlite_path)
+    except Exception as e:  # noqa: BLE001 - persistence is best-effort
+        logger.warning("run_store_init_failed", error=str(e))
+        return None
+
+
 class RunState:
-    """Tracks active and completed runs."""
+    """Tracks active and completed runs.
+
+    Mirrors every lifecycle event into ``RunStore`` (SQLite, ``data/memory.db``)
+    so run and comparison history survives server restarts — the in-memory
+    ``self.runs`` dict alone is wiped on every restart, which made a genuinely
+    in-flight run silently disappear from ``/api/runs`` during a real session.
+    """
 
     def __init__(self) -> None:
         self.runs: dict[str, dict[str, Any]] = {}
         self.monitors: dict[str, Any] = {}  # run_id -> TeamMonitor
         self.tasks: dict[str, asyncio.Task] = {}  # run_id -> background task
         self.cancel_flags: dict[str, bool] = {}  # run_id -> cancel requested
+        self.store = _build_run_store()
 
     def create_run(
         self,
@@ -86,6 +108,7 @@ class RunState:
         estimate_usd: float | None = None,
         complexity: str | None = None,
         is_sample: bool = False,
+        comparison_id: str | None = None,
     ) -> dict:
         entry = {
             "run_id": run_id,
@@ -102,15 +125,31 @@ class RunState:
             "estimate_usd": estimate_usd,
             "complexity": complexity,
             "is_sample": is_sample,
+            "comparison_id": comparison_id,
         }
         self.runs[run_id] = entry
         self.cancel_flags[run_id] = False
+        if self.store is not None:
+            self.store.upsert_run(
+                run_id,
+                backend=backend,
+                profile=profile,
+                description=description,
+                complexity=complexity,
+                status="pending",
+                is_sample=is_sample,
+                estimate_usd=estimate_usd,
+                comparison_id=comparison_id,
+                started_at=entry["started_at"],
+            )
         return entry
 
     def set_awaiting_human(self, run_id: str, payload: dict[str, Any]) -> None:
         if run_id in self.runs:
             self.runs[run_id]["status"] = "awaiting_human"
             self.runs[run_id]["hitl_payload"] = payload
+        if self.store is not None:
+            self.store.update_status(run_id, "awaiting_human")
 
     def finish_run(self, run_id: str, success: bool, error: str | None = None) -> None:
         if run_id in self.runs:
@@ -119,6 +158,10 @@ class RunState:
             self.runs[run_id]["error"] = error
             self.runs[run_id]["hitl_payload"] = None
         self.tasks.pop(run_id, None)
+        if self.store is not None:
+            self.store.update_status(
+                run_id, "complete" if success else "error", error=error, finished=True
+            )
 
     def cancel_run(self, run_id: str) -> None:
         """Mark a run as cancelling and request cooperative cancel."""
@@ -128,6 +171,8 @@ class RunState:
             task = self.tasks.get(run_id)
             if task and not task.done():
                 task.cancel()
+        if self.store is not None:
+            self.store.update_status(run_id, "cancelling")
 
     def finish_cancelled(self, run_id: str) -> None:
         if run_id in self.runs:
@@ -135,6 +180,8 @@ class RunState:
             self.runs[run_id]["finished_at"] = datetime.now().isoformat()
             self.runs[run_id]["hitl_payload"] = None
         self.tasks.pop(run_id, None)
+        if self.store is not None:
+            self.store.update_status(run_id, "cancelled", finished=True)
 
     def is_cancel_requested(self, run_id: str) -> bool:
         return self.cancel_flags.get(run_id, False)
@@ -171,6 +218,10 @@ class RunRequest(BaseModel):
     description: str
     complexity: ComplexityOption = "medium"
     estimate_usd: float | None = None
+    # Set by the Compare tab: one id shared across the 3 independent /ws/run
+    # connections it opens (crewai/langgraph/claude-agent-sdk), so those three
+    # runs can be looked up together afterward via RunStore.get_comparison().
+    comparison_id: str | None = None
 
 
 class EstimateRequest(BaseModel):
@@ -271,6 +322,20 @@ async def list_runs():
     return {"runs": list(state.runs.values())}
 
 
+@app.get("/api/runs/history")
+async def run_history(limit: int = Query(200, ge=1, le=1000)):
+    """Persisted run history (SQLite, data/memory.db) — survives server restarts.
+
+    Unlike GET /api/runs (in-memory, wiped on restart), this reflects every run
+    the server has ever started, including runs from a process that later died
+    or was restarted mid-run. Registered before /api/runs/{run_id} so "history"
+    isn't swallowed as a run_id path param.
+    """
+    if state.store is None:
+        return {"runs": [], "persisted": False}
+    return {"runs": state.store.list_runs(limit=limit), "persisted": True}
+
+
 @app.get("/api/runs/{run_id}")
 async def get_run(run_id: str):
     """Get run details including monitor state."""
@@ -281,6 +346,25 @@ async def get_run(run_id: str):
     monitor = state.monitors.get(run_id)
     monitor_data = _serialize_monitor(monitor) if monitor else None
     return {**run, "project_id": run.get("project_id") or run_id, "monitor": monitor_data}
+
+
+@app.get("/api/comparisons")
+async def list_comparisons(limit: int = Query(50, ge=1, le=200)):
+    """Recent Compare-tab sessions (grouped by comparison_id)."""
+    if state.store is None:
+        return {"comparisons": [], "persisted": False}
+    return {"comparisons": state.store.list_comparisons(limit=limit), "persisted": True}
+
+
+@app.get("/api/comparisons/{comparison_id}")
+async def get_comparison(comparison_id: str):
+    """The 1-3 backend runs that belong to one Compare-tab session."""
+    if state.store is None:
+        raise HTTPException(status_code=503, detail="Run persistence unavailable")
+    runs = state.store.get_comparison(comparison_id)
+    if not runs:
+        raise HTTPException(status_code=404, detail="Comparison not found")
+    return {"comparison_id": comparison_id, "runs": runs}
 
 
 @app.get("/api/registry/runs")
@@ -509,6 +593,7 @@ async def ws_run(websocket: WebSocket):
             req.description,
             estimate_usd=req.estimate_usd,
             complexity=req.complexity,
+            comparison_id=req.comparison_id,
         )
         state.runs[run_id]["thread_id"] = run_id
         state.runs[run_id]["project_id"] = run_id

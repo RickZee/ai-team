@@ -98,9 +98,13 @@ export function Compare() {
     if (!description.trim()) return;
     setActionError(null);
     setDemoMode(false);
-    crewai.startRun("crewai", profile, description, complexity);
-    langgraph.startRun("langgraph", profile, description, complexity);
-    claude.startRun("claude-agent-sdk", profile, description, complexity);
+    // Shared across the 3 independent /ws/run connections below so the
+    // server can persist and later look up this comparison's 3 backend runs
+    // together (GET /api/comparisons/{comparisonId}), even after a restart.
+    const comparisonId = crypto.randomUUID();
+    crewai.startRun("crewai", profile, description, complexity, null, comparisonId);
+    langgraph.startRun("langgraph", profile, description, complexity, null, comparisonId);
+    claude.startRun("claude-agent-sdk", profile, description, complexity, null, comparisonId);
   };
 
   const handleCompareClick = () => {
