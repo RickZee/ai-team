@@ -73,7 +73,14 @@ export function useRunWebSocket() {
   );
 
   const startRun = useCallback(
-    (backend: string, profile: string, description: string, complexity: string, estimateUsd?: number | null) => {
+    (
+      backend: string,
+      profile: string,
+      description: string,
+      complexity: string,
+      estimateUsd?: number | null,
+      comparisonId?: string | null,
+    ) => {
       closeSocket();
       setRunStatus("connecting");
       setEvents([]);
@@ -87,7 +94,16 @@ export function useRunWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ backend, profile, description, complexity, estimate_usd: estimateUsd ?? null }));
+        ws.send(
+          JSON.stringify({
+            backend,
+            profile,
+            description,
+            complexity,
+            estimate_usd: estimateUsd ?? null,
+            comparison_id: comparisonId ?? null,
+          }),
+        );
         setRunStatus("running");
       };
 
