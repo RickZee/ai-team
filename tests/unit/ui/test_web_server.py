@@ -425,3 +425,76 @@ class TestLanggraphHitlStatus:
         assert awaiting is True
         assert payload is not None
         assert payload["phase"] == "awaiting_human"
+
+    def test_hitl_status_survives_independent_recompile_with_persistent_path(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Regression: the web server compiles the graph twice per run (once to
+        stream events, once in _langgraph_hitl_status to read back state). Each
+        compile's checkpointer defaults to a throwaway in-memory SQLite DB when
+        AI_TEAM_LANGGRAPH_SQLITE_PATH is unset, so the status-check compile could
+        never see the streaming compile's checkpoints — a run that actually
+        paused on human_review silently reported "complete" via the web API
+        instead of "awaiting_human". Verifies a real langgraph interrupt()
+        written by one compile is visible to a second, independent compile once
+        both point at the same persistent file (as the web server now defaults
+        it to — see server.py module-level os.environ.setdefault).
+
+        Uses a minimal standalone graph wrapping the real
+        _node_human_review_full node (the one production uses, which actually
+        calls interrupt()) instead of driving the full LLM pipeline — isolates
+        the checkpointer-sharing mechanism without needing API keys.
+        """
+        from ai_team.backends.langgraph_backend.checkpointer import resolve_sqlite_checkpointer
+        from ai_team.backends.langgraph_backend.graphs.main_graph import _node_human_review_full
+        from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
+        from ai_team.backends.langgraph_backend.state_inspection import get_thread_state_snapshot
+        from langgraph.graph import END, START, StateGraph
+
+        db_path = str(tmp_path / "checkpoints.sqlite")
+        monkeypatch.setenv("AI_TEAM_LANGGRAPH_SQLITE_PATH", db_path)
+        thread_id = "hitl-regression-thread"
+
+        def _build() -> object:
+            g = StateGraph(LangGraphProjectState)
+            g.add_node("human_review", _node_human_review_full)
+            g.add_edge(START, "human_review")
+            g.add_edge("human_review", END)
+            return g.compile(checkpointer=resolve_sqlite_checkpointer())
+
+        init = {
+            "project_description": "x" * 20,
+            "project_id": thread_id,
+            "current_phase": "planning",
+            "metadata": {"testing_needs_human": True},
+        }
+        # First compile: run to the interrupt (invoke returns once paused).
+        _build().invoke(init, {"configurable": {"thread_id": thread_id}})
+
+        # Second, fully independent compile+checkpointer — mirrors
+        # _langgraph_hitl_status building its own graph in a separate call.
+        # A mid-node interrupt() pauses *before* the node's return executes, so
+        # current_phase still reads its pre-interrupt value ("planning") — the
+        # actual pause signal LangGraph records is a pending interrupt on the
+        # next task, which is exactly the second detection path
+        # _langgraph_hitl_status falls back to (snap.tasks[].interrupts).
+        checker_graph = _build()
+        snap = get_thread_state_snapshot(checker_graph, thread_id)
+
+        assert snap.tasks, "a fresh compile sharing the persistent path must see the paused task"
+        interrupts = [getattr(t, "interrupts", None) for t in snap.tasks]
+        assert any(interrupts), (
+            "the interrupt() written by a different compile must be visible "
+            "to an independently constructed graph over the same file"
+        )
+
+    def test_server_module_defaults_to_persistent_sqlite_path(self) -> None:
+        """server.py must default AI_TEAM_LANGGRAPH_SQLITE_PATH to a real file,
+        not leave it unset (which falls back to a throwaway :memory: DB per
+        compile — the root cause this class regression-tests).
+        """
+        import os
+
+        path = os.environ.get("AI_TEAM_LANGGRAPH_SQLITE_PATH")
+        assert path, "ai_team.ui.web.server must set a default persistent checkpoint path"
+        assert path != ":memory:"
