@@ -13,6 +13,7 @@ from ai_team.config.settings import (
     Settings,
     get_settings,
     reload_settings,
+    scoped_workspace_dir,
 )
 from pydantic import ValidationError
 
@@ -83,3 +84,52 @@ class TestGetSettings:
         assert a is not b
         c = get_settings()
         assert c is b
+
+
+# -----------------------------------------------------------------------------
+# scoped_workspace_dir
+# -----------------------------------------------------------------------------
+
+
+class TestScopedWorkspaceDir:
+    """Regression coverage for a real bug: backends set PROJECT_WORKSPACE_DIR
+    with a bare os.environ write and no restore, so one run's workspace path
+    leaked into any later call in the same process that didn't override it
+    (observed as stray workspace/<value>/ directories accumulating). All
+    backends now use scoped_workspace_dir instead.
+    """
+
+    def test_sets_workspace_dir_inside_block(self) -> None:
+        with scoped_workspace_dir("/tmp/scoped-test-a"):
+            assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/scoped-test-a"
+            assert get_settings().project.workspace_dir == "/tmp/scoped-test-a"
+
+    def test_restores_prior_value_on_exit(self) -> None:
+        with patch.dict(os.environ, {"PROJECT_WORKSPACE_DIR": "/tmp/prior"}, clear=False):
+            with scoped_workspace_dir("/tmp/scoped-test-b"):
+                assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/scoped-test-b"
+            assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/prior"
+
+    def test_unsets_when_previously_absent(self) -> None:
+        env = {k: v for k, v in os.environ.items() if k != "PROJECT_WORKSPACE_DIR"}
+        with patch.dict(os.environ, env, clear=True):
+            with scoped_workspace_dir("/tmp/scoped-test-c"):
+                assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/scoped-test-c"
+            assert "PROJECT_WORKSPACE_DIR" not in os.environ
+
+    def test_restores_on_exception(self) -> None:
+        env = {k: v for k, v in os.environ.items() if k != "PROJECT_WORKSPACE_DIR"}
+        with patch.dict(os.environ, env, clear=True):
+            with pytest.raises(ValueError, match="boom"), scoped_workspace_dir("/tmp/scoped-test-d"):
+                assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/scoped-test-d"
+                raise ValueError("boom")
+            assert "PROJECT_WORKSPACE_DIR" not in os.environ
+
+    def test_nested_scopes_restore_correctly(self) -> None:
+        env = {k: v for k, v in os.environ.items() if k != "PROJECT_WORKSPACE_DIR"}
+        with patch.dict(os.environ, env, clear=True):
+            with scoped_workspace_dir("/tmp/outer"):
+                with scoped_workspace_dir("/tmp/inner"):
+                    assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/inner"
+                assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/outer"
+            assert "PROJECT_WORKSPACE_DIR" not in os.environ

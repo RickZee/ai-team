@@ -20,7 +20,7 @@ from ai_team.backends.langgraph_backend.graphs.spend_guard import (
     BudgetExceededError,
     reset_spend_guard,
 )
-from ai_team.config.settings import reload_settings
+from ai_team.config.settings import scoped_workspace_dir
 from ai_team.core.payload_flatten import flatten_state_payload
 from ai_team.core.result import ProjectResult
 from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
@@ -123,24 +123,33 @@ class LangGraphBackend:
                 profile,
                 **kwargs,
             )
+        mode = self._graph_mode(kwargs)
+        thread_id = resolve_run_id(
+            description=description,
+            team_profile=profile.name,
+            run_label=str(kwargs.get("run_label") or ""),
+            thread_id=str(kwargs.get("thread_id") or ""),
+        )
+        # Per-run workspace isolation (tools write under workspace/<project_id>/).
+        # Scoped, not a bare os.environ write: a permanent mutation here leaks
+        # this run's workspace into any later call in the same process that
+        # forgets to override it (observed as stray workspace/<value>/ dirs
+        # accumulating from a test that left PROJECT_WORKSPACE_DIR stuck).
+        ws_override = kwargs.get("workspace_dir")
+        ws_path = str(ws_override) if ws_override else os.path.join("./workspace", thread_id)
+        with scoped_workspace_dir(ws_path):
+            return self._run_with_workspace_scoped(description, profile, env, mode, thread_id, kwargs)
+
+    def _run_with_workspace_scoped(
+        self,
+        description: str,
+        profile: TeamProfile,
+        env: str | None,
+        mode: GraphMode,
+        thread_id: str,
+        kwargs: dict[str, Any],
+    ) -> ProjectResult:
         try:
-            mode = self._graph_mode(kwargs)
-            thread_id = resolve_run_id(
-                description=description,
-                team_profile=profile.name,
-                run_label=str(kwargs.get("run_label") or ""),
-                thread_id=str(kwargs.get("thread_id") or ""),
-            )
-            # Per-run workspace isolation (tools write under workspace/<project_id>/).
-            try:
-                ws_override = kwargs.get("workspace_dir")
-                ws_path = (
-                    str(ws_override) if ws_override else os.path.join("./workspace", thread_id)
-                )
-                os.environ["PROJECT_WORKSPACE_DIR"] = ws_path
-                reload_settings()
-            except Exception:
-                pass
             b = ResultsBundle(thread_id)
             try:
                 meta = b.default_run_metadata(
@@ -311,11 +320,20 @@ class LangGraphBackend:
             run_label=str(kwargs.get("run_label") or ""),
             thread_id=str(kwargs.get("thread_id") or ""),
         )
-        try:
-            os.environ["PROJECT_WORKSPACE_DIR"] = os.path.join("./workspace", thread_id)
-            reload_settings()
-        except Exception:
-            pass
+        # Scoped, not a bare os.environ write: see the comment in run() — a
+        # permanent mutation here would leak into any later call in this
+        # process that forgets to set its own workspace.
+        with scoped_workspace_dir(os.path.join("./workspace", thread_id)):
+            yield from self._iter_stream_events_impl(description, profile, mode, thread_id, kwargs)
+
+    def _iter_stream_events_impl(
+        self,
+        description: str,
+        profile: TeamProfile,
+        mode: GraphMode,
+        thread_id: str,
+        kwargs: dict[str, Any],
+    ) -> Iterator[dict[str, Any]]:
         reset_spend_guard(kwargs.get("run_budget_usd"))
         initial_state = self._build_initial_state(description, profile, thread_id)
         config: dict[str, Any] = {
