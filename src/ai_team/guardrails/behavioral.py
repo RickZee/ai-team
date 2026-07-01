@@ -191,7 +191,17 @@ def scope_control_guardrail(
             retry_allowed=True,
         )
 
-    overlap = len(req_words & out_words) / len(req_words)
+    shared = req_words & out_words
+    recall = len(shared) / len(req_words)
+    # A correct architecture/design elaboration legitimately introduces its own
+    # vocabulary (e.g. "Repository", "ORM") that never appears in a short brief,
+    # so requiring the requirement's own words to reappear (recall) alone
+    # false-positives on good, on-topic output. Precision — what fraction of the
+    # *output's* content is itself drawn from requirement terms — catches the
+    # actual off-scope case (output about an unrelated topic has low precision
+    # too) while accepting a terse, correct elaboration that recall would reject.
+    precision = len(shared) / len(out_words) if out_words else 0.0
+    overlap = max(recall, precision)
     extra = out_words - req_words
     # Heuristic: "scope creep" if many prominent words in output aren't in requirements
     # and relevance is low
