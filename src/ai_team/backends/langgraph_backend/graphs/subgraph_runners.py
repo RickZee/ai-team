@@ -589,6 +589,40 @@ def testing_subgraph_node(
         if salvaged:
             logger.info("testing_fallback_extraction", count=len(salvaged))
     tr = _run_real_quality_gate()
+    if tr.get("no_tests_collected") and not _workspace_has_tests():
+        # Cheap in-node re-prompt (06-28 handoff lever #3): a full
+        # retry_development cycle re-runs dev+test end to end and costs several
+        # LLM calls; a single, blunt "you wrote no files, call file_writer now"
+        # turn is far cheaper and directly addresses the observed degeneration
+        # mode (the model drifting into repeated filler text with no tool
+        # call). Bounded to exactly one extra attempt — if this doesn't produce
+        # a test file either, fall through to the normal graph-level retry.
+        logger.info("testing_no_tests_reprompt")
+        reprompt_ctx = (
+            "Your last response did not call file_writer, so zero test files "
+            "reached the workspace and pytest collected nothing (exit code 5). "
+            "This is a hard requirement, not a suggestion: call file_writer now "
+            "with a real pytest file, e.g. file_writer(path='tests/test_main.py', "
+            "content=<pytest source>). Do not reply with prose, explanation, or "
+            "placeholder text — the next message must be a file_writer tool call."
+        )
+        reprompt_seed = seed + out_msgs + [HumanMessage(content=reprompt_ctx)]
+        try:
+            out2 = sub.invoke(
+                {**_subgraph_context(state), "messages": reprompt_seed},
+                _nested_config(config, "testing"),
+            )
+            ge2 = _guardrail_error_dict(out2, "testing")
+            if not ge2:
+                out2_msgs = [m for m in (out2.get("messages") or []) if isinstance(m, BaseMessage)]
+                delta = _message_delta(seed, out2_msgs)
+                if not _workspace_has_tests():
+                    salvaged2 = _extract_and_write_code_blocks(delta)
+                    if salvaged2:
+                        logger.info("testing_reprompt_fallback_extraction", count=len(salvaged2))
+                tr = _run_real_quality_gate()
+        except Exception as e:
+            logger.warning("testing_reprompt_failed", error=str(e))
     return {
         "messages": delta,
         "current_phase": "testing",
