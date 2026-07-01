@@ -6,8 +6,6 @@ returned to development tasks for fixes. Maximum 3 retry cycles before
 escalating to human (see MAX_TEST_RETRY_CYCLES and ProjectState.max_test_retries).
 """
 
-from __future__ import annotations
-
 import json
 import re
 from typing import Any
