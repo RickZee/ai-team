@@ -59,6 +59,32 @@ CrewAI budget doubled to 1800s.
 
 ---
 
+## Third post-fix comparison — comparison_id `9efb6583`, launched 23:09 same evening
+
+All patches live: flow wiring (`dabef2b`), scope code-stripping (`1b7bd6d`), scope floor
+0.15 (`2aa9870`), QA conftest allowlist (`ad6c62e`), CrewAI 1800s.
+
+| Backend | Status | Wall-clock | Smoke | Dev retries | Notes |
+|---|---|---|---|---|---|
+| claude-agent-sdk | ✅ complete | **12m 44s** | ✅ passed 8/8, booted | 0 | Second consecutive ~13-minute success on this brief — repeatability signal. |
+| langgraph | ⏸ awaiting_human | 11m to interrupt | — | 3/3 exhausted | **Zero guardrail false positives** — all three guardrail fixes held. Root cause is the *original* §8 failure class: deepseek's QA agent never called `file_writer` (workspace `tests/` empty). The **§8 re-prompt lever fired 3× — its first live verification** (fires exactly once per testing attempt, falls back cleanly; insufficient against full model degeneration, as designed-for). Three clean graph-level retries, then a proper `interrupt()` escalation surfaced in the API within a minute. |
+| crewai | ⏱ error (timeout-killed) | 1800s (hard cap) | — | 0 runaway | Still writing real code (`backend/app.py` at 23:21, 20KB LLM responses at 23:34) when the deadline hit. Third consecutive clean on-deadline kill. |
+
+### Key findings
+
+1. **Zero platform bugs remain in the loop.** For the first time, every outcome is
+   attributable to model/agent behavior, not orchestration or harness defects:
+   Claude Agent SDK + Claude succeeds repeatably (~13 min ×2); LangGraph + deepseek is
+   blocked by QA tool-call degeneration and *escalates cleanly*; CrewAI + deepseek makes
+   real progress but cannot converge within 30 minutes.
+2. **§8 re-prompt lever live-verified** — handoff-2026-07-01 open item #1 closed.
+3. **The model confound is now the dominant variable.** The comparison currently measures
+   framework+model pairs (SDK runs Claude; the others run deepseek). The next scientific
+   step is a same-model matrix plus n≥5 runs per configuration for variance — see the
+   strategic notes in [SHOWCASE_PLAN.md](SHOWCASE_PLAN.md).
+
+---
+
 ## Historical results
 
 Earlier comparisons (pre-wiring-fix) are described in
