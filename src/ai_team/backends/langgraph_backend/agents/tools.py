@@ -20,7 +20,6 @@ from ai_team.tools.langchain_adapter import to_langchain_tools
 from ai_team.tools.manager_tools import get_manager_tools
 from ai_team.tools.product_owner import get_product_owner_tools
 from ai_team.tools.qa_tools import get_qa_tools
-from ai_team.tools.rag_search import search_knowledge
 from langchain_core.tools import BaseTool as LangChainBaseTool
 
 # Role key -> factory that returns CrewAI tools (functions or BaseTool instances)
@@ -43,8 +42,6 @@ def get_langchain_tools_for_role(role_key: str) -> list[LangChainBaseTool]:
     """
     Return LangChain-native tools for ``role_key`` (``agents.yaml`` keys).
 
-    When ``RAG_ENABLED`` is true, appends :func:`search_knowledge` for all roles.
-
     Raises:
         KeyError: Unknown role.
     """
@@ -52,9 +49,4 @@ def get_langchain_tools_for_role(role_key: str) -> list[LangChainBaseTool]:
         available = ", ".join(sorted(_CREW_TOOLS))
         raise KeyError(f"Unknown role {role_key!r} for LangGraph tools. Available: {available}")
     crew_tools = _CREW_TOOLS[role_key]()
-    out = to_langchain_tools(crew_tools)
-    from ai_team.rag.config import get_rag_config
-
-    if get_rag_config().enabled:
-        out = list(out) + [search_knowledge]
-    return out
+    return to_langchain_tools(crew_tools)

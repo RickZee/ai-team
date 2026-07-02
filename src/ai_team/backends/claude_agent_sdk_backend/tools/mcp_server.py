@@ -1,4 +1,4 @@
-"""In-process MCP tools wrapping shared ai-team guardrails, tests, and RAG."""
+"""In-process MCP tools wrapping shared ai-team guardrails and tests."""
 
 from __future__ import annotations
 
@@ -143,38 +143,11 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             }
         return {"content": [{"type": "text", "text": json.dumps(body, default=str)}]}
 
-    @tool(
-        "search_knowledge",
-        "Search ingested markdown knowledge (RAG). Disabled when RAG is off.",
-        {"query": str, "top_k": int},
-    )
-    async def search_knowledge(args: dict[str, Any]) -> dict[str, Any]:
-        q = str(args.get("query") or "").strip()
-        top_k = int(args.get("top_k") or 5)
-        try:
-            from ai_team.rag.config import get_rag_config
-            from ai_team.rag.pipeline import get_rag_pipeline
-
-            cfg = get_rag_config()
-            if not cfg.enabled:
-                text = "RAG is disabled; set RAG_ENABLED=true and ingest knowledge."
-            elif not q:
-                text = "Provide a non-empty query."
-            else:
-                pipe = get_rag_pipeline()
-                hits = pipe.retrieve(q, top_k=top_k if top_k > 0 else cfg.top_k)
-                text = pipe.format_context(hits) if hits else "No matching snippets found."
-        except Exception as e:
-            logger.warning("mcp_search_knowledge_failed", error=str(e))
-            text = f"Knowledge search failed: {e}"
-        return {"content": [{"type": "text", "text": text}]}
-
     return [
         run_guardrails,
         run_project_tests,
         run_app_smoke,
         validate_code_safety,
-        search_knowledge,
     ]
 
 
