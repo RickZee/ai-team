@@ -167,6 +167,45 @@ def test_scope_control_guardrail_precision_does_not_rescue_true_off_topic():
     assert result.status == "fail"
 
 
+def test_scope_control_guardrail_code_blocks_not_scored():
+    """QA output that is mostly test code must be judged on its prose only.
+
+    Regression: a real QA response — short prose + a large pytest code block —
+    scored 4-15% relevance against a 25% floor because code tokens dominated
+    the output vocabulary, burning three retry cycles on a correct answer
+    (observed live 2026-07-01, twice in one run).
+    """
+    requirements = (
+        "Build a Flask REST API with SQLite persistence exposing GET /todos, "
+        "POST /todos, and DELETE /todos, with pytest tests."
+    )
+    qa_output = (
+        "Wrote pytest tests covering the todos endpoints and SQLite persistence.\n"
+        "```python\n"
+        + "\n".join(
+            f"def test_case_{i}(client):\n"
+            f"    response = client.get('/x{i}')\n"
+            f"    assert response.status_code in (200, 404)\n"
+            f"    payload = response.get_json()\n"
+            f"    assert isinstance(payload, (list, dict))"
+            for i in range(40)
+        )
+        + "\n```\n"
+    )
+    result = scope_control_guardrail(qa_output, requirements, min_relevance=0.25)
+    assert result.status in ("pass", "warn"), result.message
+
+
+def test_scope_control_guardrail_code_only_output_passes():
+    """Output that is entirely a code block has no prose to judge — pass;
+    the security/quality gates that run next own code validation."""
+    requirements = "Build a Flask REST API with SQLite persistence for a TODO app."
+    code_only = "```python\ndef test_health(client):\n    assert client.get('/health').status_code == 200\n```"
+    result = scope_control_guardrail(code_only, requirements, min_relevance=0.25)
+    assert result.status == "pass"
+    assert result.details.get("code_only") is True
+
+
 # -----------------------------------------------------------------------------
 # reasoning_guardrail
 # -----------------------------------------------------------------------------

@@ -169,6 +169,9 @@ def role_adherence_guardrail(
 # -----------------------------------------------------------------------------
 
 
+_FENCED_CODE_RE = re.compile(r"```.*?```", re.DOTALL)
+
+
 def scope_control_guardrail(
     task_output: str,
     original_requirements: str,
@@ -180,14 +183,33 @@ def scope_control_guardrail(
 
     Flags scope creep with specific examples (keywords in output not tied to
     requirements).
+
+    Fenced code blocks are stripped before scoring: lexical keyword overlap is
+    only meaningful on prose. Code tokens (``def``, ``assert``, ``client`` …)
+    share almost no vocabulary with a product brief in either direction, so a
+    QA agent that correctly emits mostly test code scored 4-15% relevance and
+    failed a 25% floor (observed live, 2026-07-01: three retry cycles burned on
+    exactly this, with "scope creep examples" like *test, coverage, suite*).
+    Code content is validated by the security and quality guardrails that run
+    immediately after this one; scope control judges the surrounding prose.
+    Output that is entirely code passes (nothing prose-shaped to judge).
     """
+    prose_only = _FENCED_CODE_RE.sub(" ", task_output)
     req_words = set(re.findall(r"\b\w{4,}\b", original_requirements.lower()))
-    out_words = set(re.findall(r"\b\w{4,}\b", task_output.lower()))
+    out_words = set(re.findall(r"\b\w{4,}\b", prose_only.lower()))
 
     if not req_words:
         return GuardrailResult(
             status="pass",
             message="No requirement keywords to check; scope not validated.",
+            retry_allowed=True,
+        )
+
+    if not out_words and task_output.strip():
+        return GuardrailResult(
+            status="pass",
+            message="Output is entirely code; scope judged by security/quality gates.",
+            details={"relevance_ratio": None, "code_only": True},
             retry_allowed=True,
         )
 
