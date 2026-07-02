@@ -36,6 +36,29 @@
 
 ---
 
+## Second post-fix comparison — comparison_id `63e7f8a0`, launched 22:02 same evening
+
+All fixes live: flow wiring (`dabef2b`), scope-guardrail code-stripping (`1b7bd6d`),
+CrewAI budget doubled to 1800s.
+
+| Backend | Status | Wall-clock | Smoke | Dev retries | Notes |
+|---|---|---|---|---|---|
+| claude-agent-sdk | ✅ complete | **12m 48s** | ✅ PASS 8/8 (gunicorn; health, CRUD round-trip, validation, 404s) | 0 | Fastest run yet (was 18m22s on the same brief 1h earlier — same-config variance is real; see "n≥5 runs" below). |
+| langgraph | ⏸ awaiting_human | ~47m to interrupt | — | 3/3 exhausted | **Scope false positives GONE** — code-stripping held through all dev phases (0 scope failures until testing). Testing then hit a **new, confirmed false-positive class**: `role_adherence` flagged QA writing `tests/conftest.py` — a *pytest standard file*, verified on disk — as "production source" under the test_*.py-only rule; 3/3 retries burned, escalated. Patch queued: allow `conftest.py`/`fixtures*.py`/`__init__.py` for the QA role. (Scope floor also recalibrated 0.25→0.15 in `2aa9870` from this run's 18% readings; applies next restart.) |
+| crewai | ⏱ error (timeout-killed) | 1800s (hard cap) | — | 0 runaway | Double the budget, still unfinished — now a clean **performance** verdict: deepseek + heavy quality-guardrail retry cycles (type hints, CodeFile parse) simply don't converge on this brief in 30 min. Orchestration sound throughout: survived multiple dev-error recoveries, zero runaway, clean on-deadline kill, correct error propagation. |
+
+### Fix scoreboard (what two consecutive live runs proved)
+
+| Fix | Verdict |
+|---|---|
+| Flow wiring (`dabef2b`) | **Held** — 0 runaway retries in both runs (was 93,284). |
+| Subprocess isolation + hard kill (`c4a2e53`) | **Held** — two clean on-deadline kills; no GIL starvation of sibling runs (LangGraph HITL surfaced in ~1 min both times). |
+| Run-id atomic reservation (`157841a`) | **Held** — distinct ids/workspaces in both concurrent launches. |
+| Scope code-stripping (`1b7bd6d`) | **Partial → recalibrated** — eliminated dev-phase false positives; QA prose still scored 18% vs 25% floor; floor recalibrated to 0.15 (`2aa9870`) from live data. |
+| New discovery | `role_adherence` false-positive class: standard pytest support files trip the test_*.py-only rule. Two new failure-taxonomy entries tonight. |
+
+---
+
 ## Historical results
 
 Earlier comparisons (pre-wiring-fix) are described in
