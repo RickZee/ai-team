@@ -174,6 +174,27 @@ class AnthropicAgentSdkSettings(BaseSettings):
     )
 
 
+class CrewAISettings(BaseSettings):
+    """CrewAI backend: subprocess isolation and hard wall-clock kill.
+
+    CrewAI's Rich console / event-bus threads have been observed to deadlock
+    inside their own retry-recovery path (see docs/handoff-2026-06-28.md and
+    docs/handoff-2026-07-01.md §9) and ignore an in-process timeout (pytest's
+    own --timeout swallowed by the same threads). Running the flow in a real
+    OS subprocess lets a hard deadline actually kill -9 it, instead of a
+    hung Python thread starving the rest of the process's GIL indefinitely.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="CREWAI_", extra="ignore")
+
+    hard_timeout_seconds: int = Field(
+        default=900,
+        ge=30,
+        le=7200,
+        description="Wall-clock ceiling before force-killing the CrewAI subprocess.",
+    )
+
+
 class HumanFeedbackSettings(BaseSettings):
     """Human-in-the-loop feedback: timeout and default when no response."""
 
@@ -249,6 +270,10 @@ class Settings(BaseSettings):
         default_factory=AnthropicAgentSdkSettings,
         description="Anthropic API for claude-agent-sdk backend",
     )
+    crewai: CrewAISettings = Field(
+        default_factory=CrewAISettings,
+        description="CrewAI backend subprocess isolation config",
+    )
     optimizer: OptimizerSettings = Field(
         default_factory=OptimizerSettings,
         description="Karpathy AutoOptimizer loop config",
@@ -276,6 +301,7 @@ class Settings(BaseSettings):
             ("callback", CallbackSettings),
             ("human_feedback", HumanFeedbackSettings),
             ("anthropic", AnthropicAgentSdkSettings),
+            ("crewai", CrewAISettings),
             ("optimizer", OptimizerSettings),
         ]:
             if name in data and isinstance(data[name], dict):

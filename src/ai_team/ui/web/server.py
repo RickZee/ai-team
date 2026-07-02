@@ -810,6 +810,8 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             return
 
         backend = get_backend(req.backend)
+        run_success = True
+        run_error: str | None = None
 
         if req.backend == "langgraph":
             from ai_team.backends.langgraph_backend.backend import LangGraphBackend
@@ -859,6 +861,35 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     )
                     monitor_snap = _serialize_monitor(monitor)
                     await _safe_send(ws, {"type": "monitor_update", "data": monitor_snap})
+        elif req.backend == "crewai":
+            from ai_team.backends.crewai_backend.backend import CrewAIBackend
+
+            if isinstance(backend, CrewAIBackend):
+                # Subprocess-isolated (see CrewAIBackend.stream docstring): no
+                # live TeamMonitor streaming, just started -> finished/killed.
+                async for ev in backend.stream(
+                    req.description,
+                    profile,
+                    env=None,
+                    thread_id=run_id,
+                ):
+                    if state.is_cancel_requested(run_id):
+                        await _send_cancelled(ws, run_id)
+                        return
+                    if ev.get("type") == "run_finished":
+                        run_success = bool(ev.get("success"))
+                        run_error = (ev.get("result") or {}).get("error")
+                        await _safe_send(
+                            ws,
+                            {
+                                "type": "result",
+                                "data": json.loads(json.dumps(ev.get("result"), default=str)),
+                            },
+                        )
+                    else:
+                        await _safe_send(
+                            ws, {"type": "event", "data": json.loads(json.dumps(ev, default=str))}
+                        )
         else:
             if state.is_cancel_requested(run_id):
                 await _send_cancelled(ws, run_id)
@@ -889,7 +920,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             await _send_cancelled(ws, run_id)
             return
 
-        state.finish_run(run_id, success=True)
+        state.finish_run(run_id, success=run_success, error=run_error)
         await _safe_send(
             ws,
             {

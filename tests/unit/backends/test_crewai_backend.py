@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import time
+from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -13,6 +17,24 @@ from ai_team.core.team_profile import TeamProfile
 @pytest.fixture
 def profile() -> TeamProfile:
     return TeamProfile(name="full", agents=["manager"], phases=["intake", "planning"])
+
+
+def _stub_subprocess_success(
+    description: str, profile_name: str, kwargs: dict[str, Any], result_path: str
+) -> None:
+    """Fast stand-in for ``_run_crewai_subprocess`` (module-level: must be
+    picklable-by-reference for ``multiprocessing`` "spawn")."""
+    Path(result_path).write_text(
+        json.dumps({"success": True, "raw": {"project_id": "test-id"}, "error": None}),
+        encoding="utf-8",
+    )
+
+
+def _stub_subprocess_hangs(
+    description: str, profile_name: str, kwargs: dict[str, Any], result_path: str
+) -> None:
+    """Never returns — exercises the hard wall-clock kill path."""
+    time.sleep(3600)
 
 
 class TestCrewAIBackendRun:
@@ -77,26 +99,50 @@ class TestCrewAIBackendRun:
         assert "boom" in (r.error or "")
 
     def test_stream_yields_start_and_finish(self, profile: TeamProfile) -> None:
+        """Real subprocess (spawn), stub target — exercises actual pickling/IPC,
+        not just the orchestration logic, since that's the point of this backend."""
         backend = CrewAIBackend()
-        with patch.object(
-            backend,
-            "run",
-            return_value=ProjectResult(
-                backend_name="crewai",
-                success=True,
-                raw={},
-                team_profile=profile.name,
-            ),
-        ):
-            import asyncio
 
-            async def collect() -> list[dict]:
-                out: list[dict] = []
-                async for ev in backend.stream("d", profile):
-                    out.append(ev)
-                return out
+        async def collect() -> list[dict]:
+            out: list[dict] = []
+            async for ev in backend.stream(
+                "d", profile, _subprocess_target=_stub_subprocess_success
+            ):
+                out.append(ev)
+            return out
 
-            events = asyncio.run(collect())
+        import asyncio
+
+        events = asyncio.run(collect())
         assert events[0]["type"] == "run_started"
         assert events[-1]["type"] == "run_finished"
         assert events[-1]["success"] is True
+        assert events[-1]["result"]["raw"]["project_id"] == "test-id"
+
+    def test_stream_hard_kills_on_timeout(self, profile: TeamProfile) -> None:
+        """A subprocess that never returns must be force-killed at the wall-clock
+        deadline, not hang the caller — the whole point of subprocess isolation
+        over the old thread-based approach (see docs/handoff-2026-07-01.md §9)."""
+        backend = CrewAIBackend()
+
+        async def collect() -> list[dict]:
+            out: list[dict] = []
+            async for ev in backend.stream(
+                "d",
+                profile,
+                _subprocess_target=_stub_subprocess_hangs,
+                _timeout_override_s=2,
+            ):
+                out.append(ev)
+            return out
+
+        import asyncio
+
+        start = time.monotonic()
+        events = asyncio.run(collect())
+        elapsed = time.monotonic() - start
+
+        assert elapsed < 30, "hard kill should bound wall-clock time close to the timeout"
+        assert events[-1]["type"] == "run_finished"
+        assert events[-1]["success"] is False
+        assert "timeout" in (events[-1]["result"]["error"] or "").lower()
