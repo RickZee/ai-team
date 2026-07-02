@@ -1,6 +1,0 @@
-{
-  "project_name": "karpathy_optimization",
-  "description": "Optimize the todo API (from demo 02) for maximum request throughput. The API is a Flask + SQLite todo CRUD service. Target: maximize requests-per-second on the POST /todos endpoint under 100ms p99 latency. Focus on connection pooling, query optimization, response serialization, and caching headers.",
-  "stack": ["Flask", "SQLite", "pytest", "locust"],
-  "_note": "Run 'ai-team optimize ./demos/02_todo_app/output --metric demos/06_karpathy_optimization/metric.yaml --strategy demos/06_karpathy_optimization/strategy.md --budget 4.00 --max-experiments 50' after building demo 02."
-}

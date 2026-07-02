@@ -77,10 +77,3 @@ profiles:
       - cloud_engineer
     phases: [intake, planning, deployment]
 
-  research-optimizer:
-    agents:
-      - optimizer
-    phases: [optimize]
-    rag:
-      knowledge_topics: [performance, optimization, profiling, caching, algorithms]
-      include_markdown_sources: true
