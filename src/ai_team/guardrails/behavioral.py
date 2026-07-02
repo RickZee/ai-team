@@ -55,10 +55,20 @@ ALLOWED_DELEGATORS = {
 ROLE_RESTRICTIONS: dict[str, dict[str, Any]] = {
     "qa_engineer": {
         "forbidden_patterns": [
-            # Only block explicit non-test file creation markers; avoid flagging quoted code
-            (r"file_writer.*?['\"](?!test_)[a-z]\w*\.py['\"]", "Writing non-test source file"),
+            # Only block explicit non-test file creation markers; avoid flagging quoted code.
+            # Standard pytest support files are legitimate QA output: conftest.py and
+            # fixtures modules tripped this rule in a live run (2026-07-01 — QA wrote
+            # tests/conftest.py, verified on disk, and burned 3 retries on the false
+            # positive before escalating to human review).
+            (
+                r"file_writer.*?['\"](?!test_|conftest\.|fixtures)[a-z]\w*\.py['\"]",
+                "Writing non-test source file",
+            ),
         ],
-        "message": "QA Engineer should only write test files (test_*.py), not production source.",
+        "message": (
+            "QA Engineer should only write test files (test_*.py, conftest.py, "
+            "fixtures), not production source."
+        ),
     },
     "product_owner": {
         "forbidden_patterns": [

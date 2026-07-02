@@ -431,3 +431,20 @@ def test_guardrail_result_model():
     # Pydantic round-trip
     r2 = GuardrailResult.model_validate(r.model_dump())
     assert r2.status == r.status and r2.message == r.message
+
+
+def test_role_adherence_qa_allows_pytest_support_files():
+    """conftest.py and fixtures are legitimate QA output.
+
+    Regression: a live run (2026-07-01) had QA write tests/conftest.py and the
+    test_*.py-only rule flagged it as production source, burning 3 retries.
+    """
+    from ai_team.guardrails.behavioral import role_adherence_guardrail
+
+    ok = "file_writer(path='conftest.py', content=...) and file_writer('fixtures.py')"
+    result = role_adherence_guardrail(ok, "qa_engineer")
+    assert result.status == "pass", result.message
+
+    bad = "file_writer('app.py', content=...)"
+    result = role_adherence_guardrail(bad, "qa_engineer")
+    assert result.status == "fail"
