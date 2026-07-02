@@ -1,0 +1,43 @@
+# Backend Comparison Results
+
+## First post-wiring-fix 3-way comparison — 2026-07-01 evening
+
+- **Comparison id:** `432ec61f-0d2c-48ad-a10d-b724f748d588` (`GET /api/comparisons/432ec61f-...`)
+- **Brief:** `demos/02_todo_app` (Flask + SQLite TODO app, SPA frontend, Docker, pytest)
+- **Context:** first 3-way run after the CrewAI flow-wiring fix (`dabef2b` — self-triggering
+  listeners eliminated, retry caps actually route) and the CrewAI subprocess isolation +
+  hard-kill (`c4a2e53`). See [SHOWCASE_PLAN.md](SHOWCASE_PLAN.md) step 1.
+- **Launched:** 21:07 local, all three concurrently through the web Compare tab
+  (distinct run ids — the run-id TOCTOU collision fix `157841a` held).
+
+| Backend | Status | Wall-clock | Smoke | Dev retries | Notes |
+|---|---|---|---|---|---|
+| claude-agent-sdk | ✅ complete | 18m 22s | ✅ 6/6 endpoints, booted | 0 | Full success: all phases, Dockerfile + docker-compose present, health/CRUD round-trip green. |
+| langgraph | ⏸ awaiting_human | ~50m to interrupt | — (never reached deployment) | 3/3 exhausted | Real, designed HITL escalation via `interrupt()` — surfaced in the API **within ~1 min** (vs 78 min the previous night when CrewAI's in-process thread starved the GIL; subprocess isolation validated). Run was **blocked-slow by recurring scope-guardrail false positives** on QA-vocabulary output (relevance 15%, then 4%, vs 25% floor — flagged words literally: *coverage, suite, testing, validation, test*), plus one recovered deepseek malformed-JSON crash (salvage extracted `docker-compose.yml`). Orchestration sound; guardrail precision is the fix (queued: add `qa_engineer` to `_LOW_SCOPE_RELEVANCE_ROLES`). |
+| crewai | ⏱ error (timeout-killed) | 900s (hard cap) | — | 0 runaway | **Headline: the retry-recovery path survived for the first time.** Hit its usual malformed-JSON dev failure at 21:14:40, entered retry backoff, and cleanly re-ran development 2s later — the exact spot that previously meant a silent hang or a 93,284-iteration self-trigger runaway. Zero `retrying_development` runaway this run. Was mid-LLM-call, still progressing, when the 900s subprocess hard-kill fired (clean kill, correct error propagated). Verdict rewritten: **slow on deepseek, not broken** — 900s is tighter than the SDK's 18m; use `CREWAI_HARD_TIMEOUT_SECONDS=1800` for a fair rerun. |
+
+### What this run proved
+
+1. **The flow-wiring fix works live** — 0 runaway retries vs 93,284 the previous run.
+   Three handoffs of "CrewAI deadlocks in retry" traced to `@listen("X") def X`
+   self-triggering plus dead-code retry returns; both eliminated.
+2. **Subprocess isolation works live** — CrewAI's kill was clean and on-deadline, and
+   LangGraph's HITL interrupt surfaced in ~1 minute because no sibling thread could
+   starve the GIL.
+3. **The comparison's top remaining blocker moved**: it's now the scope-guardrail
+   QA-vocabulary false positive (LangGraph burned ~20+ min of retry cycles on it), not
+   CrewAI's runtime.
+
+### Next (per SHOWCASE_PLAN)
+
+- Fix scope-guardrail false positive (`qa_engineer` → low-relevance roles), bump CrewAI
+  budget to 1800s, rerun for a shot at the first all-three-green comparison.
+- Wire real cost/metrics into the dashboard (step 2) so the next table carries $ and tokens.
+
+---
+
+## Historical results
+
+Earlier comparisons (pre-wiring-fix) are described in
+[handoff-2026-07-01.md](handoff-2026-07-01.md) (§11 and the demo status table) and
+[posts/todo_compare_results.md](posts/todo_compare_results.md) (2026-06-26 CLI/eval run).
