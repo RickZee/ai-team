@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 
 _ENV_CHOICES = ("dev", "test", "prod")
 _COMPLEXITY_CHOICES = ("simple", "medium", "complex")
-_SUBCOMMANDS = frozenset({"run", "estimate", "compare-costs", "optimize"})
+_SUBCOMMANDS = frozenset({"run", "estimate", "compare-costs"})
 _Complexity = Literal["simple", "medium", "complex"]
 
 
@@ -97,91 +97,6 @@ def _cmd_compare_costs(complexity: str) -> int:
         return 1
     display_compare_costs(env_results, cast(_Complexity, complexity))
     return 0
-
-
-def _cmd_optimize(
-    workspace: str,
-    metric_path: str,
-    strategy_path: str | None,
-    backend_name: str | None,
-    budget: float | None,
-    max_experiments: int | None,
-    branch: str,
-    editable: list[str] | None,
-) -> int:
-    """Run the Karpathy AutoOptimizer loop against an existing workspace."""
-    from pathlib import Path
-
-    from ai_team.config.settings import get_settings
-    from ai_team.optimizers.loop import KarpathyLoop, LoopConfig
-    from ai_team.optimizers.metric import load_metric_config
-
-    cfg = get_settings().optimizer
-    ws = Path(workspace).resolve()
-    if not ws.is_dir():
-        print(f"Error: workspace '{workspace}' is not a directory.", file=sys.stderr)
-        return 1
-
-    metric_file = Path(metric_path)
-    if not metric_file.exists():
-        print(f"Error: metric file '{metric_path}' not found.", file=sys.stderr)
-        return 1
-
-    try:
-        metric = load_metric_config(metric_file)
-    except Exception as exc:
-        print(f"Error loading metric config: {exc}", file=sys.stderr)
-        return 1
-
-    strategy = ""
-    if strategy_path:
-        sp = Path(strategy_path)
-        if sp.exists():
-            strategy = sp.read_text()
-        else:
-            print(f"Warning: strategy file '{strategy_path}' not found, continuing without it.")
-
-    loop = KarpathyLoop(
-        LoopConfig(
-            workspace=ws,
-            metric=metric,
-            backend_name=backend_name or cfg.default_backend,
-            team=cfg.default_team,
-            max_experiments=max_experiments or cfg.max_experiments,
-            budget_usd=budget if budget is not None else cfg.budget_usd,
-            timeout_per_experiment=cfg.timeout_per_experiment,
-            min_improvement_pct=cfg.min_improvement_pct,
-            max_budget_per_experiment_usd=cfg.max_budget_per_experiment_usd,
-            max_turns_per_experiment=cfg.max_turns_per_experiment,
-            strategy=strategy,
-            branch=branch,
-            editable_files=editable or ["src/"],
-        )
-    )
-
-    try:
-        result = loop.run()
-    except Exception as exc:
-        logger.exception("optimizer_loop_failed", error=str(exc))
-        print(f"Error: {exc}", file=sys.stderr)
-        return 1
-
-    print(
-        json.dumps(
-            {
-                "experiments_run": result.experiments_run,
-                "baseline_metric": result.baseline_metric,
-                "best_metric": result.best_metric,
-                "improvement_pct": result.improvement_pct,
-                "total_cost_usd": round(result.total_cost_usd, 6),
-                "winning_commits": result.winning_commits,
-                "experiment_log": str(result.experiment_log_path),
-                "summary": result.summary,
-            },
-            indent=2,
-        )
-    )
-    return 0 if (result.improvement_pct or 0) >= 0 else 1
 
 
 _OUTPUT_CHOICES = ("tui", "crewai")
@@ -610,60 +525,6 @@ def main() -> int:
         help="Complexity tier (default: medium).",
     )
 
-    # optimize  (Karpathy AutoOptimizer loop)
-    opt_p = subparsers.add_parser(
-        "optimize",
-        help="Run the Karpathy AutoOptimizer loop on an existing workspace.",
-    )
-    opt_p.add_argument(
-        "workspace",
-        help="Path to an existing ai-team workspace directory.",
-    )
-    opt_p.add_argument(
-        "--metric",
-        required=True,
-        metavar="METRIC_YAML",
-        help="Path to metric.yaml defining the evaluation command and target.",
-    )
-    opt_p.add_argument(
-        "--strategy",
-        default=None,
-        metavar="STRATEGY_MD",
-        help="Optional path to strategy.md with high-level optimization hints.",
-    )
-    opt_p.add_argument(
-        "--backend",
-        choices=("crewai", "langgraph", "claude-agent-sdk", "claude-sdk"),
-        default=None,
-        help="Backend for the optimizer agent (default: OPTIMIZER_DEFAULT_BACKEND or claude-agent-sdk).",
-    )
-    opt_p.add_argument(
-        "--budget",
-        type=float,
-        default=None,
-        metavar="USD",
-        help="Total spend ceiling in USD (default: OPTIMIZER_BUDGET_USD or 10.0).",
-    )
-    opt_p.add_argument(
-        "--max-experiments",
-        type=int,
-        default=None,
-        dest="max_experiments",
-        help="Max iterations (default: OPTIMIZER_MAX_EXPERIMENTS or 50).",
-    )
-    opt_p.add_argument(
-        "--branch",
-        default="optimize/karpathy-loop",
-        help="Git branch for winning experiment commits (default: optimize/karpathy-loop).",
-    )
-    opt_p.add_argument(
-        "--editable",
-        nargs="+",
-        default=None,
-        metavar="PATH",
-        help="Files/dirs the optimizer may edit (default: src/). Informational — enforced via prompt.",
-    )
-
     argv = _preprocess_argv_for_subcommand(sys.argv[1:])
     args = parser.parse_args(argv)
     command = args.command
@@ -676,17 +537,6 @@ def main() -> int:
         return _cmd_estimate(env=args.env, complexity=args.complexity)
     if command == "compare-costs":
         return _cmd_compare_costs(complexity=args.complexity)
-    if command == "optimize":
-        return _cmd_optimize(
-            workspace=args.workspace,
-            metric_path=args.metric,
-            strategy_path=args.strategy,
-            backend_name=args.backend,
-            budget=args.budget,
-            max_experiments=args.max_experiments,
-            branch=args.branch,
-            editable=args.editable,
-        )
     if command == "run":
         description = (args.run_description or "").strip()
         resume_thr = (getattr(args, "resume", "") or "").strip()

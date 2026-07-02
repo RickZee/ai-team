@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from ai_team.config.optimizer_settings import OptimizerSettings
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -274,10 +273,6 @@ class Settings(BaseSettings):
         default_factory=CrewAISettings,
         description="CrewAI backend subprocess isolation config",
     )
-    optimizer: OptimizerSettings = Field(
-        default_factory=OptimizerSettings,
-        description="Karpathy AutoOptimizer loop config",
-    )
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Settings":
@@ -302,7 +297,6 @@ class Settings(BaseSettings):
             ("human_feedback", HumanFeedbackSettings),
             ("anthropic", AnthropicAgentSdkSettings),
             ("crewai", CrewAISettings),
-            ("optimizer", OptimizerSettings),
         ]:
             if name in data and isinstance(data[name], dict):
                 kwargs[name] = model_class.model_validate(data[name])  # type: ignore[attr-defined]
