@@ -152,33 +152,7 @@ def _node_manager_report(
     return {"current_phase": phase, "metadata": meta}
 
 
-def _node_rag_context(state: LangGraphProjectState) -> dict[str, Any]:
-    """Inject semantic RAG snippets into ``metadata`` when ``RAG_ENABLED`` is set."""
-    from ai_team.rag.config import get_rag_config
-
-    if not get_rag_config().enabled:
-        return {}
-    q = (state.get("project_description") or "").strip()
-    if not q:
-        return {}
-    try:
-        from ai_team.rag.pipeline import get_rag_pipeline
-
-        pipe = get_rag_pipeline()
-        hits = pipe.retrieve(q, top_k=get_rag_config().top_k)
-        meta = dict(state.get("metadata") or {})
-        meta["rag_context"] = pipe.format_context(hits) if hits else ""
-        return {"metadata": meta}
-    except Exception as e:
-        logger.warning("rag_context_node_failed", error=str(e))
-        return {}
-
-
-def build_main_graph(
-    mode: GraphMode = "placeholder",
-    *,
-    rag_enabled: bool = False,
-) -> StateGraph:
+def build_main_graph(mode: GraphMode = "placeholder") -> StateGraph:
     """
     Wire nodes and conditional edges.
 
@@ -215,22 +189,12 @@ def build_main_graph(
     g.add_node("error", _node_error)
     g.add_node("manager_report", _node_manager_report)
 
-    if rag_enabled:
-        g.add_node("rag_context", _node_rag_context)
-        g.add_edge(START, "intake")
-        g.add_edge("intake", "rag_context")
-        g.add_conditional_edges(
-            "rag_context",
-            route_after_intake,
-            {"planning": "planning", "error": "error"},
-        )
-    else:
-        g.add_edge(START, "intake")
-        g.add_conditional_edges(
-            "intake",
-            route_after_intake,
-            {"planning": "planning", "error": "error"},
-        )
+    g.add_edge(START, "intake")
+    g.add_conditional_edges(
+        "intake",
+        route_after_intake,
+        {"planning": "planning", "error": "error"},
+    )
     g.add_conditional_edges(
         "planning",
         route_after_planning,
@@ -286,25 +250,19 @@ def compile_main_graph(
     conn: sqlite3.Connection | None = None,
     mode: GraphMode = "placeholder",
     checkpointer: BaseCheckpointSaver | None = None,
-    rag_enabled: bool | None = None,
 ) -> Any:
     """
     Compile the graph with a checkpointer (SQLite by default).
 
     ``conn``: explicit SQLite connection (e.g. tests use ``:memory:``).
     ``checkpointer``: override (e.g. Postgres from ``run_with_postgres_checkpointer``).
-    ``rag_enabled``: when ``None``, uses :class:`ai_team.rag.config.RAGConfig`.
     """
-    from ai_team.rag.config import get_rag_config
-
-    re = rag_enabled if rag_enabled is not None else get_rag_config().enabled
-    graph = build_main_graph(mode, rag_enabled=re)
+    graph = build_main_graph(mode)
     cp = checkpointer if checkpointer is not None else resolve_sqlite_checkpointer(conn)
     compiled = graph.compile(checkpointer=cp)
     logger.info(
         "langgraph_main_graph_compiled",
         mode=mode,
-        rag_enabled=re,
         checkpointer=type(cp).__name__,
     )
     return compiled

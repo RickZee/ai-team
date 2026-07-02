@@ -81,25 +81,6 @@ def _flatten_crewai_payload(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _maybe_augment_with_rag(description: str) -> str:
-    """Prepend RAG snippets when ``RAG_ENABLED`` is true (Phase 6)."""
-    try:
-        from ai_team.rag.config import get_rag_config
-        from ai_team.rag.pipeline import get_rag_pipeline
-
-        if not get_rag_config().enabled:
-            return description
-        pipe = get_rag_pipeline()
-        hits = pipe.retrieve(description.strip(), top_k=get_rag_config().top_k)
-        if not hits:
-            return description
-        ctx = pipe.format_context(hits)
-        return f"{ctx}\n\n---\n\nProject description:\n{description}"
-    except Exception as e:
-        logger.warning("crewai_rag_augment_skipped", error=str(e))
-        return description
-
-
 def _run_crewai_subprocess(
     description: str,
     profile_name: str,
@@ -141,7 +122,7 @@ def _run_crewai_subprocess(
         ws_scope = scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
         with ws_scope:
             payload = run_ai_team(
-                _maybe_augment_with_rag(description),
+                description,
                 monitor=monitor,
                 skip_estimate=bool(kwargs.get("skip_estimate", False)),
                 env_override=kwargs.get("env"),
@@ -234,7 +215,7 @@ class CrewAIBackend:
                 str(kwargs.get("thread_id") or kwargs.get("project_id") or "").strip() or None
             )
             payload = run_ai_team(
-                _maybe_augment_with_rag(description),
+                description,
                 monitor=monitor,
                 skip_estimate=bool(kwargs.get("skip_estimate", False)),
                 env_override=env,
