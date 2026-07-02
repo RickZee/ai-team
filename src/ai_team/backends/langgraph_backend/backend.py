@@ -165,7 +165,7 @@ class LangGraphBackend:
             # Reset the per-run spend guard so a crash/retry loop can't burn
             # money unbounded. Budget resolves from AI_TEAM_RUN_BUDGET_USD (or a
             # run_budget_usd kwarg); 0 disables the ceiling but keeps tracking.
-            reset_spend_guard(kwargs.get("run_budget_usd"))
+            reset_spend_guard(kwargs.get("run_budget_usd"), run_id=thread_id)
             initial_state = self._build_initial_state(description, profile, thread_id)
             # Cap total graph supersteps explicitly rather than relying on the
             # LangGraph default (25). Bounds a pathological loop deterministically;
@@ -334,7 +334,7 @@ class LangGraphBackend:
         thread_id: str,
         kwargs: dict[str, Any],
     ) -> Iterator[dict[str, Any]]:
-        reset_spend_guard(kwargs.get("run_budget_usd"))
+        reset_spend_guard(kwargs.get("run_budget_usd"), run_id=thread_id)
         initial_state = self._build_initial_state(description, profile, thread_id)
         config: dict[str, Any] = {
             "configurable": {"thread_id": thread_id},

@@ -127,10 +127,11 @@ def _run_crewai_subprocess(
         profile = load_team_profile(profile_name)
         monitor = TeamMonitor(project_name=description[:50])
         from ai_team.config.llm_observability import register_crewai_spend_guard
-        from ai_team.core.spend_guard import reset_spend_guard
+        from ai_team.core.spend_guard import current_spend, reset_spend_guard
 
+        explicit_id = str(kwargs.get("thread_id") or kwargs.get("project_id") or "").strip() or None
         register_crewai_spend_guard()
-        reset_spend_guard(kwargs.get("run_budget_usd"))
+        reset_spend_guard(kwargs.get("run_budget_usd"), run_id=explicit_id)
         _disable_crewai_console()
 
         from ai_team.config.settings import reload_settings, scoped_workspace_dir
@@ -139,9 +140,6 @@ def _run_crewai_subprocess(
         ws_override = kwargs.get("workspace_dir")
         ws_scope = scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
         with ws_scope:
-            explicit_id = (
-                str(kwargs.get("thread_id") or kwargs.get("project_id") or "").strip() or None
-            )
             payload = run_ai_team(
                 _maybe_augment_with_rag(description),
                 monitor=monitor,
@@ -159,12 +157,19 @@ def _run_crewai_subprocess(
                 "team_profile": profile.name,
                 "agents": profile.agents,
                 "phases": profile.phases,
+                # Spend lives in this subprocess only — report it in the result
+                # file so the parent can surface real $ per run.
+                "spend": current_spend(),
             }
         )
         result = {"success": bool(enriched.get("success")), "raw": enriched, "error": None}
     except Exception as e:  # noqa: BLE001 - must always write a result file
         _logger.exception("crewai_subprocess_run_failed", error=str(e))
-        result = {"success": False, "raw": {}, "error": str(e)}
+        try:
+            spend = current_spend()
+        except Exception:
+            spend = {}
+        result = {"success": False, "raw": {"spend": spend}, "error": str(e)}
 
     Path(result_path).write_text(json.dumps(result, default=str), encoding="utf-8")
 
@@ -196,7 +201,10 @@ class CrewAIBackend:
         from ai_team.core.spend_guard import reset_spend_guard
 
         register_crewai_spend_guard()
-        reset_spend_guard(kwargs.get("run_budget_usd"))
+        reset_spend_guard(
+            kwargs.get("run_budget_usd"),
+            run_id=str(kwargs.get("thread_id") or kwargs.get("project_id") or "").strip() or None,
+        )
         _disable_crewai_console()
 
         from ai_team.config.settings import reload_settings, scoped_workspace_dir

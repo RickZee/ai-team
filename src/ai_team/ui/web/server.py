@@ -336,16 +336,85 @@ async def run_history(limit: int = Query(200, ge=1, le=1000)):
     return {"runs": state.store.list_runs(limit=limit), "persisted": True}
 
 
+def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
+    """Real per-run numbers derived from on-disk artifacts (workspace + smoke).
+
+    The live TeamMonitor counters are backend-event-driven and historically
+    under-populated (a dashboard showing zeros during real runs). The workspace
+    and smoke files are the ground truth every backend already writes — count
+    those instead of trusting event plumbing.
+    """
+    from ai_team.config.settings import get_settings
+
+    out: dict[str, Any] = {
+        "files_generated": None,
+        "test_files": None,
+        "smoke": None,
+    }
+    try:
+        ws = Path(get_settings().project.workspace_dir).resolve().parent / run_id
+        if not ws.is_dir():
+            return out
+        skip = {"logs", "docs", "__pycache__", ".github"}
+        files = [
+            p
+            for p in ws.rglob("*")
+            if p.is_file()
+            and not any(part in skip or part.startswith(".") for part in p.relative_to(ws).parts)
+        ]
+        out["files_generated"] = len(files)
+        out["test_files"] = sum(1 for p in files if p.name.startswith(("test_", "conftest")))
+        smoke_path = ws / "docs" / "smoke_results.json"
+        if smoke_path.is_file():
+            try:
+                smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
+                # Smoke schemas vary slightly per producing agent; normalize.
+                eps = smoke.get("endpoints") or smoke.get("probes") or []
+                passed = sum(
+                    1
+                    for e in eps
+                    if e.get("ok") or str(e.get("result") or e.get("outcome") or "").upper()
+                    in ("PASS", "PASSED")
+                )
+                overall = (
+                    smoke.get("overall")
+                    or smoke.get("overall_outcome")
+                    or smoke.get("overall_result")
+                    or smoke.get("status")
+                )
+                out["smoke"] = {
+                    "overall": str(overall).lower() if overall is not None else None,
+                    "passed": passed,
+                    "total": len(eps),
+                }
+            except (json.JSONDecodeError, OSError):
+                pass
+    except Exception:  # metrics are best-effort; never break the endpoint
+        logger.debug("run_artifact_metrics_failed", run_id=run_id)
+    return out
+
+
 @app.get("/api/runs/{run_id}")
 async def get_run(run_id: str):
-    """Get run details including monitor state."""
+    """Get run details including monitor state, spend, and artifact metrics."""
     run = state.runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
+    from ai_team.core.spend_guard import current_spend
+
     monitor = state.monitors.get(run_id)
-    monitor_data = _serialize_monitor(monitor) if monitor else None
-    return {**run, "project_id": run.get("project_id") or run_id, "monitor": monitor_data}
+    monitor_data = _serialize_monitor(monitor, run_id) if monitor else None
+    return {
+        **run,
+        "project_id": run.get("project_id") or run_id,
+        "monitor": monitor_data,
+        # Subprocess-isolated backends (CrewAI) report spend via their result
+        # payload (stashed on the run record); in-process backends are readable
+        # from the run_id-keyed spend registry.
+        "spend": run.get("spend") or current_spend(run_id=run_id),
+        "metrics": _run_artifact_metrics(run_id),
+    }
 
 
 @app.get("/api/comparisons")
@@ -651,7 +720,7 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
                 await websocket.send_json({"type": "error", "message": "Run not found"})
                 break
 
-            data = _serialize_monitor(monitor) if monitor else {}
+            data = _serialize_monitor(monitor, run_id) if monitor else {}
             data["run_status"] = run["status"]
             await websocket.send_json({"type": "monitor_update", "data": data})
 
@@ -787,7 +856,9 @@ async def _stream_langgraph_events_to_ws(
                 "data": json.loads(json.dumps(ev, default=str)),
             },
         )
-        await _safe_send(ws, {"type": "monitor_update", "data": _serialize_monitor(monitor)})
+        await _safe_send(
+            ws, {"type": "monitor_update", "data": _serialize_monitor(monitor, run_id)}
+        )
 
     return _langgraph_hitl_status(backend, thread_id)
 
@@ -879,6 +950,12 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     if ev.get("type") == "run_finished":
                         run_success = bool(ev.get("success"))
                         run_error = (ev.get("result") or {}).get("error")
+                        # CrewAI runs in a subprocess: its spend counters live
+                        # there and arrive via the result payload — stash them
+                        # on the run record so /api/runs/{id} can report $.
+                        spend = ((ev.get("result") or {}).get("raw") or {}).get("spend")
+                        if spend and run_id in state.runs:
+                            state.runs[run_id]["spend"] = spend
                         await _safe_send(
                             ws,
                             {
@@ -1091,7 +1168,7 @@ def _langgraph_hitl_status(backend: Any, thread_id: str) -> tuple[bool, dict[str
     return False, None
 
 
-def _serialize_monitor(monitor) -> dict[str, Any]:
+def _serialize_monitor(monitor, run_id: str | None = None) -> dict[str, Any]:
     """Serialize TeamMonitor state to JSON-safe dict."""
     if not monitor:
         return {}
@@ -1139,9 +1216,28 @@ def _serialize_monitor(monitor) -> dict[str, Any]:
             for e in monitor.guardrail_events[-20:]
         ],
         "token_estimate": monitor.metrics.token_estimate,
-        "cost_usd": monitor.metrics.claude_cost_usd,
+        "cost_usd": _resolve_cost_usd(monitor, run_id),
         "session_id": monitor.metrics.claude_session_id or None,
     }
+
+
+def _resolve_cost_usd(monitor, run_id: str | None) -> float | None:
+    """Real dollars for the dashboard: SDK's own metric, else the spend registry.
+
+    ``claude_cost_usd`` is only fed by the Claude SDK's result messages; the
+    OpenRouter backends record real per-call cost into the spend guard instead.
+    Without this fallback the Compare tab showed ``cost_usd: null`` for every
+    LangGraph run while the money was being tracked all along.
+    """
+    if monitor.metrics.claude_cost_usd is not None:
+        return float(monitor.metrics.claude_cost_usd)
+    if run_id:
+        from ai_team.core.spend_guard import current_spend
+
+        spent = current_spend(run_id=run_id).get("spent_usd")
+        if isinstance(spent, int | float) and spent > 0:
+            return float(spent)
+    return None
 
 
 # ---------------------------------------------------------------------------

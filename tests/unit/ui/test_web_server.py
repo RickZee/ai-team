@@ -173,6 +173,31 @@ class TestWebServerRuns:
         assert body["description"] == "Detail assignment"
         assert body["monitor"] is not None
 
+    def test_get_run_includes_spend_and_metrics(self, web_client: TestClient) -> None:
+        """SHOWCASE_PLAN 2.3: /api/runs/{id} carries per-run spend + artifact metrics."""
+        from ai_team.core.spend_guard import record_usage, reset_spend_guard
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("spend-1", "langgraph", "full", "Spend surfacing")
+        reset_spend_guard(5.0, run_id="spend-1")
+        record_usage(0.42, total_tokens=999)
+        r = web_client.get("/api/runs/spend-1")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["spend"]["spent_usd"] == pytest.approx(0.42)
+        assert body["spend"]["total_tokens"] == 999
+        assert "metrics" in body  # files/tests/smoke — None-safe when no workspace
+
+    def test_get_run_prefers_stashed_subprocess_spend(self, web_client: TestClient) -> None:
+        """CrewAI's spend arrives via its subprocess result payload, not the registry."""
+        from ai_team.ui.web import server as web_server
+
+        web_server.state.create_run("spend-2", "crewai", "full", "Subprocess spend")
+        web_server.state.runs["spend-2"]["spend"] = {"spent_usd": 1.23, "calls": 7}
+        r = web_client.get("/api/runs/spend-2")
+        assert r.status_code == 200
+        assert r.json()["spend"]["spent_usd"] == 1.23
+
 
 class TestWebServerResume:
     def test_resume_404_unknown_run(self, web_client: TestClient) -> None:
