@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,7 +51,14 @@ def allocate_run_id(
     search_roots: list[Path],
     started_at: datetime | None = None,
 ) -> str:
-    """Return ``{YYYY-MM-DD}_{HHMMSS}_{slug}_{nn}`` with collision-safe index."""
+    """Return ``{YYYY-MM-DD}_{HHMMSS}_{slug}_{nn}`` with collision-safe index.
+
+    Reserves the id by atomically creating its directory under the first
+    writable search root (``mkdir`` fails if it already exists), so
+    concurrent callers allocating the same label within the same second
+    (e.g. the Compare tab launching 3 backends in parallel) can't both
+    observe an empty directory listing and pick the same index.
+    """
     when = started_at or datetime.now(UTC)
     slug = slugify_run_label(label) or "run"
     prefix = f"{when.strftime('%Y-%m-%d')}_{when.strftime('%H%M%S')}_{slug}_"
@@ -65,7 +73,19 @@ def allocate_run_id(
             match = _INDEX_SUFFIX_RE.match(suffix)
             if match:
                 max_index = max(max_index, int(match.group(1)))
-    return f"{prefix}{max_index + 1:02d}"
+
+    reserve_root = next((root for root in search_roots if root.is_dir()), None)
+    index = max_index + 1
+    while True:
+        run_id = f"{prefix}{index:02d}"
+        if reserve_root is None:
+            return run_id
+        try:
+            os.makedirs(reserve_root / run_id, exist_ok=False)
+        except FileExistsError:
+            index += 1
+            continue
+        return run_id
 
 
 def default_run_search_roots() -> list[Path]:
