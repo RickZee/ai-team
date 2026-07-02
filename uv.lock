@@ -14,7 +14,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiosqlite" },
-    { name = "chromadb" },
     { name = "claude-agent-sdk" },
     { name = "crewai" },
     { name = "crewai-tools" },
@@ -76,7 +75,6 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.1" },
     { name = "aiosqlite", specifier = ">=0.20.0,<0.21.0" },
-    { name = "chromadb", specifier = ">=1.1.0,<1.2.0" },
     { name = "claude-agent-sdk", specifier = ">=0.1.0" },
     { name = "crewai", specifier = ">=1.0.0,<2.0.0" },
     { name = "crewai-tools", specifier = ">=1.0.0,<2.0.0" },

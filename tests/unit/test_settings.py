@@ -32,10 +32,10 @@ class TestSettingsLoadFromEnv:
         assert s.memory.embedding_api_base == "https://openrouter.ai/api/v1"
         assert s.guardrails.security_enabled is True
 
-    def test_memory_chromadb_path_from_env(self) -> None:
-        with patch.dict(os.environ, {"MEMORY_CHROMADB_PATH": "/tmp/chroma"}):
+    def test_memory_sqlite_path_from_env(self) -> None:
+        with patch.dict(os.environ, {"MEMORY_SQLITE_PATH": "/tmp/mem.db"}):
             m = MemorySettings()
-        assert m.chromadb_path == "/tmp/chroma"
+        assert m.sqlite_path == "/tmp/mem.db"
 
     def test_memory_embedding_api_base_from_env(self) -> None:
         with patch.dict(os.environ, {"MEMORY_EMBEDDING_API_BASE": "https://api.example.com/v1"}):

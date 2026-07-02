@@ -14,7 +14,6 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "structlog>=24.1.0,<25.0.0",
     "rich>=13.0.0",
-    "chromadb>=1.1.0,<1.2.0",
     "sqlalchemy>=2.0.0,<3.0.0",
     "aiosqlite>=0.20.0,<0.21.0",
     "gitpython>=3.1.50",
@@ -90,7 +89,6 @@ pydantic-settings = ">=2.14.2"
 python-dotenv = ">=1.2.2"
 structlog = "^24.1.0"
 rich = ">=13.0.0"
-chromadb = ">=1.1.0,<1.2.0"
 sqlalchemy = "^2.0.0"
 aiosqlite = "^0.20.0"
 gitpython = ">=3.1.50"

@@ -65,16 +65,12 @@ class GuardrailSettings(BaseSettings):
 
 class MemorySettings(BaseSettings):
     """
-    Memory backend configuration: ChromaDB path, SQLite path,
-    embedding model, collection name, retention, and master enable flag.
-    Short-term (ChromaDB): collection per project; long-term (SQLite): cross-project.
+    Memory backend configuration: SQLite path for the long-term store,
+    embedding model for CrewAI's own crew memory, retention, and master flag.
     """
 
     model_config = SettingsConfigDict(env_prefix="MEMORY_", extra="ignore")
 
-    chromadb_path: str = Field(
-        default="./data/chroma", description="ChromaDB persistence directory"
-    )
     sqlite_path: str = Field(
         default="./data/memory.db", description="SQLite database path for long-term memory"
     )
@@ -82,23 +78,12 @@ class MemorySettings(BaseSettings):
         default="openai/text-embedding-3-small",
         description="Embedding model (OpenRouter: provider/model, e.g. openai/text-embedding-3-small)",
     )
-    collection_name: str = Field(
-        default="ai_team_memory",
-        description="ChromaDB collection name prefix (project_id appended)",
-    )
     memory_enabled: bool = Field(default=True, description="Master switch to enable/disable memory")
-    max_results: int = Field(
-        default=10, ge=1, le=100, description="Max results for RAG/semantic retrieval (top_k)"
-    )
     retention_days: int = Field(
         default=90,
         ge=1,
         le=3650,
         description="Days to retain long-term memory entries before cleanup",
-    )
-    share_between_crews: bool = Field(
-        default=True,
-        description="When True, short-term memory is shared across crews within the same project",
     )
     embedding_api_base: str = Field(
         default="https://openrouter.ai/api/v1",
