@@ -339,7 +339,13 @@ _LOW_SCOPE_RELEVANCE_ROLES: frozenset[str] = frozenset(
     }
 )
 _DEFAULT_SCOPE_RELEVANCE = 0.5
-_CODE_ROLE_SCOPE_RELEVANCE = 0.25
+# Calibrated against live runs (2026-07-01): after code-block stripping
+# (scope_control_guardrail), correct QA/dev prose about tests scores ~18%
+# lexical overlap with a product brief (its vocabulary is test-plan/coverage
+# terms, not the brief's nouns), while genuinely off-topic output scores <5%.
+# 0.25 blocked correct output twice across two runs (3 retries burned each);
+# 0.15 separates the observed distributions.
+_CODE_ROLE_SCOPE_RELEVANCE = 0.15
 
 
 def wrap_agents_with_guardrails(
