@@ -105,7 +105,7 @@ def _run_flow_manually(
             break
 
     if step == "finalize_project":
-        flow.finalize_project()
+        flow.on_finalize_project()
 
 
 # -----------------------------------------------------------------------------

@@ -261,7 +261,7 @@ class TestHumanEscalationTrigger:
         flow.state.metadata["feedback_type"] = "approval"
         flow.state.metadata["feedback_context"] = {}
         flow.state.add_phase_transition(ProjectPhase.INTAKE, ProjectPhase.PLANNING, "ok")
-        result = flow.request_human_feedback()
+        result = flow.on_request_human_feedback()
         assert result.get("resume_to") in ("run_development", "handle_fatal_error")
         assert flow.state.awaiting_human_input is False  # handler resolved it
         phases = [t.to_phase for t in flow.state.phase_history]

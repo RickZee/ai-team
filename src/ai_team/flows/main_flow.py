@@ -904,12 +904,18 @@ class AITeamFlow(Flow[ProjectState]):
         """Route based on deployment outcome. Delegates to flows.routing.route_after_deployment."""
         return route_after_deployment(deploy_result, self.state)
 
+    # NOTE on naming: in CrewAI Flow, a method's *completion* emits the method's own
+    # name as the next trigger, and `_execute_single_listener` deliberately clears
+    # completed methods to allow cycles. A method that `@listen`s to its own name
+    # therefore re-triggers itself unbounded (observed live: 93k iterations of the
+    # old `retry_development` in 15 minutes). Every listener below is named `on_<trigger>`
+    # so no method can ever listen to its own name; a meta-test enforces this.
     @listen("finalize_project")
-    def finalize_project(self) -> None:
+    def on_finalize_project(self) -> None:
         """Package outputs, generate summary, persist state, log completion."""
         if self.state.completed_at is not None:
-            # Guard against post-completion loop: CrewAI Flow re-emits "finalize_project"
-            # each time this method returns a non-None value, causing infinite re-entry.
+            # Idempotency belt-and-suspenders (see naming NOTE above); kept in case a
+            # router cycle ever re-emits "finalize_project".
             return
         if self._monitor:
             self._monitor.on_phase_change("complete")
@@ -983,7 +989,7 @@ class AITeamFlow(Flow[ProjectState]):
         return None
 
     @listen("request_human_feedback")
-    def request_human_feedback(self) -> dict[str, Any]:
+    def on_request_human_feedback(self) -> dict[str, Any]:
         """
         Request clarification/approval from user via HumanFeedbackHandler.
 
@@ -1030,13 +1036,13 @@ class AITeamFlow(Flow[ProjectState]):
         )
         return {"status": "received", "resume_to": resume_to}
 
-    @router(request_human_feedback)
+    @router(on_request_human_feedback)
     def route_after_human_feedback(self, feedback_result: dict[str, Any]) -> str:
         """Resume flow from the step indicated by human feedback (or default)."""
         return feedback_result.get("resume_to", "handle_fatal_error")
 
     @listen("escalate_to_human")
-    def escalate_to_human(self) -> dict[str, Any]:
+    def on_escalate_to_human(self) -> dict[str, Any]:
         """
         Escalate persistent test failures to human; use same handler as request_human_feedback.
 
@@ -1066,7 +1072,12 @@ class AITeamFlow(Flow[ProjectState]):
         )
         parsed = parse_feedback_response(response, options, FeedbackType.ESCALATION)
         self.state.human_feedback = parsed.raw_response or parsed.free_text or response
-        if parsed.raw_response and "retry" in parsed.raw_response.lower():
+        # Abort must take precedence: metadata may pre-seed resume_to="retry_development"
+        # (route_after_testing escalation path), and without this check a default/timeout
+        # "Abort" answer was silently ignored, re-entering the retry cycle forever.
+        if parsed.raw_response and "abort" in parsed.raw_response.lower():
+            resume_to = "handle_fatal_error"
+        elif parsed.raw_response and "retry" in parsed.raw_response.lower():
             resume_to = "retry_development"
         retries = self.state.retry_counts.get(ProjectPhase.TESTING.value, 0)
         self.logger.info(
@@ -1077,13 +1088,13 @@ class AITeamFlow(Flow[ProjectState]):
         )
         return {"status": "received", "resume_to": resume_to}
 
-    @router(escalate_to_human)
+    @router(on_escalate_to_human)
     def route_after_escalate(self, escalate_result: dict[str, Any]) -> str:
         """Resume after escalation: retry_development or handle_fatal_error."""
         return escalate_result.get("resume_to", "handle_fatal_error")
 
     @listen("handle_fatal_error")
-    def handle_fatal_error(self) -> dict[str, Any]:
+    def on_handle_fatal_error(self) -> dict[str, Any]:
         """Handle unrecoverable errors (e.g. intake rejection). Persist state and transition to ERROR."""
         if self._monitor:
             self._monitor.on_phase_change("error")
@@ -1128,13 +1139,13 @@ class AITeamFlow(Flow[ProjectState]):
         return {"status": "failed", "errors": [e.model_dump() for e in self.state.errors]}
 
     @listen("handle_planning_error")
-    def handle_planning_error(self) -> dict[str, Any]:
+    def on_handle_planning_error(self) -> dict[str, Any]:
         """Handle planning crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         result = handle_planning_error_fn(self.state, error, persist_fn=_persist_state)
         return result
 
-    @router(handle_planning_error)
+    @router(on_handle_planning_error)
     def route_after_planning_error(self, handle_result: dict[str, Any]) -> str:
         """Route after planning error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
@@ -1142,14 +1153,26 @@ class AITeamFlow(Flow[ProjectState]):
         return "escalate_to_human"
 
     @listen("retry_planning")
-    def retry_planning(self) -> str:
+    def on_retry_planning(self) -> dict[str, Any]:
         """Retry planning when architecture was insufficient."""
         self.logger.info("retrying_planning", project_id=self.state.project_id)
+        return {"action": "retry"}
+
+    @router(on_retry_planning)
+    def route_after_retry_planning(self, retry_result: dict[str, Any]) -> str:
+        """Route the planning retry back into the planning phase."""
         return "run_planning"
 
+    MAX_DEV_RETRIES = 3
+
     @listen("retry_development")
-    def retry_development(self) -> str:
-        """Retry development with test feedback."""
+    def on_retry_development(self) -> dict[str, Any]:
+        """Count a development retry; the router below enforces the cap.
+
+        The cap decision must be returned through a @router — a plain @listen's
+        return value is discarded by CrewAI Flow, which is how the previous
+        implementation's `return "escalate_to_human"` silently never routed.
+        """
         _dev_retry_key = "_dev_retry_count"
         count = self.state.metadata.get(_dev_retry_key, 0) + 1
         self.state.metadata[_dev_retry_key] = count
@@ -1158,22 +1181,29 @@ class AITeamFlow(Flow[ProjectState]):
             project_id=self.state.project_id,
             dev_retry_count=count,
         )
-        if count > 3:
+        if count > self.MAX_DEV_RETRIES:
             self.logger.warning(
                 "dev_retry_limit_exceeded",
                 project_id=self.state.project_id,
                 dev_retry_count=count,
             )
+            return {"action": "escalate"}
+        return {"action": "retry"}
+
+    @router(on_retry_development)
+    def route_after_retry_development(self, retry_result: dict[str, Any]) -> str:
+        """Re-run development while under the cap; escalate once exhausted."""
+        if retry_result.get("action") == "escalate":
             return "escalate_to_human"
         return "run_development"
 
     @listen("handle_development_error")
-    def handle_development_error(self) -> dict[str, Any]:
+    def on_handle_development_error(self) -> dict[str, Any]:
         """Handle development crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         return handle_development_error_fn(self.state, error, persist_fn=_persist_state)
 
-    @router(handle_development_error)
+    @router(on_handle_development_error)
     def route_after_development_error(self, handle_result: dict[str, Any]) -> str:
         """Route after development error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
@@ -1181,12 +1211,12 @@ class AITeamFlow(Flow[ProjectState]):
         return "escalate_to_human"
 
     @listen("handle_testing_error")
-    def handle_testing_error(self) -> dict[str, Any]:
+    def on_handle_testing_error(self) -> dict[str, Any]:
         """Handle testing crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         return handle_testing_error_fn(self.state, error, persist_fn=_persist_state)
 
-    @router(handle_testing_error)
+    @router(on_handle_testing_error)
     def route_after_testing_error(self, handle_result: dict[str, Any]) -> str:
         """Route after testing error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
@@ -1194,12 +1224,12 @@ class AITeamFlow(Flow[ProjectState]):
         return "escalate_to_human"
 
     @listen("handle_deployment_error")
-    def handle_deployment_error(self) -> dict[str, Any]:
+    def on_handle_deployment_error(self) -> dict[str, Any]:
         """Handle deployment crew failure: classify, persist, circuit breaker, recovery action."""
         error = self.state.metadata.get("last_crew_error") or {}
         return handle_deployment_error_fn(self.state, error, persist_fn=_persist_state)
 
-    @router(handle_deployment_error)
+    @router(on_handle_deployment_error)
     def route_after_deployment_error(self, handle_result: dict[str, Any]) -> str:
         """Route after deployment error: retry or escalate."""
         if handle_result.get("action") in ("retry", "retry_with_feedback"):
