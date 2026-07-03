@@ -137,6 +137,16 @@ def create_chat_model_for_role(
     http_client = httpx.Client(event_hooks={"response": [_fix_chat_completion_response]})
     async_http_client = httpx.AsyncClient(event_hooks={"response": [_fix_chat_completion_response]})
 
+    # OpenRouter routes some model ids across multiple upstream providers, and
+    # not all of them speak the same tool-calling dialect: observed live
+    # (2026-07-02 matrix runs), `anthropic/claude-sonnet-4` was routed to
+    # Google Vertex, which rejected Anthropic-style `tool_use` ids with 400s —
+    # 133 provider-error retries in one run, burning the whole spend budget.
+    # Pin Anthropic-native models to the Anthropic provider.
+    extra_body = None
+    if model_id.startswith("anthropic/"):
+        extra_body = {"provider": {"order": ["Anthropic"], "allow_fallbacks": False}}
+
     llm = ChatOpenAI(
         model=model_id,
         temperature=rc.temperature,
@@ -145,6 +155,7 @@ def create_chat_model_for_role(
         openai_api_base=settings.openrouter_api_base.rstrip("/"),
         http_client=http_client,
         http_async_client=async_http_client,
+        extra_body=extra_body,
     )  # type: ignore[call-arg]
     logger.debug(
         "langgraph_chat_model_created",
