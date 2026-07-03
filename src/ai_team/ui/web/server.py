@@ -934,10 +934,15 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     await _safe_send(ws, {"type": "monitor_update", "data": monitor_snap})
         elif req.backend == "crewai":
             from ai_team.backends.crewai_backend.backend import CrewAIBackend
+            from ai_team.monitor import Phase
 
             if isinstance(backend, CrewAIBackend):
                 # Subprocess-isolated (see CrewAIBackend.stream docstring): no
                 # live TeamMonitor streaming, just started -> finished/killed.
+                # We still populate the monitor snapshot at each edge (started,
+                # finished) from what's available, so the Compare column shows
+                # "running" instead of a frozen "Starting..." for the whole
+                # run, and real totals instead of permanent zeros at the end.
                 async for ev in backend.stream(
                     req.description,
                     profile,
@@ -947,20 +952,31 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     if state.is_cancel_requested(run_id):
                         await _send_cancelled(ws, run_id)
                         return
-                    if ev.get("type") == "run_finished":
+                    if ev.get("type") == "run_started":
+                        monitor.current_phase = Phase.DEVELOPMENT
+                        await _safe_send(
+                            ws, {"type": "monitor_update", "data": _serialize_monitor(monitor)}
+                        )
+                        await _safe_send(
+                            ws, {"type": "event", "data": json.loads(json.dumps(ev, default=str))}
+                        )
+                    elif ev.get("type") == "run_finished":
                         run_success = bool(ev.get("success"))
-                        run_error = (ev.get("result") or {}).get("error")
+                        result_payload = ev.get("result") or {}
+                        run_error = result_payload.get("error")
+                        raw = result_payload.get("raw") or {}
                         # CrewAI runs in a subprocess: its spend counters live
                         # there and arrive via the result payload — stash them
                         # on the run record so /api/runs/{id} can report $.
-                        spend = ((ev.get("result") or {}).get("raw") or {}).get("spend")
+                        spend = raw.get("spend")
                         if spend and run_id in state.runs:
                             state.runs[run_id]["spend"] = spend
+                        _apply_crewai_result_to_monitor(monitor, raw, run_success)
                         await _safe_send(
                             ws,
                             {
                                 "type": "result",
-                                "data": json.loads(json.dumps(ev.get("result"), default=str)),
+                                "data": json.loads(json.dumps(result_payload, default=str)),
                             },
                         )
                     else:
@@ -1219,6 +1235,28 @@ def _serialize_monitor(monitor, run_id: str | None = None) -> dict[str, Any]:
         "cost_usd": _resolve_cost_usd(monitor, run_id),
         "session_id": monitor.metrics.claude_session_id or None,
     }
+
+
+def _apply_crewai_result_to_monitor(monitor: Any, raw: dict[str, Any], success: bool) -> None:
+    """Fill in a final snapshot for CrewAI's subprocess-isolated run.
+
+    CrewAI has no live TeamMonitor (see CrewAIBackend.stream docstring), so
+    without this the Compare column would report zeros for the entire run.
+    We backfill totals from the subprocess result payload at run_finished so
+    at least the final numbers are real.
+    """
+    from ai_team.monitor import Phase
+
+    state = raw.get("state") or {}
+    generated_files = state.get("generated_files") or []
+    test_results = state.get("test_results") or {}
+    phase_history = state.get("phase_history") or []
+
+    monitor.metrics.files_generated = len(generated_files)
+    monitor.metrics.tasks_completed = len(phase_history)
+    monitor.metrics.tests_passed = int(test_results.get("passed") or 0)
+    monitor.metrics.tests_failed = int(test_results.get("failed") or 0)
+    monitor.current_phase = Phase.COMPLETE if success else Phase.ERROR
 
 
 def _resolve_cost_usd(monitor, run_id: str | None) -> float | None:
