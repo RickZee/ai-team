@@ -13,7 +13,7 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-06-26 (general)](2026-06-26-general.md) | Parallel general-track session, same day. |
 | [2026-06-28](2026-06-28.md) | The core agentic failure: models writing code as prose instead of calling tools. Salvage, spend guards, bounded loops. |
 | [2026-07-01](2026-07-01.md) | Web Compare tab end-to-end: six bugs found and fixed live, CrewAI verdict corrected, run history persisted. §11: run-id TOCTOU race + GIL-starvation discovery + subprocess isolation. |
-| [2026-07-02](2026-07-02.md) | The big one: flow self-trigger root cause (93k-iteration runaway → 0), three live comparisons to zero platform bugs, showcase plan, failure taxonomy, −12.6k-line axe. |
+| [2026-07-02](2026-07-02.md) | The big one: flow self-trigger root cause (93k-iteration runaway → 0), three live comparisons to zero platform bugs, showcase plan, failure taxonomy, −12.6k-line axe; morning: same-model matrix confirms the confound — claude writes tests 4/4 where deepseek wrote 0/3. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
 
 The 2026-07-01 late-evening arc concluded in
