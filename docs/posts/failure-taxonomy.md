@@ -1,7 +1,9 @@
-# Eight Ways Multi-Agent Systems Actually Fail
+# Ten Ways Multi-Agent Systems Actually Fail
 
 *A failure taxonomy from running the same AI engineering team on three orchestration
 frameworks — CrewAI, LangGraph, and the Claude Agent SDK — with receipts for every entry.*
+
+![Where multi-agent systems actually fail — ten classes across model, framework, harness, and provider layers](../images/failure-stack.svg)
 
 Most multi-agent content shows the demo that worked. This is the opposite: a catalog of
 every distinct way my system *broke* over three weeks of running a nine-agent software
@@ -9,7 +11,7 @@ team against real briefs, side by side on three orchestrators. Every entry below
 reproducible trace, a root cause, and a shipped fix in
 [the repo](https://github.com/RickZee/ai-team). None of them were in the demo script.
 
-The punchline up front: **only one of the eight was caused by an LLM being dumb.** The
+The punchline up front: **only one of the ten was caused by an LLM being dumb.** The
 rest were systems engineering — event semantics, GIL contention, race conditions,
 guardrail calibration, verification gaps. If you're building agentic systems, the model
 is not where most of your reliability budget goes.
@@ -158,17 +160,60 @@ nobody.
 
 ---
 
+## 9. The same model id speaks different dialects depending on who serves it
+
+**Symptom:** a controlled experiment (same framework, same brief, model swapped to
+claude-sonnet-4 via OpenRouter) drowned in HTTP 400s — 133 provider-error retries in a
+single run, burning the entire spend budget mid-pipeline.
+
+**Root cause:** OpenRouter served the model from Google Vertex, whose
+Anthropic-translation layer rejects the tool-call ids the client sends. Same model id,
+different upstream provider, incompatible tool-calling dialect. Bonus discovery: a hard
+pin to provider "Anthropic" 404s — endpoint pools are *account-specific* (this key's
+pool was Vertex + Bedrock only).
+
+**Fix:** steer away from the broken provider (`ignore: ["Google"]`), verified with a
+live tool round-trip and then a full run with zero provider errors (from 133).
+
+**Lesson:** for tool-calling agents, the provider routing layer is part of your
+correctness surface, not just your latency/cost surface.
+
+![Same framework, same brief — deepseek wrote zero test suites in 3 runs, claude wrote them in all 4](../images/same-model-matrix.svg)
+
+## 10. The verification gate runs in a different universe than the app
+
+**Symptom:** a model wrote correct code and correct tests; every test module died on
+`ModuleNotFoundError` — four times, retries exhausted, human escalation.
+
+**Root cause:** the quality gate runs pytest in the *harness* venv and never installs
+the generated `requirements.txt`. The model had (reasonably) chosen `flask_sqlalchemy`;
+our venv only had plain `flask`. Weaker models had been dodging this failure for weeks
+purely by picking whatever happened to be installed — the gate was silently biasing the
+comparison toward stdlib-ish stacks.
+
+**Fix (queued):** install the generated requirements into an isolated per-workspace
+environment before the gate runs.
+
+**Lesson:** every gap between the gate environment and the app's real environment is a
+place where correct work gets marked wrong — the mirror image of failure #6.
+
 ## What this adds up to
 
 Across three frameworks and dozens of runs, the ranking of what actually determined
 reliability:
 
 1. **The harness** — salvage, smoke gates, spend guards, process isolation, atomic ids,
-   calibrated guardrails. Framework-agnostic, and where nearly all the fixes landed.
+   calibrated guardrails, gate-environment fidelity. Framework-agnostic, and where
+   nearly all the fixes landed (seven of ten classes).
 2. **The model** — one failure class (#1), but it dominates outcomes once the platform
    is sound: the same pipeline succeeds in ~13 minutes with a strong tool-calling model
    and escalates to a human with a weak one.
 3. **The framework** — real differences in semantics and ergonomics (#2 was framework
    specific), but smaller than either of the above.
+4. **The provider** — a layer most write-ups ignore entirely (#9): routing, dialects,
+   account-specific endpoint pools.
+
+The same-model matrix made the ranking falsifiable: swap only the model and the
+"framework failure" disappears; what's left fails in the harness and provider layers.
 
 The comparison table gets the attention. The taxonomy is the useful part.
