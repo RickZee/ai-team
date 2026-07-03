@@ -140,12 +140,15 @@ def create_chat_model_for_role(
     # OpenRouter routes some model ids across multiple upstream providers, and
     # not all of them speak the same tool-calling dialect: observed live
     # (2026-07-02 matrix runs), `anthropic/claude-sonnet-4` was routed to
-    # Google Vertex, which rejected Anthropic-style `tool_use` ids with 400s —
-    # 133 provider-error retries in one run, burning the whole spend budget.
-    # Pin Anthropic-native models to the Anthropic provider.
+    # Google Vertex, whose Anthropic-translation layer rejected the tool-call
+    # ids with 400s — 133 provider-error retries in one run, burning the whole
+    # spend budget. This account's endpoint pool for that model is Vertex +
+    # Amazon Bedrock only (no first-party Anthropic endpoint — a hard pin to
+    # "Anthropic" 404s with "No endpoints found"). Steer away from the broken
+    # translation layer instead of pinning to an unavailable provider.
     extra_body = None
     if model_id.startswith("anthropic/"):
-        extra_body = {"provider": {"order": ["Anthropic"], "allow_fallbacks": False}}
+        extra_body = {"provider": {"ignore": ["Google"]}}
 
     llm = ChatOpenAI(
         model=model_id,
