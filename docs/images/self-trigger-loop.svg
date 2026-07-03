@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="620" fill="#ffffff"/>
+
+  <defs>
+    <marker id="arrRed" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrGray" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="60" y="54" font-size="30" font-weight="700" fill="#111827">One line of event wiring made a framework look broken for three weeks</text>
+  <text x="60" y="84" font-size="16" fill="#6b7280">In CrewAI Flows, a completed method emits its own name as the next trigger — and completed listeners are cleared to allow cycles.</text>
+
+  <!-- ===== BEFORE ===== -->
+  <g>
+    <text x="90" y="140" font-size="19" font-weight="700" fill="#991b1b">BEFORE — infinite self-trigger</text>
+
+    <!-- method box -->
+    <rect x="90" y="170" width="420" height="112" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+    <text x="112" y="203" font-size="15" font-family="Menlo, Consolas, monospace" fill="#7f1d1d">@listen("retry_development")</text>
+    <text x="112" y="228" font-size="15" font-family="Menlo, Consolas, monospace" fill="#7f1d1d">def retry_development(self):</text>
+    <text x="112" y="253" font-size="15" font-family="Menlo, Consolas, monospace" fill="#b91c1c">    if count &gt; 3: return "escalate_to_human"</text>
+    <text x="112" y="274" font-size="15" font-family="Menlo, Consolas, monospace" fill="#b91c1c">    return "run_development"</text>
+
+    <!-- self loop arrow -->
+    <path d="M 510 210 C 570 205, 570 320, 430 320 C 260 320, 195 315, 178 286" fill="none" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrRed)"/>
+    <text x="370" y="348" font-size="14" font-weight="600" fill="#dc2626">completion emits its own name</text>
+    <text x="370" y="367" font-size="14" font-weight="600" fill="#dc2626">→ re-triggers itself, forever</text>
+
+    <!-- dead return -->
+    <path d="M 200 282 L 200 372" fill="none" stroke="#9ca3af" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#arrGray)"/>
+    <rect x="100" y="378" width="200" height="44" rx="8" fill="#f3f4f6" stroke="#9ca3af"/>
+    <text x="200" y="398" text-anchor="middle" font-size="13" fill="#6b7280">return values from plain</text>
+    <text x="200" y="414" text-anchor="middle" font-size="13" fill="#6b7280">@listen are discarded</text>
+
+    <!-- counter -->
+    <rect x="90" y="452" width="420" height="76" rx="10" fill="#7f1d1d"/>
+    <text x="300" y="486" text-anchor="middle" font-size="26" font-weight="700" fill="#fecaca">93,284 iterations</text>
+    <text x="300" y="512" text-anchor="middle" font-size="14" fill="#fca5a5">in 15 minutes — the retry cap never routed once</text>
+  </g>
+
+  <!-- divider -->
+  <line x1="600" y1="120" x2="600" y2="560" stroke="#e5e7eb" stroke-width="1.5"/>
+
+  <!-- ===== AFTER ===== -->
+  <g>
+    <text x="640" y="140" font-size="19" font-weight="700" fill="#166534">AFTER — rename + route through a router</text>
+
+    <!-- listener box -->
+    <rect x="640" y="170" width="440" height="88" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+    <text x="662" y="203" font-size="15" font-family="Menlo, Consolas, monospace" fill="#14532d">@listen("retry_development")</text>
+    <text x="662" y="228" font-size="15" font-family="Menlo, Consolas, monospace" fill="#14532d">def on_retry_development(self):  # ≠ trigger</text>
+    <text x="662" y="249" font-size="15" font-family="Menlo, Consolas, monospace" fill="#15803d">    return {"action": "retry" | "escalate"}</text>
+
+    <!-- arrow to router -->
+    <path d="M 860 258 L 860 296" fill="none" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrGreen)"/>
+
+    <!-- router box -->
+    <rect x="640" y="302" width="440" height="80" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+    <text x="662" y="333" font-size="15" font-family="Menlo, Consolas, monospace" fill="#14532d">@router(on_retry_development)</text>
+    <text x="662" y="358" font-size="15" font-family="Menlo, Consolas, monospace" fill="#14532d">def route_after_retry_development(self, r): …</text>
+
+    <!-- two outcomes -->
+    <path d="M 760 382 L 728 428" fill="none" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrGreen)"/>
+    <path d="M 960 382 L 992 428" fill="none" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrGreen)"/>
+
+    <rect x="640" y="434" width="190" height="52" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+    <text x="735" y="456" text-anchor="middle" font-size="14" font-weight="600" fill="#166534">run_development</text>
+    <text x="735" y="475" text-anchor="middle" font-size="12" fill="#15803d">≤ 3 retries</text>
+
+    <rect x="890" y="434" width="190" height="52" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+    <text x="985" y="456" text-anchor="middle" font-size="14" font-weight="600" fill="#166534">escalate_to_human</text>
+    <text x="985" y="475" text-anchor="middle" font-size="12" fill="#15803d">cap exhausted</text>
+
+    <!-- meta-test note -->
+    <rect x="640" y="506" width="440" height="52" rx="8" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="860" y="528" text-anchor="middle" font-size="13.5" font-weight="600" fill="#3730a3">+ meta-test: the class can never contain a method</text>
+    <text x="860" y="546" text-anchor="middle" font-size="13.5" font-weight="600" fill="#3730a3">that listens to its own name again</text>
+  </g>
+
+  <!-- Bottom line -->
+  <text x="60" y="596" font-size="15" font-weight="600" fill="#111827">Verified live: 0 runaway retries across every comparison run since. Read your framework's event semantics from its source, not its docs.</text>
+</svg>
