@@ -75,6 +75,22 @@ export function getRegistryRuns() {
   return fetchJson<{ runs: import("../types").RegistryRun[] }>("/registry/runs");
 }
 
+export function getComparison(comparisonId: string) {
+  return fetchJson<{
+    comparison_id: string;
+    runs: {
+      run_id: string;
+      backend: string;
+      profile: string;
+      description: string;
+      status: string;
+      error: string | null;
+      started_at: string;
+      finished_at: string | null;
+    }[];
+  }>(`/comparisons/${encodeURIComponent(comparisonId)}`);
+}
+
 export function getProjectTree(projectId: string, root: import("../types").ArtifactRoot) {
   const q = new URLSearchParams({ root });
   return fetchJson<{
