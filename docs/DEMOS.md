@@ -14,8 +14,6 @@ The `demos/` folder contains self-contained project scenarios used to exercise a
 | - | --------- | ------------ | ----- | ----------------- |
 | 0 | `00_smoke_test` | `prototype` | **Setup validator** — calculator module (4 ops) + pytest; minimum token spend | [BUSINESS_USE_CASE.md](../demos/00_smoke_test/BUSINESS_USE_CASE.md) |
 | 2 | `02_todo_app` | `full` | Full-stack TODO app — Flask REST API + SQLite, HTML/JS UI, Dockerized | [BUSINESS_USE_CASE.md](../demos/02_todo_app/BUSINESS_USE_CASE.md) |
-| 5 | `05_microservices` | `full` | Three-service system — API Gateway, User Service, Notification Service + docker-compose | [BUSINESS_USE_CASE.md](../demos/05_microservices/BUSINESS_USE_CASE.md) |
-| 6 | `06_karpathy_optimization` | `research-optimizer` | AutoOptimizer Loop — iterative metric-driven optimization with keep/revert and RAG lesson injection | [BUSINESS_USE_CASE.md](../demos/06_karpathy_optimization/BUSINESS_USE_CASE.md) |
 
 > Folder numbers are kept stable for git history; `01_hello_world`, `03_data_pipeline`,
 > and `04_ml_api` were retired to `.archive/demos-removed-2026-06-28/`.
@@ -115,37 +113,7 @@ uv run python scripts/run_demo.py demos/02_todo_app --skip-estimate
 # Use Rich TUI for live agent progress
 uv run python scripts/run_demo.py demos/01_hello_world --monitor
 
-# Run with log monitoring (stops on first runtime error)
-./scripts/monitor_demo.sh demos/01_hello_world
 ```
-
-### Demo 06 — AutoOptimizer Loop
-
-Demo 06 uses the `ai-team optimize` subcommand rather than `scripts/run_demo.py`:
-
-```bash
-# Build demo 02 first, or point the optimizer at another existing workspace.
-# Demo 06's input references the todo API produced by demo 02.
-uv run python scripts/run_demo.py demos/02_todo_app --skip-estimate
-
-ai-team optimize ./demos/02_todo_app/output \
-  --metric demos/06_karpathy_optimization/metric.yaml \
-  --strategy demos/06_karpathy_optimization/strategy.md \
-  --backend claude-agent-sdk \
-  --budget 2.00 \
-  --max-experiments 10
-
-# Results are written to the target workspace under logs/experiments.jsonl
-```
-
-The demo ships with:
-
-| File | Purpose |
-| ---- | ------- |
-| `demos/06_karpathy_optimization/input.json` | Workspace description (for reference) |
-| `demos/06_karpathy_optimization/metric.yaml` | `test_pass_rate` metric via pytest |
-| `demos/06_karpathy_optimization/strategy.md` | Prioritised optimization hints for the agent |
-| `demos/06_karpathy_optimization/expected_output.json` | Acceptance contract (min 1 experiment, no regression) |
 
 ## Capturing and verifying demo output
 

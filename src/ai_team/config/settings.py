@@ -162,8 +162,8 @@ class CrewAISettings(BaseSettings):
     """CrewAI backend: subprocess isolation and hard wall-clock kill.
 
     CrewAI's Rich console / event-bus threads have been observed to deadlock
-    inside their own retry-recovery path (see docs/handoff-2026-06-28.md and
-    docs/handoff-2026-07-01.md §9) and ignore an in-process timeout (pytest's
+    inside their own retry-recovery path (see docs/journal/2026-06-28.md and
+    docs/journal/2026-07-01.md §9) and ignore an in-process timeout (pytest's
     own --timeout swallowed by the same threads). Running the flow in a real
     OS subprocess lets a hard deadline actually kill -9 it, instead of a
     hung Python thread starving the rest of the process's GIL indefinitely.
