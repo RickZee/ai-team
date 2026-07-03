@@ -94,7 +94,7 @@ def _run_crewai_subprocess(
     is what makes the hard-kill in ``CrewAIBackend.stream`` actually work:
     CrewAI's Rich console / event-bus threads have been observed to deadlock
     and ignore in-process timeouts (SIGALRM swallowed by the same threads,
-    see docs/handoff-2026-06-28.md); an OS-level ``kill()`` on this whole
+    see docs/journal/2026-06-28.md); an OS-level ``kill()`` on this whole
     process works regardless of what CrewAI's threads are doing.
     """
     import structlog as _structlog
@@ -262,7 +262,7 @@ class CrewAIBackend:
 
         CrewAI's Rich console / event-bus threads have been observed to
         deadlock inside their own retry-recovery path and to ignore an
-        in-process timeout (see docs/handoff-2026-06-28.md, docs/handoff-
+        in-process timeout (see docs/journal/2026-06-28.md, docs/handoff-
         2026-07-01.md §9) — a hung Python *thread* can't be forcibly killed
         from outside, and while it spins it starves the whole process's GIL,
         stalling unrelated backends running concurrently (observed: a 78min

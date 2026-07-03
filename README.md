@@ -230,7 +230,7 @@ Planning output (architecture):
 
 ## Journey
 
-Detailed log of this project: [docs/journey.md](docs/journey.md).
+Detailed log of this project: the [engineering journal](docs/journal/README.md).
 
 ## Architecture
 
@@ -319,7 +319,7 @@ For step-by-step setup and troubleshooting, see [docs/GETTING_STARTED.md](docs/G
 | `OPTIMIZER_MAX_TURNS_PER_EXPERIMENT` | Max agent turns per experiment | `40` |
 | `OPTIMIZER_DEFAULT_BACKEND` | Default backend for optimizer | `claude-agent-sdk` |
 
-Copy `.env.example` to `.env` and set the API key for your chosen backend. Before each run, a pre-flight check validates configured models. Agent→model mapping and guardrail behavior are documented in [docs/AGENTS.md](docs/AGENTS.md) and [docs/GUARDRAILS.md](docs/GUARDRAILS.md).
+Copy `.env.example` to `.env` and set the API key for your chosen backend. Before each run, a pre-flight check validates configured models. Guardrail behavior is documented in [docs/GUARDRAILS.md](docs/GUARDRAILS.md); agent→model mapping lives in `src/ai_team/config/agents.yaml` and `models.py`.
 
 ### Models by environment
 
@@ -349,8 +349,6 @@ Six ready-to-run scenarios that exercise the full pipeline:
 | 2 | `02_todo_app` | Full-stack TODO app — Flask + SQLite backend, HTML/JS frontend |
 | 3 | `03_data_pipeline` | ETL pipeline — CSV ingest, validate/transform, SQLite load, CLI report |
 | 4 | `04_ml_api` | FastAPI ML inference service — scikit-learn model, predict/health/metrics endpoints |
-| 5 | `05_microservices` | Three-service system — API Gateway, User Service, Notification Service + docker-compose |
-| 6 | `06_karpathy_optimization` | AutoOptimizer Loop — iterative metric-driven optimization with keep/revert and RAG lessons |
 
 ```bash
 uv run python scripts/run_demo.py demos/01_hello_world
@@ -439,7 +437,6 @@ uv run ai-team-web                            # Serves React build + API on :842
 | Compare | `/compare` | Parallel backends, pre-flight cost consent, demo compare ($0), comparison summary |
 | Artifacts | `/artifacts` | Unified run picker, file tree, tests, architecture, ZIP download |
 
-See [docs/WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) for user journeys and UX notes.
 
 **API endpoints:**
 
@@ -466,7 +463,7 @@ See [docs/WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) for user journeys and UX note
 The React app uses same-origin `/api` and `/ws` (Vite proxies in dev; production serves UI and API from one port).
 
 **Run deletion:** `DELETE /api/runs/{id}` and Dashboard/TUI delete remove disk + in-memory state.
-See [docs/UX_IMPLEMENTATION_TASKS.md](docs/UX_IMPLEMENTATION_TASKS.md) and [Managing runs](#managing-runs).
+See [Managing runs](#managing-runs).
 
 ### Textual TUI (Terminal)
 
@@ -597,23 +594,18 @@ We welcome contributions. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design — UI layer, flows, crews, agents, tools, guardrails, memory |
-| [FLOWS.md](docs/FLOWS.md) | Orchestration flows (CrewAI and LangGraph) |
-| [AGENTS.md](docs/AGENTS.md) | Agent roles, prompts, model mapping |
 | [TEAM_PROFILES.md](docs/TEAM_PROFILES.md) | Team profiles — agents, phases, backend parity, demos |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
-| [TOOLS.md](docs/TOOLS.md) | Tool specifications |
-| [MEMORY.md](docs/MEMORY.md) | Memory and knowledge management |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema, capture/verification |
-| [WEB_DASHBOARD.md](docs/WEB_DASHBOARD.md) | Web dashboard user journeys and UX notes |
 | [EVALS.md](docs/EVALS.md) | Eval methodology, role-specific evals, LLM judges, April 2026 benchmark landscape |
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
-| [HARDWARE.md](docs/HARDWARE.md) | Hardware requirements and recommendations |
 | [RESULTS.md](docs/RESULTS.md) | Benchmark results and comparisons |
-| [CREWAI_REFERENCE.md](docs/CREWAI_REFERENCE.md) | CrewAI framework reference |
 | [LangGraph Plan](docs/langgraph/LANGGRAPH_MIGRATION_PLAN.md) | LangGraph backend architecture and tasks |
 | [Claude SDK Plan](docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md) | Claude Agent SDK backend architecture and tasks |
 | [Prompts](docs/prompts/PROMPTS.md) | Prompt templates and tracking |
-| [Journey](docs/journey.md) | Project background and ongoing story |
+| [Engineering journal](docs/journal/README.md) | Session-by-session debugging record |
+| [Comparison results](docs/COMPARISON_RESULTS.md) | Live 3-way comparison data |
+| [Failure taxonomy](docs/posts/failure-taxonomy.md) | Eight failure classes with receipts |
 
 ## License and acknowledgments
 

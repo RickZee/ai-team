@@ -88,5 +88,5 @@ All patches live: flow wiring (`dabef2b`), scope code-stripping (`1b7bd6d`), sco
 ## Historical results
 
 Earlier comparisons (pre-wiring-fix) are described in
-[handoff-2026-07-01.md](handoff-2026-07-01.md) (§11 and the demo status table) and
+[journal/2026-07-01.md](journal/2026-07-01.md) (§11 and the demo status table) and
 [posts/todo_compare_results.md](posts/todo_compare_results.md) (2026-06-26 CLI/eval run).

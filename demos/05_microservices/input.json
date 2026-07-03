@@ -1,5 +1,0 @@
-{
-  "project_name": "microservices",
-  "description": "Build a microservices system with three Flask services and a single public entry point. API Gateway (port 8080) routes requests to internal services and is the only port exposed to clients. User Service (port 5001) owns user data with CRUD backed by SQLite. Notification Service (port 5002) sends notifications via a mock SMTP client and can change without touching user code. Services communicate over HTTP. Apply current best practices: per-service Dockerfile and requirements.txt, health-check endpoints, environment-based config (no hardcoded hosts/secrets), structured logging, graceful error handling on inter-service calls, and pytest unit tests per service. Provide a docker-compose.yml that orchestrates all three locally and a README.",
-  "stack": ["Flask", "SQLite", "Docker Compose", "pytest"]
-}
