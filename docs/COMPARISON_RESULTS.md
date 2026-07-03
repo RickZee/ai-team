@@ -85,6 +85,55 @@ All patches live: flow wiring (`dabef2b`), scope code-stripping (`1b7bd6d`), sco
 
 ---
 
+## Same-model matrix — first pass (langgraph × claude-sonnet-4, 2026-07-02 morning)
+
+The three-run comparison above measures **framework+model pairs** (SDK runs Claude, the
+others run deepseek). First pass at breaking the confound: the `full-claude` team
+profile pins all 9 roles to `anthropic/claude-sonnet-4` via OpenRouter
+(`model_overrides`, override chain verified), run through LangGraph on the same
+`demos/02_todo_app` brief, headless CLI, n=4.
+
+**Baseline to beat:** LangGraph+deepseek wrote **zero test files in 3/3 runs** (QA
+narrated instead of calling `file_writer`) and every run ended `awaiting_human`.
+
+| Run | Status | Elapsed | Tests written | $ spend | Provider errors | Blocker |
+|---|---|---|---|---|---|---|
+| 1 | budget-abort | 15m17s | ✅ 10 files + conftest | $5.15 (86 calls) | 133 | $5 deepseek-era ceiling + Vertex tool-id 400s |
+| 2 | budget-abort | 29m08s | ✅ (full phase progression, 19 dev files, 2 test cycles) | $10.05 (113 calls) | 133 | Vertex tool-id 400s burned budget |
+| 3 | awaiting_human | 17m20s | ✅ 4 suites + conftest | <$8 | **0** (fix validated) | **Harness dependency gap** (below) |
+| 4 | budget-abort | 20m16s | ✅ suites + conftest | $8.03 (122 calls) | 27 (Bedrock-side) | Budget + residual provider retries |
+
+### Verdict
+
+1. **The model confound is mechanically confirmed.** Claude called `file_writer` and
+   produced real test suites in **4/4 runs** vs deepseek's **0/3**. The §8
+   "QA degeneration" failure class is a *model* property, not a LangGraph property.
+   None of the four claude runs failed the way deepseek fails — every remaining blocker
+   was a harness or provider-ops class.
+2. **New ops finding — provider-routing dialect breakage.** OpenRouter served
+   `anthropic/claude-sonnet-4` from Google Vertex + Amazon Bedrock only on this key (a
+   hard pin to provider "Anthropic" 404s — endpoint pools are account-specific).
+   Vertex's Anthropic-translation layer rejected tool-call ids with 400s — 133
+   retry-errors per run until steering `ignore=["Google"]` (validated: run 3 had 0).
+   Bedrock also throttled/errored occasionally (run 4: 27). Multi-provider routing is
+   itself a failure surface for tool-calling agents.
+3. **New ops finding — spend budgets are model-dependent.** The $5 default ceiling was
+   calibrated on deepseek prices; sonnet runs cost $5-10+ on this brief. The per-run
+   spend guard fired **correctly and cleanly all three times** (run_id-scoped,
+   yesterday's fix) — the guard working is the success story; the calibration is config.
+4. **New harness finding — quality-gate dependency gap.** Run 3's tests died on
+   `ModuleNotFoundError: flask_sqlalchemy` ×4 modules: the quality gate runs pytest in
+   the *harness* venv and never installs the generated `requirements.txt`. deepseek runs
+   dodged it only by picking plain `flask` (already installed). Fix queued: install the
+   generated requirements into an isolated per-workspace env before the gate runs.
+
+**Net:** with the model held constant, LangGraph's pipeline works — agents plan, write
+code and tests, and the failures move up the stack to provider routing, budget
+calibration, and gate-environment fidelity. Exactly the "harness > model > framework"
+ranking the failure taxonomy predicts, now with matrix evidence.
+
+---
+
 ## Historical results
 
 Earlier comparisons (pre-wiring-fix) are described in
