@@ -3,7 +3,7 @@ Unit tests for the real-time monitor: TeamMonitor event hooks, state updates,
 Metrics, and MonitorCallback CrewAI adapter. No live TUI is started in tests.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from ai_team.monitor import (
     AGENT_ICONS,
@@ -30,7 +30,6 @@ class TestTeamMonitorState:
         assert monitor.agents == {}
         assert monitor.log == []
         assert monitor.guardrail_events == []
-        assert monitor._live is None
 
     def test_init_custom_project_name(self) -> None:
         monitor = TeamMonitor(project_name="My App")
@@ -207,17 +206,14 @@ class TestTeamMonitorLifecycle:
     """start/stop with mocked Rich Live and Console to avoid TUI in CI."""
 
     def test_start_sets_metrics_start_time_and_adds_log(self) -> None:
+        """Rendering removed (SHOWCASE_PLAN 3.3b): start() marks time + logs, no Live."""
         monitor = TeamMonitor(project_name="Lifecycle Test")
-        with patch("ai_team.monitor.Live") as mock_live:
-            monitor.start()
+        monitor.start()
         assert monitor.metrics.start_time is not None
-        assert monitor._live is not None
-        mock_live.return_value.start.assert_called_once()
+        assert any("Monitor started" in e.message for e in monitor.log)
 
-    def test_stop_clears_live_and_prints_summary(self) -> None:
+    def test_stop_logs_summary_headless(self) -> None:
+        """stop() must be safe headless — no console, no Live, just a summary log."""
         monitor = TeamMonitor(project_name="Stop Test")
-        with patch("ai_team.monitor.Live"), patch("ai_team.monitor.Console") as mock_console:
-            monitor.start()
-            monitor.stop("complete")
-        assert monitor._live is None
-        mock_console.return_value.print.assert_called()
+        monitor.start()
+        monitor.stop("complete")  # must not raise without a TTY
