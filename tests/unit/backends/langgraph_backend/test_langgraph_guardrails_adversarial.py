@@ -177,9 +177,7 @@ class TestLowScopeRelevanceRoles:
         node = make_behavioral_guardrail_node("manager", min_scope_relevance=0.25)
         off_topic = _state_with_ai(
             "The weather today is sunny. Frogs are amphibians.",
-            project_description=(
-                "Build a Flask REST API with SQLite persistence for a TODO app."
-            ),
+            project_description=("Build a Flask REST API with SQLite persistence for a TODO app."),
         )
         out = node(off_topic)
         assert out["guardrail_checks"][-1]["status"] == "fail"

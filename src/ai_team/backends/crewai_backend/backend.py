@@ -119,7 +119,9 @@ def _run_crewai_subprocess(
 
         reload_settings()
         ws_override = kwargs.get("workspace_dir")
-        ws_scope = scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
+        ws_scope = (
+            scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
+        )
         with ws_scope:
             payload = run_ai_team(
                 description,
@@ -198,7 +200,9 @@ class CrewAIBackend:
         # same fix — observed as stray workspace/<value>/ dirs accumulating
         # from a test that left PROJECT_WORKSPACE_DIR stuck).
         ws_override = kwargs.get("workspace_dir")
-        ws_scope = scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
+        ws_scope = (
+            scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
+        )
         with ws_scope:
             return self._run_scoped(description, profile, env, kwargs, monitor)
 

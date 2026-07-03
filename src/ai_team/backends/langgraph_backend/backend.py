@@ -138,7 +138,9 @@ class LangGraphBackend:
         ws_override = kwargs.get("workspace_dir")
         ws_path = str(ws_override) if ws_override else os.path.join("./workspace", thread_id)
         with scoped_workspace_dir(ws_path):
-            return self._run_with_workspace_scoped(description, profile, env, mode, thread_id, kwargs)
+            return self._run_with_workspace_scoped(
+                description, profile, env, mode, thread_id, kwargs
+            )
 
     def _run_with_workspace_scoped(
         self,

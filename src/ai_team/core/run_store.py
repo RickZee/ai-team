@@ -210,9 +210,7 @@ class RunStore:
         """Recent runs, newest first — the persisted equivalent of GET /api/runs."""
         with self._with_conn() as conn:
             conn.row_factory = sqlite3.Row
-            cur = conn.execute(
-                "SELECT * FROM runs ORDER BY started_at DESC LIMIT ?", (limit,)
-            )
+            cur = conn.execute("SELECT * FROM runs ORDER BY started_at DESC LIMIT ?", (limit,))
             rows = cur.fetchall()
         return [dict(r) for r in rows]
 

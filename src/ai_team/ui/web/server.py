@@ -373,8 +373,8 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
                 passed = sum(
                     1
                     for e in eps
-                    if e.get("ok") or str(e.get("result") or e.get("outcome") or "").upper()
-                    in ("PASS", "PASSED")
+                    if e.get("ok")
+                    or str(e.get("result") or e.get("outcome") or "").upper() in ("PASS", "PASSED")
                 )
                 overall = (
                     smoke.get("overall")
