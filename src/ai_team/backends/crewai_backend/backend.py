@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import multiprocessing
 import os
@@ -118,11 +117,11 @@ def _run_crewai_subprocess(
         from ai_team.config.settings import reload_settings, scoped_workspace_dir
 
         reload_settings()
+        # See CrewAIBackend.run() for why this always scopes explicitly to
+        # the "./workspace" literal instead of nullcontext or get_settings().
         ws_override = kwargs.get("workspace_dir")
-        ws_scope = (
-            scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
-        )
-        with ws_scope:
+        ws_path = str(ws_override) if ws_override else "./workspace"
+        with scoped_workspace_dir(ws_path):
             payload = run_ai_team(
                 description,
                 monitor=monitor,
@@ -194,16 +193,21 @@ class CrewAIBackend:
 
         reload_settings()
 
-        # Scoped, not a bare os.environ write: a permanent mutation here leaks
-        # this run's workspace into any later call in this process that
-        # forgets to override it (see langgraph/claude-sdk backends for the
-        # same fix — observed as stray workspace/<value>/ dirs accumulating
-        # from a test that left PROJECT_WORKSPACE_DIR stuck).
+        # Always scope explicitly to a known base workspace root (never
+        # nullcontext, never get_settings() as the fallback): a call that
+        # skips scoping here relies on whatever PROJECT_WORKSPACE_DIR
+        # happens to be already set in os.environ — which can be a stale
+        # per-run path left behind by an unrelated earlier run in the same
+        # long-lived process (e.g. the web server or a multi-backend
+        # comparison run) — main_flow.kickoff() then nests this run's
+        # project_id under that stale directory instead of
+        # workspace/<project_id>/ directly. The literal "./workspace"
+        # matches ProjectSettings.workspace_dir's own default and is what
+        # langgraph/claude-sdk backends use for the same fallback; reading
+        # get_settings() here would just echo the stale env value back.
         ws_override = kwargs.get("workspace_dir")
-        ws_scope = (
-            scoped_workspace_dir(str(ws_override)) if ws_override else contextlib.nullcontext()
-        )
-        with ws_scope:
+        ws_path = str(ws_override) if ws_override else "./workspace"
+        with scoped_workspace_dir(ws_path):
             return self._run_scoped(description, profile, env, kwargs, monitor)
 
     def _run_scoped(

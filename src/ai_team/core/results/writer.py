@@ -97,7 +97,13 @@ class ResultsBundle:
         root = Path(s.project.output_dir).resolve()
         self._registry_root = root
         self._base_output = root / RUNS_SUBDIR / project_id
-        self._base_workspace = Path(s.project.workspace_dir).resolve() / project_id
+        # settings.project.workspace_dir may already be scoped to this run
+        # (see scoped_workspace_dir / PROJECT_WORKSPACE_DIR) — callers that
+        # construct ResultsBundle from inside that scope pass an already
+        # project_id-suffixed path, so appending project_id again would
+        # create an empty workspace/<project_id>/<project_id>/ dupe.
+        ws_dir = Path(s.project.workspace_dir).resolve()
+        self._base_workspace = ws_dir if ws_dir.name == project_id else ws_dir / project_id
 
     @property
     def output_dir(self) -> Path:
