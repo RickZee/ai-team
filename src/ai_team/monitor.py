@@ -1,48 +1,44 @@
 """
-AI-Team Monitor — Real-time terminal dashboard for multi-agent execution.
+AI-Team Monitor — thread-safe event collector for multi-agent execution.
 
-A Rich-based TUI that displays live agent activity, phase progress,
-guardrail results, and execution metrics. No extra dependencies beyond
-``rich`` (already in project deps).
+Collects agent activity, phase progress, guardrail results, and execution
+metrics. Consumers render it themselves (web dashboard serializes it over
+WebSocket; the CLI prints a plain summary on stop).
 
-Usage:
-    As a standalone demo (simulated activity)::
+Historical note: this used to be a Rich ``Live`` full-screen terminal
+dashboard. The rendering layer was removed with the showcase axe
+(SHOWCASE_PLAN 3.3) — Rich live consoles in agent runtimes were the
+project's single most persistent bug class (deadlocks and infinite
+recursion in non-TTY contexts, see docs/journal/2026-06-25.md and the
+CrewAI console saga), and the web dashboard is the demo surface.
 
-        python -m ai_team.monitor
+Usage::
 
-    Integrated into your flow::
+    from ai_team.monitor import TeamMonitor, MonitorCallback
 
-        from ai_team.monitor import TeamMonitor, MonitorCallback
+    monitor = TeamMonitor(project_name="My Project")
+    monitor.start()
+    # ... run flow, call monitor.on_phase_change(), monitor.on_agent_start(), etc. ...
+    monitor.stop()
 
-        monitor = TeamMonitor(project_name="My Project")
-        monitor.start()
-        # ... run flow, call monitor.on_phase_change(), monitor.on_agent_start(), etc. ...
-        monitor.stop()
+With CrewAI callback adapter::
 
-    With CrewAI callback adapter::
-
-        cb = MonitorCallback(monitor)
-        crew = Crew(..., step_callback=cb.on_step, task_callback=cb.on_task)
+    cb = MonitorCallback(monitor)
+    crew = Crew(..., step_callback=cb.on_step, task_callback=cb.on_task)
 """
 
 from __future__ import annotations
 
 import contextlib
 import threading
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
 import structlog
-from rich.align import Align
-from rich.console import Console, Group
-from rich.layout import Layout
-from rich.live import Live
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
+
+logger = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -185,39 +181,35 @@ class TeamMonitor:
         self.log: list[LogEntry] = []
         self.guardrail_events: list[GuardrailEvent] = []
         self.metrics = Metrics()
-        self._live: Live | None = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
 
     # -- Lifecycle -----------------------------------------------------------
 
     def start(self) -> None:
-        """Start the live-updating terminal display."""
+        """Mark the run as started (no rendering — collection only)."""
         self.metrics.start_time = datetime.now()
         self._stop_event.clear()
-        console = Console()
-        self._live = Live(
-            self._render(),
-            console=console,
-            refresh_per_second=2,
-            screen=True,
-            transient=False,
-        )
-        self._live.start()
         self._add_log("system", "Monitor started", "info")
 
     def stop(self, final_status: str = "complete") -> None:
-        """Stop the live display and print final summary."""
-        if self._live:
-            self._live.update(self._render())
-            self._live.stop()
-            self._live = None
-        self._print_summary(final_status)
+        """Mark the run as finished and log a plain one-line summary."""
+        logger.info(
+            "run_summary",
+            status=final_status,
+            project=self.project_name,
+            elapsed=self.metrics.elapsed_str,
+            tasks_completed=self.metrics.tasks_completed,
+            tasks_failed=self.metrics.tasks_failed,
+            files_generated=self.metrics.files_generated,
+            guardrails_passed=self.metrics.guardrails_passed,
+            guardrails_failed=self.metrics.guardrails_failed,
+            tests_passed=self.metrics.tests_passed,
+            tests_failed=self.metrics.tests_failed,
+        )
 
     def update(self) -> None:
-        """Force a display refresh (called automatically by Live)."""
-        if self._live:
-            self._live.update(self._render())
+        """Kept for callers; rendering removed — no-op."""
 
     # -- Event hooks (call these from your flow/callbacks) -------------------
 
@@ -404,328 +396,6 @@ class TeamMonitor:
         if len(self.log) > self.MAX_LOG_LINES:
             self.log = self.log[-self.MAX_LOG_LINES :]
 
-    def _render(self) -> Layout:
-        layout = Layout()
-        layout.split_column(
-            Layout(name="header", size=3),
-            Layout(name="body"),
-            Layout(name="footer", size=3),
-        )
-        layout["body"].split_row(
-            Layout(name="left", ratio=3),
-            Layout(name="right", ratio=2),
-        )
-        layout["left"].split_column(
-            Layout(name="phases", size=6),
-            Layout(name="tree", size=8),
-            Layout(name="agents", size=12),
-            Layout(name="log"),
-        )
-        layout["right"].split_column(
-            Layout(name="metrics", size=14),
-            Layout(name="guardrails"),
-        )
-
-        layout["header"].update(self._render_header())
-        layout["phases"].update(self._render_phases())
-        layout["tree"].update(self._render_tree())
-        layout["agents"].update(self._render_agents())
-        layout["log"].update(self._render_log())
-        layout["metrics"].update(self._render_metrics())
-        layout["guardrails"].update(self._render_guardrails())
-        layout["footer"].update(self._render_footer())
-
-        return layout
-
-    def _render_header(self) -> Panel:
-        icon = PHASE_ICONS.get(self.current_phase, "")
-        phase_text = f"{icon} {self.current_phase.value.upper()}"
-        title = Text.assemble(
-            ("🤖 AI-TEAM MONITOR", "bold cyan"),
-            ("  │  ", "dim"),
-            (self.project_name, "bold white"),
-            ("  │  ", "dim"),
-            (phase_text, "bold yellow"),
-            ("  │  ", "dim"),
-            (f"⏱ {self.metrics.elapsed_str}", "bold green"),
-        )
-        return Panel(Align.center(title), style="cyan", padding=(0, 1))
-
-    def _render_tree(self) -> Panel:
-        """Tree-style view: Phase → Crew → current task(s)."""
-        phase = self.current_phase
-        icon = PHASE_ICONS.get(phase, "")
-        crew_name = f"{phase.value.replace('_', ' ').title()} crew"
-        lines: list[Text] = []
-        lines.append(Text.assemble((f"  {icon} ", "bold"), (phase.value.upper(), "bold yellow")))
-        lines.append(Text.assemble(("    └─ ", "dim"), (crew_name, "cyan")))
-        working = [(r, a) for r, a in self.agents.items() if a.status == "working"]
-        if working:
-            for i, (role, agent) in enumerate(working):
-                branch = "    ├─ " if i < len(working) - 1 else "    └─ "
-                name = role.replace("_", " ").title()
-                task = (agent.current_task or "Thinking…")[:48]
-                lines.append(
-                    Text.assemble(
-                        (branch, "dim"),
-                        (f"{name}: ", "bold"),
-                        (task, "yellow"),
-                    )
-                )
-        else:
-            lines.append(Text("        — idle", style="dim italic"))
-        return Panel(
-            Group(*lines),
-            title="[bold]Current activity[/bold]",
-            border_style="blue",
-            padding=(0, 1),
-        )
-
-    def _render_phases(self) -> Panel:
-        parts: list[Text] = []
-        current_idx = (
-            PHASE_ORDER.index(self.current_phase)
-            if self.current_phase in PHASE_ORDER
-            else len(PHASE_ORDER)
-        )
-        for i, phase in enumerate(PHASE_ORDER):
-            icon = PHASE_ICONS[phase]
-            if self.current_phase == Phase.ERROR:
-                style = "bold red" if phase == Phase.COMPLETE else "dim"
-                marker = "✗" if phase == Phase.COMPLETE else "○"
-            elif phase == self.current_phase and phase != Phase.COMPLETE:
-                style = "bold yellow"
-                marker = "▶"
-            elif i < current_idx:
-                style = "bold green"
-                marker = "✓"
-            else:
-                style = "dim"
-                marker = "○"
-            label = f" {marker} {icon} {phase.value.capitalize()}"
-            parts.append(Text(label, style=style))
-            if i < len(PHASE_ORDER) - 1:
-                parts.append(Text(" → ", style="dim"))
-        if self.current_phase == Phase.ERROR:
-            parts.append(Text(" → ", style="dim"))
-            parts.append(Text(f" ✗ {PHASE_ICONS[Phase.ERROR]} Error", style="bold red"))
-        if self.metrics.retries > 0 and self.current_phase not in (Phase.COMPLETE, Phase.ERROR):
-            parts.append(Text(f"  ✓ Self-corrected ×{self.metrics.retries}", style="green"))
-        return Panel(
-            Text.assemble(*parts),
-            title="[bold]Pipeline[/bold]",
-            border_style="blue",
-            padding=(0, 1),
-        )
-
-    def _render_agents(self) -> Panel:
-        table = Table(expand=True, show_header=True, header_style="bold", box=None, padding=(0, 1))
-        table.add_column("Agent", width=18)
-        table.add_column("Status", width=10)
-        table.add_column("Task", ratio=1)
-        table.add_column("Done", width=5, justify="right")
-
-        if not self.agents:
-            table.add_row(
-                "[dim]Waiting for first step…[/dim]",
-                "[dim]Crew running[/dim]",
-                "[dim]Agents appear after the first LLM response[/dim]",
-                "",
-            )
-        else:
-            for role, agent in self.agents.items():
-                icon = AGENT_ICONS.get(role, "🤖")
-                name = f"{icon} {role.replace('_', ' ').title()}"
-
-                if agent.status == "working":
-                    status = Text("● ACTIVE", style="bold yellow")
-                elif agent.status == "done":
-                    status = Text("● DONE", style="bold green")
-                elif agent.status == "error":
-                    status = Text("● ERROR", style="bold red")
-                else:
-                    status = Text("○ IDLE", style="dim")
-
-                task_text = agent.current_task or "—"
-                task = Text(task_text, style="dim" if not agent.current_task else "white")
-                done = str(agent.tasks_completed)
-                table.add_row(name, status, task, done)
-
-        return Panel(
-            table,
-            title="[bold]Agents[/bold]",
-            border_style="green",
-            padding=(0, 1),
-        )
-
-    def _render_log(self) -> Panel:
-        lines: list[Text] = []
-        display_log = self.log[-30:]
-        for entry in display_log:
-            ts = entry.timestamp.strftime("%H:%M:%S")
-            icon = AGENT_ICONS.get(entry.agent, "📌")
-
-            if entry.level == "error":
-                style = "red"
-            elif entry.level == "warn":
-                style = "yellow"
-            elif entry.level == "success":
-                style = "green"
-            else:
-                style = "white"
-
-            line = Text.assemble(
-                (f"{ts} ", "dim"),
-                (f"{icon} ", ""),
-                (f"{entry.agent:<16} ", "bold"),
-                (entry.message, style),
-            )
-            lines.append(line)
-
-        if not lines:
-            lines.append(Text("Waiting for activity...", style="dim italic"))
-
-        return Panel(
-            Group(*lines),
-            title="[bold]Activity Log[/bold]",
-            border_style="yellow",
-            padding=(0, 1),
-        )
-
-    def _render_metrics(self) -> Panel:
-        m = self.metrics
-        gr_total = m.guardrails_passed + m.guardrails_failed + m.guardrails_warned
-
-        table = Table(show_header=False, box=None, expand=True, padding=(0, 1))
-        table.add_column("Label", style="bold", width=20)
-        table.add_column("Value", justify="right")
-
-        table.add_row("Elapsed", f"[cyan]{m.elapsed_str}[/cyan]")
-        table.add_row("Tasks completed", f"[green]{m.tasks_completed}[/green]")
-        table.add_row(
-            "Tasks failed",
-            f"[red]{m.tasks_failed}[/red]" if m.tasks_failed else "[dim]0[/dim]",
-        )
-        table.add_row(
-            "Retries",
-            f"[green]✓ Self-corrected ×{m.retries}[/green]" if m.retries else "[dim]0[/dim]",
-        )
-        table.add_row("Files generated", f"[blue]{m.files_generated}[/blue]")
-        table.add_row("─" * 18, "─" * 6)
-        table.add_row("Guardrails total", str(gr_total))
-        table.add_row("  ✓ Passed", f"[green]{m.guardrails_passed}[/green]")
-        table.add_row(
-            "  ✗ Failed",
-            f"[red]{m.guardrails_failed}[/red]" if m.guardrails_failed else "[dim]0[/dim]",
-        )
-        table.add_row(
-            "  \u26a0 Warned",
-            f"[yellow]{m.guardrails_warned}[/yellow]" if m.guardrails_warned else "[dim]0[/dim]",
-        )
-        if m.tests_passed or m.tests_failed:
-            table.add_row("─" * 18, "─" * 6)
-            table.add_row("Tests passed", f"[green]{m.tests_passed}[/green]")
-            table.add_row(
-                "Tests failed",
-                f"[red]{m.tests_failed}[/red]" if m.tests_failed else "[dim]0[/dim]",
-            )
-        if m.claude_session_id or m.claude_cost_usd is not None:
-            table.add_row("─" * 18, "─" * 6)
-            table.add_row(
-                "Claude session",
-                f"[cyan]{m.claude_session_id or '—'}[/cyan]",
-            )
-            cu = m.claude_cost_usd
-            table.add_row(
-                "Claude cost (USD)",
-                f"[cyan]{cu:.4f}[/cyan]" if cu is not None else "[dim]—[/dim]",
-            )
-
-        return Panel(
-            table,
-            title="[bold]Metrics[/bold]",
-            border_style="magenta",
-            padding=(0, 1),
-        )
-
-    def _render_guardrails(self) -> Panel:
-        lines = []
-        display_events = self.guardrail_events[-15:]
-        for evt in display_events:
-            ts = evt.timestamp.strftime("%H:%M:%S")
-            if evt.status == "pass":
-                icon, style = "✓", "green"
-            elif evt.status == "fail":
-                icon, style = "✗", "bold red"
-            else:
-                icon, style = "⚠", "yellow"
-
-            cat_short = evt.category[:3].upper()
-            line = Text.assemble(
-                (f"{ts} ", "dim"),
-                (f"{icon} ", style),
-                (f"[{cat_short}] ", "dim"),
-                (evt.name, style),
-            )
-            if evt.message and evt.status != "pass":
-                line.append(f" — {evt.message[:40]}", style="dim")
-            lines.append(line)
-
-        if not lines:
-            lines.append(Text("No guardrail checks yet", style="dim italic"))
-
-        return Panel(
-            Group(*lines),
-            title="[bold]Guardrails[/bold]",
-            border_style="red",
-            padding=(0, 1),
-        )
-
-    def _render_footer(self) -> Panel:
-        active_count = sum(1 for a in self.agents.values() if a.status == "working")
-        footer = Text.assemble(
-            ("Active agents: ", "dim"),
-            (str(active_count), "bold cyan"),
-            ("  │  ", "dim"),
-            ("Ctrl+C to stop", "dim italic"),
-        )
-        return Panel(Align.center(footer), style="dim", padding=(0, 1))
-
-    def _print_summary(self, status: str) -> None:
-        """Print a final summary after the monitor stops."""
-        console = Console()
-        console.print()
-
-        m = self.metrics
-        table = Table(
-            title="🤖 AI-Team Execution Summary",
-            show_header=False,
-            border_style="cyan",
-        )
-        table.add_column("", style="bold")
-        table.add_column("")
-
-        status_style = "bold green" if status == "complete" else "bold red"
-        table.add_row("Status", Text(status.upper(), style=status_style))
-        table.add_row("Duration", m.elapsed_str)
-        table.add_row("Tasks", f"{m.tasks_completed} completed, {m.tasks_failed} failed")
-        table.add_row("Files", str(m.files_generated))
-        table.add_row("Retries", str(m.retries))
-        table.add_row(
-            "Guardrails",
-            f"{m.guardrails_passed}✓ {m.guardrails_failed}✗ {m.guardrails_warned}⚠",
-        )
-        if m.tests_passed or m.tests_failed:
-            table.add_row("Tests", f"{m.tests_passed} passed, {m.tests_failed} failed")
-
-        console.print(table)
-        console.print()
-
-
-# ---------------------------------------------------------------------------
-# CrewAI callback adapter
-# ---------------------------------------------------------------------------
-
 
 class MonitorCallback:
     """
@@ -771,124 +441,3 @@ class MonitorCallback:
 # ---------------------------------------------------------------------------
 # Demo mode — shows the monitor with simulated agent activity
 # ---------------------------------------------------------------------------
-
-
-def _run_demo() -> None:
-    """Simulate a full AI-Team run so you can see the monitor in action."""
-    monitor = TeamMonitor(project_name="Demo: Flask REST API")
-    monitor.start()
-
-    agents = [
-        ("manager", "qwen3:14b"),
-        ("product_owner", "qwen3:14b"),
-        ("architect", "deepseek-r1:14b"),
-        ("backend_developer", "qwen2.5-coder:14b"),
-        ("qa_engineer", "qwen3:14b"),
-        ("devops", "qwen2.5-coder:14b"),
-    ]
-
-    try:
-        monitor.on_phase_change("intake")
-        time.sleep(1)
-        monitor.on_log("system", "Received project: Create a Flask REST API", "info")
-        time.sleep(0.5)
-
-        monitor.on_phase_change("planning")
-        time.sleep(0.5)
-
-        monitor.on_agent_start("manager", "Coordinating planning phase", agents[0][1])
-        time.sleep(1)
-
-        monitor.on_agent_start(
-            "product_owner", "Gathering requirements from description", agents[1][1]
-        )
-        time.sleep(1.5)
-        monitor.on_guardrail("behavioral", "role_adherence", "pass")
-        monitor.on_guardrail("quality", "requirements_completeness", "pass")
-        monitor.on_agent_finish("product_owner", "Requirements gathering")
-        time.sleep(0.5)
-
-        monitor.on_agent_start("architect", "Designing system architecture", agents[2][1])
-        time.sleep(2)
-        monitor.on_guardrail("behavioral", "scope_control", "pass")
-        monitor.on_guardrail(
-            "quality", "architecture_completeness", "warn", "Missing deployment diagram"
-        )
-        monitor.on_agent_finish("architect", "Architecture design")
-        time.sleep(0.5)
-
-        monitor.on_agent_finish("manager", "Planning coordination")
-
-        monitor.on_phase_change("development")
-        time.sleep(0.5)
-
-        monitor.on_agent_start(
-            "backend_developer", "Implementing Flask routes: /health, /items", agents[3][1]
-        )
-        time.sleep(2)
-        monitor.on_guardrail("security", "code_safety", "pass")
-        monitor.on_guardrail("security", "secret_detection", "pass")
-        monitor.on_file_generated("app.py")
-        time.sleep(0.5)
-        monitor.on_file_generated("requirements.txt")
-        monitor.on_file_generated("config.py")
-        monitor.on_guardrail("quality", "code_quality", "pass")
-        monitor.on_agent_finish("backend_developer", "Flask API implementation")
-        time.sleep(0.5)
-
-        monitor.on_agent_start("devops", "Creating Dockerfile and CI config", agents[5][1])
-        time.sleep(1.5)
-        monitor.on_guardrail("security", "code_safety", "pass")
-        monitor.on_file_generated("Dockerfile")
-        monitor.on_file_generated(".github/workflows/ci.yml")
-        monitor.on_agent_finish("devops", "DevOps setup")
-
-        monitor.on_phase_change("testing")
-        time.sleep(0.5)
-
-        monitor.on_agent_start("qa_engineer", "Generating test cases for Flask API", agents[4][1])
-        time.sleep(1.5)
-        monitor.on_file_generated("test_app.py")
-        monitor.on_guardrail("quality", "test_coverage", "pass")
-        time.sleep(0.5)
-
-        monitor.on_log("qa_engineer", "Running pytest...", "info")
-        time.sleep(2)
-        monitor.on_test_result(passed=8, failed=1)
-        time.sleep(0.5)
-
-        monitor.on_retry("qa_engineer", "1 test failed: test_create_item_validation")
-        monitor.on_agent_start(
-            "backend_developer", "Fixing validation in POST /items", agents[3][1]
-        )
-        time.sleep(1.5)
-        monitor.on_guardrail("security", "code_safety", "pass")
-        monitor.on_agent_finish("backend_developer", "Bug fix: input validation")
-        time.sleep(0.5)
-
-        monitor.on_log("qa_engineer", "Re-running pytest...", "info")
-        time.sleep(1.5)
-        monitor.on_test_result(passed=9, failed=0)
-        monitor.on_agent_finish("qa_engineer", "Test suite")
-
-        monitor.on_phase_change("deployment")
-        time.sleep(0.5)
-
-        monitor.on_agent_start("devops", "Packaging project with Docker", agents[5][1])
-        time.sleep(1.5)
-        monitor.on_file_generated("docker-compose.yml")
-        monitor.on_guardrail("quality", "docs_validation", "pass")
-        monitor.on_file_generated("README.md")
-        monitor.on_agent_finish("devops", "Deployment packaging")
-
-        monitor.on_phase_change("complete")
-        time.sleep(3)
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        monitor.stop("complete")
-
-
-if __name__ == "__main__":
-    _run_demo()
