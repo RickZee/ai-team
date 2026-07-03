@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="780" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="60" y="58" font-size="30" font-weight="700" fill="#111827">Where multi-agent systems actually fail</text>
+  <text x="60" y="88" font-size="16" fill="#6b7280">Ten failure classes from three weeks of live runs — same agent team, three orchestration frameworks</text>
+
+  <!-- ===== Layer bands ===== -->
+  <!-- MODEL layer -->
+  <g>
+    <rect x="60" y="120" width="880" height="118" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="84" y="152" font-size="18" font-weight="700" fill="#92400e">MODEL</text>
+    <text x="84" y="174" font-size="13" fill="#92400e">the LLM itself</text>
+    <!-- chips -->
+    <g font-size="14" fill="#78350f">
+      <rect x="270" y="140" width="360" height="58" rx="8" fill="#ffffff" stroke="#f59e0b"/>
+      <text x="290" y="164" font-weight="600">1 · Code as prose, never a tool call</text>
+      <text x="290" y="184" font-size="12.5" fill="#a16207">“Shall I save these files?” — nobody answers</text>
+    </g>
+  </g>
+
+  <!-- FRAMEWORK layer -->
+  <g>
+    <rect x="60" y="252" width="880" height="118" rx="10" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="84" y="284" font-size="18" font-weight="700" fill="#5b21b6">FRAMEWORK</text>
+    <text x="84" y="306" font-size="13" fill="#5b21b6">orchestration engine</text>
+    <g font-size="14" fill="#4c1d95">
+      <rect x="270" y="272" width="360" height="58" rx="8" fill="#ffffff" stroke="#8b5cf6"/>
+      <text x="290" y="296" font-weight="600">2 · Event bus lets a method trigger itself</text>
+      <text x="290" y="316" font-size="12.5" fill="#7c3aed">93,284 retry iterations in 15 minutes</text>
+    </g>
+  </g>
+
+  <!-- HARNESS layer -->
+  <g>
+    <rect x="60" y="384" width="880" height="240" rx="10" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="84" y="416" font-size="18" font-weight="700" fill="#166534">HARNESS</text>
+    <text x="84" y="438" font-size="13" fill="#166534">everything you build</text>
+    <text x="84" y="456" font-size="13" fill="#166534">around the agents</text>
+    <g font-size="13.5" fill="#14532d">
+      <rect x="270" y="404" width="315" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="286" y="427" font-weight="600">3 · One hung runtime starves the GIL</text>
+      <text x="286" y="446" font-size="12" fill="#15803d">a 78-minute stall blamed on the wrong backend</text>
+
+      <rect x="601" y="404" width="315" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="617" y="427" font-weight="600">4 · Concurrent launches collide on run ids</text>
+      <text x="617" y="446" font-size="12" fill="#15803d">TOCTOU: three runs, one workspace</text>
+
+      <rect x="270" y="474" width="315" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="286" y="497" font-weight="600">5 · Guardrails flag correct output</text>
+      <text x="286" y="516" font-size="12" fill="#15803d">“scope creep” words: test, coverage, suite</text>
+
+      <rect x="601" y="474" width="315" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="617" y="497" font-weight="600">6 · Tests pass, app broken</text>
+      <text x="617" y="516" font-size="12" fill="#15803d">70/70 green; HTTP 500 on every request</text>
+
+      <rect x="270" y="544" width="200" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="286" y="567" font-weight="600">7 · Runaway spend</text>
+      <text x="286" y="586" font-size="12" fill="#15803d">retry loop = billing loop</text>
+
+      <rect x="486" y="544" width="205" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="502" y="567" font-weight="600">8 · Dashboard lies</text>
+      <text x="502" y="586" font-size="12" fill="#15803d">cost: null, files: 0 — live</text>
+
+      <rect x="707" y="544" width="209" height="56" rx="8" fill="#ffffff" stroke="#22c55e"/>
+      <text x="723" y="567" font-weight="600">10 · Dependency gap</text>
+      <text x="723" y="586" font-size="12" fill="#15803d">gate venv ≠ generated app env</text>
+    </g>
+  </g>
+
+  <!-- PROVIDER layer -->
+  <g>
+    <rect x="60" y="638" width="880" height="100" rx="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="84" y="670" font-size="18" font-weight="700" fill="#1e40af">PROVIDER</text>
+    <text x="84" y="692" font-size="13" fill="#1e40af">model routing &amp; APIs</text>
+    <g font-size="14" fill="#1e3a8a">
+      <rect x="270" y="654" width="400" height="58" rx="8" fill="#ffffff" stroke="#3b82f6"/>
+      <text x="290" y="678" font-weight="600">9 · Multi-provider routing breaks tool-call dialects</text>
+      <text x="290" y="698" font-size="12.5" fill="#2563eb">same model id, different provider, 133 × HTTP 400</text>
+    </g>
+  </g>
+
+  <!-- ===== Right annotation column ===== -->
+  <g font-size="14">
+    <line x1="975" y1="120" x2="975" y2="738" stroke="#e5e7eb" stroke-width="1.5"/>
+    <text x="1000" y="150" font-size="15" font-weight="700" fill="#374151">Failure classes</text>
+    <text x="1000" y="172" font-size="15" font-weight="700" fill="#374151">observed</text>
+
+    <text x="1000" y="196" font-size="26" font-weight="700" fill="#b45309">1</text>
+    <text x="1030" y="196" fill="#92400e">model</text>
+
+    <text x="1000" y="328" font-size="26" font-weight="700" fill="#6d28d9">1</text>
+    <text x="1030" y="328" fill="#5b21b6">framework</text>
+
+    <text x="1000" y="510" font-size="26" font-weight="700" fill="#15803d">7</text>
+    <text x="1030" y="510" fill="#166534">harness</text>
+
+    <text x="1000" y="694" font-size="26" font-weight="700" fill="#1d4ed8">1</text>
+    <text x="1030" y="694" fill="#1e40af">provider</text>
+  </g>
+
+  <!-- Bottom takeaway -->
+  <text x="60" y="768" font-size="15" font-weight="600" fill="#111827">Only one of ten failures was the LLM being dumb. The rest were systems engineering.</text>
+</svg>
