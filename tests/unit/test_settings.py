@@ -120,7 +120,10 @@ class TestScopedWorkspaceDir:
     def test_restores_on_exception(self) -> None:
         env = {k: v for k, v in os.environ.items() if k != "PROJECT_WORKSPACE_DIR"}
         with patch.dict(os.environ, env, clear=True):
-            with pytest.raises(ValueError, match="boom"), scoped_workspace_dir("/tmp/scoped-test-d"):
+            with (
+                pytest.raises(ValueError, match="boom"),
+                scoped_workspace_dir("/tmp/scoped-test-d"),
+            ):
                 assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/scoped-test-d"
                 raise ValueError("boom")
             assert "PROJECT_WORKSPACE_DIR" not in os.environ

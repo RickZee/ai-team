@@ -67,8 +67,7 @@ def test_allocate_run_id_concurrent_same_second_no_collision(tmp_path: Path) -> 
     started = datetime(2026, 6, 28, 18, 14, 23, tzinfo=UTC)
 
     ids = [
-        allocate_run_id("todo-app", search_roots=[ws, runs], started_at=started)
-        for _ in range(3)
+        allocate_run_id("todo-app", search_roots=[ws, runs], started_at=started) for _ in range(3)
     ]
 
     assert len(set(ids)) == 3

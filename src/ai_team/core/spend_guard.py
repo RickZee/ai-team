@@ -183,7 +183,13 @@ def current_spend(run_id: str | None = None) -> dict[str, float | int | str | No
         with _registry_lock:
             state = _registry.get(run_id)
         if state is None:
-            return {"budget_usd": 0.0, "spent_usd": 0.0, "total_tokens": 0, "calls": 0, "run_id": run_id}
+            return {
+                "budget_usd": 0.0,
+                "spent_usd": 0.0,
+                "total_tokens": 0,
+                "calls": 0,
+                "run_id": run_id,
+            }
     else:
         state = _active_state()
     with state._lock:
