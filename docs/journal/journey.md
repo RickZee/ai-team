@@ -386,3 +386,29 @@ the matrix data is in [COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md).
 
 A journal that never corrects itself is marketing. This entry is the reason the journal
 exists.
+
+## Jul 3 — four parallel worktrees, one Compare tab
+
+Ran four Claude Code sessions in parallel worktrees against bugs surfaced while
+exercising the web UI's Compare tab (all three backends side by side). Each session
+owned a different bug, all branched from the same `main` commit (`daf3c95`), all
+finished clean with no file overlap between them:
+
+| Branch | Bug | Fix |
+|---|---|---|
+| `claude/elegant-shannon-9481b8` | Compare launches 3 backends in parallel on a **fresh** workspace; `allocate_run_id`'s mkdir-based reservation was skipped whenever none of the search roots existed yet, so all 3 callers raced an empty listing and returned the same run_id | Create the first search root before reserving, not just when it already exists |
+| `claude/nice-albattani-6d02b7` | `CrewAIBackend.run()` fell back to `nullcontext()`/`get_settings()` when no `workspace_dir` override was given — a stale `PROJECT_WORKSPACE_DIR` left by an earlier run in the same long-lived process (web server, multi-backend comparison) leaked in and nested the new run under the old run's directory. `ResultsBundle` separately double-nested `workspace/<project_id>/<project_id>` when constructed from inside an already-scoped path | Always scope explicitly to the literal `"./workspace"`; `ResultsBundle` now checks whether `workspace_dir` already ends in `project_id` before appending it again |
+| `claude/interesting-brahmagupta-95c0af` | CrewAI runs subprocess-isolated with no live `TeamMonitor` streaming, so its Compare column showed a frozen "Starting…" and permanent zeros for the whole run | Set phase to `DEVELOPMENT` on `run_started`; backfill files/tasks/tests totals from the subprocess result payload on `run_finished` via new `_apply_crewai_result_to_monitor()` |
+| `claude/distracted-taussig-2ce7dd` | Compare run state lived only in React state — a page reload mid-run dropped to empty columns even though the server was still tracking the run | Persist `comparison_id` + `run_ids` to `localStorage`; reattach via `GET /comparisons/{id}` on mount, seeding terminal runs directly and reconnecting live ones through `/ws/monitor/{run_id}` |
+
+All four merged into `main` with `--no-ff`, one at a time, tests run between each
+(26/26 green on the touched suites: `test_run_naming`, `test_crewai_backend`,
+`test_results_bundle`, `test_web_websocket`). Worktrees and branches deleted after
+merge — all fully merged, nothing lost.
+
+**Why four parallel sessions worked cleanly here:** each bug lived in a disjoint file
+set (run_naming vs. crewai_backend+results/writer vs. web/server vs.
+frontend/Compare.tsx+useApi.ts) despite all four surfacing from the *same* Compare-tab
+exercise. No merge conflicts, no coordination overhead — the file-level isolation that
+makes file-based agent handoff work (see the rest of this journal) applies just as well
+to parallel human-directed debugging sessions.
