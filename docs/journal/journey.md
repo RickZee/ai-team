@@ -342,3 +342,47 @@ The two graph/SDK backends were green and fast. CrewAI **hung on the calculator*
 **Why not drop it entirely?** The whole thesis of the project is honest multi-backend comparison, and "we tried CrewAI for autonomous file-handoff orchestration and it fought us at the runtime level" is the most useful thing we can tell someone evaluating these frameworks. Deleting it would erase the finding. Keeping it *as a supported production path* would be dishonest given the data. Demoting-but-documenting is the truthful middle.
 
 **Updated the substack post** accordingly — the old "Use CrewAI if you have an existing CrewAI codebase" verdict undersold the problem (it framed CrewAI as merely *slower*). The corrected verdict says the runtime actively fights non-interactive, file-handoff orchestration and hangs on a task the other two finish in a minute.
+
+---
+
+## Chapter: The correction — it was our wiring, and it *was* the model (2026-07-01 → 07-02)
+
+The previous chapter ended with a confident verdict: *"It is not a model problem… the
+orchestration runtime itself is the blocker."* This week forced a correction on both
+halves — and the correction is more interesting than the original claim.
+
+**Half one: the infinite retry loop was ours.** The "CrewAI deadlocks in retry" thread
+that ran through three handoffs — the 8× duplicate emissions, the `retrying_development`
+loop, the ~50% flaky verdict — root-caused to *our* flow wiring, not CrewAI's runtime.
+In CrewAI Flows, a completed method emits its own name as the next trigger, and
+completed listeners are deliberately cleared to allow cycles. Ten of our methods were
+named identically to their own `@listen` trigger; each was an unbounded self-loop.
+Live evidence: 93,284 retry iterations in 15 minutes. And the retry cap we thought we
+had? Plain-listener return values are discarded — `return "escalate_to_human"` had
+never routed once. One rename convention + real routers + a meta-test later: zero
+runaway retries in every run since. Lesson we wrote on the wall: **read your
+framework's event semantics from its source, not its docs — and before convicting a
+framework, audit your own wiring.** (What *does* remain CrewAI's: the non-TTY Rich
+console recursion class, and its overall pace — those held up under re-testing.)
+
+**Half two: LangGraph's QA failures were a model problem after all.** Three clean
+comparison runs (after the wiring fix, two guardrail false-positive classes fixed, and
+subprocess isolation ending a GIL-starvation saga) left every backend failing or
+succeeding for *real* reasons — and LangGraph+deepseek still ended in human escalation
+every time, because deepseek's QA never called `file_writer`. So we broke the confound:
+same framework, same brief, same guardrails, all nine roles pinned to claude-sonnet-4.
+**deepseek wrote zero test files in 3/3 runs. Claude wrote real test suites in 4/4.**
+The "framework failure" was a model property. What blocked the claude runs instead was
+a new *stratum* of failures: OpenRouter routing the model through Google Vertex whose
+translation layer rejects tool-call ids (133 retry-400s per run until we steered away),
+spend ceilings calibrated for deepseek prices, and a quality gate that runs pytest in
+the harness venv without installing the generated requirements.
+
+**The synthesis** (now the thesis of the whole project): with each layer fixed, failures
+migrate up the stack — model → framework → harness → provider. Reliability budget
+ranking, with controlled evidence: **harness > model > framework**. Ten failure classes,
+all with receipts, live in [posts/failure-taxonomy.md](../posts/failure-taxonomy.md);
+the matrix data is in [COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md).
+
+A journal that never corrects itself is marketing. This entry is the reason the journal
+exists.
