@@ -157,7 +157,7 @@
 
   <line x1="610" y1="334" x2="610" y2="350" stroke="#d97706" stroke-width="1" stroke-dasharray="2,2" marker-end="url(#arr-o2)"/>
   <circle cx="610" cy="357" r="4" fill="#6366f1"/>
-  <text x="622" y="361" fill="#a5b4fc" font-size="9.5" font-weight="600">Lessons extracted → ChromaDB</text>
+  <text x="622" y="361" fill="#a5b4fc" font-size="9.5" font-weight="600">Lessons extracted → SQLite</text>
 
   <line x1="610" y1="361" x2="610" y2="377" stroke="#6366f1" stroke-width="1" stroke-dasharray="2,2" marker-end="url(#arr-p2)"/>
   <circle cx="610" cy="384" r="4" fill="#16a34a"/>
