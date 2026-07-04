@@ -75,6 +75,14 @@ def allocate_run_id(
                 max_index = max(max_index, int(match.group(1)))
 
     reserve_root = next((root for root in search_roots if root.is_dir()), None)
+    if reserve_root is None and search_roots:
+        # No search root exists yet (e.g. first run in a fresh workspace).
+        # Without this the mkdir-based reservation below is skipped entirely
+        # and concurrent callers (e.g. Compare launching 3 backends at once)
+        # all return the same unreserved run_id.
+        reserve_root = search_roots[0]
+        os.makedirs(reserve_root, exist_ok=True)
+
     index = max_index + 1
     while True:
         run_id = f"{prefix}{index:02d}"
