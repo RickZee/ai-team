@@ -88,6 +88,34 @@ class TestCrewAIBackendRun:
         assert el.formatter.verbose is False
         assert el.formatter._is_streaming is True
 
+    def test_run_does_not_leak_stale_workspace_env(
+        self, profile: TeamProfile, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A stale PROJECT_WORKSPACE_DIR left by an earlier run in the same
+        process (e.g. web server or multi-backend comparison) must not leak
+        into a .run() call that omits workspace_dir — otherwise main_flow's
+        fallback nests the new project_id under the old run's directory
+        instead of workspace/<project_id>/ directly."""
+        stale = "/tmp/leftover-run-from-unrelated-demo"
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", stale)
+
+        seen: dict[str, str] = {}
+
+        def _capture_workspace(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            from ai_team.config.settings import get_settings
+
+            seen["workspace_dir"] = get_settings().project.workspace_dir
+            return {"state": {"project_id": "test-id", "current_phase": "complete"}}
+
+        with patch(
+            "ai_team.backends.crewai_backend.backend.run_ai_team",
+            side_effect=_capture_workspace,
+        ):
+            backend = CrewAIBackend()
+            backend.run("build a thing", profile, skip_estimate=True)
+
+        assert seen["workspace_dir"] != stale
+
     def test_run_failure_returns_error_result(self, profile: TeamProfile) -> None:
         backend = CrewAIBackend()
         with patch(

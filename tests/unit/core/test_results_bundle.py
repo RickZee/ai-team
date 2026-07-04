@@ -88,6 +88,33 @@ def test_registry_multiple_runs_latest_points_to_most_recent(
     assert idx["runs"][0]["run_id"] == "second-run"
 
 
+def test_no_self_nested_workspace_when_already_scoped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PROJECT_WORKSPACE_DIR already ending in project_id must not be doubled.
+
+    Callers (main_flow.kickoff) enter scoped_workspace_dir(workspace/<project_id>)
+    *before* constructing ResultsBundle(project_id). Blindly appending project_id
+    again produced an empty workspace/<project_id>/<project_id>/{src,tests} dupe.
+    """
+    out_root = tmp_path / "out"
+    ws_root = tmp_path / "ws"
+    scoped_ws = ws_root / "p3"
+    out_root.mkdir(parents=True, exist_ok=True)
+    scoped_ws.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out_root))
+    monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(scoped_ws))
+    reload_settings()
+
+    b = ResultsBundle("p3")
+    b.init_dirs()
+
+    assert b.workspace_dir == scoped_ws
+    assert (scoped_ws / "src").exists()
+    assert (scoped_ws / "tests").exists()
+    assert not (scoped_ws / "p3").exists()
+
+
 def test_record_generated_file_and_manifest(isolated_dirs: tuple[Path, Path]) -> None:
     out_root, ws_root = isolated_dirs
     b = ResultsBundle("p2")
