@@ -1,12 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBanner } from "../components/AlertBanner";
 import { AutoGrowTextarea } from "../components/AutoGrowTextarea";
 import { CompareColumn } from "../components/CompareColumn";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EstimateTable } from "../components/EstimateTable";
 import { useCatalog } from "../hooks/useCatalog";
-import { postDemo, postEstimate } from "../hooks/useApi";
+import { getComparison, getRun, postDemo, postEstimate } from "../hooks/useApi";
 import { useMonitorWebSocket, useRunWebSocket } from "../hooks/useWebSocket";
+import type { RunWsStatus } from "../hooks/useWebSocket";
 import type { CostEstimate, MonitorState } from "../types";
 import { bestColumnKey, buildCompareVerdict, directionHint, parseElapsedSeconds } from "../utils/compareSummary";
 
@@ -24,6 +25,56 @@ const BACKENDS = [
 type BackendKey = (typeof BACKENDS)[number]["key"];
 
 const SKIP_PREFLIGHT_KEY = "ai-team-compare-skip-preflight";
+// Survives a page reload: lets Compare re-attach to runs the server is still
+// tracking instead of showing empty columns for genuinely in-flight backends.
+const ACTIVE_COMPARE_KEY = "ai-team-compare-active";
+
+interface StoredComparison {
+  comparisonId: string;
+  runIds: Record<BackendKey, string | null>;
+}
+
+function loadStoredComparison(): StoredComparison | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_COMPARE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredComparison;
+    if (!parsed.comparisonId || !parsed.runIds) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredComparison(v: StoredComparison) {
+  localStorage.setItem(ACTIVE_COMPARE_KEY, JSON.stringify(v));
+}
+
+function clearStoredComparison() {
+  localStorage.removeItem(ACTIVE_COMPARE_KEY);
+}
+
+function toRunWsStatus(status: string): RunWsStatus {
+  switch (status) {
+    case "pending":
+      return "connecting";
+    case "running":
+    case "cancelling":
+      return "running";
+    case "awaiting_human":
+      return "awaiting_human";
+    case "complete":
+      return "complete";
+    case "cancelled":
+      return "cancelled";
+    case "error":
+      return "error";
+    default:
+      return "idle";
+  }
+}
+
+const TERMINAL_STATUSES = new Set(["complete", "error", "cancelled"]);
 
 export function Compare() {
   const { profileNames, error: catalogError } = useCatalog();
@@ -40,6 +91,7 @@ export function Compare() {
     "claude-agent-sdk": null,
   });
   const [demoLoading, setDemoLoading] = useState(false);
+  const [activeComparisonId, setActiveComparisonId] = useState<string | null>(null);
 
   const crewai = useRunWebSocket();
   const langgraph = useRunWebSocket();
@@ -55,13 +107,128 @@ export function Compare() {
     "claude-agent-sdk": claude,
   };
 
+  // Persist run_ids as each /ws/run connection reports run_started, so a
+  // reload mid-run has something to reattach to (run state otherwise lives
+  // only in this component's React state and is wiped on refresh).
+  useEffect(() => {
+    if (!activeComparisonId) return;
+    saveStoredComparison({
+      comparisonId: activeComparisonId,
+      runIds: { crewai: crewai.runId, langgraph: langgraph.runId, "claude-agent-sdk": claude.runId },
+    });
+  }, [activeComparisonId, crewai.runId, langgraph.runId, claude.runId]);
+
   const demoMonitors: Record<BackendKey, ReturnType<typeof useMonitorWebSocket>> = {
     crewai: crewaiDemo,
     langgraph: langgraphDemo,
     "claude-agent-sdk": claudeDemo,
   };
 
+  // Reattachment: restored from localStorage on mount so a page reload during
+  // a genuinely in-flight (or just-finished) Compare run doesn't fall back to
+  // empty columns. `reattachRunIds` drives useMonitorWebSocket re-connects to
+  // /ws/monitor/{run_id} (survives the page that started the run closing);
+  // `reattachSeed` holds one-shot GET /api/runs/{id} snapshots for runs that
+  // were already terminal by the time we checked, so they render immediately
+  // without waiting on a socket that would just report "Run not found" churn.
+  const [reattaching, setReattaching] = useState(false);
+  const [reattachRunIds, setReattachRunIds] = useState<Record<BackendKey, string | null>>({
+    crewai: null,
+    langgraph: null,
+    "claude-agent-sdk": null,
+  });
+  const [reattachSeed, setReattachSeed] = useState<
+    Record<BackendKey, { monitor: MonitorState | null; status: string; error: string | null } | null>
+  >({ crewai: null, langgraph: null, "claude-agent-sdk": null });
+
+  useEffect(() => {
+    const stored = loadStoredComparison();
+    if (!stored) return;
+    let cancelled = false;
+    setReattaching(true);
+    (async () => {
+      try {
+        const { runs } = await getComparison(stored.comparisonId);
+        if (cancelled) return;
+        const byBackend = new Map(runs.map((r) => [r.backend, r]));
+        const nextRunIds: Record<BackendKey, string | null> = {
+          crewai: null,
+          langgraph: null,
+          "claude-agent-sdk": null,
+        };
+        const nextSeed: typeof reattachSeed = {
+          crewai: null,
+          langgraph: null,
+          "claude-agent-sdk": null,
+        };
+        for (const b of BACKENDS) {
+          const row = byBackend.get(b.key);
+          const runId = row?.run_id ?? stored.runIds[b.key];
+          if (!runId) continue;
+          nextRunIds[b.key] = runId;
+          if (row && TERMINAL_STATUSES.has(row.status)) {
+            // Terminal already — seed directly, no need to open a socket.
+            const detail = await getRun(runId).catch(() => null);
+            nextSeed[b.key] = {
+              monitor: detail?.monitor ?? null,
+              status: row.status,
+              error: row.error,
+            };
+          }
+        }
+        if (!cancelled) {
+          setReattachRunIds(nextRunIds);
+          setReattachSeed(nextSeed);
+        }
+      } catch {
+        // Comparison no longer resolvable (server restarted without
+        // persistence, or the id expired) — drop it rather than getting
+        // stuck trying to reattach forever.
+        clearStoredComparison();
+      } finally {
+        if (!cancelled) setReattaching(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const reattachMonitors: Record<BackendKey, ReturnType<typeof useMonitorWebSocket>> = {
+    crewai: useMonitorWebSocket(reattachSeed.crewai ? null : reattachRunIds.crewai),
+    langgraph: useMonitorWebSocket(reattachSeed.langgraph ? null : reattachRunIds.langgraph),
+    "claude-agent-sdk": useMonitorWebSocket(
+      reattachSeed["claude-agent-sdk"] ? null : reattachRunIds["claude-agent-sdk"],
+    ),
+  };
+
+  const isReattached = (key: BackendKey) =>
+    !demoMode && liveColumns[key].status === "idle" && reattachRunIds[key] != null;
+
   const getColumnState = (key: BackendKey) => {
+    if (isReattached(key)) {
+      const runId = reattachRunIds[key];
+      const seed = reattachSeed[key];
+      if (seed) {
+        return {
+          monitor: seed.monitor,
+          status: toRunWsStatus(seed.status),
+          runId,
+          errorMessage: seed.error,
+          hitlPayload: null,
+          projectId: runId,
+        };
+      }
+      const m = reattachMonitors[key];
+      return {
+        monitor: m.monitor,
+        status: m.runStatus ? toRunWsStatus(m.runStatus) : ("running" as const),
+        runId,
+        errorMessage: m.errorMessage,
+        hitlPayload: m.hitlPayload,
+        projectId: runId,
+      };
+    }
     if (demoMode) {
       const d = demoMonitors[key];
       const runId = demoRunIds[key];
@@ -98,10 +265,15 @@ export function Compare() {
     if (!description.trim()) return;
     setActionError(null);
     setDemoMode(false);
+    // A fresh compare supersedes anything we were reattaching to.
+    clearStoredComparison();
+    setReattachRunIds({ crewai: null, langgraph: null, "claude-agent-sdk": null });
+    setReattachSeed({ crewai: null, langgraph: null, "claude-agent-sdk": null });
     // Shared across the 3 independent /ws/run connections below so the
     // server can persist and later look up this comparison's 3 backend runs
     // together (GET /api/comparisons/{comparisonId}), even after a restart.
     const comparisonId = crypto.randomUUID();
+    setActiveComparisonId(comparisonId);
     crewai.startRun("crewai", profile, description, complexity, null, comparisonId);
     langgraph.startRun("langgraph", profile, description, complexity, null, comparisonId);
     claude.startRun("claude-agent-sdk", profile, description, complexity, null, comparisonId);
@@ -193,6 +365,10 @@ export function Compare() {
     crewaiDemo.monitor, crewaiDemo.runStatus, crewaiDemo.errorMessage,
     langgraphDemo.monitor, langgraphDemo.runStatus, langgraphDemo.errorMessage,
     claudeDemo.monitor, claudeDemo.runStatus, claudeDemo.errorMessage,
+    reattachRunIds, reattachSeed,
+    reattachMonitors.crewai.monitor, reattachMonitors.crewai.runStatus, reattachMonitors.crewai.errorMessage,
+    reattachMonitors.langgraph.monitor, reattachMonitors.langgraph.runStatus, reattachMonitors.langgraph.errorMessage,
+    reattachMonitors["claude-agent-sdk"].monitor, reattachMonitors["claude-agent-sdk"].runStatus, reattachMonitors["claude-agent-sdk"].errorMessage,
   ]);
 
   const preflightMessage = estimate
@@ -310,6 +486,9 @@ export function Compare() {
   return (
     <div className="compare-page page-shell">
       {catalogError && <AlertBanner variant="warning" message={catalogError} />}
+      {reattaching && (
+        <AlertBanner variant="warning" message="Reconnecting to your last comparison…" />
+      )}
       {actionError && (
         <AlertBanner message={actionError} onDismiss={() => setActionError(null)} />
       )}
