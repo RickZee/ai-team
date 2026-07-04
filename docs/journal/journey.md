@@ -412,3 +412,31 @@ frontend/Compare.tsx+useApi.ts) despite all four surfacing from the *same* Compa
 exercise. No merge conflicts, no coordination overhead — the file-level isolation that
 makes file-based agent handoff work (see the rest of this journal) applies just as well
 to parallel human-directed debugging sessions.
+
+**Afternoon: first all-three-green smoke comparison.** Ran the 00_smoke_test brief
+through the Compare tab against all three backends to validate the morning's merges
+live. All three completed with 5/5 tests passing — including **CrewAI's first-ever
+green smoke** (the scenario that used to hang for 12+ minutes). Claude SDK 3m03s,
+CrewAI 6m50s (with 100% coverage), LangGraph 8m41s. Full table, screenshots, and six
+new results-plumbing bugs (frozen SDK Compare column, LangGraph metrics/normalization
+gaps, missing SDK output bundle, dead `costs.jsonl`) in
+[COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md) § 2026-07-03. Screenshots in
+`docs/images/compare-2026-07-03-*.png`.
+
+## Jul 4 — the n=5 rule, applied to ourselves
+
+The same-model matrix chapter ended with "n≥5 runs or it's an anecdote" — and every
+comparison table we'd published since was n=1. Fixed the three worst results-plumbing
+bugs first (`ResultsBundle.finalize()` for completed_at/costs.jsonl, SDK output
+bundles, a distinct `complete_approved` status for HITL-overridden runs), then built
+`scripts/run_smoke_batch.py` and ran the smoke brief 5× per backend. The shakedown
+itself caught two more classes: a PATH gap that failed LangGraph's lint gate with
+"Command not found: ruff", and a **third** `test_results` schema (SDK nests counts
+under `summary`). Headline results: Claude SDK 5/5 green (tightest spread, priciest at
+~$0.71/run median), **CrewAI 5/5 green — a 7-run streak on the scenario it was demoted
+over**, LangGraph 1/5 with two distinct failure classes (auto-fixable-lint gate kills,
+including a run with 5/5 passing tests; and the old dev/QA test-layout mismatch).
+Variance table + breakdown in [COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md)
+§ "n=5 variance batch". The Jun 30 CrewAI demotion verdict is now formally a
+correction candidate — third journal entry in a row where the data reversed a
+confident earlier claim.

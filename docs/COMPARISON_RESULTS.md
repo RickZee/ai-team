@@ -134,6 +134,136 @@ ranking the failure taxonomy predicts, now with matrix evidence.
 
 ---
 
+## First all-three-green comparison — smoke profile, 2026-07-03 afternoon
+
+- **Comparison id:** `9aadf654-4888-40e5-8c56-a251bd73e756`
+- **Brief:** `demos/00_smoke_test` (calc.py with add/subtract/multiply/divide +
+  divide-by-zero ValueError, test_calc.py with pytest cases) — **smoke profile, Simple**
+- **Context:** first comparison launched after the four parallel-worktree fixes merged
+  earlier today (run_id fresh-root reservation, workspace double-nesting, CrewAI monitor
+  backfill, Compare reload persistence — see journal Jul 3). Launched 14:09 local via
+  the web Compare tab, all three concurrently.
+
+| Backend | Status | Wall-clock | Tests | Cost (observed) | Notes |
+|---|---|---|---|---|---|
+| claude-agent-sdk | ✅ complete | **3m 03s** | ✅ 5/5 (workspace `docs/test_results.json`) | $0.70 | Fastest. Clean phase narration in activity log; wrote `src/calc.py` + `tests/test_calc.py` + docs bundle. |
+| crewai | ✅ complete | 6m 50s | ✅ 5/5, **100% line+branch coverage** (`state.json`) | ~$0.03 (token table) | **First green CrewAI smoke ever** — the scenario that hung at 12min/140min pre-fix. One guardrail retry cycle (code-review 1-critical false positive, 3/4 attempts) then orchestrated-pytest salvage delivered the pass. 4 tasks, 2 files. |
+| langgraph | ✅ complete | 8m 41s | ✅ 5/5 + ruff clean (`state.json`) | $0.07 | Slowest this time (usual winner at ~60s) — three bounded `retry_development` cycles before tests landed; caps held, no runaway, clean complete. |
+
+Screenshots (docs/images/): `compare-2026-07-03-{crewai,langgraph,claude-sdk}-{files,tests}.png`
+
+### Data-integrity findings (the actual yield of this run)
+
+All three backends produced real, verified artifacts on disk — but the run exposed a
+consistent theme: **the data exists; the display/normalization layer loses it.**
+
+1. **Claude SDK Compare column froze mid-run** — stuck at "3m 2s / ACTIVE / 0 done"
+   permanently while the backend completed at 14:12:29. The `/ws/run` terminal event
+   never reached the column. Same class as the CrewAI zeros fixed this morning, different
+   socket path. **Open bug.**
+2. **LangGraph metrics never populate** — Compare column showed 0 tasks / 0 files at
+   completion despite writing files and passing tests. Needs the same monitor backfill
+   CrewAI got in `2388bca`. **Open bug.**
+3. **LangGraph writes test results in its own schema** — `state.json` has
+   `{'passed': True, 'lint': {...}, 'tests': {...}}` instead of the normalized
+   `test_results.json` the Artifacts UI reads → UI says "No structured test results
+   found" for a run with 5/5 green + clean ruff. **Open bug (normalization).**
+4. **Claude SDK writes no output bundle** — no `output/runs/<id>/` dir, absent from the
+   disk registry; its results live only in the workspace. **Open bug (ResultsBundle
+   never invoked on the SDK path).**
+5. **`run.json` has `completed_at: null` and `costs.jsonl` is empty** for both runs that
+   do have bundles — cost figures above are from the live UI/spend registry, not the
+   bundle. **Open bug (writer lifecycle).**
+6. Cosmetic: CrewAI Tests tab badge says "0% line coverage" while `state.json` records
+   100/100 line+branch; Compare column sub-header stays "Waiting for agents to join the
+   run…" after completion.
+
+**Net:** orchestration-layer verdicts from the taxonomy hold (all three complete a
+simple brief; caps and kills work). The failure class du jour is one rung higher —
+*results plumbing*: five distinct spots where real data on disk fails to reach the
+registry, the bundle, or the screen.
+
+### Live rerun with full screenshot trail — comparison `dfad2828`, 17:03 same day
+
+Rerun of the same brief, this time watched end-to-end in the Compare tab with the
+operator in the loop. Same-day, same-config variance turned out to be the story:
+
+| Backend | Status | Wall-clock | Tests (disk truth) | Notes |
+|---|---|---|---|---|
+| claude-agent-sdk | ✅ complete | **3m 21s** | 5/5 in workspace, but files **duplicated across root, `src/`, and `tests/`** (messier than the 14:09 run) | Consistent winner on speed. Still writes no output bundle. |
+| crewai | ✅ complete | 10m 41s | ✅ 5/5, phase complete (`state.json`) | 4 min slower than its own 14:09 run — code-review guardrail burned retries on a "1 critical" finding (attempt 2/4 observed) before orchestrated pytest salvaged. Second consecutive green smoke. |
+| langgraph | ⚠️ complete **by operator approval** | 23m 13s (6m 43s to HITL + ~7m operator wait + resume) | `state.json`: **`passed: False`, phase `testing`** | Escalated to human review from testing after bounded retry cycles; approved mid-run; resumed and reported "complete" — but the quality gate never actually passed. Dev and QA also disagreed on test layout again (`test_calc.py` at root vs `tests/test_calculator_{basic,operations}.py`). |
+
+Screenshot trail (docs/images/): `compare-2026-07-03-live-{launch,midrun,claude-done,langgraph-hitl,crewai-done,langgraph-done,final}.png`
+
+**New findings from running it live:**
+
+1. **HITL approve is a two-step UI trap.** Clicking "Approve" only pre-fills the
+   response textarea; nothing is sent until "Submit & Resume". The first click looks
+   accepted (no error, no state change) and the run stays paused indefinitely — an
+   operator who walks away here loses the run to the void. Needs either one-click
+   approve or an explicit "not sent yet" indicator. **Open bug (UX).**
+2. **"Complete by approval" is indistinguishable from "complete by passing".** The run
+   registry and Compare column both say `complete` for a run whose own `state.json`
+   records `passed: False` in phase `testing`. The approval override should be a
+   distinct terminal status (or at least surfaced) — otherwise the comparison table
+   over-reports green. **Open bug (semantics).**
+3. **Cross-run workspace leak is still live on a non-CrewAI path.** An empty directory
+   named with the *claude-sdk* run's id appeared inside the *langgraph* run's workspace
+   at launch. The morning fix (`43d66d2`) covered CrewAI's env fallback; some other
+   component (SDK backend or server-side run-dir creation) still resolves a sibling
+   run's workspace root. **Open bug (isolation).**
+4. **Same-config variance is large at this scale**: CrewAI 6m50s → 10m41s and LangGraph
+   clean-complete → HITL-escalation between two runs an hour apart, same brief, same
+   models. Single-run comparisons at smoke scale are anecdotes; the n≥5 rule from the
+   same-model matrix applies here too.
+5. **HITL panel doesn't clear after resume.** The LangGraph column kept showing "HUMAN
+   REVIEW REQUIRED" with live Approve buttons for minutes after the run had resumed and
+   completed — only a page reload cleared it. **Open bug (staleness).**
+6. **Validated live: the reload-reattach fix (`4ce7dce`) works.** Reloading /compare
+   mid-comparison reattached both columns from the server (elapsed, cost, phase strip
+   repopulated; stale HITL panel cleared). The morning's fix, exercised for real within
+   eight hours of merging. Residual quirk: the reattached SDK agent row still reads
+   "ACTIVE" and elapsed keeps ticking for terminal runs.
+
+### n=5 variance batch — 2026-07-04
+
+The two single-run comparisons above disagreed with each other within an hour; this is
+the n≥5 batch the tables should have been built from all along
+(`scripts/run_smoke_batch.py`, CLI path via `run_demo.py`, smoke profile, same brief;
+raw rows in `output/smoke_batch_20260704_*.json`).
+
+| Backend | Green | Wall min / median / max | Spend/run | Failure modes |
+|---|---|---|---|---|
+| claude-agent-sdk | **5/5** | 2m20s / 3m17s / 3m47s | $0.48–$0.95 (median $0.71) | — |
+| crewai | **5/5** | 6m50s / 9m07s / 11m57s | n/a (CLI spend gap) | — |
+| langgraph | **1/5** | 1m25s / 3m55s / 5m08s | n/a (CLI spend gap) | 2× lint-gate on auto-fixable style (F401 unused import; W293 whitespace) — one of them with **pytest 5/5 green**; 3× pytest `collected 0 items` (dev/QA test-layout mismatch) |
+
+**What n=5 shows that n=1 could not:**
+
+1. **CrewAI's demotion verdict is due for correction.** Counting the two Jul 3
+   comparison runs, CrewAI is now on a **7-run green streak** on the scenario that had
+   *zero successful baselines* on Jun 30 ("hangs at 12min/140min, kill -9 only"). The
+   flow-wiring + subprocess-isolation + salvage fixes didn't just stop the bleeding —
+   they made it the second-most-reliable backend on this brief. Slow (2-3× SDK
+   wall-clock, widest spread: 6m50s–11m57s), but consistently green.
+2. **LangGraph's 1/5 is not one bug, it's two classes.** (a) The ruff lint gate fails
+   runs for auto-fixable style noise — including a run whose tests were 5/5 green;
+   a `ruff --fix` pass before the gate (or gating on `check --fix --diff` cleanliness)
+   would have flipped 2 of 4 failures. (b) The dev/QA file-layout disagreement
+   (`collected 0 items`, 3×) is the old coordination problem from Jun 28 — planning
+   needs to pin the test layout into both prompts. Its one green run (1m25s) matches
+   the historical 60-77s baseline: when it works, it's the fastest by far.
+3. **SDK is the consistency champion, at a price.** Tightest wall-clock spread
+   (2m20s–3m47s), 5/5 green, but $0.48–$0.95/run vs pennies for the deepseek backends —
+   a 2× spend variance between identical runs is itself worth knowing.
+4. **Remaining plumbing gap (honest ledger):** CrewAI/LangGraph CLI runs still write no
+   `costs.jsonl` (the finalize hook fires on the web path and the SDK backend only),
+   and the batch runner had to normalize **three** different `test_results` schemas.
+   Both stay on the open list.
+
+---
+
 ## Historical results
 
 Earlier comparisons (pre-wiring-fix) are described in
