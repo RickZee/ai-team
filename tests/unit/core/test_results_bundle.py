@@ -129,3 +129,61 @@ def test_record_generated_file_and_manifest(isolated_dirs: tuple[Path, Path]) ->
     assert payload[0]["path"] == "app.py"
     assert payload[0]["bytes"] > 0
     assert isinstance(payload[0]["sha256"], str) and len(payload[0]["sha256"]) == 64
+
+
+def test_finalize_stamps_completion_and_costs(isolated_dirs: tuple[Path, Path]) -> None:
+    """finalize() must fill the two fields every bundle had null/empty:
+    run.json completed_at and logs/costs.jsonl (2026-07-03 comparison finding)."""
+    out_root, _ = isolated_dirs
+    b = ResultsBundle("p4")
+    b.write_run(b.default_run_metadata(backend="test", team_profile="smoke", env=None))
+
+    b.finalize(
+        final_status="complete",
+        spend={"spent_usd": 0.07, "total_tokens": 1234},
+    )
+
+    data = json.loads((out_root / "runs" / "p4" / "run.json").read_text(encoding="utf-8"))
+    assert data["completed_at"] is not None
+    assert data["extra"]["final_status"] == "complete"
+    rows = [
+        json.loads(line)
+        for line in (out_root / "runs" / "p4" / "logs" / "costs.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert rows[-1]["kind"] == "run_total"
+    assert rows[-1]["spent_usd"] == 0.07
+    # registry row picks up the status
+    idx = json.loads((out_root / "index.json").read_text(encoding="utf-8"))
+    row = next(r for r in idx["runs"] if r["run_id"] == "p4")
+    assert row["status"] == "complete"
+    assert row["completed_at"] is not None
+
+
+def test_finalize_without_run_json_creates_minimal_one(
+    isolated_dirs: tuple[Path, Path],
+) -> None:
+    """Claude SDK runs had no run.json at all; finalize on a bare bundle must
+    still produce a registry-visible record, not crash."""
+    out_root, _ = isolated_dirs
+    b = ResultsBundle("p5")
+
+    b.finalize(final_status="complete_approved")
+
+    data = json.loads((out_root / "runs" / "p5" / "run.json").read_text(encoding="utf-8"))
+    assert data["project_id"] == "p5"
+    assert data["completed_at"] is not None
+    assert data["extra"]["final_status"] == "complete_approved"
+    # no spend given -> no costs file row required
+    costs = out_root / "runs" / "p5" / "logs" / "costs.jsonl"
+    assert not costs.exists() or costs.read_text(encoding="utf-8") == ""
+
+
+def test_finalize_is_idempotent_last_call_wins(isolated_dirs: tuple[Path, Path]) -> None:
+    out_root, _ = isolated_dirs
+    b = ResultsBundle("p6")
+    b.finalize(final_status="error")
+    b.finalize(final_status="complete", spend={"spent_usd": 0.01})
+    data = json.loads((out_root / "runs" / "p6" / "run.json").read_text(encoding="utf-8"))
+    assert data["extra"]["final_status"] == "complete"

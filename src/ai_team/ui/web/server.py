@@ -162,6 +162,32 @@ class RunState:
             self.store.update_status(
                 run_id, "complete" if success else "error", error=error, finished=True
             )
+        self._finalize_bundle(run_id, success)
+
+    def _finalize_bundle(self, run_id: str, success: bool) -> None:
+        """Stamp completed_at + final spend onto the on-disk results bundle.
+
+        Best-effort: a broken bundle write must never mask the run outcome.
+        Spend prefers what the backend reported (CrewAI subprocess payload,
+        stashed on the run record) and falls back to the in-process spend
+        registry (LangGraph / Claude SDK record there via LiteLLM callbacks
+        and the SDK cost hook respectively).
+        """
+        try:
+            from ai_team.core.results.writer import ResultsBundle
+            from ai_team.core.spend_guard import current_spend
+
+            run = self.runs.get(run_id) or {}
+            spend = run.get("spend") or current_spend(run_id=run_id)
+            status = run.get("status") or ("complete" if success else "error")
+            if run.get("approved_via_hitl"):
+                status = "complete_approved"
+            ResultsBundle(str(run.get("project_id") or run_id)).finalize(
+                final_status=status,
+                spend=dict(spend) if spend else None,
+            )
+        except Exception as e:  # noqa: BLE001 - bundle write must not break run end
+            logger.warning("bundle_finalize_failed", run_id=run_id, error=str(e))
 
     def cancel_run(self, run_id: str) -> None:
         """Mark a run as cancelling and request cooperative cancel."""
@@ -566,10 +592,16 @@ async def resume_run(run_id: str, req: ResumeRequest):
 
     try:
         await loop.run_in_executor(None, _resume)
+        # A resume that reaches terminal did so on the operator's say-so, not
+        # by passing the quality gate — record that distinctly so the registry
+        # and comparison tables don't over-report green (state.json may still
+        # say passed: False for this run).
+        run["approved_via_hitl"] = True
         state.finish_run(run_id, success=True)
         return {
             "run_id": run_id,
             "status": "complete",
+            "approved_via_hitl": True,
             "monitor": _serialize_monitor(monitor) if monitor else None,
         }
     except Exception as e:
