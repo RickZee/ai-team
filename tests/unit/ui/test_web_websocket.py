@@ -107,3 +107,43 @@ class TestWebSocketRun:
             second = ws.receive_json()
             assert second["type"] == "hitl_required"
             assert second["data"]["phase"] == "awaiting_human"
+
+
+class TestCrewAIMonitorBackfill:
+    """CrewAI is subprocess-isolated (no live TeamMonitor); the Compare column
+    used to show 0 tasks/0 files for the whole run because the monitor was
+    never touched. ``_apply_crewai_result_to_monitor`` backfills a final
+    snapshot from the subprocess result payload at run_finished."""
+
+    def test_backfills_totals_on_success(self) -> None:
+        from ai_team.monitor import Phase, TeamMonitor
+        from ai_team.ui.web.server import _apply_crewai_result_to_monitor
+
+        monitor = TeamMonitor(project_name="crewai backfill test")
+        raw = {
+            "state": {
+                "generated_files": [{"path": "calc.py"}, {"path": "test_calc.py"}],
+                "test_results": {"passed": 28, "failed": 0},
+                "phase_history": [{"phase": "planning"}, {"phase": "development"}],
+            }
+        }
+
+        _apply_crewai_result_to_monitor(monitor, raw, success=True)
+
+        assert monitor.current_phase == Phase.COMPLETE
+        assert monitor.metrics.files_generated == 2
+        assert monitor.metrics.tasks_completed == 2
+        assert monitor.metrics.tests_passed == 28
+        assert monitor.metrics.tests_failed == 0
+
+    def test_marks_error_phase_and_tolerates_missing_state(self) -> None:
+        from ai_team.monitor import Phase, TeamMonitor
+        from ai_team.ui.web.server import _apply_crewai_result_to_monitor
+
+        monitor = TeamMonitor(project_name="crewai backfill error test")
+
+        _apply_crewai_result_to_monitor(monitor, raw={}, success=False)
+
+        assert monitor.current_phase == Phase.ERROR
+        assert monitor.metrics.files_generated == 0
+        assert monitor.metrics.tasks_completed == 0
