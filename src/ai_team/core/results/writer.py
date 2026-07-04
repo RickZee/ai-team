@@ -66,6 +66,7 @@ def rebuild_registry(registry_root: Path) -> None:
                 row["completed_at"] = data.get("completed_at")
                 row["backend"] = data.get("backend")
                 row["team_profile"] = data.get("team_profile")
+                row["status"] = (data.get("extra") or {}).get("final_status")
             except (json.JSONDecodeError, OSError):
                 pass
         entries.append(row)
@@ -152,6 +153,44 @@ class ResultsBundle:
         path.write_text("", encoding="utf-8") if not path.exists() else None
         with path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
+        return path
+
+    def finalize(
+        self,
+        *,
+        completed_at: datetime | None = None,
+        final_status: str | None = None,
+        spend: dict[str, Any] | None = None,
+    ) -> Path:
+        """Stamp run completion onto the bundle.
+
+        Updates ``run.json`` with ``completed_at`` (and ``extra.final_status``
+        when given), appends a summary spend row to ``logs/costs.jsonl``, and
+        refreshes the registry. Safe to call more than once — last call wins.
+        """
+        self.init_dirs()
+        path = self._base_output / "run.json"
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            data = {
+                "project_id": self.project_id,
+                "started_at": None,
+                "workspace_dir": str(self.workspace_dir),
+                "output_dir": str(self.output_dir),
+            }
+        data["completed_at"] = (completed_at or _utcnow()).isoformat()
+        if final_status is not None:
+            extra = data.get("extra") or {}
+            extra["final_status"] = final_status
+            data["extra"] = extra
+        path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        if spend:
+            costs_path = self._base_output / "logs" / "costs.jsonl"
+            row = {"timestamp": _utcnow().isoformat(), "kind": "run_total", **spend}
+            with costs_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(row, default=str) + "\n")
+        self._update_registry()
         return path
 
     def write_scorecard(self, scorecard: Scorecard) -> Path:

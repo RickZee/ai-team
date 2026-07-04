@@ -147,3 +147,77 @@ class TestCrewAIMonitorBackfill:
         assert monitor.current_phase == Phase.ERROR
         assert monitor.metrics.files_generated == 0
         assert monitor.metrics.tasks_completed == 0
+
+
+class TestFinishRunFinalizesBundle:
+    """finish_run must stamp the on-disk bundle (completed_at, final status,
+    spend) — before this, run.json kept completed_at: null and costs.jsonl
+    stayed empty for every backend (2026-07-03 comparison finding #5)."""
+
+    def test_finish_run_writes_bundle_finalization(self, tmp_path, monkeypatch) -> None:
+        import json as _json
+
+        from ai_team.config.settings import reload_settings
+        from ai_team.ui.web.server import RunState
+
+        out_root = tmp_path / "out"
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out_root))
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path / "ws"))
+        reload_settings()
+
+        st = RunState()
+        st.create_run("run-1", backend="langgraph", profile="smoke", description="x")
+        st.runs["run-1"]["spend"] = {"spent_usd": 0.05, "total_tokens": 42}
+        st.finish_run("run-1", success=True)
+
+        data = _json.loads(
+            (out_root / "runs" / "run-1" / "run.json").read_text(encoding="utf-8")
+        )
+        assert data["completed_at"] is not None
+        assert data["extra"]["final_status"] == "complete"
+        costs = (out_root / "runs" / "run-1" / "logs" / "costs.jsonl").read_text(
+            encoding="utf-8"
+        )
+        assert '"spent_usd": 0.05' in costs
+
+    def test_hitl_approved_run_gets_distinct_final_status(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Complete-by-operator-approval must be distinguishable from
+        complete-by-passing (finding #2 of the live rerun)."""
+        import json as _json
+
+        from ai_team.config.settings import reload_settings
+        from ai_team.ui.web.server import RunState
+
+        out_root = tmp_path / "out"
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out_root))
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path / "ws"))
+        reload_settings()
+
+        st = RunState()
+        st.create_run("run-2", backend="langgraph", profile="smoke", description="x")
+        st.runs["run-2"]["approved_via_hitl"] = True
+        st.finish_run("run-2", success=True)
+
+        assert st.runs["run-2"]["status"] == "complete"
+        data = _json.loads(
+            (out_root / "runs" / "run-2" / "run.json").read_text(encoding="utf-8")
+        )
+        assert data["extra"]["final_status"] == "complete_approved"
+
+    def test_finish_run_survives_broken_output_dir(self, tmp_path, monkeypatch) -> None:
+        """Adversarial: bundle failure must never mask the run outcome."""
+        from ai_team.config.settings import reload_settings
+        from ai_team.ui.web.server import RunState
+
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", "/dev/null/nope")
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path / "ws"))
+        reload_settings()
+
+        st = RunState()
+        st.create_run("run-3", backend="crewai", profile="smoke", description="x")
+        st.finish_run("run-3", success=False, error="boom")
+
+        assert st.runs["run-3"]["status"] == "error"
+        assert st.runs["run-3"]["error"] == "boom"

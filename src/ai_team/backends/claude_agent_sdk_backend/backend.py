@@ -214,6 +214,8 @@ class ClaudeAgentBackend:
                 },
             )
 
+        self._write_results_bundle(workspace, profile, raw, success)
+
         return ProjectResult(
             backend_name=self.name,
             success=success,
@@ -221,6 +223,48 @@ class ClaudeAgentBackend:
             error=err,
             team_profile=profile.name,
         )
+
+    def _write_results_bundle(
+        self,
+        workspace: Path,
+        profile: TeamProfile,
+        raw: dict[str, Any],
+        success: bool,
+    ) -> None:
+        """Write the canonical output bundle for this run.
+
+        The other backends write ``output/runs/<id>/`` through their flows;
+        without this the SDK's runs are invisible to the disk registry and the
+        Artifacts run picker after a server restart — results lived only in
+        the workspace. Best-effort: a bundle failure must not fail the run.
+        """
+        try:
+            from ai_team.core.results.writer import ResultsBundle
+
+            b = ResultsBundle(workspace.name)
+            b.write_run(
+                b.default_run_metadata(
+                    backend=self.name,
+                    team_profile=profile.name,
+                    env=None,
+                    extra={"session_id": raw.get("session_id")},
+                )
+            )
+            b.write_state(
+                {
+                    "project_id": workspace.name,
+                    "current_phase": "complete" if success else "error",
+                    "test_results": raw.get("test_results"),
+                    "generated_files": raw.get("generated_files"),
+                }
+            )
+            cost = raw.get("cost_usd")
+            b.finalize(
+                final_status="complete" if success else "error",
+                spend={"spent_usd": cost} if cost is not None else None,
+            )
+        except Exception as e:  # noqa: BLE001 - bundle write must not break the run
+            logger.warning("claude_sdk_bundle_write_failed", error=str(e))
 
     def _collect_raw(
         self,
@@ -335,6 +379,9 @@ class ClaudeAgentBackend:
 
         raw = self._collect_raw(workspace, last)
         raw["team_profile"] = profile.name
+        self._write_results_bundle(
+            workspace, profile, raw, success=last is not None and not last.is_error
+        )
         yield {
             "type": "run_finished",
             "backend": self.name,
