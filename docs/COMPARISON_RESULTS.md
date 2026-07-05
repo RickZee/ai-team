@@ -194,7 +194,7 @@ operator in the loop. Same-day, same-config variance turned out to be the story:
 | crewai | ✅ complete | 10m 41s | ✅ 5/5, phase complete (`state.json`) | 4 min slower than its own 14:09 run — code-review guardrail burned retries on a "1 critical" finding (attempt 2/4 observed) before orchestrated pytest salvaged. Second consecutive green smoke. |
 | langgraph | ⚠️ complete **by operator approval** | 23m 13s (6m 43s to HITL + ~7m operator wait + resume) | `state.json`: **`passed: False`, phase `testing`** | Escalated to human review from testing after bounded retry cycles; approved mid-run; resumed and reported "complete" — but the quality gate never actually passed. Dev and QA also disagreed on test layout again (`test_calc.py` at root vs `tests/test_calculator_{basic,operations}.py`). |
 
-Screenshot trail (docs/images/): `compare-2026-07-03-live-{launch,midrun,claude-done,langgraph-hitl,crewai-done,langgraph-done,final}.png`
+Screenshot trail (docs/images/): `compare-2026-07-03-live-{midrun,langgraph-hitl,crewai-done,final}.png`, plus `compare-2026-07-03-reattach-elapsed-bug.png` — a reattach the *next day* showing "Elapsed 28h 30m" still ticking on a terminal run (receipt for the residual quirk in finding 6).
 
 **New findings from running it live:**
 
