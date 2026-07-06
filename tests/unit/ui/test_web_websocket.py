@@ -170,19 +170,13 @@ class TestFinishRunFinalizesBundle:
         st.runs["run-1"]["spend"] = {"spent_usd": 0.05, "total_tokens": 42}
         st.finish_run("run-1", success=True)
 
-        data = _json.loads(
-            (out_root / "runs" / "run-1" / "run.json").read_text(encoding="utf-8")
-        )
+        data = _json.loads((out_root / "runs" / "run-1" / "run.json").read_text(encoding="utf-8"))
         assert data["completed_at"] is not None
         assert data["extra"]["final_status"] == "complete"
-        costs = (out_root / "runs" / "run-1" / "logs" / "costs.jsonl").read_text(
-            encoding="utf-8"
-        )
+        costs = (out_root / "runs" / "run-1" / "logs" / "costs.jsonl").read_text(encoding="utf-8")
         assert '"spent_usd": 0.05' in costs
 
-    def test_hitl_approved_run_gets_distinct_final_status(
-        self, tmp_path, monkeypatch
-    ) -> None:
+    def test_hitl_approved_run_gets_distinct_final_status(self, tmp_path, monkeypatch) -> None:
         """Complete-by-operator-approval must be distinguishable from
         complete-by-passing (finding #2 of the live rerun)."""
         import json as _json
@@ -201,9 +195,7 @@ class TestFinishRunFinalizesBundle:
         st.finish_run("run-2", success=True)
 
         assert st.runs["run-2"]["status"] == "complete"
-        data = _json.loads(
-            (out_root / "runs" / "run-2" / "run.json").read_text(encoding="utf-8")
-        )
+        data = _json.loads((out_root / "runs" / "run-2" / "run.json").read_text(encoding="utf-8"))
         assert data["extra"]["final_status"] == "complete_approved"
 
     def test_finish_run_survives_broken_output_dir(self, tmp_path, monkeypatch) -> None:
