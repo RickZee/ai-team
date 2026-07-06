@@ -440,3 +440,47 @@ Variance table + breakdown in [COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md)
 § "n=5 variance batch". The Jun 30 CrewAI demotion verdict is now formally a
 correction candidate — third journal entry in a row where the data reversed a
 confident earlier claim.
+
+**A tooling detour worth recording: screenshot sandboxing has three separate walls.**
+Asked to save Compare-tab screenshots to `docs/images/`, hit a genuine dead end three
+times over: the preview tool's browser only streams JPEGs inline, no file path,
+no way out. Playwright and plain `curl` from Bash got `ERR_CONNECTION_REFUSED` against
+that same server — different sandbox, can't see it. The `computer-use` MCP's
+`screenshot(save_to_disk=true)` *does* return a path, but it's a path in the
+computer-use tool's own sandbox, invisible to Bash — confirmed by `find`-ing the whole
+home directory for the returned filename and getting nothing. Three tools, three
+mutually-blind sandboxes, all claiming to screenshot the same physical screen.
+
+**What worked:** killing the preview-managed dev servers and restarting them as plain
+background processes, so a *real* Chrome window (driven by the claude-in-chrome
+extension, not the sandboxed preview browser) could load the page — then using plain
+macOS `screencapture -R` against that window's on-screen bounds (from
+`osascript ... get bounds of window 1`) to grab pixels directly off the display into a
+file Bash can already see. No MCP screenshot tool in the stack can cross its own
+sandbox boundary; the OS-level screen capture doesn't have one.
+
+**The live comparison itself surfaced two more real findings, both requiring an
+operator in the loop:**
+1. HITL "Approve" is a two-step trap — the button only pre-fills the response
+   textarea; nothing sends until "Submit & Resume" is clicked separately. The first
+   click looks accepted (no error) and the run just sits there.
+2. A run resumed through human review reports plain `complete` even when its own
+   `state.json` says `passed: False` — indistinguishable from a run that actually
+   passed. Fixed same day (`approved_via_hitl` → `complete_approved`).
+
+**Screenshot audit, one day later:** re-reading the batch of captures caught 3 of 15
+that were wrong — one scrolled to blank space, two that *looked* like "backend done"
+captures but were actually the stale HITL panel (the very staleness bug being
+documented), mislabeled as success shots. Swapped in a genuine bug receipt instead: a
+next-day reattach screenshot showing "Elapsed 28h 30m" still ticking upward on a run
+that finished the previous evening. Lesson for any future screenshot pass: read every
+image back before trusting the filename — a screenshot of the wrong thing is worse
+than no screenshot, because it's a *confident* wrong thing.
+
+**Closed the loop on publication.** Two drafts written: a ~200-word LinkedIn post
+leading with "93,284 retries in 15 minutes, and the bug was mine," and the full
+Substack correction arc — three verdicts the journal published and later reversed
+(flow-wiring blame, the model-vs-framework confound, and now CrewAI's demotion) ending
+on the n=5 table and the harness > model > framework thesis.
+[docs/posts/linkedin-93284-retries.md](../posts/linkedin-93284-retries.md) and
+[docs/posts/the-correction.md](../posts/the-correction.md).
