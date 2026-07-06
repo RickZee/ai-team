@@ -1,175 +1,37 @@
-"""Dedicated memory/embedder integration tests.
+"""Memory/embedder integration tests.
 
-Run when AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1 (Crew memory test),
-or AI_TEAM_TEST_MEMORY=1 (MemoryManager short-term ChromaDB test). Requires
-OPENROUTER_API_KEY for tests that use embeddings.
+The short-term ChromaDB memory and the MemoryManager facade were removed with
+the memory-subsystem merge (SHOWCASE_PLAN 3.5); the memory model is now
+file-based handoff plus the SQLite LongTermStore (covered by unit tests in
+``tests/unit/memory``). What remains integration-relevant here is CrewAI's own
+crew memory, which is wired through the OpenRouter-backed embedder config.
 
-Covers: MemoryManager before_task/after_task wiring, cross-session retrieval,
-CrewAI crew memory with OpenRouter embedder. Uses temporary ChromaDB/SQLite
-for test isolation.
+Run the slow crew test with AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1
+(requires OPENROUTER_API_KEY for embeddings).
 """
 
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
-from ai_team.config.settings import MemorySettings, get_settings
-from ai_team.memory import get_crew_embedder_config
-from ai_team.memory.memory_config import MemoryManager
+from ai_team.config.llm_factory import get_embedder_config
 from crewai import Agent, Crew, Task
 from pydantic import ValidationError as PydanticValidationError
 
 # -----------------------------------------------------------------------------
-# MemoryManager wired into before_task / after_task hooks
+# CrewAI crew memory uses the OpenRouter-backed embedder
 # -----------------------------------------------------------------------------
-
-
-class TestMemoryManagerBeforeAfterTaskHooks:
-    """MemoryManager wired into before_task stores context; after_task stores output."""
-
-    def test_before_task_hook_stores_task_context(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        """When before_task callback is invoked with (task_id, context), MemoryManager stores it."""
-        chroma_path = str(tmp_path / "chroma")
-        sqlite_path = str(tmp_path / "memory.db")
-        settings = MemorySettings(
-            chromadb_path=chroma_path,
-            sqlite_path=sqlite_path,
-            memory_enabled=True,
-            embedding_model=get_settings().memory.embedding_model,
-            embedding_api_base=get_settings().memory.embedding_api_base,
-        )
-        manager = MemoryManager()
-        manager.initialize(settings)
-        assert manager.is_initialized
-
-        project_id = "hook-test-proj"
-        stored_context: dict[str, Any] = {}
-
-        def before_task(task_id: str, context: dict[str, Any]) -> None:
-            stored_context["task_id"] = task_id
-            stored_context["context"] = context
-            # Persist via MemoryManager (short_term keyed by task_id)
-            text = str(context) if isinstance(context, str) else str(context)
-            manager.store(
-                key=f"task_ctx_{task_id}",
-                value=text,
-                memory_type="short_term",
-                project_id=project_id,
-            )
-
-        before_task("requirements_gathering", {"project_description": "Build a CLI tool."})
-        assert stored_context["task_id"] == "requirements_gathering"
-        assert "project_description" in str(stored_context["context"])
-
-        # Retrieve by query (embedding search) - requires OpenRouter for embeddings
-        if os.environ.get("OPENROUTER_API_KEY"):
-            results = manager.retrieve(
-                query="project description",
-                memory_type="short_term",
-                top_k=3,
-                project_id=project_id,
-            )
-            assert len(results) >= 1
-
-    def test_after_task_hook_stores_task_output(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        """When after_task callback is invoked with (task_id, output), MemoryManager can store it."""
-        chroma_path = str(tmp_path / "chroma")
-        sqlite_path = str(tmp_path / "memory.db")
-        settings = MemorySettings(
-            chromadb_path=chroma_path,
-            sqlite_path=sqlite_path,
-            memory_enabled=True,
-            embedding_model=get_settings().memory.embedding_model,
-            embedding_api_base=get_settings().memory.embedding_api_base,
-        )
-        manager = MemoryManager()
-        manager.initialize(settings)
-
-        project_id = "after-task-proj"
-        stored_output: dict[str, Any] = {}
-
-        def after_task(task_id: str, output: Any) -> None:
-            stored_output["task_id"] = task_id
-            stored_output["output"] = output
-            text = str(output) if not isinstance(output, str) else output
-            manager.store(
-                key=f"task_out_{task_id}",
-                value=text[:5000],
-                memory_type="short_term",
-                project_id=project_id,
-            )
-
-        after_task("architecture_design", '{"system_overview": "REST API"}')
-        assert stored_output["task_id"] == "architecture_design"
-        assert "system_overview" in str(stored_output["output"])
-
-
-class TestMemoryCrossSessionRetrieval:
-    """Cross-session: simulate second run, verify memory available."""
-
-    @pytest.mark.slow
-    def test_cross_session_retrieval_uses_same_storage(
-        self,
-        test_memory_enabled: bool,
-        tmp_path: Path,
-    ) -> None:
-        """Store in one session; new manager instance with same path can retrieve (long_term or short_term)."""
-        if not test_memory_enabled:
-            pytest.skip("Set AI_TEAM_TEST_MEMORY=1 to run")
-        if not os.environ.get("OPENROUTER_API_KEY"):
-            pytest.skip("OPENROUTER_API_KEY not set (embedding required for short_term)")
-
-        chroma_path = str(tmp_path / "chroma")
-        sqlite_path = str(tmp_path / "memory.db")
-        project_id = "cross-session-proj"
-        settings = MemorySettings(
-            chromadb_path=chroma_path,
-            sqlite_path=sqlite_path,
-            memory_enabled=True,
-            embedding_model=get_settings().memory.embedding_model,
-            embedding_api_base=get_settings().memory.embedding_api_base,
-        )
-
-        # Session 1: create manager, store
-        manager1 = MemoryManager()
-        manager1.initialize(settings)
-        manager1.store(
-            key="session1_doc",
-            value="The API uses JWT for authentication.",
-            memory_type="short_term",
-            project_id=project_id,
-        )
-
-        # Session 2: new manager, same path, initialize, retrieve
-        manager2 = MemoryManager()
-        manager2.initialize(settings)
-        results = manager2.retrieve(
-            query="authentication",
-            memory_type="short_term",
-            top_k=3,
-            project_id=project_id,
-        )
-        assert len(results) >= 1
-        assert any("JWT" in (r.get("document") or "") for r in results)
 
 
 class TestCrewMemoryUsesOpenRouterEmbedder:
     """CrewAI crew memory uses OpenRouter-backed embedder."""
 
-    def test_get_crew_embedder_config_returns_openrouter_backed(self) -> None:
-        """get_crew_embedder_config() returns openai provider with embedding model for OpenRouter."""
+    def test_get_embedder_config_returns_openrouter_backed(self) -> None:
+        """get_embedder_config() returns openai provider with an embedding model for OpenRouter."""
         with patch.dict("os.environ", {"OPENROUTER_API_KEY": "test-key"}, clear=False):
-            config = get_crew_embedder_config()
+            config = get_embedder_config()
         assert config.get("provider") == "openai"
         assert "config" in config
         assert "model_name" in config["config"]
@@ -187,7 +49,7 @@ class TestCrewMemoryWithEmbedder:
         use_real_llm: bool,
         test_memory_enabled: bool,
     ) -> None:
-        """Run a minimal Crew with memory=True and get_crew_embedder_config(); no exception."""
+        """Run a minimal Crew with memory=True and get_embedder_config(); no exception."""
         if not (use_real_llm and test_memory_enabled):
             pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1 to run")
         if not os.environ.get("OPENROUTER_API_KEY"):
@@ -213,7 +75,7 @@ class TestCrewMemoryWithEmbedder:
                 agents=[agent],
                 tasks=[task],
                 memory=True,
-                embedder=get_crew_embedder_config(),
+                embedder=get_embedder_config(),
                 verbose=False,
             )
         except PydanticValidationError as e:
@@ -222,52 +84,3 @@ class TestCrewMemoryWithEmbedder:
             raise
         result = crew.kickoff(inputs={})
         assert result is not None
-
-
-@pytest.mark.test_memory
-class TestMemoryManagerShortTermChromaDB:
-    """MemoryManager short-term (ChromaDB) store/retrieve round-trip with Ollama embeddings."""
-
-    @pytest.mark.slow
-    def test_short_term_store_and_retrieve_round_trip(
-        self,
-        test_memory_enabled: bool,
-        tmp_path: Path,
-    ) -> None:
-        """Store a doc in short_term and retrieve by semantic query; requires OpenRouter + embedding."""
-        if not test_memory_enabled:
-            pytest.skip("Set AI_TEAM_TEST_MEMORY=1 to run")
-        if not os.environ.get("OPENROUTER_API_KEY"):
-            pytest.skip("OPENROUTER_API_KEY not set (embedding required)")
-
-        chroma_path = str(tmp_path / "chroma")
-        sqlite_path = str(tmp_path / "memory.db")
-        settings = MemorySettings(
-            chromadb_path=chroma_path,
-            sqlite_path=sqlite_path,
-            memory_enabled=True,
-            embedding_model=get_settings().memory.embedding_model,
-            embedding_api_base=get_settings().memory.embedding_api_base,
-        )
-        manager = MemoryManager()
-        manager.initialize(settings)
-        assert manager.is_initialized
-
-        project_id = "memory-test-proj"
-        doc_id = "doc1"
-        text = "We use PostgreSQL for the user database and Redis for sessions."
-        manager.store(
-            key=doc_id,
-            value=text,
-            memory_type="short_term",
-            project_id=project_id,
-        )
-
-        results = manager.retrieve(
-            query="What database do we use for users?",
-            memory_type="short_term",
-            top_k=3,
-            project_id=project_id,
-        )
-        assert len(results) >= 1
-        assert any("PostgreSQL" in (r.get("document") or "") for r in results)

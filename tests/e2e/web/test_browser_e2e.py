@@ -39,7 +39,7 @@ class TestWebUiDemoFlow:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-demo").click()
         expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
-        expect(page.get_by_role("heading", name="Agents")).to_be_visible()
+        expect(page.get_by_role("heading", name="Agent timeline")).to_be_visible()
         expect(page.get_by_role("heading", name="Activity Log")).to_be_visible()
 
 
@@ -47,8 +47,7 @@ class TestWebUiEstimate:
     def test_estimate_shows_cost_table(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-estimate").click()
-        expect(page.locator(".estimate-panel")).to_be_visible(timeout=15_000)
-        expect(page.locator(".estimate-table")).to_be_visible()
+        expect(page.get_by_test_id("estimate-table")).to_be_visible(timeout=15_000)
 
 
 class TestWebUiRunFormValidation:
