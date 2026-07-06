@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
 from ai_team.backends.registry import get_backend
+from ai_team.core.team_profile import TeamProfile
 
 
 class TestClaudeAgentBackend:
@@ -18,14 +19,10 @@ class TestResultsBundleWrite:
     lived only in the workspace and vanished from the registry (2026-07-03
     comparison finding #4)."""
 
-    def _profile(self) -> "TeamProfile":
-        from ai_team.core.team_profile import TeamProfile
-
+    def _profile(self) -> TeamProfile:
         return TeamProfile(name="smoke", agents=["architect"], phases=["development"])
 
-    def test_write_results_bundle_creates_registry_entry(
-        self, tmp_path, monkeypatch
-    ) -> None:
+    def test_write_results_bundle_creates_registry_entry(self, tmp_path, monkeypatch) -> None:
         import json
 
         from ai_team.config.settings import reload_settings
@@ -57,14 +54,10 @@ class TestResultsBundleWrite:
         )
         assert state["current_phase"] == "complete"
         assert state["test_results"]["passed"] == 5
-        costs = (out_root / "runs" / "run-xyz" / "logs" / "costs.jsonl").read_text(
-            encoding="utf-8"
-        )
+        costs = (out_root / "runs" / "run-xyz" / "logs" / "costs.jsonl").read_text(encoding="utf-8")
         assert '"spent_usd": 0.7' in costs
 
-    def test_write_results_bundle_failure_does_not_raise(
-        self, tmp_path, monkeypatch
-    ) -> None:
+    def test_write_results_bundle_failure_does_not_raise(self, tmp_path, monkeypatch) -> None:
         """Adversarial: unwritable output root must not break the run itself."""
         from ai_team.config.settings import reload_settings
 
