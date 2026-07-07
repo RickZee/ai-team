@@ -163,7 +163,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 | 6.5  | Generate demo recording scripts | [phase-6-5-demo-recording-scripts.md](phase-6-5-demo-recording-scripts.md) | Pending | |
 | 6.6  | Generate comprehensive documentation | [phase-6-6-comprehensive-documentation.md](phase-6-6-comprehensive-documentation.md) | Pending | |
 | 6.7  | Generate GitHub polish | [phase-6-7-github-polish.md](phase-6-7-github-polish.md) | Pending | |
-| 6.8  | Generate LinkedIn/social announcement | [phase-6-8-linkedinsocial-announcement.md](phase-6-8-linkedinsocial-announcement.md) | Pending | |
+| 6.8  | ~~Generate LinkedIn/social announcement~~ | — | **Cancelled** | Social-media prompts removed from scope. |
 
 ---
 

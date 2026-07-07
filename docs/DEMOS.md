@@ -54,8 +54,8 @@ demos/NN_name/
 | `RESULTS.md` | Human-readable report: generated files, test results, lint, Docker, smoke test | `scripts/capture_demo.py` |
 | `failure/` | Timestamped copy of output + `capture_result.json` + `issue_template.md` on capture failure | `scripts/capture_demo.py` |
 
-> **Showcase note:** generated run artifacts are intentionally ignored by default. If a
-> demo result is meant to support a public post or release, publish a curated summary
+> **Note:** generated run artifacts are intentionally ignored by default. If a
+> demo result is meant for release documentation, publish a curated summary
 > such as `docs/SHOWCASE_RESULTS.md` instead of committing raw generated workspaces.
 
 ---
