@@ -25,7 +25,13 @@ From the **repository root**, run the shared script (mirrors CI):
 ./scripts/pre_push_check.sh
 ```
 
-Default gate: **ruff** + **mypy** + **unit tests (with coverage)** + **pip-audit**.
+Default gate: **ruff** + **mypy** + **unit tests with coverage** (`ci_unit_test.sh --cov`) + **pip-audit**.
+
+**Full CI parity** (both Python versions + security, no E2E):
+
+```bash
+./scripts/ci_check.sh --matrix
+```
 
 | Flag | Adds | CI jobs it helps catch |
 |------|------|------------------------|
@@ -52,7 +58,8 @@ Examples:
 | Mistake | What CI caught | Pre-push fix |
 |---------|----------------|--------------|
 | Pushed to **main** with default script only | **Web UI E2E** (stale `dashboard-active` selectors) | Use `--main` or `--e2e` after dashboard changes; hook on `main` passes `--main` automatically |
-| Unit tests pass locally, **Test** job red with 0 junit failures | Coverage `fail_under` on `ubuntu-latest` (branch coverage) | Run `uv run pytest tests/unit -q --cov=src/ai_team` locally; see `fix-ci` § Test job |
+| Unit tests pass locally, **Test** job red with 0 junit failures | Coverage `fail_under` on `ubuntu-latest` (branch coverage) | `./scripts/ci_unit_test.sh --cov`; for both legs: `./scripts/ci_check.sh --matrix` |
+| **Test (3.11)** red, junit shows 0 failures | Upload step tried `coverage.xml` without `--cov` | Fixed in CI (`if: matrix.python-version == '3.12'`); see `fix-ci` §0 step map |
 | `test_run_demo.py` calls `run_demo.main()` | **SIGALRM** / signal clashes on Linux CI | Tests must mock `_install_timeout` → `False`; see `tests/unit/test_run_demo.py` |
 
 ### Manual breakdown (if iterating on one gate)
@@ -61,7 +68,7 @@ Examples:
 uv run ruff check .
 uv run ruff format --check .   # or: uv run ruff format .
 uv run mypy src/
-uv run pytest tests/unit -q --tb=short --cov=src/ai_team   # matches local + CI 3.12 cov gate
+uv run pytest tests/unit -q --tb=short --cov=src/ai_team   # or: ./scripts/ci_unit_test.sh --cov
 uv run pytest tests/integration -q --tb=short   # main push
 cd src/ai_team/ui/web/frontend && npm ci && npm run build
 uv run playwright install chromium
@@ -83,8 +90,8 @@ uv run python -m pip install --upgrade "pip>=26.1.2"
 | CI job | Pre-push equivalent |
 |--------|---------------------|
 | Lint | default (ruff + mypy) |
-| Test (3.11) | default (`pytest tests/unit`; CI skips `--cov` on 3.11) |
-| Test (3.12) | default (`pytest tests/unit` includes `--cov`; `fail_under` in `pyproject.toml`) |
+| Test (3.11) | `./scripts/ci_unit_test.sh --python 3.11` or `ci_check.sh --matrix` |
+| Test (3.12) | default (`ci_unit_test.sh --cov` via `pre_push_check.sh`) |
 | Web UI E2E | `--e2e` or `--main` |
 | Integration test | `--integration` or `--main` |
 | Security | default (pip-audit); bandit is CI-only |
