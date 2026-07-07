@@ -455,6 +455,31 @@ process inheritance; the settings singleton is never reloaded by scoping.
 only its own override. Regression test:
 `test_concurrent_contexts_do_not_interfere`.
 
+**Post-fix verification (comparison `2026-07-06_1906xx`, run on the restarted
+server with `c3bb8c4`): the contextvar fix holds.**
+
+| Check | CrewAI (`_190606..._01`) | LangGraph (`_190607..._01`) | Claude SDK (`_190607..._02`) |
+|---|---|---|---|
+| Status / wall | ✅ complete, 11m04s | ⚠️ **complete_approved**, 29m03s (HITL at 21m, approved) | ✅ complete, ~6m |
+| Workspace tree API | ✅ 3 entries | ✅ 4 entries | ✅ 5 entries (was empty pre-fix) |
+| Metrics vs disk | ✅ 4 tasks / 2 files / 39 tests | ⚠️ zeros (gate genuinely failing) | ✅ 3 tasks / 2 files / **22 tests — matches `docs/test_results.json` exactly** (was all-zero pre-fix) |
+| `monitor.cost_usd` | ✅ **$0.00083 — populated for the first time ever** | ✅ $0.0465 | ✅ $0.809 |
+| Results bundle + `costs.jsonl` | ✅ | ✅ | ✅ (was missing entirely pre-fix) |
+| Cross-run nesting | ✅ none | ✅ none | ✅ none (reproduced in both pre-fix runs) |
+
+**P0-1 verified live:** LangGraph's gate recorded `passed: false` in the bundle,
+the operator approved through HITL, and the run reports **`complete_approved`** —
+the approval-over-failing-gate case is now a distinct, auditable terminal status
+instead of silently reading "complete".
+
+Minor new bug from this run: the HITL "Approve" preset's textarea pre-fill gets
+wiped by a panel re-render (reattach cycle), so the subsequent "Submit & Resume"
+click no-ops on an empty textarea with no feedback — had to re-enter text.
+Same family as P1-1/P1-2.
+
+Note: the AutoOptimizer subsystem referenced in earlier drafts was removed in
+`60b6880` (SHOWCASE_PLAN 3.1) and is excluded from the publication set.
+
 ### Regressions to investigate
 
 - **Claude SDK results-bundle write (finding 1 above)** is the one that most needs
