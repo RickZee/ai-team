@@ -48,9 +48,9 @@ demos/NN_name/
 
 | File / Dir | Purpose | Who creates it |
 | ---------- | ------- | -------------- |
-| `output/` | Generated source files (app.py, tests, Dockerfile, etc.) | `tests/e2e/test_e2e_hello_world.py` on success |
-| `run_report.json` | Machine-readable run summary: duration, retries, phase, files generated | `tests/e2e/test_e2e_hello_world.py` and `scripts/capture_demo.py` |
-| `failure_report.json` | Structured failure snapshot: exception type, message, phase, last agent output | `tests/e2e/test_e2e_hello_world.py` on failure |
+| `output/` | Generated source files (app.py, tests, Dockerfile, etc.) | `run_demo.py` / flow on success |
+| `run_report.json` | Machine-readable run summary: duration, retries, phase, files generated | `run_demo.py` and `scripts/capture_demo.py` |
+| `failure_report.json` | Structured failure snapshot: exception type, message, phase, last agent output | E2E / capture scripts on failure |
 | `RESULTS.md` | Human-readable report: generated files, test results, lint, Docker, smoke test | `scripts/capture_demo.py` |
 | `failure/` | Timestamped copy of output + `capture_result.json` + `issue_template.md` on capture failure | `scripts/capture_demo.py` |
 
@@ -105,13 +105,13 @@ No production code currently reads `expected_output.json` — it is documentatio
 uv run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
 
 # Run a demo end-to-end (requires OPENROUTER_API_KEY in .env)
-uv run python scripts/run_demo.py demos/01_hello_world
+uv run python scripts/run_demo.py demos/02_todo_app
 
 # Skip the cost-estimate prompt (useful in CI or scripted runs)
 uv run python scripts/run_demo.py demos/02_todo_app --skip-estimate
 
-# Use Rich TUI for live agent progress
-uv run python scripts/run_demo.py demos/01_hello_world --monitor
+# Optional: Rich CLI live monitor during the run
+uv run python scripts/run_demo.py demos/00_smoke_test --monitor --backend langgraph
 
 ```
 
@@ -122,13 +122,13 @@ After the flow completes and files are written to `output/`, run the capture scr
 ```bash
 # Verify output, run pytest + ruff + Docker build + smoke test, write RESULTS.md
 uv run python scripts/capture_demo.py \
-  --output-dir demos/01_hello_world/output \
-  --run-report demos/01_hello_world/run_report.json \
-  --demo-id 01_hello_world
+  --output-dir demos/02_todo_app/output \
+  --run-report demos/02_todo_app/run_report.json \
+  --demo-id 02_todo_app
 
 # Skip Docker build and smoke test (faster local check)
 uv run python scripts/capture_demo.py \
-  --output-dir demos/01_hello_world/output \
+  --output-dir demos/02_todo_app/output \
   --skip-docker
 ```
 
@@ -145,8 +145,8 @@ uv run python scripts/capture_demo.py \
 Run the same demo spec through multiple backends and compare output quality, cost, latency, and token usage:
 
 ```bash
-uv run python scripts/compare_backends.py demos/01_hello_world --env dev
-uv run python scripts/compare_backends.py demos/01_hello_world --team backend-api --markdown out.md
+uv run python scripts/compare_backends.py demos/00_smoke_test --env dev
+uv run python scripts/compare_backends.py demos/02_todo_app --team backend-api --markdown out.md
 ```
 
 ---

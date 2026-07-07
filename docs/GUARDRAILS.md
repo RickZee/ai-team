@@ -3,6 +3,10 @@
 Guardrails keep agent output inside role, safety, and quality boundaries. The main
 implementations live in `src/ai_team/guardrails/`.
 
+For deep-dive post-mortems of guardrail-adjacent bugs (smoke gate, GIL starvation),
+see [troubleshooting/README.md](troubleshooting/README.md). Runtime smoke verification
+is documented in [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md).
+
 ## Behavioral guardrails
 
 Behavioral checks validate whether an agent stayed within its assigned role and task

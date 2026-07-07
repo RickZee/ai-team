@@ -14,8 +14,8 @@ instructions. This document describes the threat model and the controls in place
 | Secret exfiltration | Agent reads or writes credentials, `.env`, keys | Sensitive-filename rejection for automated writes (`.env`, credentials); `secret_detection_guardrail` scans outputs; no secrets in git (env-var configuration via Pydantic Settings) |
 | Prompt injection | Task briefs, file contents, or tool results carrying instructions to the agent | `prompt_injection_guardrail` on inputs; agent role/scope behavioral guardrails limit blast radius; HITL escalation on repeated failures |
 | PII leakage | Generated artifacts or logs containing personal data | `pii_redaction_guardrail` on task outputs |
-| Runaway cost | Misbehaving agent loop burning API spend | Per-run budget caps enforced at runtime (live-verified aborts); per-experiment caps in the optimizer loop; hard wall-clock timeouts with subprocess kill |
-| Cross-run interference | One run reading or writing another run's workspace | Per-run workspace isolation; subprocess isolation per backend run; known open items tracked honestly in `docs/DATA_INTEGRITY_FIXES.md` |
+| Runaway cost | Misbehaving agent loop burning API spend | Per-run budget caps enforced at runtime (live-verified aborts); hard wall-clock timeouts with subprocess kill |
+| Cross-run interference | One run reading or writing another run's workspace | Per-run workspace isolation; subprocess isolation per backend run; see [journal/2026-07-06.md](docs/journal/2026-07-06.md) for run-identity contract fixes |
 | Unaccountable automation | A human override silently converting a failing run into a passing one | Distinct `complete_approved` terminal status; `audit.jsonl` per run; HITL decisions recorded |
 
 ## Guardrail architecture
@@ -38,7 +38,7 @@ every new tool or guardrail ships with adversarial tests).
 - Backend runs execute in subprocesses with hard timeouts and clean kill
   semantics (no orphaned work after deadline).
 - Generated code is executed only inside per-run workspaces; evaluation commands
-  in the optimizer loop run in the target workspace, never the repo root.
+  run in the target workspace, never the repo root.
 - Local web UI binds to localhost; it is a development/operations console, not an
   internet-facing service. Do not expose it publicly without adding
   authentication — it can start paid runs and delete run data.
@@ -56,6 +56,5 @@ deployed instance before a fix lands.
   injection and unsafe-code risk. Do not run this system against untrusted
   briefs with credentials in scope.
 - The web UI has no authentication layer (localhost-only by design).
-- Cross-run workspace-nesting leak is a known open item under investigation
-  (`docs/DATA_INTEGRITY_FIXES.md`); it creates empty directories, not data
-  exposure, but is tracked as an isolation defect.
+- Cross-run workspace-nesting leak was fixed via the run-identity contract (journal
+  [2026-07-06](docs/journal/2026-07-06.md)); report any recurrence as a security issue.
