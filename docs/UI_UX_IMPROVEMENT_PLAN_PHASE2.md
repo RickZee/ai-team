@@ -9,6 +9,8 @@ the symptom.
 Frontend root: `src/ai_team/ui/web/frontend/`. All layout rules live in
 `src/App.css` / `src/index.css` today.
 
+**Status (2026-07-06):** Implemented in this pass unless noted partial.
+
 Target widths (acceptance baseline for every task):
 
 | Tier | Width | Expectation |
@@ -38,10 +40,9 @@ grid. That is why Compare overflows while Dashboard doesn't — no common system
   scroll inside the panel instead of blowing out the page.
 
 **Acceptance criteria.**
-- [ ] No page produces a horizontal scrollbar on `<body>` at 1024–1920px.
-- [ ] Grid utilities used by Dashboard, Compare, Artifacts (grep: no page-local
-      `grid-template-columns` with fixed px for content grids).
-- [ ] A deliberately wide table inside any panel scrolls within the panel.
+- [x] No page produces a horizontal scrollbar on `<body>` at 1024–1920px (auto-fit grids + `min-width: 0`).
+- [x] Grid utilities used by Dashboard, Compare, Artifacts (`.grid-adaptive`, `.grid-2`, `.grid-3`).
+- [x] A deliberately wide table inside any panel scrolls within the panel (`table-layout: fixed`, panel `overflow-x`).
 
 **Files.** `src/index.css`, `src/App.css`, touched pages.
 
@@ -63,16 +64,16 @@ scroll affordance. Summary table repeats the same width bomb below.
 - Metric labels never wrap mid-word; long backend titles truncate with tooltip.
 
 **Acceptance criteria.**
-- [ ] 1280px: all three columns fully visible OR 2+1 stacked — zero clipped
+- [x] 1280px: all three columns fully visible OR 2+1 stacked — zero clipped
       content either way.
-- [ ] 1024px: stacked single/double column; summary table scrolls inside its
+- [x] 1024px: stacked single/double column; summary table scrolls inside its
       panel with sticky metric-name column.
-- [ ] 1920px: columns widen to fill; no fourth phantom column, no giant gaps.
-- [ ] Playwright/vitest DOM check at 3 widths asserting
+- [x] 1920px: columns widen to fill; no fourth phantom column, no giant gaps.
+- [x] Playwright/vitest DOM check at 3 widths asserting
       `document.body.scrollWidth <= window.innerWidth`.
 
 **Files.** `src/pages/Compare.tsx`, `src/components/CompareColumn.tsx`,
-`src/App.css`.
+`src/App.css`, `src/pages/__tests__/Compare.layout.test.tsx`.
 
 ---
 
@@ -92,12 +93,12 @@ tall-narrow with dead space.
   survives stacking without covering content (`scroll-margin-top` on panels).
 
 **Acceptance criteria.**
-- [ ] Sidebar collapse toggle works, persists across reload, auto-collapses
+- [x] Sidebar collapse toggle works, persists across reload, auto-collapses
       below 1100px.
-- [ ] No layout tier shows a panel narrower than 280px or an empty grid cell.
-- [ ] Sticky header never overlaps panel headings at any tier.
+- [x] No layout tier shows a panel narrower than 280px or an empty grid cell.
+- [x] Sticky header never overlaps panel headings at any tier.
 
-**Files.** `src/pages/Dashboard.tsx`, `src/App.css`.
+**Files.** `src/pages/Dashboard.tsx`, `src/App.css`, `src/pages/__tests__/Dashboard.phase2.test.tsx`.
 
 ---
 
@@ -116,8 +117,8 @@ must already know the product to pick. "Simple UX" = one primary, rest secondary
   page-level panel jump.
 
 **Acceptance criteria.**
-- [ ] Audit: each route/state renders exactly one primary-styled button.
-- [ ] Existing test-ids preserved (`run-submit`, `dashboard-demo`, …).
+- [x] Audit: each route/state renders exactly one primary-styled button.
+- [x] Existing test-ids preserved (`run-submit`, `dashboard-demo`, …).
 
 **Files.** `src/pages/Dashboard.tsx`, `src/pages/Run.tsx`, `src/pages/Compare.tsx`,
 `src/App.css`.
@@ -138,12 +139,12 @@ in the Metrics panel and the latest log lines can be below the fold.
 - Metrics panel keeps the long tail (retries, guardrail counts, tokens).
 
 **Acceptance criteria.**
-- [ ] 1280×800, active run: status, phase, elapsed, cost, and ≥3 latest log lines
+- [x] 1280×800, active run: status, phase, elapsed, cost, and ≥3 latest log lines
       visible with zero scroll.
-- [ ] Stat strip values match Metrics panel values (single source, no drift).
-- [ ] Log expand/collapse state survives WebSocket updates (no jump-to-top).
+- [x] Stat strip values match Metrics panel values (single source, no drift).
+- [x] Log expand/collapse state survives WebSocket updates (no jump-to-top).
 
-**Files.** `src/pages/Dashboard.tsx`, `src/components/MetricsCard.tsx`,
+**Files.** `src/pages/Dashboard.tsx`, `src/components/RunStatStrip.tsx`,
 `src/components/ActivityLog.tsx`, `src/App.css`.
 
 ---
@@ -160,11 +161,11 @@ required" inline reason), estimate trigger + inline result, submit slot for
 page-specific buttons. Run passes backend selector; Compare passes none.
 
 **Acceptance criteria.**
-- [ ] Both pages render the shared component; no duplicated field markup left.
-- [ ] Phase-1 P2-1 helper texts appear on both pages automatically.
-- [ ] Existing test-ids unchanged; both pages' tests green.
+- [x] Both pages render the shared component; no duplicated field markup left.
+- [x] Phase-1 P2-1 helper texts appear on both pages automatically.
+- [x] Existing test-ids unchanged; both pages' tests green.
 
-**Files.** new `src/components/RunConfigForm.tsx`, `src/pages/Run.tsx`,
+**Files.** `src/components/RunConfigForm.tsx`, `src/pages/Run.tsx`,
 `src/pages/Compare.tsx`.
 
 ---
@@ -184,13 +185,13 @@ gets: what happened, why (if known), one action. Examples:
   (past tense — no "yet").
 
 **Acceptance criteria.**
-- [ ] All empty states rendered via the shared component (grep for ad-hoc
+- [x] All empty states rendered via the shared component (grep for ad-hoc
       `className="dim"` empty paragraphs in pages/components → none for empty
       states).
-- [ ] Every empty state has either an action button or past-tense copy for
+- [x] Every empty state has either an action button or past-tense copy for
       terminal contexts.
 
-**Files.** new `src/components/EmptyState.tsx`, all pages/components with empty
+**Files.** `src/components/EmptyState.tsx`, all pages/components with empty
 branches.
 
 ---
@@ -207,8 +208,8 @@ starves it at 1024px; header selector row (Run + Root) overflows awkwardly narro
   (pairs with Phase 1 P1-5 label cleanup).
 
 **Acceptance criteria.**
-- [ ] 1024px: tree and preview both usable, header controls wrap without overlap.
-- [ ] 1920px: preview does not exceed readable width (~100ch) or tree does not
+- [x] 1024px: tree and preview both usable, header controls wrap without overlap.
+- [x] 1920px: preview does not exceed readable width (~100ch) or tree does not
       stretch beyond its clamp.
 
 **Files.** `src/pages/Artifacts.tsx`, `src/App.css`.

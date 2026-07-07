@@ -264,6 +264,173 @@ raw rows in `output/smoke_batch_20260704_*.json`).
 
 ---
 
+## n=1 live comparison with HITL episode — 2026-07-06
+
+- **Comparison id:** `6defb358-12f7-4271-a12d-4941e9369ec5`
+- **Brief:** `demos/00_smoke_test` (calc.py add/subtract/multiply/divide + divide-by-zero
+  ValueError, test_calc.py with pytest cases) — **smoke profile, Simple**, exact same
+  brief as the 2026-07-03 baseline above, for apples-to-apples comparison.
+- **Launched:** 12:12 local via the web Compare tab, all three concurrently.
+- **Method:** live-watched via browser automation, polling `GET /api/runs/{id}` every
+  ~3 min, with disk-level verification (actual workspace files, `output/runs/` bundles)
+  cross-checked against what the API and UI reported — not just screenshots.
+
+| Backend | Status | Wall-clock | Tests (disk truth) | Cost | Notes |
+|---|---|---|---|---|---|
+| claude-agent-sdk | ✅ complete | **3m 20s** | ✅ 5/5 (`docs/test_results.json`) | $0.81612045 | Fastest again. Real files on disk, genuinely 5/5 green — but see finding 1, none of this is visible through the API. |
+| crewai | ✅ complete | 11m 16s | ✅ 5/5, 100% line+branch coverage (`artifacts/testing/test_results.json`) | $0.000614 (real, but see finding 3) | Clean run, 4 tasks, 2 files, zero retries. Third consecutive green smoke on this brief (following the two 2026-07-03 runs) — the 7-run streak is now 9. |
+| langgraph | ⚠️ complete **by operator approval**, tests never actually passing | 14m 45s (6m14s to first HITL pause + resolution + continued cycling) | ❌ **`passed: false`** — `ModuleNotFoundError: No module named 'src.calc'` (`artifacts/testing/test_results.json`, reproduced fresh with `pytest tests/ -q`) | $0.018241 (55,518 tokens, 10 calls — correctly recorded) | See the HITL narrative and finding 2 below. This is the same "complete by approval ≠ complete by passing" semantics gap flagged on 2026-07-03, still open. |
+
+### The LangGraph HITL episode
+
+LangGraph's activity log shows four development→testing cycles before escalating:
+
+```
+12:13:59  testing → phase testing
+12:13:59  retry_development → phase development
+12:14:53  testing → phase testing
+12:14:53  retry_development → phase development
+12:16:05  testing → phase testing
+12:16:05  retry_development → phase development
+12:16:51  development → phase development
+12:20:45  testing → phase testing
+12:20:45  __interrupt__: (Interrupt(value={'phase': 'human_review', ...}))
+```
+
+Three bounded retries, then a proper `interrupt()` escalation to `human_review` at
+12:20:45 — the retry-cap design working as intended. Resolved through the Compare UI:
+clicked the **Approve** preset (pre-filled "Approved. Proceed with the current plan."
+in the textarea — did not submit), then **Submit & Resume** (fired the actual POST).
+The run's `status` field flipped from `awaiting_human` to `running` within seconds per
+a follow-up `curl`, confirming the resume was received.
+
+The run then sat in `phase: testing` for another ~6 minutes with no new log entries
+and no file changes on disk — genuinely still working, not stuck (confirmed by
+comparing file mtimes against wall-clock time before concluding either way) — before
+finally reporting `status: complete` at 12:26:36.
+
+**But the underlying defect was never fixed.** The generated `tests/test_calc.py`
+imports `from src.calc import add, divide, multiply, subtract`, but
+`workspace/2026-07-06_161231_write-a-single-python-module_02/src/` is an **empty
+directory** — no `calc.py` inside it. Only a plain `calc.py` exists at the workspace
+root. Re-running `python -m pytest tests/ -q` in that workspace right now reproduces
+the exact same `ModuleNotFoundError` recorded in the bundle's
+`artifacts/testing/test_results.json`. The human approval let the run past its own
+quality gate without the gate's failure condition (`passed: false`, lint also failing
+with 9 `ruff` whitespace warnings) ever being resolved.
+
+### Findings, most important first
+
+1. **Claude SDK disk-registry regression — files exist, API can't see them, no bundle
+   at all.** `workspace/2026-07-06_161231_write-a-single-python-module_03/` has real,
+   working code: `calc.py`, `test_calc.py`, `conftest.py`, `docs/test_results.json`
+   showing genuine `5/5 PASSED`, `docs/smoke_results.json`, `logs/phases.jsonl`,
+   `logs/audit.jsonl`. But `GET /api/projects/{id}/tree?root=workspace` **and**
+   `?root=bundle` both return `{"tree": []}`, and there is **no**
+   `output/runs/2026-07-06_161231_write-a-single-python-module_03/` directory at all —
+   contrast with the crewai and langgraph runs from the same comparison, which both
+   have full `output/runs/{id}/` bundles (`state.json`, `run.json`, `events.jsonl`,
+   `artifacts/`). Downstream, the UI's `monitor.phase` stayed stuck at `"intake"`
+   despite `status: complete`, and the Metrics panel showed "Tests passed: 0"
+   contradicting the real 5/5 on disk. **This directly contradicts
+   [journal/2026-07-04.md](journal/2026-07-04.md) fix #7**, which claimed: *"Claude SDK
+   runs were invisible to the disk registry — no `output/runs/<id>/` at all... Fix:
+   `_write_results_bundle()` called on both `run()` and `stream()` paths (`887549c`)."*
+   The exact symptom recurred on 2026-07-06 despite that fix. **Regression — needs
+   root-cause work**, possibly a code path the fix didn't cover (e.g. the web/Compare
+   launch path vs. the CLI path it may have been tested against).
+2. **"Complete by approval" still doesn't mean "complete by passing" — with a
+   concrete repro this time.** The 2026-07-03 entry above flagged this as an open bug
+   in the abstract; this run reproduces it end-to-end with a root cause: LangGraph's
+   generated test file has a broken import (`from src.calc import ...` against an
+   empty `src/`), the quality gate correctly recorded `passed: false` with the full
+   traceback, a human clicked Approve, and the run registry reports plain `complete` —
+   indistinguishable from crewai's and claude-sdk's real, passing completions in the
+   summary table. An operator scanning the Comparison Summary table would see three
+   green "complete" rows and have no idea one of them shipped broken tests.
+3. **CrewAI's cost is real but stranded in a field nothing reads.** `monitor.cost_usd`
+   is `null` even in the final terminal state — the same gap noted on 2026-07-04 as
+   the "CLI-path spend gap" open item, except this was a **web-launched Compare run**,
+   not a CLI run, so the gap is broader than previously scoped. The real spend
+   ($0.000614, 1413 tokens, 1 call) exists in a separate top-level `spend` object
+   returned by `GET /api/runs/{id}` (sibling to `monitor`, not inside it) — the UI's
+   Comparison Summary table reads `monitor.cost_usd` and shows `—` for CrewAI's cost
+   column even on this fully-complete run. `state.json` only ever gets the **pre-run
+   estimate** ($0.0182, synthetic per-role breakdown) — the real post-run figure never
+   gets merged in anywhere on disk.
+4. **Tree API is backend-specific, not universally broken.** CrewAI's tree endpoints
+   work correctly for both roots: `?root=workspace` returns `calc.py` (1536B) +
+   `tests/test_calc.py` (1352B); `?root=bundle` returns the full `artifacts/` tree
+   (intake, planning, development, testing subdirs) plus `reports/` (including a real
+   `manager_self_improvement_report.md`). LangGraph's tree API also works for both
+   roots. Only the Claude SDK backend's tree/registry path is broken (finding 1) —
+   worth narrowing investigation to that backend specifically rather than the shared
+   tree-serving code.
+5. **Terminal runs still lose activity log and guardrail events for CrewAI** —
+   reconfirms [UI_UX_IMPROVEMENT_PLAN.md](UI_UX_IMPROVEMENT_PLAN.md) P0-6 with fresh
+   evidence: CrewAI's `monitor.log` and `monitor.guardrail_events` are both `[]` in the
+   terminal API response despite this being a genuinely completed run with real
+   guardrail activity implied by its earlier retry history.
+6. **HITL Approve-button trap reconfirmed live** ([UI_UX_IMPROVEMENT_PLAN.md](UI_UX_IMPROVEMENT_PLAN.md)
+   P1-1, first flagged 2026-07-03): clicking "Approve" only pre-filled the textarea
+   with "Approved. Proceed with the current plan." — did not submit. A second,
+   separate "Submit & Resume" click was required to actually resume the run.
+7. **HITL panel doesn't clear after resume without reload** (P1-2, also first flagged
+   2026-07-03): the resume POST succeeded (confirmed via `curl` — status flipped from
+   `awaiting_human` to `running` within seconds) but the browser button stayed stuck on
+   "Resuming…" and the panel remained visible until the page was manually reloaded.
+8. **CrewAI UI desync**: mid-run, the metrics panel showed live progress ("Tasks
+   completed: 4") in the same column that still displayed the stale placeholder text
+   "Waiting for agents to join the run…" — the two pieces of UI read from different
+   underlying signals that can go out of sync.
+9. **Cross-run workspace nesting reproduced again**:
+   `workspace/2026-07-06_161231_write-a-single-python-module_02/2026-07-06_161231_write-a-single-python-module_03/`
+   exists as an empty directory — the langgraph run's workspace has an empty dir named
+   after the claude-sdk run's id. Matches
+   [journal/2026-07-04.md](journal/2026-07-04.md) open item 5 exactly, still
+   unresolved two days later.
+10. **LangGraph needed genuine human intervention on a trivial task.** Four
+    development/testing cycles and a human approval for a four-function calculator
+    module — while crewai and claude-sdk completed the identical brief with zero
+    retries — is a real quality signal, not just a UX complaint. Given the root cause
+    was a simple, mechanical import-path bug (`src.calc` vs `calc`), this looks like a
+    coordination gap between LangGraph's dev and QA agents on where generated code
+    should live, similar in spirit to the file-layout disagreement noted in the 2026-07-04
+    n=5 batch (finding 2 there).
+11. **Comparison panel metrics are mostly blank for 2 of 3 backends — broader than the
+    log/guardrail gap in finding 5.** Auditing every cell in the Comparison Summary
+    table against `GET /api/runs/{id}` for all three terminal runs:
+
+    | Cell | CrewAI | LangGraph | Claude SDK |
+    |---|---|---|---|
+    | Cost (USD) | blank (`—`) — real $0.000614 stranded in the sibling `spend` object | ✅ $0.0182 | ✅ $0.816 |
+    | Tokens (est.) | 0 | 0 | 0 |
+    | Tasks completed | ✅ 4 | 0 (real work happened; never counted) | 0 (same) |
+    | Files generated | ✅ 2 | 0 (files exist on disk) | 0 (same) |
+    | Tests passed | ✅ 5 | 0 (this one's *correctly* 0 — tests really failed) | 0 (wrong — really 5/5) |
+    | Guardrails passed/failed/warned | 0/0/0 | 0/0/0 | 0/0/0 — blank on all three regardless of backend |
+    | Retries | 0 | 0 (really had 4 development/testing cycles — wrong) | 0 |
+    | Activity Log | 0 entries (despite a real completed run) | 14 entries | 26 entries |
+    | Agents | `{}` | `{}` | one entry stuck `"status": "working"` on a run that finished 12+ min earlier |
+
+    Only CrewAI's own summary numbers (tasks/files/tests) are accurate — everything
+    about *cost* is missing for CrewAI, and LangGraph/Claude SDK both report all-zero
+    task/file/test/retry metrics despite verified real activity on disk. Tokens and
+    guardrail pass/fail/warn counts are blank across **all three backends**
+    unconditionally — that part isn't backend-specific, it looks like nothing in the
+    pipeline ever populates those two fields at all, for any backend.
+
+### Regressions to investigate
+
+- **Claude SDK results-bundle write (finding 1 above)** is the one that most needs
+  attention: it's not a new bug, it's a previously-fixed bug (journal fix #7,
+  `887549c`) recurring with an identical symptom. Suggested next step: diff the
+  code path this Compare-tab launch takes against whatever path fix #7's verification
+  run used — the fix may only cover one entrypoint (e.g. CLI `run()`) while the web
+  server's launch path calls something else, or a later change reintroduced the gap.
+
+---
+
 ## Historical results
 
 Earlier comparisons (pre-wiring-fix) are described in

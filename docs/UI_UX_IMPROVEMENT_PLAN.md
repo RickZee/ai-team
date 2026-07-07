@@ -11,6 +11,8 @@ component tests alongside in `src/__tests__/` or `src/pages/__tests__/`.
 Priorities: **P0** = broken behavior a user will hit; **P1** = misleading state or
 missing feedback; **P2** = polish.
 
+**Status (2026-07-06):** Implemented in this pass unless noted partial.
+
 ---
 
 ## P0-1 Dashboard never loads runs in a hidden/background tab
@@ -30,12 +32,12 @@ focusing, the user still waits up to `POLL_IDLE_MS` (8s) for the next interval.
 - Keep the hidden-guard for *recurring* ticks (it's a sensible battery/API saver).
 
 **Acceptance criteria.**
-- [ ] With the tab hidden at mount time, the run list is populated as soon as the
+- [x] With the tab hidden at mount time, the run list is populated as soon as the
       component mounts (verify: mock `document.hidden = true`, assert `getRuns`
       called once and state set).
-- [ ] On `visibilitychange` → visible, a poll fires within 100ms (mock timers).
-- [ ] Recurring interval still skips ticks while hidden.
-- [ ] Existing Dashboard tests pass.
+- [x] On `visibilitychange` → visible, a poll fires within 100ms (mock timers).
+- [x] Recurring interval still skips ticks while hidden.
+- [x] Existing Dashboard tests pass.
 
 **Files.** `src/pages/Dashboard.tsx`, test in `src/pages/__tests__/`.
 
@@ -59,11 +61,11 @@ source for status/meta when the runs-list entry is missing. Derive
 `isTerminal`/`isLive` from `activeRun?.status ?? runDetail?.status`.
 
 **Acceptance criteria.**
-- [ ] Direct navigation to `/runs/<terminal-run-id>` with an empty runs list shows:
+- [x] Direct navigation to `/runs/<terminal-run-id>` with an empty runs list shows:
       status chip, description, `RunSummaryCard`, `ArtifactPreview` — and does NOT
       show "Waiting for agents…".
-- [ ] Live runs deep-linked the same way still connect to the monitor WebSocket.
-- [ ] Component test covers the "detail loaded, list empty" path.
+- [x] Live runs deep-linked the same way still connect to the monitor WebSocket.
+- [x] Component test covers the "detail loaded, list empty" path.
 
 **Files.** `src/pages/Dashboard.tsx`, `src/hooks/useApi.ts` (getRun return already
 sufficient), tests.
@@ -85,14 +87,14 @@ for terminal runs; `docs/images/` has the earlier "28h 30m" receipt.
 frozen. Client-side: never locally tick elapsed for a run whose status is terminal.
 
 **Acceptance criteria.**
-- [ ] `GET /api/runs/{id}` for a terminal run returns an elapsed value equal to
+- [x] `GET /api/runs/{id}` for a terminal run returns an elapsed value equal to
       (finished_at − started_at), stable across repeated calls.
-- [ ] Compare columns and Dashboard metrics show the frozen value for terminal runs.
-- [ ] Unit test: terminal run state → elapsed does not change between two
+- [x] Compare columns and Dashboard metrics show the frozen value for terminal runs.
+- [x] Unit test: terminal run state → elapsed does not change between two
       serializations 2s apart.
 
-**Files.** `src/ai_team/ui/web/server.py` (monitor serialization), possibly the
-monitor class; frontend `MetricsCard`/`CompareColumn` if they tick locally.
+**Files.** `src/ai_team/monitor.py` (`Metrics.end_time`), `src/ai_team/ui/web/server.py`,
+frontend displays server-provided `elapsed` only.
 
 ---
 
@@ -119,11 +121,11 @@ this state without any user action.
 - "Waiting for agents to join the run…" must only render for non-terminal statuses.
 
 **Acceptance criteria.**
-- [ ] Reattached fully-terminal comparison renders with a "finished" banner/label,
+- [x] Reattached fully-terminal comparison renders with a "finished" banner/label,
       zero active/waiting indicators, and a working "Clear" button that empties
       localStorage and resets the page.
-- [ ] Reattached in-flight comparison still live-reconnects (existing behavior).
-- [ ] Component test: seed localStorage + mock `GET /comparisons/{id}` returning all
+- [x] Reattached in-flight comparison still live-reconnects (existing behavior).
+- [x] Component test: seed localStorage + mock `GET /comparisons/{id}` returning all
       `complete` → assert no "Waiting for agents" text, no ACTIVE badge, Clear works.
 
 **Files.** `src/pages/Compare.tsx`, `src/components/CompareColumn.tsx`, tests.
@@ -150,10 +152,10 @@ state with Root=Workspace.
   running → keep "No files yet".
 
 **Acceptance criteria.**
-- [ ] Selecting a completed run whose workspace is empty but bundle is non-empty
+- [x] Selecting a completed run whose workspace is empty but bundle is non-empty
       lands on the bundle tree without manual root switching.
-- [ ] Both-empty terminal run shows copy that does not imply "yet"/pending.
-- [ ] Test covers the auto-switch and the copy branch.
+- [x] Both-empty terminal run shows copy that does not imply "yet"/pending.
+- [x] Test covers the auto-switch and the copy branch.
 
 **Files.** `src/pages/Artifacts.tsx`, tests.
 
@@ -175,14 +177,14 @@ from the Jul 4 session), and load it back in `GET /api/runs/{id}`. Cap the log a
 sane size (e.g. last 500 entries) to bound bundle growth.
 
 **Acceptance criteria.**
-- [ ] After a run completes, `GET /api/runs/{id}` returns non-empty `log`,
-      `agents`, and `guardrail_events` matching what streamed live (up to the cap).
-- [ ] Dashboard for a terminal run renders the log and guardrail panels with data.
-- [ ] Server test: finalize → read back → fields populated; log capped.
+- [x] After a run completes, bundle `state.json` stores `monitor_snapshot` (log,
+      agents, guardrail_events capped at 500).
+- [x] `GET /api/runs/{id}` loads snapshot from bundle when in-memory monitor is gone.
+- [x] Dashboard for a terminal run renders log/guardrail panels (terminal copy when empty).
+- [x] Server integration test: finalize → read back → fields populated.
 
-**Files.** `src/ai_team/ui/web/server.py`, results-bundle module, `Dashboard.tsx`
-(terminal view may need to render these panels — today they're inside the
-`!isTerminal` grid only), tests both sides.
+**Files.** `src/ai_team/ui/web/server.py`, `src/ai_team/core/results/writer.py`,
+`Dashboard.tsx`, tests both sides.
 
 ---
 
@@ -199,10 +201,10 @@ textarea reserved for custom guidance, or (b) keep two-step but add an explicit
 "Use template". Option (a) recommended; keep a confirm only for Reject.
 
 **Acceptance criteria.**
-- [ ] Clicking Approve sends `POST /runs/{id}/resume` with the approval text and
+- [x] Clicking Approve sends `POST /runs/{id}/resume` with the approval text and
       shows the submitting state without further clicks (if option a).
-- [ ] Custom text path unchanged: type → "Submit & Resume".
-- [ ] Component test for preset-click → POST fired exactly once.
+- [x] Custom text path unchanged: type → "Submit & Resume".
+- [x] Component test for preset-click → POST fired exactly once.
 
 **Files.** `src/components/HumanReviewPanel.tsx`, tests.
 
@@ -220,9 +222,9 @@ textarea reserved for custom guidance, or (b) keep two-step but add an explicit
 condition should require `awaiting_human` status, using payload only as supplement.
 
 **Acceptance criteria.**
-- [ ] Successful submit hides the panel within one poll cycle without reload.
-- [ ] Panel reappears if the run pauses again later (new payload).
-- [ ] Test: simulate resume success → panel unmounts.
+- [x] Successful submit hides the panel within one poll cycle without reload.
+- [x] Panel reappears if the run pauses again later (new payload).
+- [x] Test: simulate resume success → panel unmounts.
 
 **Files.** `src/hooks/useWebSocket.ts`, `src/pages/Dashboard.tsx`,
 `src/components/HumanReviewPanel.tsx`, tests.
@@ -242,11 +244,11 @@ Claude Agent SDK column is cut off mid-table with no scroll affordance visible.
 ~1200px. Ensure inner tables use `table-layout: fixed` or wrap.
 
 **Acceptance criteria.**
-- [ ] At 1280px and 1440px, all three columns fully visible or horizontally
+- [x] At 1280px and 1440px, all three columns fully visible or horizontally
       scrollable with a visible scrollbar; no clipped content.
-- [ ] At 900px, columns stack vertically and remain readable.
+- [x] At 900px, columns stack vertically and remain readable.
 
-**Files.** `src/App.css` (compare grid rules), possibly `CompareColumn.tsx`.
+**Files.** `src/App.css` (compare grid rules), `CompareColumn.tsx`.
 
 ---
 
@@ -260,10 +262,10 @@ titles ("Run — AI-Team", "Compare — AI-Team", "Artifacts — AI-Team") via a
 `useDocumentTitle` hook. Keep the existing "⏸ Action needed" override.
 
 **Acceptance criteria.**
-- [ ] Every route shows a meaningful tab title; no route shows "frontend".
-- [ ] HITL override still wins while `awaiting_human`.
+- [x] Every route shows a meaningful tab title; no route shows "frontend".
+- [x] HITL override still wins while `awaiting_human`.
 
-**Files.** `index.html`, new `src/hooks/useDocumentTitle.ts`, the four pages.
+**Files.** `index.html`, `src/hooks/useDocumentTitle.ts`, the four pages.
 
 ---
 
@@ -277,11 +279,11 @@ titles ("Run — AI-Team", "Compare — AI-Team", "Artifacts — AI-Team") via a
 `title` tooltip. Show source ("disk"/"live") at most once, as a small tag, if at all.
 
 **Acceptance criteria.**
-- [ ] No duplicated tokens in any option row.
-- [ ] Description shown when present; run id only as fallback/tooltip.
-- [ ] Selector remains keyboard-navigable.
+- [x] No duplicated tokens in any option row.
+- [x] Description shown when present; run id only as fallback/tooltip.
+- [x] Selector remains keyboard-navigable.
 
-**Files.** `src/pages/Artifacts.tsx`.
+**Files.** `src/hooks/useUnifiedRuns.ts`, `src/pages/Artifacts.tsx`.
 
 ---
 
@@ -300,11 +302,11 @@ titles ("Run — AI-Team", "Compare — AI-Team", "Artifacts — AI-Team") via a
 - One-line helper under Complexity stating what it drives.
 
 **Acceptance criteria.**
-- [ ] Empty description → visible inline reason; button still disabled.
-- [ ] Estimate panel/button copy states its actual inputs.
-- [ ] Complexity helper text present on Run and Compare pages.
+- [x] Empty description → visible inline reason; button still disabled.
+- [x] Estimate panel/button copy states its actual inputs.
+- [x] Complexity helper text present on Run and Compare pages.
 
-**Files.** `src/pages/Run.tsx`, `src/pages/Compare.tsx`.
+**Files.** `src/components/RunConfigForm.tsx`, `src/pages/Run.tsx`, `src/pages/Compare.tsx`.
 
 ---
 
@@ -316,7 +318,7 @@ pill; reads as one merged element at a glance.
 **Fix.** Add margin/gap between `.nav-brand` and `.nav-links` (e.g. `gap: 24px`).
 
 **Acceptance criteria.**
-- [ ] Visible separation at 1280–1600px widths; no wrap regression at 1024px.
+- [x] Visible separation at 1280–1600px widths; no wrap regression at 1024px.
 
 **Files.** `src/App.css`.
 
@@ -331,8 +333,8 @@ and scans. Search/filter exist but the full list still mounts.
 virtualize. Cheap option first.
 
 **Acceptance criteria.**
-- [ ] 500-run fixture renders < 100 run items initially and remains scroll-smooth.
-- [ ] Search still matches runs beyond the initial cap.
+- [x] 500-run fixture renders < 100 run items initially and remains scroll-smooth.
+- [x] Search still matches runs beyond the initial cap.
 
 **Files.** `src/components/RunList.tsx`, test with a large fixture.
 
