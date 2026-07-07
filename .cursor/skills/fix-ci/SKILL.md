@@ -155,7 +155,7 @@ Docs: `tests/e2e/web/README.md`
 
 ## 4. Test job
 
-CI uses `./scripts/ci_unit_test.sh` (see `ci.yml`):
+CI uses `./scripts/ci_unit_test.sh` without `--python` (matrix `setup-python` selects the interpreter). Local multi-version: `--python 3.11` / `--python 3.12 --cov` or `./scripts/ci_check.sh --matrix`.
 
 - **Python 3.11**: unit tests only (no `--cov`).
 - **Python 3.12**: unit tests **with** `--cov` + `COVERAGE_CORE=sysmon` + `fail_under` from `pyproject.toml` (currently **55**).

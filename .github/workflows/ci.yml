@@ -84,11 +84,12 @@ jobs:
       - name: Run unit tests
         env:
           CI_UNIT_VERBOSE: "1"
+          PY_TAG: ${{ matrix.python-version }}
         run: |
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            ./scripts/ci_unit_test.sh --python "${{ matrix.python-version }}" --cov
+            ./scripts/ci_unit_test.sh --cov
           else
-            ./scripts/ci_unit_test.sh --python "${{ matrix.python-version }}"
+            ./scripts/ci_unit_test.sh
           fi
 
       - name: Upload coverage artifact
