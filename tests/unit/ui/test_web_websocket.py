@@ -322,7 +322,9 @@ class TestClaudeWebLaunchBundle:
 
             asyncio.run(web_server._execute_run(_FakeWS(), run_id, req))
 
-        run_json = _json.loads((out_root / "runs" / run_id / "run.json").read_text(encoding="utf-8"))
+        run_json = _json.loads(
+            (out_root / "runs" / run_id / "run.json").read_text(encoding="utf-8")
+        )
         assert run_json["completed_at"] is not None
         state = _json.loads((out_root / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
         assert state.get("actual_cost_usd") == 0.12
