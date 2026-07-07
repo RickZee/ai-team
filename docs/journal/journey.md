@@ -482,5 +482,5 @@ leading with "93,284 retries in 15 minutes, and the bug was mine," and the full
 Substack correction arc — three verdicts the journal published and later reversed
 (flow-wiring blame, the model-vs-framework confound, and now CrewAI's demotion) ending
 on the n=5 table and the harness > model > framework thesis.
-[docs/posts/linkedin-93284-retries.md](../posts/linkedin-93284-retries.md) and
-[docs/posts/the-correction.md](../posts/the-correction.md).
+publication drafts written this session (LinkedIn hook + Substack correction arc; drafts
+later removed from the repo).
