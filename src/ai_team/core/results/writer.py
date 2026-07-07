@@ -92,19 +92,22 @@ def _read_bytes(path: Path) -> bytes:
 class ResultsBundle:
     """Create and write run artifacts in a canonical structure."""
 
-    def __init__(self, project_id: str) -> None:
+    def __init__(self, project_id: str, *, workspace_dir: Path | None = None) -> None:
         self.project_id = project_id
         s = get_settings()
         root = Path(s.project.output_dir).resolve()
         self._registry_root = root
         self._base_output = root / RUNS_SUBDIR / project_id
-        # settings.project.workspace_dir may already be scoped to this run
-        # (see scoped_workspace_dir / PROJECT_WORKSPACE_DIR) — callers that
-        # construct ResultsBundle from inside that scope pass an already
-        # project_id-suffixed path, so appending project_id again would
-        # create an empty workspace/<project_id>/<project_id>/ dupe.
-        ws_dir = Path(s.project.workspace_dir).resolve()
-        self._base_workspace = ws_dir if ws_dir.name == project_id else ws_dir / project_id
+        if workspace_dir is not None:
+            self._base_workspace = workspace_dir.resolve()
+        else:
+            # settings.project.workspace_dir may already be scoped to this run
+            # (see scoped_workspace_dir / PROJECT_WORKSPACE_DIR) — callers that
+            # construct ResultsBundle from inside that scope pass an already
+            # project_id-suffixed path, so appending project_id again would
+            # create an empty workspace/<project_id>/<project_id>/ dupe.
+            ws_dir = Path(s.project.workspace_dir).resolve()
+            self._base_workspace = ws_dir if ws_dir.name == project_id else ws_dir / project_id
 
     @property
     def output_dir(self) -> Path:

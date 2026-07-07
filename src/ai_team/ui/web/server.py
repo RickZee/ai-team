@@ -63,9 +63,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# State — active runs tracked in memory
-# ---------------------------------------------------------------------------
+_TERMINAL_STATUSES = frozenset({"complete", "complete_approved", "error", "cancelled"})
 
 
 def _build_run_store() -> Any:
@@ -152,16 +150,20 @@ class RunState:
             self.store.update_status(run_id, "awaiting_human")
 
     def finish_run(self, run_id: str, success: bool, error: str | None = None) -> None:
+        run = self.runs.get(run_id) or {}
+        terminal_status = (
+            "error"
+            if not success
+            else ("complete_approved" if run.get("approved_via_hitl") else "complete")
+        )
         if run_id in self.runs:
-            self.runs[run_id]["status"] = "complete" if success else "error"
+            self.runs[run_id]["status"] = terminal_status
             self.runs[run_id]["finished_at"] = datetime.now().isoformat()
             self.runs[run_id]["error"] = error
             self.runs[run_id]["hitl_payload"] = None
         self.tasks.pop(run_id, None)
         if self.store is not None:
-            self.store.update_status(
-                run_id, "complete" if success else "error", error=error, finished=True
-            )
+            self.store.update_status(run_id, terminal_status, error=error, finished=True)
         self._finalize_bundle(run_id, success)
 
     def _finalize_bundle(self, run_id: str, success: bool) -> None:
@@ -180,14 +182,53 @@ class RunState:
             run = self.runs.get(run_id) or {}
             spend = run.get("spend") or current_spend(run_id=run_id)
             status = run.get("status") or ("complete" if success else "error")
-            if run.get("approved_via_hitl"):
-                status = "complete_approved"
-            ResultsBundle(str(run.get("project_id") or run_id)).finalize(
+            project_id = str(run.get("project_id") or run_id)
+            bundle = ResultsBundle(project_id)
+            bundle.finalize(
                 final_status=status,
                 spend=dict(spend) if spend else None,
             )
+            monitor = self.monitors.get(run_id)
+            if monitor is not None:
+                snapshot = _serialize_monitor(monitor, run_id)
+                snapshot["log"] = snapshot.get("log", [])[-500:]
+                snapshot["guardrail_events"] = snapshot.get("guardrail_events", [])[-500:]
+                bundle.write_state({"monitor_snapshot": snapshot})
+            self._merge_spend_into_bundle_state(project_id, run, spend)
         except Exception as e:  # noqa: BLE001 - bundle write must not break run end
             logger.warning("bundle_finalize_failed", run_id=run_id, error=str(e))
+
+    def _merge_spend_into_bundle_state(
+        self,
+        project_id: str,
+        run: dict[str, Any],
+        spend: dict[str, Any] | None,
+    ) -> None:
+        """Persist actual spend and HITL approval metadata into state.json."""
+        from ai_team.core.results.writer import ResultsBundle
+
+        bundle = ResultsBundle(project_id)
+        state_path = bundle.output_dir / "state.json"
+        state_data: dict[str, Any] = {}
+        if state_path.is_file():
+            try:
+                state_data = json.loads(state_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                state_data = {}
+        if spend:
+            spent = spend.get("spent_usd")
+            if spent is not None:
+                state_data["actual_cost_usd"] = spent
+            tokens = spend.get("total_tokens")
+            if tokens is not None:
+                state_data["total_tokens"] = tokens
+        if run.get("approved_via_hitl"):
+            state_data["approved_via_hitl"] = True
+            gate = run.get("quality_gate_at_approval")
+            if gate:
+                state_data["quality_gate_at_approval"] = gate
+        if state_data:
+            bundle.write_state(state_data)
 
     def cancel_run(self, run_id: str) -> None:
         """Mark a run as cancelling and request cooperative cancel."""
@@ -222,7 +263,7 @@ class RunState:
         run = self.runs.get(run_id)
         if run is None:
             raise KeyError(f"Run not found: {run_id}")
-        terminal = {"complete", "error", "cancelled"}
+        terminal = _TERMINAL_STATUSES
         if run["status"] not in terminal:
             raise ValueError(f"Run is not terminal ({run['status']})")
         self.runs.pop(run_id, None)
@@ -370,7 +411,7 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
     and smoke files are the ground truth every backend already writes — count
     those instead of trusting event plumbing.
     """
-    from ai_team.config.settings import get_settings
+    from ai_team.ui.artifacts.service import resolve_run_workspace_dir
 
     out: dict[str, Any] = {
         "files_generated": None,
@@ -378,7 +419,7 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
         "smoke": None,
     }
     try:
-        ws = Path(get_settings().project.workspace_dir).resolve().parent / run_id
+        ws = resolve_run_workspace_dir(run_id)
         if not ws.is_dir():
             return out
         skip = {"logs", "docs", "__pycache__", ".github"}
@@ -431,6 +472,8 @@ async def get_run(run_id: str):
 
     monitor = state.monitors.get(run_id)
     monitor_data = _serialize_monitor(monitor, run_id) if monitor else None
+    if monitor_data is None:
+        monitor_data = _load_monitor_snapshot_from_bundle(run_id)
     return {
         **run,
         "project_id": run.get("project_id") or run_id,
@@ -597,12 +640,14 @@ async def resume_run(run_id: str, req: ResumeRequest):
         # and comparison tables don't over-report green (state.json may still
         # say passed: False for this run).
         run["approved_via_hitl"] = True
+        run["quality_gate_at_approval"] = _capture_quality_gate_snapshot(run_id)
         state.finish_run(run_id, success=True)
         return {
             "run_id": run_id,
-            "status": "complete",
+            "status": "complete_approved",
             "approved_via_hitl": True,
-            "monitor": _serialize_monitor(monitor) if monitor else None,
+            "quality_gate_at_approval": run.get("quality_gate_at_approval"),
+            "monitor": _serialize_monitor(monitor, run_id) if monitor else None,
         }
     except Exception as e:
         state.finish_run(run_id, success=False, error=str(e))
@@ -631,7 +676,7 @@ async def cancel_run(run_id: str):
     run = state.runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    terminal = {"complete", "error", "cancelled"}
+    terminal = _TERMINAL_STATUSES
     if run["status"] in terminal:
         raise HTTPException(status_code=400, detail=f"Run is already terminal ({run['status']})")
     state.cancel_run(run_id)
@@ -646,7 +691,7 @@ async def delete_run_endpoint(run_id: str):
     run = state.runs.get(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    terminal = {"complete", "error", "cancelled"}
+    terminal = _TERMINAL_STATUSES
     if run["status"] not in terminal:
         raise HTTPException(
             status_code=400,
@@ -766,7 +811,7 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
                 )
                 break
 
-            if run["status"] in ("complete", "error", "cancelled"):
+            if run["status"] in _TERMINAL_STATUSES:
                 final_type = "error" if run["status"] == "error" else "complete"
                 await websocket.send_json(
                     {
@@ -955,6 +1000,17 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                     if state.is_cancel_requested(run_id):
                         await _send_cancelled(ws, run_id)
                         return
+                    if ev.get("type") == "run_finished":
+                        run_success = bool(ev.get("success"))
+                        result_payload = ev.get("result") or {}
+                        run_error = result_payload.get("error")
+                        raw = result_payload.get("raw") or {}
+                        cost = raw.get("cost_usd")
+                        if cost is not None and run_id in state.runs:
+                            state.runs[run_id]["spend"] = {
+                                "spent_usd": cost,
+                                "total_tokens": _usage_total_tokens(raw.get("usage")),
+                            }
                     await _safe_send(
                         ws,
                         {
@@ -962,7 +1018,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
                             "data": json.loads(json.dumps(ev, default=str)),
                         },
                     )
-                    monitor_snap = _serialize_monitor(monitor)
+                    monitor_snap = _serialize_monitor(monitor, run_id)
                     await _safe_send(ws, {"type": "monitor_update", "data": monitor_snap})
         elif req.backend == "crewai":
             from ai_team.backends.crewai_backend.backend import CrewAIBackend
@@ -1045,12 +1101,17 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             await _send_cancelled(ws, run_id)
             return
 
+        _backfill_monitor_from_workspace(monitor, run_id, success=run_success)
+        _sync_spend_to_monitor(monitor, run_id)
+
         state.finish_run(run_id, success=run_success, error=run_error)
+        terminal_status = state.runs.get(run_id, {}).get("status", "complete")
         await _safe_send(
             ws,
             {
                 "type": "complete",
-                "data": _serialize_monitor(monitor),
+                "run_status": terminal_status,
+                "data": _serialize_monitor(monitor, run_id),
                 "project_id": run_id,
             },
         )
@@ -1216,6 +1277,239 @@ def _langgraph_hitl_status(backend: Any, thread_id: str) -> tuple[bool, dict[str
     return False, None
 
 
+def _capture_quality_gate_snapshot(run_id: str) -> dict[str, Any]:
+    """Persist test/gate state at HITL approval time for audit."""
+    from ai_team.config.settings import get_settings
+    from ai_team.core.results.writer import RUNS_SUBDIR
+    from ai_team.ui.artifacts.service import resolve_run_workspace_dir
+
+    snapshot: dict[str, Any] = {}
+    try:
+        ws = resolve_run_workspace_dir(run_id)
+        tr_path = ws / "docs" / "test_results.json"
+        if tr_path.is_file():
+            snapshot["test_results"] = json.loads(tr_path.read_text(encoding="utf-8"))
+    except (ValueError, json.JSONDecodeError, OSError):
+        pass
+    try:
+        bundle_tr = (
+            Path(get_settings().project.output_dir).resolve()
+            / RUNS_SUBDIR
+            / run_id
+            / "artifacts"
+            / "testing"
+            / "test_results.json"
+        )
+        if bundle_tr.is_file() and "test_results" not in snapshot:
+            snapshot["test_results"] = json.loads(bundle_tr.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        pass
+    return snapshot
+
+
+def _usage_total_tokens(usage: Any) -> int | None:
+    """Normalize token usage dicts from Claude SDK / LiteLLM payloads."""
+    if not isinstance(usage, dict):
+        return None
+    for key in ("total_tokens", "total"):
+        val = usage.get(key)
+        if isinstance(val, int | float):
+            return int(val)
+    inp = usage.get("input_tokens") or usage.get("prompt_tokens")
+    out = usage.get("output_tokens") or usage.get("completion_tokens")
+    if isinstance(inp, int | float) and isinstance(out, int | float):
+        return int(inp) + int(out)
+    return None
+
+
+def _backfill_monitor_from_workspace(monitor: Any, run_id: str, *, success: bool) -> None:
+    """Fill monitor metrics from on-disk workspace artifacts (ground truth)."""
+    from ai_team.config.settings import get_settings
+    from ai_team.monitor import Phase
+    from ai_team.ui.artifacts.service import resolve_run_workspace_dir
+
+    if monitor is None:
+        return
+    try:
+        ws = resolve_run_workspace_dir(run_id)
+    except ValueError:
+        return
+    if not ws.is_dir():
+        return
+
+    skip_parts = {
+        ".git",
+        "__pycache__",
+        ".venv",
+        "logs",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".ai_team_snapshots",
+        "node_modules",
+    }
+    code_names = frozenset({"Dockerfile", "docker-compose.yml", "docker-compose.yaml"})
+    code_suffixes = frozenset({".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".sql"})
+    generated = [
+        p
+        for p in ws.rglob("*")
+        if p.is_file()
+        and not any(part in skip_parts or part.startswith(".") for part in p.relative_to(ws).parts)
+        and (p.suffix.lower() in code_suffixes or p.name in code_names)
+    ]
+
+    test_results: dict[str, Any] = {}
+    tr_path = ws / "docs" / "test_results.json"
+    if tr_path.is_file():
+        with contextlib.suppress(json.JSONDecodeError, OSError):
+            loaded = json.loads(tr_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                test_results = loaded
+
+    phases: list[dict[str, Any]] = []
+    phases_path = ws / "logs" / "phases.jsonl"
+    if phases_path.is_file():
+        for line in phases_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            with contextlib.suppress(json.JSONDecodeError):
+                row = json.loads(line)
+                if isinstance(row, dict):
+                    phases.append(row)
+
+    retry_count = 0
+    bundle_state_path = (
+        Path(get_settings().project.output_dir).resolve() / "runs" / run_id / "state.json"
+    )
+    if bundle_state_path.is_file():
+        with contextlib.suppress(json.JSONDecodeError, OSError):
+            bundle_state = json.loads(bundle_state_path.read_text(encoding="utf-8"))
+            if isinstance(bundle_state.get("retry_count"), int):
+                retry_count = max(retry_count, int(bundle_state["retry_count"]))
+            if not test_results and isinstance(bundle_state.get("test_results"), dict):
+                test_results = bundle_state["test_results"]
+            phase_history = bundle_state.get("phase_history")
+            if isinstance(phase_history, list) and len(phase_history) > len(phases):
+                phases = [p for p in phase_history if isinstance(p, dict)]
+
+    dev_cycles = sum(
+        1 for p in phases if str(p.get("phase") or p.get("name") or "").lower() == "development"
+    )
+    if dev_cycles > 1:
+        retry_count = max(retry_count, dev_cycles - 1)
+
+    monitor.metrics.files_generated = len(generated)
+    monitor.metrics.tests_passed = int(test_results.get("passed") or 0)
+    monitor.metrics.tests_failed = int(test_results.get("failed") or 0)
+    monitor.metrics.tasks_completed = max(len(phases), monitor.metrics.tasks_completed)
+    monitor.metrics.retries = max(retry_count, monitor.metrics.retries)
+    monitor.current_phase = Phase.COMPLETE if success else Phase.ERROR
+    if phases:
+        last_phase = str(phases[-1].get("phase") or phases[-1].get("name") or "").lower()
+        with contextlib.suppress(ValueError):
+            if last_phase:
+                monitor.current_phase = Phase(last_phase)
+
+    _backfill_guardrails_from_audit(monitor, ws)
+
+
+def _backfill_guardrails_from_audit(monitor: Any, workspace: Path) -> None:
+    """Count guardrail pass/fail/warn from workspace audit JSONL when live hooks missed."""
+    from ai_team.monitor import GuardrailEvent
+
+    audit_path = workspace / "logs" / "audit.jsonl"
+    if not audit_path.is_file():
+        return
+    passed = monitor.metrics.guardrails_passed
+    failed = monitor.metrics.guardrails_failed
+    warned = monitor.metrics.guardrails_warned
+    for line in audit_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        with contextlib.suppress(json.JSONDecodeError):
+            row = json.loads(line)
+        if not isinstance(row, dict):
+            continue
+        event = str(row.get("event") or row.get("hook_event_name") or "").lower()
+        if "quality" not in event and "security" not in event and row.get("category") is None:
+            continue
+        status = str(row.get("status") or row.get("decision") or row.get("outcome") or "").lower()
+        category = str(row.get("category") or ("security" if "security" in event else "quality"))
+        name = str(row.get("name") or row.get("tool_name") or event or "guardrail")
+        if status in ("pass", "passed", "allow", "accept"):
+            passed += 1
+            monitor.guardrail_events.append(
+                GuardrailEvent(
+                    timestamp=datetime.now(),
+                    category=category,
+                    name=name,
+                    status="pass",
+                )
+            )
+        elif status in ("fail", "failed", "deny", "block"):
+            failed += 1
+            monitor.guardrail_events.append(
+                GuardrailEvent(
+                    timestamp=datetime.now(),
+                    category=category,
+                    name=name,
+                    status="fail",
+                )
+            )
+        elif status in ("warn", "warning"):
+            warned += 1
+            monitor.guardrail_events.append(
+                GuardrailEvent(
+                    timestamp=datetime.now(),
+                    category=category,
+                    name=name,
+                    status="warn",
+                )
+            )
+    monitor.metrics.guardrails_passed = passed
+    monitor.metrics.guardrails_failed = failed
+    monitor.metrics.guardrails_warned = warned
+    if len(monitor.guardrail_events) > monitor.MAX_GUARDRAIL_EVENTS:
+        monitor.guardrail_events = monitor.guardrail_events[-monitor.MAX_GUARDRAIL_EVENTS :]
+
+
+def _sync_spend_to_monitor(monitor: Any, run_id: str) -> None:
+    """Copy canonical spend into monitor.cost_usd and token_estimate."""
+    if monitor is None:
+        return
+    from ai_team.core.spend_guard import current_spend
+
+    run = state.runs.get(run_id) or {}
+    spend = run.get("spend") or current_spend(run_id=run_id)
+    if not spend:
+        return
+    spent = spend.get("spent_usd")
+    if isinstance(spent, int | float) and spent >= 0:
+        monitor.metrics.claude_cost_usd = float(spent)
+    tokens = spend.get("total_tokens")
+    if isinstance(tokens, int | float) and tokens > 0:
+        monitor.metrics.token_estimate = int(tokens)
+
+
+def _load_monitor_snapshot_from_bundle(run_id: str) -> dict[str, Any] | None:
+    """Load persisted monitor snapshot for terminal runs after server restart."""
+    try:
+        from ai_team.config.settings import get_settings
+        from ai_team.core.results.writer import ResultsBundle
+
+        bundle = ResultsBundle(run_id)
+        state_path = bundle.output_dir / "state.json"
+        if not state_path.is_file():
+            return None
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        snapshot = data.get("monitor_snapshot")
+        return snapshot if isinstance(snapshot, dict) else None
+    except Exception:  # noqa: BLE001 - best-effort disk read
+        return None
+
+
 def _serialize_monitor(monitor, run_id: str | None = None) -> dict[str, Any]:
     """Serialize TeamMonitor state to JSON-safe dict."""
     if not monitor:
@@ -1263,7 +1557,7 @@ def _serialize_monitor(monitor, run_id: str | None = None) -> dict[str, Any]:
             }
             for e in monitor.guardrail_events[-20:]
         ],
-        "token_estimate": monitor.metrics.token_estimate,
+        "token_estimate": _resolve_token_estimate(monitor, run_id),
         "cost_usd": _resolve_cost_usd(monitor, run_id),
         "session_id": monitor.metrics.claude_session_id or None,
     }
@@ -1302,12 +1596,36 @@ def _resolve_cost_usd(monitor, run_id: str | None) -> float | None:
     if monitor.metrics.claude_cost_usd is not None:
         return float(monitor.metrics.claude_cost_usd)
     if run_id:
+        run = state.runs.get(run_id) or {}
+        stashed = run.get("spend") or {}
+        spent = stashed.get("spent_usd")
+        if isinstance(spent, int | float) and spent >= 0:
+            return float(spent)
         from ai_team.core.spend_guard import current_spend
 
         spent = current_spend(run_id=run_id).get("spent_usd")
         if isinstance(spent, int | float) and spent > 0:
             return float(spent)
     return None
+
+
+def _resolve_token_estimate(monitor, run_id: str | None) -> int:
+    """Token count for the dashboard — prefer live monitor, else spend registry."""
+    if monitor.metrics.token_estimate > 0:
+        return monitor.metrics.token_estimate
+    if not run_id:
+        return 0
+    run = state.runs.get(run_id) or {}
+    spend = run.get("spend") or {}
+    tokens = spend.get("total_tokens")
+    if isinstance(tokens, int | float) and tokens > 0:
+        return int(tokens)
+    from ai_team.core.spend_guard import current_spend
+
+    tokens = current_spend(run_id=run_id).get("total_tokens")
+    if isinstance(tokens, int | float) and tokens > 0:
+        return int(tokens)
+    return 0
 
 
 # ---------------------------------------------------------------------------

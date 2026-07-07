@@ -1,4 +1,5 @@
 import type { AgentState } from "../types";
+import { EmptyState } from "./EmptyState";
 
 const ICONS: Record<string, string> = {
   manager: "\ud83d\udc54",
@@ -26,12 +27,31 @@ const STATUS_LABEL: Record<string, string> = {
   idle: "○ IDLE",
 };
 
-export function AgentTable({ agents }: { agents: Record<string, AgentState> }) {
+export function AgentTable({
+  agents,
+  terminal = false,
+}: {
+  agents: Record<string, AgentState>;
+  terminal?: boolean;
+}) {
   const entries = Object.entries(agents);
 
   if (entries.length === 0) {
-    return <div className="empty-state">Waiting for agents to join the run…</div>;
+    return (
+      <EmptyState
+        title={
+          terminal
+            ? "No agent activity recorded for this run"
+            : "Waiting for agents to join the run"
+        }
+        testId="agent-table-empty"
+        className="empty-state"
+      />
+    );
   }
+
+  const displayStatus = (status: AgentState["status"]) =>
+    terminal && status === "working" ? "done" : status;
 
   return (
     <table className="agent-table">
@@ -45,13 +65,15 @@ export function AgentTable({ agents }: { agents: Record<string, AgentState> }) {
         </tr>
       </thead>
       <tbody>
-        {entries.map(([role, agent]) => (
-          <tr key={role} className={agent.status === "working" ? "agent-row-active" : undefined}>
+        {entries.map(([role, agent]) => {
+          const status = displayStatus(agent.status);
+          return (
+          <tr key={role} className={status === "working" ? "agent-row-active" : undefined}>
             <td className="agent-name">
               {ICONS[role] || "\ud83e\udd16"} {role.replace(/_/g, " ")}
             </td>
-            <td className={STATUS_CLASS[agent.status] || "status-idle"}>
-              {STATUS_LABEL[agent.status] || "○ IDLE"}
+            <td className={STATUS_CLASS[status] || "status-idle"}>
+              {STATUS_LABEL[status] || "○ IDLE"}
             </td>
             <td className="agent-model dim">{agent.model || "—"}</td>
             <td className="agent-task" title={agent.current_task}>
@@ -59,7 +81,8 @@ export function AgentTable({ agents }: { agents: Record<string, AgentState> }) {
             </td>
             <td className="agent-done">{agent.tasks_completed}</td>
           </tr>
-        ))}
+        );
+        })}
       </tbody>
     </table>
   );

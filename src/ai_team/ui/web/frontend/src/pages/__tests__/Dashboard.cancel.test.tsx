@@ -2,16 +2,23 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Dashboard } from "../Dashboard";
+import { RunDetail } from "../RunDetail";
 import { getRun, getRuns, postCancel } from "../../hooks/useApi";
 
 vi.mock("../../hooks/useApi", () => ({
+  ApiError: class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+      super(message);
+      this.status = status;
+    }
+  },
   getHealth: vi.fn().mockResolvedValue({ status: "ok" }),
   getRuns: vi.fn(),
   getRun: vi.fn(),
   postDemo: vi.fn(),
   postCancel: vi.fn(),
-  getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0 }),
+  getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0, source: "empty" }),
   getProjectArchitecture: vi.fn().mockResolvedValue({ system_overview: "" }),
 }));
 
@@ -38,6 +45,7 @@ vi.mock("../../hooks/useWebSocket", () => ({
     runStatus: "running",
     hitlPayload: null,
     errorMessage: null,
+    clearHitl: vi.fn(),
   })),
 }));
 
@@ -84,7 +92,7 @@ describe("Dashboard — T1: Stop run button", () => {
     render(
       <MemoryRouter initialEntries={["/runs/live-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -123,7 +131,7 @@ describe("Dashboard — T1: Stop run button", () => {
     render(
       <MemoryRouter initialEntries={["/runs/live-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -168,12 +176,12 @@ describe("Dashboard — T1: Stop run button", () => {
     render(
       <MemoryRouter initialEntries={["/runs/live-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );
 
-    await waitFor(() => screen.getByTestId("dashboard-active"));
+    await waitFor(() => screen.getByTestId("run-detail"));
     expect(screen.queryByTestId("stop-run-btn")).not.toBeInTheDocument();
   });
 
@@ -205,7 +213,7 @@ describe("Dashboard — T1: Stop run button", () => {
     render(
       <MemoryRouter initialEntries={["/runs/live-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );

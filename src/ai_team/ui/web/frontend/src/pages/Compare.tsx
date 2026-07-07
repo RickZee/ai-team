@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBanner } from "../components/AlertBanner";
-import { AutoGrowTextarea } from "../components/AutoGrowTextarea";
 import { CompareColumn } from "../components/CompareColumn";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { EstimateTable } from "../components/EstimateTable";
+import { RunConfigForm } from "../components/RunConfigForm";
 import { useCatalog } from "../hooks/useCatalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { getComparison, getRun, postDemo, postEstimate } from "../hooks/useApi";
 import { useMonitorWebSocket, useRunWebSocket } from "../hooks/useWebSocket";
 import type { RunWsStatus } from "../hooks/useWebSocket";
@@ -65,6 +66,8 @@ function toRunWsStatus(status: string): RunWsStatus {
       return "awaiting_human";
     case "complete":
       return "complete";
+    case "complete_approved":
+      return "complete_approved";
     case "cancelled":
       return "cancelled";
     case "error":
@@ -74,10 +77,11 @@ function toRunWsStatus(status: string): RunWsStatus {
   }
 }
 
-const TERMINAL_STATUSES = new Set(["complete", "error", "cancelled"]);
+const TERMINAL_STATUSES = new Set(["complete", "complete_approved", "error", "cancelled"]);
 
 export function Compare() {
   const { profileNames, error: catalogError } = useCatalog();
+  useDocumentTitle("Compare — AI-Team");
   const [description, setDescription] = useState("");
   const [profile, setProfile] = useState("full");
   const [complexity, setComplexity] = useState("medium");
@@ -92,6 +96,7 @@ export function Compare() {
   });
   const [demoLoading, setDemoLoading] = useState(false);
   const [activeComparisonId, setActiveComparisonId] = useState<string | null>(null);
+  const [formCollapsed, setFormCollapsed] = useState(false);
 
   const crewai = useRunWebSocket();
   const langgraph = useRunWebSocket();
@@ -179,6 +184,7 @@ export function Compare() {
         if (!cancelled) {
           setReattachRunIds(nextRunIds);
           setReattachSeed(nextSeed);
+          setFormCollapsed(true);
         }
       } catch {
         // Comparison no longer resolvable (server restarted without
@@ -274,6 +280,7 @@ export function Compare() {
     // together (GET /api/comparisons/{comparisonId}), even after a restart.
     const comparisonId = crypto.randomUUID();
     setActiveComparisonId(comparisonId);
+    setFormCollapsed(true);
     crewai.startRun("crewai", profile, description, complexity, null, comparisonId);
     langgraph.startRun("langgraph", profile, description, complexity, null, comparisonId);
     claude.startRun("claude-agent-sdk", profile, description, complexity, null, comparisonId);
@@ -308,6 +315,7 @@ export function Compare() {
         "claude-agent-sdk": c.run_id,
       });
       setDemoMode(true);
+      setFormCollapsed(true);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Demo compare failed");
     } finally {
@@ -483,11 +491,44 @@ export function Compare() {
     (b) => ({ key: b.key, title: b.title, reason: getColumnState(b.key).errorMessage ?? "Run failed" }),
   );
 
+  const hasReattachedComparison = BACKENDS.some((b) => reattachRunIds[b.key] != null);
+  const allReattachedTerminal =
+    hasReattachedComparison &&
+    !demoMode &&
+    !isRunning &&
+    BACKENDS.every((b) => {
+      const col = getColumnState(b.key);
+      return !col.runId || TERMINAL_STATUSES.has(col.status);
+    });
+
+  const handleClearComparison = () => {
+    clearStoredComparison();
+    setReattachRunIds({ crewai: null, langgraph: null, "claude-agent-sdk": null });
+    setReattachSeed({ crewai: null, langgraph: null, "claude-agent-sdk": null });
+    setActiveComparisonId(null);
+    setDemoMode(false);
+    setDemoRunIds({ crewai: null, langgraph: null, "claude-agent-sdk": null });
+    setFormCollapsed(false);
+  };
+
   return (
     <div className="compare-page page-shell">
       {catalogError && <AlertBanner variant="warning" message={catalogError} />}
       {reattaching && (
         <AlertBanner variant="warning" message="Reconnecting to your last comparison…" />
+      )}
+      {allReattachedTerminal && (
+        <div className="compare-finished-banner" data-testid="compare-finished-banner">
+          <span>Last comparison (finished)</span>
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            data-testid="compare-clear"
+            onClick={handleClearComparison}
+          >
+            New comparison
+          </button>
+        </div>
       )}
       {actionError && (
         <AlertBanner message={actionError} onDismiss={() => setActionError(null)} />
@@ -521,75 +562,63 @@ export function Compare() {
         <p className="dim">Benchmark CrewAI, LangGraph, and Claude Agent SDK on the same assignment.</p>
       </header>
 
-      <div className="compare-form panel">
-        <div className="form-grid">
-          <div className="form-group">
-            <label>Team Profile</label>
-            {profileNames.length > 0 ? (
-              <select
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                data-testid="compare-profile"
-              >
-                {profileNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                placeholder="full"
-                data-testid="compare-profile"
-              />
-            )}
-          </div>
-          <div className="form-group">
-            <label>Complexity</label>
-            <select
-              value={complexity}
-              onChange={(e) => setComplexity(e.target.value)}
-              data-testid="compare-complexity"
-            >
-              <option value="simple">Simple</option>
-              <option value="medium">Medium</option>
-              <option value="complex">Complex</option>
-            </select>
-          </div>
-        </div>
-        <div className="form-group full-width">
-          <label>Project Description</label>
-          <AutoGrowTextarea
-            value={description}
-            onChange={setDescription}
-            placeholder="Describe what to build..."
-            data-testid="compare-description"
-          />
-        </div>
-        <div className="form-actions">
-          <button
-            className="btn-primary"
-            onClick={handleCompareClick}
-            disabled={isRunning || demoLoading || !description.trim()}
-            data-testid="compare-submit"
-          >
-            {isRunning ? "Comparing…" : "Run All Backends"}
-          </button>
+      <div
+        className={`compare-form panel ${formCollapsed ? "compare-form-collapsed" : ""}`}
+        data-testid="compare-form"
+      >
+        {formCollapsed ? (
           <button
             type="button"
-            className="btn-warning"
-            onClick={handleCompareDemo}
-            disabled={isRunning || demoLoading}
-            data-testid="compare-demo"
+            className="compare-form-summary btn-link"
+            onClick={() => setFormCollapsed(false)}
+            data-testid="compare-form-expand"
           >
-            {demoLoading ? "Starting demos…" : "Play sample runs (free · no files)"}
+            ⚖ {profile} · {complexity} · &apos;{(description || "…").slice(0, 48)}
+            {(description?.length ?? 0) > 48 ? "…" : ""}&apos; — Edit &amp; rerun
           </button>
-          <button type="button" className="btn-secondary" onClick={handleEstimate}>
-            Estimate Cost
-          </button>
-        </div>
+        ) : (
+          <RunConfigForm
+          profile={profile}
+          setProfile={setProfile}
+          complexity={complexity}
+          setComplexity={setComplexity}
+          description={description}
+          setDescription={setDescription}
+          profileNames={profileNames}
+          descriptionTestId="compare-description"
+          profileTestId="compare-profile"
+          complexityTestId="compare-complexity"
+          disabledHintTestId="compare-disabled-hint"
+          estimateHelperTestId="compare-estimate-helper"
+          disabledHintText="Enter a project description to compare."
+          showDisabledHint={!description.trim()}
+          estimate={estimate}
+          estimateMultiplier={3}
+          onEstimate={handleEstimate}
+          estimateButtonTestId="compare-estimate"
+          actions={
+            <>
+              <button
+                className="btn-primary"
+                onClick={handleCompareClick}
+                disabled={isRunning || demoLoading || !description.trim()}
+                data-testid="compare-submit"
+              >
+                {isRunning ? "Comparing…" : "Run All Backends"}
+              </button>
+              <button
+                type="button"
+                className="btn-link"
+                onClick={handleCompareDemo}
+                disabled={isRunning || demoLoading}
+                data-testid="compare-demo"
+              >
+                {demoLoading ? "Starting demos…" : "Play sample runs (free · no files)"}
+              </button>
+            </>
+          }
+        />
+        )}
       </div>
 
       {estimate && (

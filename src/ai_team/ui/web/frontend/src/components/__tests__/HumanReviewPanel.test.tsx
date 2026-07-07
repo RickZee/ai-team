@@ -23,6 +23,27 @@ describe("HumanReviewPanel", () => {
     expect(screen.getByTestId("hitl-submit")).toBeDisabled();
   });
 
+  it("calls postResume once when Approve is clicked", async () => {
+    const user = userEvent.setup();
+    const onResumed = vi.fn();
+    vi.mocked(postResume).mockResolvedValue({ run_id: "abc", status: "running" });
+
+    render(
+      <HumanReviewPanel runId="abc" payload={{ phase: "planning" }} onResumed={onResumed} />,
+    );
+
+    await user.click(screen.getByTestId("hitl-approve"));
+
+    await waitFor(() => {
+      expect(postResume).toHaveBeenCalledTimes(1);
+      expect(postResume).toHaveBeenCalledWith(
+        "abc",
+        "Approved. Proceed with the current plan.",
+      );
+      expect(onResumed).toHaveBeenCalled();
+    });
+  });
+
   it("calls postResume and onResumed on submit", async () => {
     const user = userEvent.setup();
     const onResumed = vi.fn();

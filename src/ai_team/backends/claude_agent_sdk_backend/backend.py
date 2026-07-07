@@ -241,7 +241,7 @@ class ClaudeAgentBackend:
         try:
             from ai_team.core.results.writer import ResultsBundle
 
-            b = ResultsBundle(workspace.name)
+            b = ResultsBundle(workspace.name, workspace_dir=workspace)
             b.write_run(
                 b.default_run_metadata(
                     backend=self.name,

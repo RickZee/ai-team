@@ -1,11 +1,23 @@
-import type { MonitorState } from "../types";
+import type { GuardrailEvent, MonitorState } from "../types";
 
 interface RunStatStripProps {
   status: string;
   monitor: MonitorState;
 }
 
-/** Compact above-the-fold stats for the dashboard sticky header (Phase 2 U-2). */
+function guardrailsSummary(events: GuardrailEvent[]): string {
+  if (events.length === 0) return "none yet";
+  const passed = events.filter((e) => e.status === "pass").length;
+  const failed = events.filter((e) => e.status === "fail").length;
+  const warned = events.filter((e) => e.status === "warn").length;
+  const parts: string[] = [];
+  if (passed) parts.push(`✓ ${passed}`);
+  if (failed) parts.push(`✗ ${failed}`);
+  if (warned) parts.push(`⚠ ${warned}`);
+  return parts.join(" · ") || "none yet";
+}
+
+/** Compact stats — sole source for status/phase/elapsed/cost/tests (IA-2, V-3). */
 export function RunStatStrip({ status, monitor }: RunStatStripProps) {
   const m = monitor.metrics;
   const testsTotal = m.tests_passed + m.tests_failed;
@@ -13,10 +25,11 @@ export function RunStatStrip({ status, monitor }: RunStatStripProps) {
     testsTotal > 0
       ? `${m.tests_passed}✓${m.tests_failed > 0 ? ` / ${m.tests_failed}✗` : ""}`
       : null;
+  const grLabel = guardrailsSummary(monitor.guardrail_events);
 
   return (
     <div className="run-stat-strip" data-testid="run-stat-strip">
-      <span className={`status-chip status-${status}`}>
+      <span className={`chip chip-md status-chip status-${status}`}>
         {status === "cancelling" ? "Cancelling…" : status}
       </span>
       <span className="run-stat-sep" aria-hidden>
@@ -51,6 +64,12 @@ export function RunStatStrip({ status, monitor }: RunStatStripProps) {
           </span>
         </>
       )}
+      <span className="run-stat-sep" aria-hidden>
+        ·
+      </span>
+      <span className="run-stat-item run-stat-guardrails" title="Guardrails" data-testid="stat-guardrails">
+        Guardrails: {grLabel}
+      </span>
     </div>
   );
 }

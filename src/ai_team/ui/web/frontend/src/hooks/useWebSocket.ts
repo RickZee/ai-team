@@ -2,7 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getWsBase } from "../config";
 import type { MonitorState } from "../types";
 
-const WS_BASE = getWsBase();
+function wsConnectErrorMessage(closeCode?: number): string {
+  const base =
+    "WebSocket connection failed — ensure `uv run ai-team-web` is running on port 8421";
+  const viaVite =
+    typeof window !== "undefined" && window.location?.port === "5173"
+      ? " and you opened the UI at http://localhost:5173"
+      : "";
+  const code = closeCode != null && closeCode !== 1000 ? ` (close code ${closeCode})` : "";
+  return `${base}${viaVite}.${code}`;
+}
 
 interface WSMessage {
   type: string;
@@ -19,6 +28,7 @@ export type RunWsStatus =
   | "running"
   | "awaiting_human"
   | "complete"
+  | "complete_approved"
   | "cancelled"
   | "error";
 
@@ -61,7 +71,10 @@ export function useRunWebSocket() {
         setRunStatus("awaiting_human");
       } else if (msg.type === "complete") {
         const cancelled = msg.run_status === "cancelled";
-        setRunStatus(cancelled ? "cancelled" : "complete");
+        const approved = msg.run_status === "complete_approved";
+        setRunStatus(
+          cancelled ? "cancelled" : approved ? "complete_approved" : "complete",
+        );
         if (msg.project_id) setProjectId(msg.project_id);
         if (msg.data) setMonitor(msg.data as MonitorState);
       } else if (msg.type === "error") {
@@ -90,10 +103,12 @@ export function useRunWebSocket() {
       setErrorMessage(null);
       setHitlPayload(null);
 
-      const ws = new WebSocket(`${WS_BASE}/ws/run`);
+      const ws = new WebSocket(`${getWsBase()}/ws/run`);
       wsRef.current = ws;
+      let opened = false;
 
       ws.onopen = () => {
+        opened = true;
         ws.send(
           JSON.stringify({
             backend,
@@ -110,11 +125,18 @@ export function useRunWebSocket() {
       ws.onmessage = (e) => handleMessage(JSON.parse(e.data) as WSMessage);
 
       ws.onerror = () => {
-        setRunStatus("error");
-        setErrorMessage("WebSocket connection failed");
+        if (!opened) {
+          setRunStatus("error");
+          setErrorMessage((prev) => prev ?? wsConnectErrorMessage());
+        }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        if (!opened && statusRef.current === "connecting") {
+          setRunStatus("error");
+          setErrorMessage((prev) => prev ?? wsConnectErrorMessage(ev.code));
+          return;
+        }
         if (statusRef.current === "running") setRunStatus("complete");
       };
     },
@@ -154,7 +176,7 @@ export function useMonitorWebSocket(runId: string | null) {
       return;
     }
 
-    const ws = new WebSocket(`${WS_BASE}/ws/monitor/${runId}`);
+    const ws = new WebSocket(`${getWsBase()}/ws/monitor/${runId}`);
 
     ws.onmessage = (e) => {
       const msg: WSMessage = JSON.parse(e.data);
@@ -167,7 +189,13 @@ export function useMonitorWebSocket(runId: string | null) {
         setRunStatus("awaiting_human");
       } else if (msg.type === "complete" && msg.data) {
         setMonitor(msg.data as MonitorState);
-        setRunStatus(msg.run_status === "cancelled" ? "cancelled" : "complete");
+        if (msg.run_status === "cancelled") {
+          setRunStatus("cancelled");
+        } else if (msg.run_status === "complete_approved") {
+          setRunStatus("complete_approved");
+        } else {
+          setRunStatus("complete");
+        }
       } else if (msg.type === "error") {
         setErrorMessage(msg.message ?? "Monitor error");
         setRunStatus("error");
@@ -177,5 +205,5 @@ export function useMonitorWebSocket(runId: string | null) {
     return () => ws.close();
   }, [runId]);
 
-  return { monitor, runStatus, hitlPayload, errorMessage };
+  return { monitor, runStatus, hitlPayload, errorMessage, clearHitl: () => setHitlPayload(null) };
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LogEntry } from "../types";
+import { formatLogMessage, formatLogTime } from "../utils/formatLogMessage";
 
 const LEVEL_CLASS: Record<string, string> = {
   error: "log-error",
@@ -19,6 +20,7 @@ export function ActivityLog({
   compact?: boolean;
   ariaLive?: "polite" | "off";
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [agentFilter, setAgentFilter] = useState("");
   const [enabledLevels, setEnabledLevels] = useState<Set<string>>(
@@ -26,6 +28,7 @@ export function ActivityLog({
   );
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
+  const [showJumpLatest, setShowJumpLatest] = useState(false);
 
   const agents = useMemo(
     () => [...new Set(entries.map((e) => e.agent).filter(Boolean))].sort(),
@@ -58,9 +61,25 @@ export function ActivityLog({
     });
   }, [entries, agentFilter, enabledLevels, search]);
 
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    setShowJumpLatest(!atBottom);
+    if (atBottom) setAutoScroll(true);
+  };
+
   useEffect(() => {
-    if (autoScroll) bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
-  }, [filtered.length, autoScroll]);
+    if (autoScroll && !showJumpLatest) {
+      bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
+    }
+  }, [filtered.length, autoScroll, showJumpLatest]);
+
+  const jumpToLatest = () => {
+    setShowJumpLatest(false);
+    setAutoScroll(true);
+    bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
+  };
 
   const jumpToGuardrail = () => {
     const idx = [...filtered].reverse().findIndex((e) => e.level === "warn" || e.level === "error");
@@ -115,7 +134,10 @@ export function ActivityLog({
             <input
               type="checkbox"
               checked={autoScroll}
-              onChange={(e) => setAutoScroll(e.target.checked)}
+              onChange={(e) => {
+                setAutoScroll(e.target.checked);
+                if (e.target.checked) setShowJumpLatest(false);
+              }}
             />
             Auto-scroll
           </label>
@@ -125,22 +147,49 @@ export function ActivityLog({
         </div>
       )}
       <div
+        ref={scrollRef}
         className="activity-log"
         aria-live={ariaLive}
         aria-relevant="additions"
+        onScroll={handleScroll}
       >
         {filtered.map((entry, i) => {
-          const ts = new Date(entry.timestamp).toLocaleTimeString();
+          const display = formatLogMessage(entry.message);
+          const ts = formatLogTime(entry.timestamp);
           return (
-            <div key={i} className={`log-line ${LEVEL_CLASS[entry.level] || "log-info"}`}>
+            <div
+              key={i}
+              className={`log-line ${LEVEL_CLASS[entry.level] || "log-info"}`}
+              title={entry.message}
+            >
               <span className="log-ts">{ts}</span>
-              <span className="log-agent">{entry.agent}</span>
-              <span className="log-msg">{entry.message}</span>
+              <span className="log-sep" aria-hidden>
+                ·
+              </span>
+              {entry.agent && (
+                <>
+                  <span className="log-agent-tag">{entry.agent}</span>
+                  <span className="log-sep" aria-hidden>
+                    ·
+                  </span>
+                </>
+              )}
+              <span className="log-msg">{display}</span>
             </div>
           );
         })}
         <div ref={bottomRef} />
       </div>
+      {showJumpLatest && (
+        <button
+          type="button"
+          className="btn-secondary btn-sm log-jump-latest"
+          onClick={jumpToLatest}
+          data-testid="log-jump-latest"
+        >
+          Jump to latest
+        </button>
+      )}
     </div>
   );
 }

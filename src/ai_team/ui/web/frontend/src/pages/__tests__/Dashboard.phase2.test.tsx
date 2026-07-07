@@ -2,21 +2,29 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Dashboard } from "../Dashboard";
+import { Home } from "../Home";
+import { RunDetail } from "../RunDetail";
 import { getRun, getRuns } from "../../hooks/useApi";
 import { useMonitorWebSocket } from "../../hooks/useWebSocket";
 import { makeLogLines, makeMonitor, runningRun } from "../../test/fixtures/monitor";
-import { mockMatchMedia } from "../../test/matchMedia";
 
 vi.mock("../../hooks/useApi", () => ({
+  ApiError: class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+      super(message);
+      this.status = status;
+    }
+  },
   getHealth: vi.fn().mockResolvedValue({ status: "ok" }),
   getRuns: vi.fn(),
   getRun: vi.fn(),
   postDemo: vi.fn(),
   postCancel: vi.fn(),
   deleteRun: vi.fn(),
-  getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0 }),
+  getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0, source: "empty" }),
   getProjectArchitecture: vi.fn().mockResolvedValue({ system_overview: "" }),
+  getProjectTree: vi.fn().mockResolvedValue({ tree: [] }),
 }));
 
 vi.mock("../../hooks/useWebSocket", () => ({
@@ -29,43 +37,39 @@ vi.mock("../../hooks/useWebSocket", () => ({
   })),
 }));
 
-const SIDEBAR_KEY = "ai-team-sidebar-collapsed";
-
-describe("Dashboard — Phase 2 layout & UX", () => {
+describe("Home — Phase 3 layout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
-    mockMatchMedia(false);
   });
 
-  it("shows sidebar empty state when no runs exist", async () => {
+  it("shows empty state when no runs exist", async () => {
     vi.mocked(getRuns).mockResolvedValue({ runs: [] });
     render(
       <MemoryRouter>
-        <Dashboard />
+        <Home />
       </MemoryRouter>,
     );
-    expect(await screen.findByTestId("run-list-empty")).toBeInTheDocument();
-    expect(screen.getByTestId("run-list-empty")).toHaveTextContent("No runs yet");
+    expect(await screen.findByTestId("home-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("how-it-works")).toBeInTheDocument();
   });
 
-  it("collapses sidebar and persists preference", async () => {
-    const user = userEvent.setup();
-    vi.mocked(getRuns).mockResolvedValue({ runs: [] });
-    const { container } = render(
+  it("shows run list when runs exist", async () => {
+    vi.mocked(getRuns).mockResolvedValue({ runs: [runningRun] });
+    render(
       <MemoryRouter>
-        <Dashboard />
+        <Home />
       </MemoryRouter>,
     );
+    expect(await screen.findByTestId("run-item-live-run-1")).toBeInTheDocument();
+  });
+});
 
-    await screen.findByTestId("sidebar-toggle");
-    await user.click(screen.getByTestId("sidebar-toggle"));
-
-    expect(container.querySelector(".dashboard-layout.sidebar-collapsed")).toBeTruthy();
-    expect(localStorage.getItem(SIDEBAR_KEY)).toBe("true");
+describe("RunDetail — Phase 2/3 layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("shows stat strip and log preview for live runs", async () => {
+  it("shows stat strip on run detail", async () => {
     const monitor = makeMonitor({
       log: makeLogLines(8),
       cost_usd: 0.08,
@@ -83,7 +87,7 @@ describe("Dashboard — Phase 2 layout & UX", () => {
     render(
       <MemoryRouter initialEntries={["/runs/live-run-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -92,12 +96,9 @@ describe("Dashboard — Phase 2 layout & UX", () => {
       expect(screen.getByTestId("run-stat-strip")).toBeInTheDocument();
     });
     expect(screen.getByTestId("stat-cost")).toHaveTextContent("$0.0800");
-    expect(screen.getByText(/Showing last 5 of 8 lines/)).toBeInTheDocument();
-    expect(screen.queryByText("Log line 1")).not.toBeInTheDocument();
-    expect(screen.getByText("Log line 8")).toBeInTheDocument();
   });
 
-  it("expands activity log on demand", async () => {
+  it("expands activity log on activity tab", async () => {
     const user = userEvent.setup();
     const monitor = makeMonitor({ log: makeLogLines(8) });
     vi.mocked(getRuns).mockResolvedValue({ runs: [runningRun] });
@@ -113,18 +114,21 @@ describe("Dashboard — Phase 2 layout & UX", () => {
     render(
       <MemoryRouter initialEntries={["/runs/live-run-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );
 
+    await waitFor(() => screen.getByTestId("run-tab-activity"));
+    await user.click(screen.getByTestId("run-tab-activity"));
     await waitFor(() => screen.getByText("Expand full log"));
     await user.click(screen.getByRole("button", { name: "Expand full log" }));
     expect(screen.getByText("Log line 1")).toBeInTheDocument();
     expect(screen.getByTestId("log-search")).toBeInTheDocument();
   });
 
-  it("spans guardrails full width when failures exist", async () => {
+  it("mounts guardrails panel on activity tab when failures exist", async () => {
+    const user = userEvent.setup();
     const monitor = makeMonitor({
       guardrail_events: [
         {
@@ -146,32 +150,15 @@ describe("Dashboard — Phase 2 layout & UX", () => {
       clearHitl: vi.fn(),
     });
 
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={["/runs/live-run-1"]}>
         <Routes>
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
         </Routes>
       </MemoryRouter>,
     );
 
+    await user.click(await screen.findByTestId("run-tab-activity"));
     await waitFor(() => screen.getByText("blocked_path"));
-    expect(container.querySelector(".guardrails.guardrails--span-full")).toBeTruthy();
-  });
-
-  it("opens sidebar drawer on narrow viewports", async () => {
-    const user = userEvent.setup();
-    mockMatchMedia(true);
-    vi.mocked(getRuns).mockResolvedValue({ runs: [] });
-
-    const { container } = render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>,
-    );
-
-    await screen.findByTestId("sidebar-toggle");
-    expect(screen.getByTestId("sidebar-toggle")).toHaveTextContent("Show runs");
-    await user.click(screen.getByTestId("sidebar-toggle"));
-    expect(container.querySelector(".dashboard-layout.sidebar-drawer-open")).toBeTruthy();
   });
 });

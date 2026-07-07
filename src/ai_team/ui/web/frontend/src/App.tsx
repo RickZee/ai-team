@@ -1,36 +1,31 @@
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { CommandPalette } from "./components/CommandPalette";
 import { useUnifiedRuns } from "./hooks/useUnifiedRuns";
-import { Artifacts } from "./pages/Artifacts";
+import { ArtifactsRedirect } from "./pages/ArtifactsRedirect";
 import { Compare } from "./pages/Compare";
-import { Dashboard } from "./pages/Dashboard";
+import { Home } from "./pages/Home";
 import { Run } from "./pages/Run";
+import { RunDetail } from "./pages/RunDetail";
 import "./App.css";
 
 function NavBar() {
   const location = useLocation();
-  const dashboardActive =
-    location.pathname === "/" || location.pathname.startsWith("/runs/");
+  const runMatch = location.pathname.match(/^\/runs\/([^/]+)/);
+  const openRunId = runMatch?.[1] ?? null;
 
   return (
     <nav className="nav" aria-label="Main">
       <Link to="/" className="nav-brand">
-        <span className="brand-icon">🤖</span> AI-Team Dashboard
+        <span className="brand-icon">🤖</span> AI-Team
       </Link>
       <div className="nav-links">
         <NavLink
           to="/"
-          className={dashboardActive ? "active" : ""}
-          data-testid="nav-dashboard"
-        >
-          Dashboard
-        </NavLink>
-        <NavLink
-          to="/run"
+          end
           className={({ isActive }) => (isActive ? "active" : "")}
-          data-testid="nav-run"
+          data-testid="nav-home"
         >
-          Run
+          Home
         </NavLink>
         <NavLink
           to="/compare"
@@ -39,13 +34,15 @@ function NavBar() {
         >
           Compare
         </NavLink>
-        <NavLink
-          to="/artifacts"
-          className={({ isActive }) => (isActive ? "active" : "")}
-          data-testid="nav-artifacts"
-        >
-          Artifacts
-        </NavLink>
+        {openRunId && (
+          <NavLink
+            to={`/runs/${openRunId}`}
+            className={({ isActive }) => (isActive ? "active" : "")}
+            data-testid="nav-open-run"
+          >
+            Run
+          </NavLink>
+        )}
       </div>
       <span className="nav-hint dim" title="Command palette">
         ⌘K
@@ -62,11 +59,11 @@ function AppShell() {
       <NavBar />
       <main className="main">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/runs/:runId" element={<Dashboard />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/runs/:runId" element={<RunDetail />} />
           <Route path="/run" element={<Run />} />
           <Route path="/compare" element={<Compare />} />
-          <Route path="/artifacts" element={<Artifacts />} />
+          <Route path="/artifacts" element={<ArtifactsRedirect />} />
         </Routes>
       </main>
     </>

@@ -14,6 +14,14 @@ export function formatRunDate(iso: string | null | undefined): string {
   });
 }
 
+/** Time-of-day only for cards inside a day group (V-2). */
+export function formatRunTimeOfDay(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
 /** Newest runs first. */
 export function sortRunsByDate(runs: RunInfo[]): RunInfo[] {
   return [...runs].sort((a, b) => {

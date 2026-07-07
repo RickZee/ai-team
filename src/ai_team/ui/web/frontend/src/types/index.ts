@@ -61,6 +61,7 @@ export interface RunInfo {
   estimate_usd?: number | null;
   complexity?: string | null;
   is_sample?: boolean;
+  comparison_id?: string | null;
 }
 
 export interface CostRow {

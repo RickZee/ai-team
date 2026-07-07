@@ -1,19 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { ArchitecturePanel } from "../components/ArchitecturePanel";
-import { CodeViewer } from "../components/CodeViewer";
-import { DownloadPanel } from "../components/DownloadPanel";
-import { EmptyState } from "../components/EmptyState";
-import { FileTreeViewer } from "../components/FileTreeViewer";
-import { TestResultsPanel } from "../components/TestResultsPanel";
-import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArchitecturePanel } from "./ArchitecturePanel";
+import { CodeViewer } from "./CodeViewer";
+import { DownloadPanel } from "./DownloadPanel";
+import { EmptyState } from "./EmptyState";
+import { FileTreeViewer } from "./FileTreeViewer";
+import { TestResultsPanel } from "./TestResultsPanel";
 import {
   getProjectArchitecture,
   getProjectFile,
   getProjectTests,
   getProjectTree,
 } from "../hooks/useApi";
-import { formatUnifiedRunLabel, formatUnifiedRunTooltip, useUnifiedRuns } from "../hooks/useUnifiedRuns";
 import type {
   ArchitecturePanelData,
   ArtifactFileContent,
@@ -25,16 +23,19 @@ import type {
 
 type TabId = "files" | "tests" | "architecture" | "download";
 
-const TERMINAL_STATUSES = new Set(["complete", "complete_approved", "error", "cancelled"]);
+interface RunArtifactsPanelProps {
+  projectId: string;
+  isDemo?: boolean;
+  initialTab?: TabId;
+}
 
-export function Artifacts() {
-  useDocumentTitle("Artifacts — AI-Team");
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialProject = searchParams.get("project") || "";
-  const { runs, loading: runsLoading } = useUnifiedRuns();
-
-  const [projectId, setProjectId] = useState(initialProject);
-  const [tab, setTab] = useState<TabId>("files");
+/** Artifact browser scoped to a single run — no run selector (IA-1). */
+export function RunArtifactsPanel({
+  projectId,
+  isDemo = false,
+  initialTab = "files",
+}: RunArtifactsPanelProps) {
+  const [tab, setTab] = useState<TabId>(initialTab);
   const [fileRoot, setFileRoot] = useState<ArtifactRoot>("workspace");
 
   const [workspaceTree, setWorkspaceTree] = useState<ArtifactTreeNode[]>([]);
@@ -54,24 +55,10 @@ export function Artifacts() {
   const [arch, setArch] = useState<ArchitecturePanelData | null>(null);
   const [archLoading, setArchLoading] = useState(false);
 
-  const selectedRun = useMemo(
-    () => runs.find((r) => r.run_id === projectId),
-    [runs, projectId],
-  );
-  const isDemo = selectedRun?.backend === "demo";
-  const hasFiles =
-    treesLoaded && (workspaceTree.length > 0 || bundleTree.length > 0);
-
+  const hasFiles = treesLoaded && (workspaceTree.length > 0 || bundleTree.length > 0);
   const activeTree = fileRoot === "workspace" ? workspaceTree : bundleTree;
 
-  useEffect(() => {
-    if (!projectId && runs.length > 0 && !runsLoading) {
-      setProjectId(runs[0].run_id);
-    }
-  }, [projectId, runs, runsLoading]);
-
   const loadTrees = useCallback(async (pid: string) => {
-    if (!pid) return;
     setTreeLoading(true);
     setTreesLoaded(false);
     try {
@@ -81,9 +68,6 @@ export function Artifacts() {
       ]);
       setWorkspaceTree(ws.tree);
       setBundleTree(bundle.tree);
-      if (ws.tree.length === 0 && bundle.tree.length > 0) {
-        setFileRoot("bundle");
-      }
     } catch {
       setWorkspaceTree([]);
       setBundleTree([]);
@@ -111,10 +95,7 @@ export function Artifacts() {
     setTestsLoading(true);
     setArchLoading(true);
     try {
-      const [t, a] = await Promise.all([
-        getProjectTests(pid),
-        getProjectArchitecture(pid),
-      ]);
+      const [t, a] = await Promise.all([getProjectTests(pid), getProjectArchitecture(pid)]);
       setTests(t);
       setArch(a);
     } catch {
@@ -128,24 +109,25 @@ export function Artifacts() {
 
   useEffect(() => {
     if (!projectId) return;
-    setSearchParams({ project: projectId });
+    setTabs([]);
+    setActiveTab(null);
+    setFileContent(null);
     loadTrees(projectId);
-    if (selectedRun?.backend !== "demo") {
+    if (!isDemo) {
       loadTestsArch(projectId);
     } else {
       setTests(null);
       setArch(null);
     }
-  }, [projectId, loadTrees, loadTestsArch, setSearchParams, selectedRun?.backend]);
+  }, [projectId, isDemo, loadTrees, loadTestsArch]);
 
   const openFile = (path: string) => {
-    if (!projectId) return;
-    setSelectedPath(path);
     const tabEntry: OpenFileTab = {
       path,
       root: fileRoot,
       label: path.split("/").pop() || path,
     };
+    setSelectedPath(path);
     setTabs((prev) => {
       if (prev.some((t) => t.path === path && t.root === fileRoot)) return prev;
       return [...prev, tabEntry];
@@ -160,7 +142,7 @@ export function Artifacts() {
       if (activeTab?.path === path && activeTab?.root === root) {
         const last = next[next.length - 1] ?? null;
         setActiveTab(last);
-        if (last && projectId) loadFile(projectId, last.path, last.root);
+        if (last) loadFile(projectId, last.path, last.root);
         else {
           setFileContent(null);
           setFileError(null);
@@ -170,42 +152,20 @@ export function Artifacts() {
     });
   };
 
-  return (
-    <div className="artifacts-page page-shell" data-testid="artifacts-page">
-      <header className="page-header artifacts-header">
-        <h2>Artifact Browser</h2>
-        <div className="artifacts-controls">
-          <label>
-            Run
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              data-testid="artifact-run-select"
-              disabled={runsLoading}
-            >
-              <option value="">Select run…</option>
-              {runs.map((r) => (
-                <option key={r.run_id} value={r.run_id} title={formatUnifiedRunTooltip(r)}>
-                  {formatUnifiedRunLabel(r)}
-                </option>
-              ))}
-            </select>
-          </label>
-          {tab === "files" && projectId && !isDemo && (
-            <label>
-              Root
-              <select
-                value={fileRoot}
-                onChange={(e) => setFileRoot(e.target.value as ArtifactRoot)}
-              >
-                <option value="workspace">Workspace</option>
-                <option value="bundle">Results bundle</option>
-              </select>
-            </label>
-          )}
-        </div>
-      </header>
+  if (isDemo) {
+    return (
+      <div className="empty-state" data-testid="artifacts-demo-empty">
+        <h3>Demo runs have no files on disk</h3>
+        <p className="dim">Start a real run to generate workspace and bundle artifacts.</p>
+        <Link to="/run" className="btn-primary">
+          Start a real run
+        </Link>
+      </div>
+    );
+  }
 
+  return (
+    <div className="run-artifacts-panel" data-testid="run-artifacts-panel">
       <div className="artifacts-tabs">
         {(["files", "tests", "architecture", "download"] as TabId[]).map((id) => (
           <button
@@ -220,50 +180,29 @@ export function Artifacts() {
         ))}
       </div>
 
-      {!projectId ? (
+      {treesLoaded && !hasFiles ? (
         <EmptyState
-          title="Select a run"
-          hint="Choose a run above to browse generated files and reports."
-          testId="artifacts-select-run"
-          className="empty-state panel"
-        />
-      ) : isDemo ? (
-        <div className="empty-state panel" data-testid="artifacts-demo-empty">
-          <h3>Demo runs have no files on disk</h3>
-          <p className="dim">
-            The demo simulates the pipeline in memory only. Start a real run to generate
-            workspace and bundle artifacts.
-          </p>
-          <Link to="/run" className="btn-primary">
-            Start a real run
-          </Link>
-        </div>
-      ) : treesLoaded && !hasFiles ? (
-        <EmptyState
-          title={
-            selectedRun?.status && TERMINAL_STATUSES.has(selectedRun.status)
-              ? "No files found for this run"
-              : "No artifact files found for this run"
-          }
-          hint={
-            selectedRun?.status && TERMINAL_STATUSES.has(selectedRun.status)
-              ? "This run completed without writing files to workspace or bundle."
-              : "The run may still be in progress or failed before writing output."
-          }
+          title="No files found for this run"
+          hint="This run may still be in progress or completed without writing output."
           testId="artifacts-no-files"
-          className="empty-state panel"
-          action={
-            <Link to={`/runs/${projectId}`} className="btn-secondary">
-              Open dashboard
-            </Link>
-          }
+          className="empty-state"
         />
       ) : (
         <div className="artifacts-content">
           {tab === "files" && (
             <div className="artifacts-files-layout">
               <div className="panel artifacts-tree-panel">
-                <h3>Files ({fileRoot})</h3>
+                <div className="panel-header-row">
+                  <h3 className="panel-header">Files ({fileRoot})</h3>
+                  <select
+                    value={fileRoot}
+                    onChange={(e) => setFileRoot(e.target.value as ArtifactRoot)}
+                    aria-label="Artifact root"
+                  >
+                    <option value="workspace">Workspace</option>
+                    <option value="bundle">Results bundle</option>
+                  </select>
+                </div>
                 <FileTreeViewer
                   tree={activeTree}
                   selectedPath={selectedPath}
@@ -272,7 +211,7 @@ export function Artifacts() {
                 />
               </div>
               <div className="panel artifacts-viewer-panel">
-                <h3>Preview</h3>
+                <h3 className="panel-header">Preview</h3>
                 <CodeViewer
                   tabs={tabs}
                   activeTab={activeTab}
@@ -282,7 +221,7 @@ export function Artifacts() {
                   onSelectTab={(t) => {
                     setActiveTab(t);
                     setFileRoot(t.root);
-                    if (projectId) loadFile(projectId, t.path, t.root);
+                    loadFile(projectId, t.path, t.root);
                   }}
                   onCloseTab={closeTab}
                 />

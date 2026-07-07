@@ -12,6 +12,7 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
   const navigate = useNavigate();
   const projectId = artifactProjectId ?? run.run_id;
   const isDemo = run.backend === "demo";
+  const isApproved = run.status === "complete_approved";
   const isCancelled = run.status === "cancelled";
   const testsTotal = monitor.metrics.tests_passed + monitor.metrics.tests_failed;
 
@@ -53,7 +54,11 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
       <div className="run-summary-grid">
         <div>
           <span className="run-meta-label">Outcome</span>
-          <p className={run.status === "complete" ? "green" : isCancelled ? "yellow" : "red"}>
+          <p
+            className={
+              isApproved ? "yellow" : run.status === "complete" ? "green" : isCancelled ? "yellow" : "red"
+            }
+          >
             {run.status}
           </p>
         </div>
@@ -126,7 +131,7 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
       <div className="run-summary-actions">
         {!isDemo && !isCancelled && (
           <Link
-            to={`/artifacts?project=${encodeURIComponent(projectId)}`}
+            to={`/runs/${encodeURIComponent(projectId)}#artifacts`}
             className="btn-primary"
             data-testid="dashboard-view-artifacts"
           >
