@@ -83,11 +83,18 @@ jobs:
       - name: Run unit tests with coverage
         env:
           COVERAGE_FILE: .coverage-data/.coverage.${{ matrix.python-version }}
+          # sysmon tracer is more stable on ubuntu-latest than default trace (coverage 7+).
+          COVERAGE_CORE: sysmon
         run: |
           mkdir -p test-results .coverage-data
-          uv run pytest tests/unit -v --tb=short \
-            --cov=src/ai_team --cov-report=xml --cov-report=term \
-            --junitxml=test-results/unit.xml
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then
+            uv run pytest tests/unit -v --tb=short \
+              --cov=src/ai_team --cov-report=xml --cov-report=term \
+              --junitxml=test-results/unit.xml
+          else
+            uv run pytest tests/unit -v --tb=short \
+              --junitxml=test-results/unit.xml
+          fi
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
