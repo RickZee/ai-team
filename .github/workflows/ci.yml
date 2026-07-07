@@ -83,13 +83,17 @@ jobs:
 
       - name: Run unit tests
         env:
-          CI_UNIT_VERBOSE: "1"
-          PY_TAG: ${{ matrix.python-version }}
+          COVERAGE_FILE: .coverage-data/.coverage.${{ matrix.python-version }}
+          COVERAGE_CORE: sysmon
         run: |
+          mkdir -p test-results .coverage-data
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            ./scripts/ci_unit_test.sh --cov
+            uv run pytest tests/unit -v --tb=short \
+              --cov=src/ai_team --cov-report=xml --cov-report=term \
+              --junitxml=test-results/unit.xml
           else
-            ./scripts/ci_unit_test.sh
+            uv run pytest tests/unit -v --tb=short \
+              --junitxml=test-results/unit.xml
           fi
 
       - name: Upload coverage artifact

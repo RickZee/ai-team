@@ -45,10 +45,7 @@ mkdir -p test-results .coverage-data
 
 PY_TAG="${PYTHON_VERSION:-${PY_TAG:-local}}"
 export COVERAGE_FILE=".coverage-data/.coverage.${PY_TAG}"
-
-if [[ "$WITH_COV" == true ]]; then
-  export COVERAGE_CORE=sysmon
-fi
+export COVERAGE_CORE=sysmon
 
 PYTEST_ARGS=(tests/unit --tb=short --junitxml=test-results/unit.xml)
 if [[ "${CI_UNIT_VERBOSE:-}" == "1" ]]; then
