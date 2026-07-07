@@ -105,9 +105,15 @@ Docs: `tests/e2e/web/README.md`
 
 ## 4. Test job
 
+CI runs **coverage only on Python 3.12** (`COVERAGE_CORE=sysmon`); 3.11 runs tests without `--cov`.
+Local pre-push still enforces coverage on your dev Python.
+
 ```bash
 uv run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term
 ```
+
+If CI fails with **917 passed** and exit code 1, it is almost always **`fail_under`** (branch
+coverage is lower on `ubuntu-latest` than macOS). Reproduce: `uv run pytest tests/unit -q --cov=src/ai_team`.
 
 If only one area changed, run the narrowest `tests/unit/...` path first, then full unit suite.
 
