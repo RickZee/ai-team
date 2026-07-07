@@ -85,26 +85,21 @@ Post-fix expectation: green rate should jump from 1/5 toward CrewAI's level
 while keeping the speed advantage. Worth re-running the n=5 batch after Fixes
 1-3 to measure exactly that delta — a great before/after story for the posts.
 
-## Urgent side-finding — test suite deleted real run data
+## Side-finding — corrected
 
-While investigating: all three of today's verification run directories vanished
-from `workspace/` and `output/runs/`; fresh `2026-07-06_195451_disconnect-test_01`
-/ `unit-test_01` dirs appeared — a pytest session (~15:54 local) ran against the
-repo root and its cleanup removed real run artifacts. The API registry still
-lists the runs (in-memory), but the disk truth is gone — including tonight's
-`complete_approved` evidence bundle.
-
-**Fix (do before anything else):** tests must never touch the real
-`workspace/`/`output/` — point them at `tmp_path` via a session-scoped settings
-fixture, and make any cleanup helper refuse to operate on paths outside pytest's
-tmp root. Add a regression test that seeds a decoy dir in `workspace/` and
-asserts the suite leaves it alone.
+An earlier revision of this doc claimed a pytest session deleted the day's
+verification run directories. Wrong on both counts: the operator had cleaned
+`workspace/`/`output/` manually, and the actual test-hygiene issue ran the
+opposite way — LangGraph graph tests invoking `graph.invoke()` directly with
+`uuid4()` project ids were *creating* stray ResultsBundle dirs in the real
+workspace. That problem was root-caused and fixed the same day (run-identity
+contract `run_id ≡ thread_id ≡ project_id`, `RunSession` scoping, post-run
+report lifted out of the graph, isolated test harness) — see
+[journal/2026-07-06.md](journal/2026-07-06.md).
 
 ## Suggested order
 
-1. Side-finding fix (test isolation) — it just destroyed evidence; nothing else
-   is safe to verify until this lands.
-2. Finding 1 (layout contract) + Finding 3 (gate feedback into retries).
-3. Finding 2 (lint gate policy).
-4. Finding 4 (failing-run metrics).
-5. Re-run n=5 batch → publish the before/after.
+1. Finding 1 (layout contract) + Finding 3 (gate feedback into retries).
+2. Finding 2 (lint gate policy).
+3. Finding 4 (failing-run metrics).
+4. Re-run n=5 batch → publish the before/after.
