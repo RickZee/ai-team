@@ -34,7 +34,7 @@
     "total_seconds": 0.0,
     "expected_under_10_minutes": 600,
     "phases": {
-      "total": 1.66997779160738e-07,
+      "total": 1.2491364032030106e-07,
       "requirements_architecture": 0.0,
       "development": 0.0,
       "qa": 0.0,
@@ -49,14 +49,14 @@
     "deployment_min": 60
   },
   "phase_times_seconds": {
-    "total": 1.66997779160738e-07,
+    "total": 1.2491364032030106e-07,
     "requirements_architecture": 0.0,
     "development": 0.0,
     "qa": 0.0,
     "deployment": 0.0
   },
   "bottlenecks": [
-    "Profile (top cumulative):          149740 function calls (148971 primitive calls) in 0.060 seconds;    Ordered by: cumulative time;    List reduced from 551 to 15 due to restriction <15>;    ncalls  tottime  percall  cumtime  percall filename:lineno(function);         1    0.000    0.000    0.060    0.060 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/planning_crew.py:40(create_planning_crew)"
+    "Profile (top cumulative):          159898 function calls (159052 primitive calls) in 0.089 seconds;    Ordered by: cumulative time;    List reduced from 611 to 15 due to restriction <15>;    ncalls  tottime  percall  cumtime  percall filename:lineno(function);         1    0.000    0.000    0.089    0.089 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/planning_crew.py:41(create_planning_crew)"
   ],
   "hardware_profiles": {
     "openrouter": {
@@ -82,5 +82,5 @@
   "meta": {
     "run_real": false
   },
-  "profile_summary": "         149740 function calls (148971 primitive calls) in 0.060 seconds\n   Ordered by: cumulative time\n   List reduced from 551 to 15 due to restriction <15>\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.060    0.060 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/planning_crew.py:40(create_planning_crew)\n        3    0.000    0.000    0.054    0.018 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/base.py:246(create_agent)\n        3    0.000    0.000    0.045    0.015 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/base.py:39(_load_agents_config)\n        4    0.000    0.000    0.036    0.009 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/__init__.py:117(safe_load)\n        4    0.000    0.000    0.036    0.009 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/__init__.py:74(load)\n        4    0.000    0.000    0.035    0.009 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/constructor.py:47(get_single_data)\n        4    0.000    0.000    0.034    0.008 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/composer.py:29(get_single_node)\n        4    0.000    0.000    0.033    0.008 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/composer.py:50(compose_document)\n    525/4    0.001    0.000    0.033    0.008 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/composer.py:63(compose_node)\n     37/4    0.000    0.000    0.033    0.008 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/composer.py:117(compose_mapping_node)\n     1434    0.001    0.000    0.031    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/parser.py:94(check_event)\n     3905    0.002    0.000    0.027    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/scanner.py:113(check_token)\n      754    0.001    0.000    0.021    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/scanner.py:156(fetch_more_tokens)\n        1    0.000    0.000    0.020    0.020 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/manager.py:27(create_manager_agent)\n      260    0.000    0.000    0.019    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.12/site-packages/yaml/parser.py:446(parse_block_mapping_value)"
+  "profile_summary": "         159898 function calls (159052 primitive calls) in 0.089 seconds\n   Ordered by: cumulative time\n   List reduced from 611 to 15 due to restriction <15>\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.089    0.089 /Users/rickzakharov/dev/github/ai-team/src/ai_team/crews/planning_crew.py:41(create_planning_crew)\n        3    0.000    0.000    0.076    0.025 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/base.py:246(create_agent)\n        3    0.000    0.000    0.059    0.020 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/base.py:39(_load_agents_config)\n        4    0.000    0.000    0.053    0.013 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/__init__.py:117(safe_load)\n        4    0.000    0.000    0.053    0.013 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/__init__.py:74(load)\n        4    0.000    0.000    0.052    0.013 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/constructor.py:47(get_single_data)\n        4    0.000    0.000    0.051    0.013 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/composer.py:29(get_single_node)\n        4    0.000    0.000    0.049    0.012 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/composer.py:50(compose_document)\n    477/4    0.001    0.000    0.049    0.012 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/composer.py:63(compose_node)\n     34/4    0.000    0.000    0.049    0.012 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/composer.py:117(compose_mapping_node)\n     1305    0.001    0.000    0.048    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/parser.py:94(check_event)\n     3551    0.002    0.000    0.043    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/scanner.py:113(check_token)\n      685    0.001    0.000    0.033    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/scanner.py:156(fetch_more_tokens)\n      236    0.000    0.000    0.030    0.000 /Users/rickzakharov/dev/github/ai-team/.venv/lib/python3.11/site-packages/yaml/parser.py:446(parse_block_mapping_value)\n        1    0.000    0.000    0.027    0.027 /Users/rickzakharov/dev/github/ai-team/src/ai_team/agents/product_owner.py:74(create_product_owner_agent)"
 }

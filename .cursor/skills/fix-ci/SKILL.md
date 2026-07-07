@@ -10,17 +10,19 @@ description: >-
 
 Mirror `.github/workflows/ci.yml`. Run from **repository root** with `uv run …` locally and in CI.
 
-For **pip-audit / bandit** only, use the `pre-push-checks` skill (`.cursor/skills/pre-push-checks/`).
+For **local pre-push gates**, use the `pre-push-checks` skill (`.cursor/skills/pre-push-checks/`).
+For **pip-audit / bandit** only, same skill.
 
 ## 1. Identify the failing job
 
 | GitHub job | Local reproduction |
 |------------|-------------------|
 | **Lint** | `uv run ruff check .` → `uv run ruff format --check .` → `uv run mypy src/` |
-| **Test** | `uv run pytest tests/unit -v --tb=short` |
+| **Test (3.11)** | `uv run pytest tests/unit -v --tb=short` (no `--cov` in CI) |
+| **Test (3.12)** | `uv run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term` |
 | **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
 | **Integration test** (main push only) | `uv run pytest tests/integration -v --tb=short` |
-| **Security** | `./scripts/pre_push_check.sh` (default includes unit tests; `--main` adds integration + frontend) |
+| **Security** | `./scripts/pip_audit.sh` (after `pip install --upgrade "pip>=26.1.2"`) |
 
 With `gh` authenticated:
 
@@ -29,7 +31,12 @@ gh run view <run-id> --repo RickZee/ai-team --log-failed
 gh run view <run-id> --job <job-id> --log-failed
 ```
 
-Example run: [26157760272](https://github.com/RickZee/ai-team/actions/runs/26157760272) — **Lint** (ruff format) + **Web UI E2E** failed; unit/integration/security passed.
+Recent examples:
+
+- [28860833088](https://github.com/RickZee/ai-team/actions/runs/28860833088) — **Test** + **Web UI E2E** (stale Playwright selectors after Home/RunDetail IA).
+- [28894155070](https://github.com/RickZee/ai-team/actions/runs/28894155070) — **Test (3.12)** only; E2E green; **917 passed, exit 1** = coverage `fail_under` on `ubuntu-latest`.
+
+Matrix note: when one **Test** leg fails, the other may show **cancelled** (workflow concurrency) — fix the failing leg, not the cancelled one.
 
 ## 2. Lint job
 
@@ -83,6 +90,26 @@ Skip frontend build (browser tests skipped):
 AI_TEAM_SKIP_FRONTEND_BUILD=1 uv run pytest tests/e2e/web -m web_e2e -v
 ```
 
+### IA-1 selector map (Dashboard → Home + RunDetail)
+
+After the UI restructure, **do not** use old Dashboard test ids. Grep `data-testid` in
+`src/ai_team/ui/web/frontend/src` and align `tests/e2e/web/test_browser_e2e.py`.
+
+| Stale (pre-IA-1) | Current |
+|------------------|---------|
+| `nav-dashboard` | `nav-home` |
+| `nav-run` (navbar) | `home-new-run` (Home page CTA → `/run`) |
+| `nav-artifacts` | removed from nav; artifacts on RunDetail tabs |
+| `dashboard-active` | `run-detail` |
+| `dashboard-empty` | `home-empty` |
+| `dashboard-demo` | `home-demo` |
+| `AI-Team Dashboard` heading | `Runs` heading on `home-page` |
+| `.run-list-assignment` | `.run-list-description` |
+| Demo lands on `/` dashboard | Demo lands on `/runs/{id}` (RunDetail) |
+
+Agent activity is on the **Activity** tab: click `run-tab-activity` before asserting
+`Agent timeline` / `Activity Log`.
+
 ### Common Web UI E2E failures
 
 | Symptom | Likely cause | Fix |
@@ -90,30 +117,41 @@ AI_TEAM_SKIP_FRONTEND_BUILD=1 uv run pytest tests/e2e/web -m web_e2e -v
 | `Would reformat: tests/e2e/web/...` | Lint, not E2E | `uv run ruff format tests/e2e/web/` |
 | `Frontend build did not produce .../index.html` | `npm` build failed | `cd src/ai_team/ui/web/frontend && npm ci && npm run build` |
 | `playwright` / browser missing | Chromium not installed | `uv run playwright install chromium` |
-| `dashboard-active` / `run-detail` / `COMPLETE` timeout | Demo slow or UI drift on Linux CI | Confirm `data-testid` on `Home.tsx`, `RunDetail.tsx`, `PhasePipeline.tsx`; demo ~30–60s — tests use 90s; check `src/ai_team/ui/web/server.py` `_run_demo_async` |
-| `get_by_test_id(...)` not found | React `data-testid` ≠ Python selector | Grep `data-testid` in `frontend/src` and align `tests/e2e/web/test_browser_e2e.py` |
+| `get_by_test_id("dashboard-active")` not found | Stale selectors | See [IA-1 selector map](#ia-1-selector-map-dashboard--home--rundetail) |
+| `run-detail` / `COMPLETE` timeout | Demo slow on Linux CI | Demo ~30–60s; tests allow 90s; check `_run_demo_async` in `server.py` |
+| `get_by_test_id(...)` not found | React `data-testid` ≠ Python selector | Grep `data-testid` in `frontend/src` |
 | `get_by_text("CrewAI")` etc. | Copy/layout change on Compare/Run | Update test or restore visible labels |
-| API demo timeout | `/api/demo` never reaches `complete` | Run `test_demo_run_reaches_complete_via_rest` alone; inspect `GET /api/runs/{id}` |
+| API demo timeout | `/api/demo` never reaches `complete` | Run `test_demo_run_reaches_complete_via_rest` alone |
 
 **UI change checklist** (before push):
 
 1. `uv run ruff format --check .`
 2. `npm run build` in `src/ai_team/ui/web/frontend`
-3. Full `pytest tests/e2e/web -m web_e2e` (or at least touched test file)
+3. `./scripts/pre_push_check.sh --e2e` (or `--main` on `main`)
 
 Docs: `tests/e2e/web/README.md`
 
 ## 4. Test job
 
-CI runs **coverage only on Python 3.12** (`COVERAGE_CORE=sysmon`); 3.11 runs tests without `--cov`.
-Local pre-push still enforces coverage on your dev Python.
+CI layout (see `ci.yml`):
+
+- **Python 3.11**: unit tests only (no `--cov`).
+- **Python 3.12**: unit tests **with** `--cov` + `COVERAGE_CORE=sysmon` + `fail_under` from `pyproject.toml` (currently **55**; branch coverage is ~6pt lower on `ubuntu-latest` than macOS).
+
+Local reproduction (both versions):
 
 ```bash
 uv run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term
 ```
 
-If CI fails with **917 passed** and exit code 1, it is almost always **`fail_under`** (branch
-coverage is lower on `ubuntu-latest` than macOS). Reproduce: `uv run pytest tests/unit -q --cov=src/ai_team`.
+### Common Test job failures
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| **917 passed**, job exit **1**, junit **0 failures** | Coverage `fail_under` on Linux | Run with `--cov`; if ~62% locally but CI red, do not lower threshold further without cause — check `pyproject.toml` `[tool.coverage.report]` and CI `COVERAGE_CORE=sysmon` |
+| `tests/unit/test_run_demo.py` fails on Linux only | `run_demo.main()` arms **SIGALRM** | Mock `_install_timeout` to return `False`; load script via `importlib` with a **unique module name** (see existing tests) |
+| `demos/02_todo_app` not found | Archived demo path in tests | Use `demos/02_todo_app` (tracked) or `tmp_path` for txt fixtures; never `demos/01_hello_world` (archived) |
+| Test (3.11) **cancelled** | Sibling matrix leg failed first | Fix Test (3.12) or whichever leg actually failed |
 
 If only one area changed, run the narrowest `tests/unit/...` path first, then full unit suite.
 
@@ -140,18 +178,10 @@ Before declaring CI fixed locally:
 
 ```bash
 ./scripts/pre_push_check.sh --main
-# --main = integration + frontend build + web E2E (matches main-branch CI)
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src/
-uv run pytest tests/unit -q
-uv run pytest tests/integration -q
-cd src/ai_team/ui/web/frontend && npm ci && npm run build
-uv run pytest tests/e2e/web -m web_e2e -q --timeout=120
 ```
 
-Optional if touching dependencies only: `./scripts/pip_audit.sh` (included in `./scripts/pre_push_check.sh`).
+`--main` = lint + mypy + unit tests (with coverage) + integration + frontend build + web E2E + pip-audit — closest match to a **main** branch CI push.
 
 ## 8. Node.js 20 deprecation warnings
 
-CI annotations about Node 20 on Actions runners are **warnings** from `actions/*@v4`/`v5`; they did not fail run 26157760272. Ignore unless upgrading workflow actions.
+CI annotations about Node 20 on Actions runners are **warnings** from `actions/*@v4`/`v5`; they do not fail the job. Ignore unless upgrading workflow actions.
