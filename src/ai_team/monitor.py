@@ -139,12 +139,14 @@ class Metrics:
     claude_session_id: str = ""
     claude_cost_usd: float | None = None
     claude_stop_reason: str = ""
+    end_time: datetime | None = None
 
     @property
     def elapsed(self) -> timedelta:
-        """Time since start_time, or zero if not started."""
+        """Time since start_time, frozen at end_time when set."""
         if self.start_time:
-            return datetime.now() - self.start_time
+            end = self.end_time or datetime.now()
+            return end - self.start_time
         return timedelta(0)
 
     @property
@@ -194,6 +196,7 @@ class TeamMonitor:
 
     def stop(self, final_status: str = "complete") -> None:
         """Mark the run as finished and log a plain one-line summary."""
+        self.metrics.end_time = datetime.now()
         logger.info(
             "run_summary",
             status=final_status,

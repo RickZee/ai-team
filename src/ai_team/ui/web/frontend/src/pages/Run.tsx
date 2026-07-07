@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertBanner } from "../components/AlertBanner";
-import { AutoGrowTextarea } from "../components/AutoGrowTextarea";
-import { EstimateTable } from "../components/EstimateTable";
 import { HumanReviewPanel } from "../components/HumanReviewPanel";
+import { RunConfigBackendField, RunConfigForm } from "../components/RunConfigForm";
 import { RunLaunchStatus } from "../components/RunLaunchStatus";
 import { useCatalog } from "../hooks/useCatalog";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { postDemo, postEstimate } from "../hooks/useApi";
 import { useRunWebSocket } from "../hooks/useWebSocket";
 import type { CostEstimate } from "../types";
@@ -39,6 +39,8 @@ export function Run() {
 
   const { runId, projectId, status, errorMessage, hitlPayload, startRun } = useRunWebSocket();
 
+  useDocumentTitle(status === "awaiting_human" ? null : "Run — AI-Team");
+
   const canRun =
     description.trim().length > 0 && status !== "running" && status !== "connecting";
 
@@ -55,8 +57,6 @@ export function Run() {
             required_key: "ANTHROPIC_API_KEY",
           },
         ];
-
-  const selectedBackend = backendOptions.find((b) => b.name === backend);
 
   useEffect(() => {
     if (runId && (status === "running" || status === "connecting")) {
@@ -119,111 +119,60 @@ export function Run() {
 
       <header className="page-header">
         <h2>Run Pipeline</h2>
-        <p className="dim">Configure and start a run — live monitoring opens on the Dashboard.</p>
+        <p className="dim">Configure and start a run — live monitoring opens on the run detail page.</p>
       </header>
 
       <div className="run-form panel">
-        <div className="form-grid">
-          <div className="form-group">
-            <label>Backend</label>
-            <select
-              value={backend}
-              onChange={(e) => setBackend(e.target.value)}
-              data-testid="run-backend"
-              disabled={catalogLoading}
-            >
-              {backendOptions.map((b) => (
-                <option
-                  key={b.name}
-                  value={b.name}
-                  disabled={b.configured === false}
-                >
-                  {b.label}
-                  {b.streaming ? " (streaming)" : ""}
-                  {b.configured === false ? " — key missing" : ""}
-                </option>
-              ))}
-            </select>
-            {selectedBackend?.required_key && (
-              <p className="dim backend-key-hint" data-testid="backend-key-hint">
-                Requires <code>{selectedBackend.required_key}</code>
-                {selectedBackend.configured === false && (
-                  <span className="yellow"> — not configured on server</span>
-                )}
-              </p>
-            )}
-          </div>
-          <div className="form-group">
-            <label>Team Profile</label>
-            {profileNames.length > 0 ? (
-              <select
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                data-testid="run-profile"
+        <RunConfigForm
+          profile={profile}
+          setProfile={setProfile}
+          complexity={complexity}
+          setComplexity={setComplexity}
+          description={description}
+          setDescription={setDescription}
+          profileNames={profileNames}
+          catalogLoading={catalogLoading}
+          backendSlot={
+            <RunConfigBackendField
+              backend={backend}
+              setBackend={setBackend}
+              backendOptions={backendOptions}
+              catalogLoading={catalogLoading}
+            />
+          }
+          descriptionTestId="run-description"
+          profileTestId="run-profile"
+          complexityTestId="run-complexity"
+          disabledHintTestId="run-disabled-hint"
+          estimateHelperTestId="run-estimate-helper"
+          disabledHintText="Enter a project description to run."
+          showDisabledHint={!description.trim()}
+          estimate={estimate}
+          inlineEstimate
+          onEstimate={handleEstimate}
+          estimateButtonTestId="run-estimate"
+          actions={
+            <>
+              <button
+                className="btn-primary"
+                onClick={handleRun}
+                disabled={!canRun}
+                data-testid="run-submit"
               >
-                {profileNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                placeholder="full"
-                data-testid="run-profile"
-              />
-            )}
-          </div>
-          <div className="form-group">
-            <label>Complexity</label>
-            <select value={complexity} onChange={(e) => setComplexity(e.target.value)}>
-              <option value="simple">Simple</option>
-              <option value="medium">Medium</option>
-              <option value="complex">Complex</option>
-            </select>
-          </div>
-        </div>
-        <div className="form-group full-width">
-          <label>Project Description</label>
-          <AutoGrowTextarea
-            value={description}
-            onChange={setDescription}
-            placeholder="Describe what to build..."
-            data-testid="run-description"
-          />
-        </div>
-        <div className="form-actions">
-          <button
-            className="btn-primary"
-            onClick={handleRun}
-            disabled={!canRun}
-            data-testid="run-submit"
-          >
-            {status === "running" || status === "connecting" ? "Starting…" : "Run"}
-          </button>
-          <button className="btn-secondary" onClick={handleEstimate} data-testid="run-estimate">
-            Estimate Cost
-          </button>
-          <button className="btn-warning" onClick={handleDemo} data-testid="run-demo">
-            Play sample run (free · no files)
-          </button>
-        </div>
-        <p className="dim demo-helper">Sample runs simulate agent activity with no files or cost.</p>
+                {status === "running" || status === "connecting" ? "Starting…" : "Run"}
+              </button>
+              <button type="button" className="btn-link" onClick={handleDemo} data-testid="run-demo">
+                Play sample run
+              </button>
+            </>
+          }
+        />
         {estimate && !estimate.within_budget && (
           <p className="estimate-budget-warn yellow">
             Estimated cost exceeds default budget — review before running.
           </p>
         )}
       </div>
-
-      {estimate && (
-        <div className="panel estimate-panel">
-          <h3>Cost Estimate ({estimate.complexity})</h3>
-          <EstimateTable estimate={estimate} />
-        </div>
-      )}
 
       <RunLaunchStatus status={status} runId={runId} errorMessage={errorMessage} />
 

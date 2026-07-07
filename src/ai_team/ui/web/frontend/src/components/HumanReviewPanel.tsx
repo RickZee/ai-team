@@ -29,13 +29,13 @@ export function HumanReviewPanel({ runId, payload, backend, onResumed }: HumanRe
 
   const applyPreset = (text: string) => setFeedback(text);
 
-  const handleSubmit = async () => {
-    const text = feedback.trim();
-    if (!text) return;
+  const submitText = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
     setSubmitting(true);
     setError(null);
     try {
-      await postResume(runId, text);
+      await postResume(runId, trimmed);
       setFeedback("");
       onResumed?.();
     } catch (e) {
@@ -43,6 +43,10 @@ export function HumanReviewPanel({ runId, payload, backend, onResumed }: HumanRe
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    await submitText(feedback);
   };
 
   const phase = payloadText(payload, "phase") ?? payloadText(payload, "current_phase");
@@ -90,7 +94,7 @@ export function HumanReviewPanel({ runId, payload, backend, onResumed }: HumanRe
         <button
           type="button"
           className="btn-secondary btn-sm"
-          onClick={() => applyPreset("Approved. Proceed with the current plan.")}
+          onClick={() => void submitText("Approved. Proceed with the current plan.")}
           data-testid="hitl-approve"
         >
           Approve

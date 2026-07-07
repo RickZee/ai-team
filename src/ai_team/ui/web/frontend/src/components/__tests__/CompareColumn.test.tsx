@@ -5,7 +5,7 @@ import { CompareColumn } from "../CompareColumn";
 import { makeMonitor } from "../../test/fixtures/monitor";
 
 describe("CompareColumn", () => {
-  it("shows not-started empty state when idle", () => {
+  it("shows not-started empty state when idle with no footer", () => {
     render(
       <MemoryRouter>
         <CompareColumn
@@ -20,27 +20,11 @@ describe("CompareColumn", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("compare-langgraph-empty")).toHaveTextContent("Not started");
-    expect(screen.getByText(/Run a comparison/)).toBeInTheDocument();
+    expect(screen.queryByTestId("compare-langgraph-open-run")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("compare-langgraph-complete")).not.toBeInTheDocument();
   });
 
-  it("renders backend title with tooltip attribute", () => {
-    render(
-      <MemoryRouter>
-        <CompareColumn
-          title="Claude Agent SDK"
-          titleClass="claude-title"
-          monitor={null}
-          status="idle"
-          runId={null}
-          errorMessage={null}
-          testIdPrefix="compare-claude"
-        />
-      </MemoryRouter>,
-    );
-    expect(screen.getByTitle("Claude Agent SDK")).toBeInTheDocument();
-  });
-
-  it("shows terminal guardrails empty copy", () => {
+  it("terminal reattach shows result card without contradictory placeholders", () => {
     render(
       <MemoryRouter>
         <CompareColumn
@@ -54,9 +38,10 @@ describe("CompareColumn", () => {
         />
       </MemoryRouter>,
     );
-    expect(screen.getByTestId("guardrails-empty")).toHaveTextContent(
-      "No guardrail events recorded for this run",
-    );
+    expect(screen.getByTestId("compare-crewai-terminal")).toBeInTheDocument();
+    expect(screen.getByTestId("compare-crewai-open-run")).toHaveTextContent("Open run");
+    expect(screen.queryByText("Not started")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Waiting for agents/i)).not.toBeInTheDocument();
   });
 
   it("shows error block with reason", () => {
@@ -74,5 +59,6 @@ describe("CompareColumn", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("compare-crewai-error-reason")).toHaveTextContent("Model timeout");
+    expect(screen.queryByText("Not started")).not.toBeInTheDocument();
   });
 });

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -194,7 +196,7 @@ class TestFinishRunFinalizesBundle:
         st.runs["run-2"]["approved_via_hitl"] = True
         st.finish_run("run-2", success=True)
 
-        assert st.runs["run-2"]["status"] == "complete"
+        assert st.runs["run-2"]["status"] == "complete_approved"
         data = _json.loads((out_root / "runs" / "run-2" / "run.json").read_text(encoding="utf-8"))
         assert data["extra"]["final_status"] == "complete_approved"
 
@@ -213,3 +215,121 @@ class TestFinishRunFinalizesBundle:
 
         assert st.runs["run-3"]["status"] == "error"
         assert st.runs["run-3"]["error"] == "boom"
+
+
+class TestMonitorBackfill:
+    def test_backfill_reads_workspace_test_results(self, tmp_path, monkeypatch) -> None:
+        from ai_team.config.settings import reload_settings
+        from ai_team.monitor import Phase, TeamMonitor
+        from ai_team.ui.web.server import _backfill_monitor_from_workspace
+
+        ws_root = tmp_path / "workspace"
+        run_id = "backfill-1"
+        ws = ws_root / run_id
+        (ws / "docs").mkdir(parents=True)
+        (ws / "src").mkdir()
+        (ws / "src" / "calc.py").write_text("x=1\n", encoding="utf-8")
+        (ws / "docs" / "test_results.json").write_text(
+            json.dumps({"passed": 5, "failed": 0, "total": 5}),
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws_root))
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(tmp_path / "output"))
+        reload_settings()
+
+        monitor = TeamMonitor(project_name="backfill")
+        _backfill_monitor_from_workspace(monitor, run_id, success=True)
+
+        assert monitor.metrics.files_generated == 1
+        assert monitor.metrics.tests_passed == 5
+        assert monitor.current_phase == Phase.COMPLETE
+
+    def test_resolve_cost_usd_uses_stashed_crewai_spend(self) -> None:
+        from ai_team.monitor import TeamMonitor
+        from ai_team.ui.web import server as web_server
+
+        monitor = TeamMonitor(project_name="cost")
+        web_server.state.create_run("cost-1", "crewai", "smoke", "x")
+        web_server.state.runs["cost-1"]["spend"] = {
+            "spent_usd": 0.000614,
+            "total_tokens": 1413,
+        }
+        cost = web_server._resolve_cost_usd(monitor, "cost-1")
+        tokens = web_server._resolve_token_estimate(monitor, "cost-1")
+        assert cost == pytest.approx(0.000614)
+        assert tokens == 1413
+        web_server.state.runs.pop("cost-1", None)
+
+
+class TestClaudeWebLaunchBundle:
+    """Regression: SDK runs launched via the web path must leave output/runs/<id>/."""
+
+    def test_execute_run_claude_stream_finishes_bundle(self, tmp_path, monkeypatch) -> None:
+        import json as _json
+
+        from ai_team.config.settings import reload_settings
+        from ai_team.ui.web import server as web_server
+
+        out_root = tmp_path / "output"
+        ws_root = tmp_path / "workspace"
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out_root))
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws_root))
+        reload_settings()
+
+        run_id = "sdk-web-1"
+        ws = ws_root / run_id
+        ws.mkdir(parents=True)
+        (ws / "docs").mkdir()
+        (ws / "docs" / "test_results.json").write_text(
+            _json.dumps({"passed": 5, "failed": 0}),
+            encoding="utf-8",
+        )
+
+        async def _fake_stream(self, description, profile, env=None, **kwargs):  # noqa: ANN001
+            _ = (self, description, profile, env, kwargs)
+            yield {"type": "run_started", "backend": "claude-agent-sdk"}
+            yield {
+                "type": "run_finished",
+                "success": True,
+                "result": {
+                    "success": True,
+                    "raw": {"cost_usd": 0.12, "usage": {"total_tokens": 900}},
+                },
+            }
+
+        class _FakeWS:
+            sent: list[dict] = []
+
+            async def send_json(self, payload: dict) -> None:
+                self.sent.append(payload)
+
+        from unittest.mock import patch
+
+        with patch(
+            "ai_team.backends.claude_agent_sdk_backend.backend.ClaudeAgentBackend.stream",
+            _fake_stream,
+        ):
+            web_server.state.create_run(run_id, "claude-agent-sdk", "smoke", "calc module")
+            web_server.state.monitors[run_id] = __import__(
+                "ai_team.monitor", fromlist=["TeamMonitor"]
+            ).TeamMonitor(project_name="sdk")
+            req = web_server.RunRequest(
+                backend="claude-agent-sdk",
+                profile="smoke",
+                description="calc module",
+            )
+            import asyncio
+
+            asyncio.run(web_server._execute_run(_FakeWS(), run_id, req))
+
+        run_json = _json.loads((out_root / "runs" / run_id / "run.json").read_text(encoding="utf-8"))
+        assert run_json["completed_at"] is not None
+        state = _json.loads((out_root / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+        assert state.get("actual_cost_usd") == 0.12
+        assert web_server.state.runs[run_id]["status"] == "complete"
+        monitor = web_server._serialize_monitor(web_server.state.monitors[run_id], run_id)
+        assert monitor["cost_usd"] == pytest.approx(0.12)
+        assert monitor["token_estimate"] == 900
+        assert monitor["metrics"]["tests_passed"] == 5
+        web_server.state.runs.pop(run_id, None)
+        web_server.state.monitors.pop(run_id, None)

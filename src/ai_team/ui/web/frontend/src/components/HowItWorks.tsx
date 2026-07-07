@@ -1,15 +1,15 @@
-/** Onboarding explainer for the empty Dashboard state. */
+/** Onboarding explainer for the empty Home state. */
 export function HowItWorks() {
   return (
     <div className="how-it-works" data-testid="how-it-works">
       <h3>How it works</h3>
       <ol className="how-it-works-steps">
         <li>
-          <strong>Describe</strong> — write a project brief on the Run tab and pick a backend.
+          <strong>Describe</strong> — write a project brief and pick a backend.
         </li>
         <li>
-          <strong>Watch agents build</strong> — follow phases, agents, and guardrails live on the
-          Dashboard.
+          <strong>Watch agents build</strong> — follow phases, agents, and guardrails on the run
+          detail page.
         </li>
         <li>
           <strong>Browse artifacts</strong> — inspect generated code, tests, and architecture when

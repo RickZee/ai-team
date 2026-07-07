@@ -1,4 +1,5 @@
 import type { GuardrailEvent } from "../types";
+import { EmptyState } from "./EmptyState";
 
 const STATUS_ICON: Record<string, string> = {
   pass: "✓",
@@ -12,9 +13,26 @@ const STATUS_CLASS: Record<string, string> = {
   warn: "gr-warn",
 };
 
-export function GuardrailsPanel({ events }: { events: GuardrailEvent[] }) {
+export function GuardrailsPanel({
+  events,
+  terminal = false,
+}: {
+  events: GuardrailEvent[];
+  terminal?: boolean;
+}) {
   if (events.length === 0) {
-    return <div className="empty-state">No guardrail checks yet</div>;
+    return (
+      <EmptyState
+        title={
+          terminal
+            ? "No guardrail events recorded for this run"
+            : "No guardrail checks yet"
+        }
+        hint={terminal ? undefined : "Checks appear as agents run."}
+        testId="guardrails-empty"
+        className="empty-state"
+      />
+    );
   }
 
   return (

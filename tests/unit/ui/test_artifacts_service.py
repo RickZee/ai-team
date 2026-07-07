@@ -12,6 +12,7 @@ from ai_team.ui.artifacts.service import (
     load_registry,
     load_tests_panel,
     read_artifact_file,
+    resolve_run_workspace_dir,
     workspace_zip_bytes,
 )
 
@@ -42,6 +43,22 @@ def test_build_tree_workspace(artifact_dirs: tuple[str, str]) -> None:
     assert len(tree) >= 1
     names = {n.name for n in tree}
     assert "src" in names
+
+
+def test_resolve_run_workspace_dir_when_env_scoped_to_run(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Scoped PROJECT_WORKSPACE_DIR must not double-append project_id."""
+    run_ws = tmp_path / "workspace" / "run-abc"
+    run_ws.mkdir(parents=True)
+    monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(run_ws))
+    from ai_team.config.settings import reload_settings
+
+    (run_ws / "calc.py").write_text("print(1)\n", encoding="utf-8")
+    reload_settings()
+    assert resolve_run_workspace_dir("run-abc") == run_ws.resolve()
+    tree = build_tree("run-abc", "workspace")
+    assert len(tree) >= 1
 
 
 def test_read_artifact_file(artifact_dirs: tuple[str, str]) -> None:

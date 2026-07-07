@@ -99,11 +99,25 @@ def _workspace_root() -> Path:
     return Path(get_settings().project.workspace_dir).resolve()
 
 
-def resolve_project_paths(project_id: str) -> tuple[Path, Path]:
-    """Return (workspace_dir, bundle_dir) for a project id."""
+def resolve_run_workspace_dir(project_id: str) -> Path:
+    """Return the per-run workspace directory for *project_id*.
+
+    ``PROJECT_WORKSPACE_DIR`` may point at the runs root (``workspace/``) or be
+    scoped to a single run (``workspace/<id>/``) while a backend holds the env
+    var. Appending ``project_id`` twice yields a non-existent path and an empty
+    tree API — the bug seen on concurrent Compare-tab SDK runs.
+    """
     if ".." in project_id or "/" in project_id or "\\" in project_id:
         raise ValueError("Invalid project_id")
-    ws = _workspace_root() / project_id
+    ws_root = _workspace_root()
+    if ws_root.name == project_id:
+        return ws_root
+    return ws_root / project_id
+
+
+def resolve_project_paths(project_id: str) -> tuple[Path, Path]:
+    """Return (workspace_dir, bundle_dir) for a project id."""
+    ws = resolve_run_workspace_dir(project_id)
     bundle = _output_root() / RUNS_SUBDIR / project_id
     return ws, bundle
 

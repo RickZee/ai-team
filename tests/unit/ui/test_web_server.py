@@ -173,6 +173,69 @@ class TestWebServerRuns:
         assert body["description"] == "Detail assignment"
         assert body["monitor"] is not None
 
+    def test_finalize_persists_monitor_snapshot_for_get_run(
+        self,
+        web_client: TestClient,
+        tmp_path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """P0-6: terminal runs reload log/agents/guardrails from bundle state.json."""
+        import json
+        from datetime import datetime
+
+        from ai_team.config.settings import reload_settings
+        from ai_team.monitor import AgentStatus, GuardrailEvent, TeamMonitor
+        from ai_team.ui.web import server as web_server
+
+        ws = tmp_path / "workspace"
+        out = tmp_path / "output"
+        ws.mkdir()
+        out.mkdir()
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws))
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out))
+        reload_settings()
+
+        run_id = "snap-1"
+        web_server.state.create_run(run_id, "langgraph", "full", "Snapshot test")
+        monitor = TeamMonitor(project_name="Snapshot test")
+        monitor.start()
+        monitor._add_log("qa_engineer", "Tests green", "success")
+        monitor.agents["qa_engineer"] = AgentStatus(
+            role="qa_engineer",
+            status="done",
+            current_task="pytest",
+            tasks_completed=1,
+            model="test",
+        )
+        monitor.guardrail_events.append(
+            GuardrailEvent(
+                timestamp=datetime.now(),
+                category="quality",
+                name="tests_passed",
+                status="pass",
+                message="ok",
+            )
+        )
+        web_server.state.monitors[run_id] = monitor
+        web_server.state.runs[run_id]["status"] = "complete"
+        web_server.state._finalize_bundle(run_id, success=True)
+
+        state_path = out / "runs" / run_id / "state.json"
+        assert state_path.is_file()
+        snapshot = json.loads(state_path.read_text(encoding="utf-8"))["monitor_snapshot"]
+        assert len(snapshot["log"]) >= 1
+        assert snapshot["agents"]
+        assert len(snapshot["guardrail_events"]) >= 1
+
+        web_server.state.monitors.pop(run_id, None)
+        body = web_client.get(f"/api/runs/{run_id}").json()
+        assert body["monitor"] is not None
+        assert len(body["monitor"]["log"]) >= 1
+        assert body["monitor"]["agents"]
+        assert len(body["monitor"]["guardrail_events"]) >= 1
+
+        web_server.state.runs.pop(run_id, None)
+
     def test_get_run_includes_spend_and_metrics(self, web_client: TestClient) -> None:
         """SHOWCASE_PLAN 2.3: /api/runs/{id} carries per-run spend + artifact metrics."""
         from ai_team.core.spend_guard import record_usage, reset_spend_guard

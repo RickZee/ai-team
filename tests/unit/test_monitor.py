@@ -5,6 +5,8 @@ Metrics, and MonitorCallback CrewAI adapter. No live TUI is started in tests.
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from ai_team.monitor import (
     AGENT_ICONS,
     PHASE_ICONS,
@@ -173,6 +175,20 @@ class TestMetrics:
         m.start_time = datetime.now() - timedelta(seconds=65)
         assert m.elapsed.total_seconds() >= 64
         assert "m" in m.elapsed_str or "s" in m.elapsed_str
+
+    def test_elapsed_frozen_after_end_time(self) -> None:
+        from datetime import datetime, timedelta
+        import time
+
+        m = Metrics()
+        start = datetime.now() - timedelta(minutes=5)
+        end = datetime.now() - timedelta(minutes=2)
+        m.start_time = start
+        m.end_time = end
+        first = m.elapsed_str
+        time.sleep(0.05)
+        assert m.elapsed_str == first
+        assert m.elapsed.total_seconds() == pytest.approx(180, abs=1)
 
 
 # -----------------------------------------------------------------------------

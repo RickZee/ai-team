@@ -33,8 +33,10 @@ vi.mock("../../hooks/useUnifiedRuns", () => ({
     error: null,
     refresh: vi.fn(),
   })),
-  formatUnifiedRunLabel: (r: { run_id: string; backend: string }) =>
-    `${r.run_id} · ${r.backend}`,
+  formatUnifiedRunLabel: (r: { run_id: string; backend: string; started_at: string; description?: string }) =>
+    `${r.started_at} · ${r.backend} · ${r.description || r.run_id}`,
+  formatUnifiedRunTooltip: (r: { run_id: string; description?: string }) =>
+    r.description ? `${r.run_id} — ${r.description}` : r.run_id,
 }));
 
 vi.mock("../../hooks/useApi", () => ({

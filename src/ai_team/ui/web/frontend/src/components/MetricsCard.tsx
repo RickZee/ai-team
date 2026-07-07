@@ -2,14 +2,10 @@ import type { Metrics } from "../types";
 
 export function MetricsCard({
   metrics,
-  elapsed,
-  costUsd,
   tokenEstimate,
   sessionId,
 }: {
   metrics: Metrics;
-  elapsed: string;
-  costUsd?: number | null;
   tokenEstimate?: number;
   sessionId?: string | null;
 }) {
@@ -17,16 +13,6 @@ export function MetricsCard({
 
   return (
     <div className="metrics-card">
-      <div className="metric-row">
-        <span className="metric-label">Elapsed</span>
-        <span className="metric-value cyan">{elapsed}</span>
-      </div>
-      {costUsd != null && (
-        <div className="metric-row">
-          <span className="metric-label">Cost (USD)</span>
-          <span className="metric-value yellow">${costUsd.toFixed(4)}</span>
-        </div>
-      )}
       {tokenEstimate != null && tokenEstimate > 0 && (
         <div className="metric-row">
           <span className="metric-label">Tokens (est.)</span>
@@ -85,21 +71,6 @@ export function MetricsCard({
           {metrics.guardrails_warned}
         </span>
       </div>
-      {(metrics.tests_passed > 0 || metrics.tests_failed > 0) && (
-        <>
-          <div className="metric-divider" />
-          <div className="metric-row">
-            <span className="metric-label">Tests passed</span>
-            <span className="metric-value green">{metrics.tests_passed}</span>
-          </div>
-          <div className="metric-row">
-            <span className="metric-label">Tests failed</span>
-            <span className={`metric-value ${metrics.tests_failed ? "red" : "dim"}`}>
-              {metrics.tests_failed}
-            </span>
-          </div>
-        </>
-      )}
     </div>
   );
 }

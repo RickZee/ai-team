@@ -2,11 +2,22 @@ import { getApiBase } from "../config";
 
 const API_BASE = getApiBase();
 
+/** API error with HTTP status for distinct 404 handling (V-4). */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, init);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `API error: ${res.status}`);
+    throw new ApiError(text || `API error: ${res.status}`, res.status);
   }
   return res.json();
 }

@@ -13,6 +13,7 @@ const STATUS_LABEL: Record<RunWsStatus, string> = {
   running: "Run started — opening dashboard…",
   awaiting_human: "Paused for human review",
   complete: "Run complete",
+  complete_approved: "Complete (approved over failure)",
   cancelled: "Run cancelled",
   error: "Run failed",
 };
@@ -22,7 +23,17 @@ export function RunLaunchStatus({ status, runId, errorMessage }: RunLaunchStatus
 
   return (
     <div className="panel run-launch-status" data-testid="run-launch-status">
-      <p className={status === "error" ? "red" : status === "complete" ? "green" : ""}>
+      <p
+        className={
+          status === "error"
+            ? "red"
+            : status === "complete"
+              ? "green"
+              : status === "complete_approved"
+                ? "yellow"
+                : ""
+        }
+      >
         {STATUS_LABEL[status]}
         {runId && status !== "connecting" && <span className="dim"> ({runId})</span>}
       </p>
