@@ -10,16 +10,45 @@ description: >-
 
 Mirror `.github/workflows/ci.yml`. Run from **repository root** with `uv run …` locally and in CI.
 
+**Single source of truth for unit tests:** `./scripts/ci_unit_test.sh` (used by CI, `pre_push_check.sh`, and `ci_check.sh`).
+
 For **local pre-push gates**, use the `pre-push-checks` skill (`.cursor/skills/pre-push-checks/`).
 For **pip-audit / bandit** only, same skill.
+
+## 0. Systematic triage (start here)
+
+1. Open the [failed run](https://github.com/RickZee/ai-team/actions) → note **which job** is red (ignore **cancelled** matrix legs).
+2. Map the job to a local command (table in §1).
+3. Reproduce locally. Prefer `./scripts/ci_check.sh --matrix` before push to main (lint + 3.12 cov + 3.11 + security).
+4. Fix root cause — do not lower coverage threshold or skip tests without evidence.
+5. Re-run the narrowest repro, then `./scripts/pre_push_check.sh --main` if pushing to `main`.
+
+### Test job step map (`ci.yml`)
+
+| Step name | 3.11 | 3.12 | Common failure |
+|-----------|------|------|----------------|
+| Run unit tests | no `--cov` | `--cov` + `fail_under` | Real test failure; coverage below threshold |
+| Upload coverage artifact | **skipped** | uploads `coverage.xml` | Was: missing `coverage.xml` on 3.11 (fixed with `if: matrix.python-version == '3.12'`) |
+| Upload test results | `if: always()` | same | JUnit artifact even when an earlier step failed |
+
+When **917 passed** but job exit **1**: if the failing step is **Upload coverage artifact** on 3.11, the matrix leg ran pytest without `--cov` — conditional upload fixes it. If the failing step is **Run unit tests** on 3.12, it is almost always `fail_under`.
+
+Recent examples:
+
+- [28860833088](https://github.com/RickZee/ai-team/actions/runs/28860833088) — **Test** + **Web UI E2E** (stale Playwright selectors after Home/RunDetail IA).
+- [28894155070](https://github.com/RickZee/ai-team/actions/runs/28894155070) — **Test (3.12)** only; **917 passed, exit 1** = coverage `fail_under` on `ubuntu-latest`.
+- [28896523194](https://github.com/RickZee/ai-team/actions/runs/28896523194) — **Test (3.11)**; pytest green but **Upload coverage artifact** failed (no `coverage.xml` on non-cov leg).
+
+Matrix note: `fail-fast: false` — both Python versions finish; fix the leg that actually failed, not a **cancelled** sibling from old concurrency.
 
 ## 1. Identify the failing job
 
 | GitHub job | Local reproduction |
 |------------|-------------------|
 | **Lint** | `uv run ruff check .` → `uv run ruff format --check .` → `uv run mypy src/` |
-| **Test (3.11)** | `uv run pytest tests/unit -v --tb=short` (no `--cov` in CI) |
-| **Test (3.12)** | `uv run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term` |
+| **Test (3.11)** | `./scripts/ci_unit_test.sh --python 3.11` |
+| **Test (3.12)** | `./scripts/ci_unit_test.sh --python 3.12 --cov` |
+| **Both Test legs** | `./scripts/ci_check.sh --matrix` |
 | **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
 | **Integration test** (main push only) | `uv run pytest tests/integration -v --tb=short` |
 | **Security** | `./scripts/pip_audit.sh` (after `pip install --upgrade "pip>=26.1.2"`) |
@@ -30,13 +59,6 @@ With `gh` authenticated:
 gh run view <run-id> --repo RickZee/ai-team --log-failed
 gh run view <run-id> --job <job-id> --log-failed
 ```
-
-Recent examples:
-
-- [28860833088](https://github.com/RickZee/ai-team/actions/runs/28860833088) — **Test** + **Web UI E2E** (stale Playwright selectors after Home/RunDetail IA).
-- [28894155070](https://github.com/RickZee/ai-team/actions/runs/28894155070) — **Test (3.12)** only; E2E green; **917 passed, exit 1** = coverage `fail_under` on `ubuntu-latest`.
-
-Matrix note: when one **Test** leg fails, the other may show **cancelled** (workflow concurrency) — fix the failing leg, not the cancelled one.
 
 ## 2. Lint job
 
@@ -133,25 +155,26 @@ Docs: `tests/e2e/web/README.md`
 
 ## 4. Test job
 
-CI layout (see `ci.yml`):
+CI uses `./scripts/ci_unit_test.sh` (see `ci.yml`):
 
 - **Python 3.11**: unit tests only (no `--cov`).
-- **Python 3.12**: unit tests **with** `--cov` + `COVERAGE_CORE=sysmon` + `fail_under` from `pyproject.toml` (currently **55**; branch coverage is ~6pt lower on `ubuntu-latest` than macOS).
+- **Python 3.12**: unit tests **with** `--cov` + `COVERAGE_CORE=sysmon` + `fail_under` from `pyproject.toml` (currently **55**).
 
-Local reproduction (both versions):
+Local reproduction:
 
 ```bash
-uv run pytest tests/unit -v --tb=short --cov=src/ai_team --cov-report=term
+./scripts/ci_unit_test.sh --python 3.12 --cov
+./scripts/ci_check.sh --matrix   # both Python versions
 ```
 
 ### Common Test job failures
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| **917 passed**, job exit **1**, junit **0 failures** | Coverage `fail_under` on Linux | Run with `--cov`; if ~62% locally but CI red, do not lower threshold further without cause — check `pyproject.toml` `[tool.coverage.report]` and CI `COVERAGE_CORE=sysmon` |
+| **917 passed**, job exit **1**, junit **0 failures** | Coverage `fail_under` on Linux (3.12) or missing `coverage.xml` upload (3.11) | See §0 step map; run `./scripts/ci_unit_test.sh --cov` |
 | `tests/unit/test_run_demo.py` fails on Linux only | `run_demo.main()` arms **SIGALRM** | Mock `_install_timeout` to return `False`; load script via `importlib` with a **unique module name** (see existing tests) |
 | `demos/02_todo_app` not found | Archived demo path in tests | Use `demos/02_todo_app` (tracked) or `tmp_path` for txt fixtures; never `demos/01_hello_world` (archived) |
-| Test (3.11) **cancelled** | Sibling matrix leg failed first | Fix Test (3.12) or whichever leg actually failed |
+| Test (3.11) **cancelled** | Sibling matrix leg failed first (old runs) | `fail-fast: false` now; fix the red leg |
 
 If only one area changed, run the narrowest `tests/unit/...` path first, then full unit suite.
 
@@ -177,6 +200,7 @@ Same ignore list as `.github/workflows/ci.yml` (single source: `scripts/pip_audi
 Before declaring CI fixed locally:
 
 ```bash
+./scripts/ci_check.sh --matrix   # lint + both Python test legs + security
 ./scripts/pre_push_check.sh --main
 ```
 

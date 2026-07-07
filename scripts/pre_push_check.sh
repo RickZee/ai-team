@@ -67,8 +67,8 @@ echo "==> mypy"
 uv run mypy src/
 
 if [[ "$RUN_UNIT" == true ]]; then
-  echo "==> pytest tests/unit"
-  uv run pytest tests/unit -q --tb=short
+  echo "==> pytest tests/unit (CI 3.12 parity: with coverage)"
+  ./scripts/ci_unit_test.sh --cov
 fi
 
 if [[ "$RUN_INTEGRATION" == true || "$RUN_FRONTEND" == true ]]; then

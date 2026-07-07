@@ -61,6 +61,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
@@ -80,23 +81,18 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Run unit tests with coverage
+      - name: Run unit tests
         env:
-          COVERAGE_FILE: .coverage-data/.coverage.${{ matrix.python-version }}
-          # sysmon tracer is more stable on ubuntu-latest than default trace (coverage 7+).
-          COVERAGE_CORE: sysmon
+          CI_UNIT_VERBOSE: "1"
         run: |
-          mkdir -p test-results .coverage-data
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
-            uv run pytest tests/unit -v --tb=short \
-              --cov=src/ai_team --cov-report=xml --cov-report=term \
-              --junitxml=test-results/unit.xml
+            ./scripts/ci_unit_test.sh --python "${{ matrix.python-version }}" --cov
           else
-            uv run pytest tests/unit -v --tb=short \
-              --junitxml=test-results/unit.xml
+            ./scripts/ci_unit_test.sh --python "${{ matrix.python-version }}"
           fi
 
       - name: Upload coverage artifact
+        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.python-version }}
