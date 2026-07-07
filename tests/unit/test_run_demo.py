@@ -9,7 +9,7 @@ import pytest
 
 # Run demo script lives in scripts/; repo root is parent of scripts/
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-DEMO_01 = REPO_ROOT / "demos" / "01_hello_world"
+DEMO_TODO = REPO_ROOT / "demos" / "02_todo_app"
 
 
 class TestRunDemoOutputMode:
@@ -17,14 +17,14 @@ class TestRunDemoOutputMode:
 
     @pytest.fixture(autouse=True)
     def _ensure_demo_dir(self) -> None:
-        if not DEMO_01.is_dir():
-            pytest.skip(f"Demo dir not found: {DEMO_01}")
+        if not DEMO_TODO.is_dir():
+            pytest.skip(f"Demo dir not found: {DEMO_TODO}")
 
     def test_run_demo_crewai_calls_run_ai_team_with_no_monitor(self) -> None:
         """With --output crewai, run_ai_team is called with monitor=None."""
         with (
             patch("ai_team.flows.main_flow.run_ai_team") as mock_run,
-            patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--output", "crewai"]),
+            patch("sys.argv", ["run_demo.py", "demos/02_todo_app", "--output", "crewai"]),
             patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
         ):
             mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
@@ -47,7 +47,7 @@ class TestRunDemoOutputMode:
         """With --output tui, run_ai_team is called with a TeamMonitor."""
         with (
             patch("ai_team.flows.main_flow.run_ai_team") as mock_run,
-            patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--output", "tui"]),
+            patch("sys.argv", ["run_demo.py", "demos/02_todo_app", "--output", "tui"]),
             patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
         ):
             mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
@@ -72,7 +72,7 @@ class TestRunDemoOutputMode:
         """With --monitor (shortcut for tui), run_ai_team is called with a monitor."""
         with (
             patch("ai_team.flows.main_flow.run_ai_team") as mock_run,
-            patch("sys.argv", ["run_demo.py", "demos/01_hello_world", "--monitor"]),
+            patch("sys.argv", ["run_demo.py", "demos/02_todo_app", "--monitor"]),
             patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
         ):
             mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
@@ -90,15 +90,29 @@ class TestRunDemoOutputMode:
 
 
 class TestRunDemoLoadDescription:
-    """``load_project_description`` prefers project_description.txt and falls back to input.json."""
+    """``load_project_description`` reads project_description.txt or input.json."""
 
-    def test_load_description_from_txt(self) -> None:
-        """Demo 01 has project_description.txt; content is used."""
+    def test_load_description_from_input_json(self) -> None:
+        """Demo 02 has input.json; content includes Flask REST API."""
         from ai_team.utils.demo_input import load_project_description
 
-        demo_dir = REPO_ROOT / "demos" / "01_hello_world"
+        demo_dir = REPO_ROOT / "demos" / "02_todo_app"
         if not demo_dir.is_dir():
             pytest.skip(f"Demo dir not found: {demo_dir}")
+        desc = load_project_description(demo_dir)
+        assert "Flask" in desc
+        assert "REST API" in desc
+
+    def test_load_description_from_txt(self, tmp_path: Path) -> None:
+        """project_description.txt takes precedence when present."""
+        from ai_team.utils.demo_input import load_project_description
+
+        demo_dir = tmp_path / "demo"
+        demo_dir.mkdir()
+        (demo_dir / "project_description.txt").write_text(
+            "Create a Flask REST API with health checks.",
+            encoding="utf-8",
+        )
         desc = load_project_description(demo_dir)
         assert "Flask" in desc
         assert "REST API" in desc
