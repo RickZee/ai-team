@@ -9,7 +9,6 @@ errors, and retry tracking with validators.
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
-from uuid import uuid4
 
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, DeploymentConfig
@@ -87,7 +86,10 @@ class ProjectState(BaseModel):
     (no skipping) and enforces retry limits.
     """
 
-    project_id: str = Field(default_factory=lambda: str(uuid4()), description="Unique project UUID")
+    project_id: str = Field(
+        default="",
+        description="Human-readable run id; assigned at kickoff via resolve_run_id()",
+    )
     project_description: str = Field(
         default="", description="User or stakeholder project description"
     )

@@ -6,6 +6,7 @@ import contextlib
 import os
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, cast
 
 import structlog
@@ -20,7 +21,8 @@ from ai_team.backends.langgraph_backend.graphs.spend_guard import (
     BudgetExceededError,
     reset_spend_guard,
 )
-from ai_team.config.settings import scoped_workspace_dir
+from ai_team.backends.langgraph_backend.post_run import write_langgraph_manager_report
+from ai_team.backends.langgraph_backend.run_session import RunSession
 from ai_team.core.payload_flatten import flatten_state_payload
 from ai_team.core.result import ProjectResult
 from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
@@ -95,6 +97,17 @@ class LangGraphBackend:
     ) -> CompiledStateGraph:
         return compile_main_graph(mode=mode, checkpointer=checkpointer)
 
+    @contextlib.contextmanager
+    def _run_session(self, thread_id: str, kwargs: dict[str, Any]) -> Iterator[None]:
+        """Open a :class:`RunSession` with per-run workspace isolation."""
+        ws_override = kwargs.get("workspace_dir")
+        if ws_override:
+            with RunSession.open(run_id=thread_id, workspace_dir=Path(str(ws_override))):
+                yield
+        else:
+            with RunSession.open(run_id=thread_id, workspace_root=Path("./workspace")):
+                yield
+
     def run(
         self,
         description: str,
@@ -130,14 +143,7 @@ class LangGraphBackend:
             run_label=str(kwargs.get("run_label") or ""),
             thread_id=str(kwargs.get("thread_id") or ""),
         )
-        # Per-run workspace isolation (tools write under workspace/<project_id>/).
-        # Scoped, not a bare os.environ write: a permanent mutation here leaks
-        # this run's workspace into any later call in the same process that
-        # forgets to override it (observed as stray workspace/<value>/ dirs
-        # accumulating from a test that left PROJECT_WORKSPACE_DIR stuck).
-        ws_override = kwargs.get("workspace_dir")
-        ws_path = str(ws_override) if ws_override else os.path.join("./workspace", thread_id)
-        with scoped_workspace_dir(ws_path):
+        with self._run_session(thread_id, kwargs):
             return self._run_with_workspace_scoped(
                 description, profile, env, mode, thread_id, kwargs
             )
@@ -219,6 +225,7 @@ class LangGraphBackend:
                     if test_out:
                         b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                 b.write_scorecard(scorecard_from_langgraph_state(thread_id, state_dict))
+                write_langgraph_manager_report(thread_id, state_dict)
             except Exception as exc:
                 logger.debug("langgraph_artifact_persist_skipped", error=str(exc))
             return ProjectResult(
@@ -264,36 +271,38 @@ class LangGraphBackend:
         """
         _ = profile
         try:
-            mode = self._graph_mode(kwargs)
-            config: dict[str, Any] = {
-                "configurable": {"thread_id": thread_id},
-                "recursion_limit": _recursion_limit(),
-            }
-            cmd = Command(resume=resume_input)
-            b = ResultsBundle(thread_id)
-            pg_uri = (os.environ.get("AI_TEAM_LANGGRAPH_POSTGRES_URI") or "").strip()
-            if pg_uri:
+            with self._run_session(thread_id, kwargs):
+                mode = self._graph_mode(kwargs)
+                config: dict[str, Any] = {
+                    "configurable": {"thread_id": thread_id},
+                    "recursion_limit": _recursion_limit(),
+                }
+                cmd = Command(resume=resume_input)
+                b = ResultsBundle(thread_id)
+                pg_uri = (os.environ.get("AI_TEAM_LANGGRAPH_POSTGRES_URI") or "").strip()
+                if pg_uri:
 
-                def _run(cp: BaseCheckpointSaver) -> Any:
-                    g = self._compile_for_run(mode, cp)
-                    return g.invoke(cmd, config)
+                    def _run(cp: BaseCheckpointSaver) -> Any:
+                        g = self._compile_for_run(mode, cp)
+                        return g.invoke(cmd, config)
 
-                final = run_with_postgres_checkpointer(pg_uri, _run)
-            else:
-                g = self._compile_for_run(mode, None)
-                final = g.invoke(cmd, config)
-            try:
-                final_dict = final if isinstance(final, dict) else {"state": final}
-                b.write_state(final_dict)
-                b.write_scorecard(scorecard_from_langgraph_state(thread_id, final_dict))
-            except Exception:
-                pass
-            return ProjectResult(
-                backend_name=self.name,
-                success=True,
-                raw={"state": flatten_state_payload(final), "thread_id": thread_id},
-                team_profile=profile.name,
-            )
+                    final = run_with_postgres_checkpointer(pg_uri, _run)
+                else:
+                    g = self._compile_for_run(mode, None)
+                    final = g.invoke(cmd, config)
+                try:
+                    final_dict = final if isinstance(final, dict) else {"state": final}
+                    b.write_state(final_dict)
+                    b.write_scorecard(scorecard_from_langgraph_state(thread_id, final_dict))
+                    write_langgraph_manager_report(thread_id, final_dict)
+                except Exception:
+                    pass
+                return ProjectResult(
+                    backend_name=self.name,
+                    success=True,
+                    raw={"state": flatten_state_payload(final), "thread_id": thread_id},
+                    team_profile=profile.name,
+                )
         except Exception as e:
             logger.exception("langgraph_backend_resume_failed", error=str(e))
             return ProjectResult(
@@ -322,10 +331,7 @@ class LangGraphBackend:
             run_label=str(kwargs.get("run_label") or ""),
             thread_id=str(kwargs.get("thread_id") or ""),
         )
-        # Scoped, not a bare os.environ write: see the comment in run() — a
-        # permanent mutation here would leak into any later call in this
-        # process that forgets to set its own workspace.
-        with scoped_workspace_dir(os.path.join("./workspace", thread_id)):
+        with self._run_session(thread_id, kwargs):
             yield from self._iter_stream_events_impl(description, profile, mode, thread_id, kwargs)
 
     def _iter_stream_events_impl(
@@ -424,6 +430,7 @@ class LangGraphBackend:
                             b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                     b.append_event({"type": "langgraph_done"})
                     b.write_scorecard(scorecard_from_langgraph_state(thread_id, final_state))
+                    write_langgraph_manager_report(thread_id, final_state)
                 except Exception:
                     pass
                 yield {

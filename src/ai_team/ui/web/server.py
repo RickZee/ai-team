@@ -161,6 +161,22 @@ class RunState:
             self.runs[run_id]["finished_at"] = datetime.now().isoformat()
             self.runs[run_id]["error"] = error
             self.runs[run_id]["hitl_payload"] = None
+        # CrewAI backfills current_phase itself; LangGraph/SDK only stream
+        # phase transitions up to their last real step (e.g. "testing") and
+        # never emit a terminal one, so the Compare/Dashboard phase row was
+        # stuck on whatever phase happened to be running when the backend
+        # actually finished. Normalize here, once, for every backend.
+        monitor = self.monitors.get(run_id)
+        if monitor is not None:
+            from ai_team.monitor import Phase
+
+            monitor.current_phase = Phase.COMPLETE if success else Phase.ERROR
+            # monitor.stop() freezes metrics.end_time — without it elapsed
+            # keeps computing against datetime.now() forever, which is why
+            # reattached terminal Compare/Dashboard columns kept ticking
+            # ("45m 40s" on a run that finished in 6m).
+            if monitor.metrics.end_time is None:
+                monitor.stop(final_status=terminal_status)
         self.tasks.pop(run_id, None)
         if self.store is not None:
             self.store.update_status(run_id, terminal_status, error=error, finished=True)

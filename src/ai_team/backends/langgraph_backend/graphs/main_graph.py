@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from typing import Any, Literal
 
@@ -19,6 +18,7 @@ from ai_team.backends.langgraph_backend.graphs.routing import (
     route_after_testing,
 )
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
+from ai_team.backends.langgraph_backend.run_session import require_run_id
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
@@ -28,8 +28,13 @@ logger = structlog.get_logger(__name__)
 GraphMode = Literal["placeholder", "full"]
 
 
-def _node_intake(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "intake"}
+def _node_intake(
+    state: LangGraphProjectState,
+    config: RunnableConfig,
+) -> dict[str, Any]:
+    """Bind ``project_id`` to the checkpoint ``thread_id`` (run identity contract)."""
+    run_id = require_run_id(config, state)
+    return {"project_id": run_id, "current_phase": "intake"}
 
 
 def _node_planning(state: LangGraphProjectState) -> dict[str, Any]:
@@ -120,38 +125,6 @@ def _node_error(state: LangGraphProjectState) -> dict[str, Any]:
     return {"current_phase": "error"}
 
 
-def _node_manager_report(
-    state: LangGraphProjectState,
-    _config: RunnableConfig | None = None,
-) -> dict[str, Any]:
-    """Final manager step: write self-improvement report (JSON + Markdown) under output/reports."""
-    from ai_team.core.results.writer import ResultsBundle
-    from ai_team.reports.manager_self_improvement import write_manager_self_improvement_report
-
-    meta = dict(state.get("metadata") or {})
-    team = str(meta.get("team_profile") or "full")
-    pid = str(state.get("project_id") or "").strip()
-    if not pid:
-        logger.warning("manager_report_skipped", reason="missing_project_id")
-        return {}
-    if os.environ.get("AI_TEAM_SKIP_POST_RUN"):
-        logger.debug("manager_report_skipped", reason="AI_TEAM_SKIP_POST_RUN")
-        return {}
-    try:
-        bundle = ResultsBundle(pid)
-        write_manager_self_improvement_report(
-            bundle,
-            backend="langgraph",
-            team_profile=team,
-            state=state,
-        )
-        meta["manager_self_improvement_report"] = "reports/manager_self_improvement_report.md"
-    except Exception as e:
-        logger.warning("manager_report_failed", error=str(e))
-    phase = str(state.get("current_phase") or "")
-    return {"current_phase": phase, "metadata": meta}
-
-
 def build_main_graph(mode: GraphMode = "placeholder") -> StateGraph:
     """
     Wire nodes and conditional edges.
@@ -187,7 +160,6 @@ def build_main_graph(mode: GraphMode = "placeholder") -> StateGraph:
     g.add_node("retry_development", _node_retry_development)
     g.add_node("complete", _node_complete)
     g.add_node("error", _node_error)
-    g.add_node("manager_report", _node_manager_report)
 
     g.add_edge(START, "intake")
     g.add_conditional_edges(
@@ -240,9 +212,8 @@ def build_main_graph(mode: GraphMode = "placeholder") -> StateGraph:
         route_after_deployment,
         {"complete": "complete", "error": "error"},
     )
-    g.add_edge("complete", "manager_report")
-    g.add_edge("error", "manager_report")
-    g.add_edge("manager_report", END)
+    g.add_edge("complete", END)
+    g.add_edge("error", END)
     return g
 
 

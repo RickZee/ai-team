@@ -11,6 +11,10 @@ class TestProjectStateDefaults:
         s = ProjectState(project_description="x")
         assert s.current_phase == ProjectPhase.INTAKE
 
+    def test_project_id_empty_until_assigned(self) -> None:
+        s = ProjectState()
+        assert s.project_id == ""
+
     def test_retry_counts_empty(self) -> None:
         s = ProjectState()
         assert s.retry_counts == {}

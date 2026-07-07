@@ -109,10 +109,15 @@ def _cached_deployment(
 
 def reset_subgraph_cache() -> None:
     """Clear all cached compiled subgraphs (for tests)."""
-    _cached_planning.cache_clear()
-    _cached_development.cache_clear()
-    _cached_testing.cache_clear()
-    _cached_deployment.cache_clear()
+    for cached in (
+        _cached_planning,
+        _cached_development,
+        _cached_testing,
+        _cached_deployment,
+    ):
+        cache_clear = getattr(cached, "cache_clear", None)
+        if callable(cache_clear):
+            cache_clear()
 
 
 def _subgraph_context(state: LangGraphProjectState) -> dict[str, Any]:

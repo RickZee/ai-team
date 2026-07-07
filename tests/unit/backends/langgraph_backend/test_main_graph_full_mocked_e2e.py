@@ -6,26 +6,11 @@ Avoids real LLM calls while exercising conditional edges, retry loop, and error 
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 import pytest
 from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
 from ai_team.backends.langgraph_backend.graphs.main_graph import compile_main_graph
 
-
-def _base_state(description: str) -> dict:
-    return {
-        "project_description": description,
-        "project_id": str(uuid4()),
-        "current_phase": "intake",
-        "phase_history": [],
-        "errors": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "messages": [],
-        "generated_files": [],
-        "metadata": {},
-    }
+from tests.unit.backends.langgraph_backend.harness import graph_invoke
 
 
 @pytest.fixture(autouse=True)
@@ -68,7 +53,7 @@ def test_full_mode_graph_completes_with_stub_subgraph_nodes(
     monkeypatch.setattr(sr, "deployment_subgraph_node", deploy)
 
     g = compile_main_graph(mode="full")
-    final = g.invoke(_base_state("y" * 20), {"configurable": {"thread_id": "e2e-stub"}})
+    final = graph_invoke(g, thread_id="e2e-stub", description="y" * 20)
     assert final.get("current_phase") == "complete"
 
 
@@ -105,7 +90,7 @@ def test_full_mode_retry_loop_then_complete(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(sr, "deployment_subgraph_node", deploy)
 
     g = compile_main_graph(mode="full")
-    final = g.invoke(_base_state("z" * 20), {"configurable": {"thread_id": "e2e-retry"}})
+    final = graph_invoke(g, thread_id="e2e-retry", description="z" * 20)
     assert final.get("current_phase") == "complete"
     assert int(final.get("retry_count") or 0) >= 1
 
@@ -130,7 +115,7 @@ def test_full_mode_planning_error_routes_to_error_terminal(
     monkeypatch.setattr(sr, "planning_subgraph_node", plan_err)
 
     g = compile_main_graph(mode="full")
-    final = g.invoke(_base_state("w" * 20), {"configurable": {"thread_id": "e2e-err"}})
+    final = graph_invoke(g, thread_id="e2e-err", description="w" * 20)
     assert final.get("current_phase") == "error"
 
 
@@ -179,10 +164,7 @@ def test_placeholder_graph_planning_hitl_then_complete(
 
     monkeypatch.setattr(mg, "_node_planning", plan_hitl)
     g = compile_main_graph(mode="placeholder")
-    final = g.invoke(
-        _base_state("h" * 20),
-        {"configurable": {"thread_id": "placeholder-hitl"}},
-    )
+    final = graph_invoke(g, thread_id="placeholder-hitl", description="h" * 20)
     assert final.get("current_phase") == "complete"
 
 
@@ -210,9 +192,6 @@ def test_placeholder_testing_escalates_to_human_then_complete(
 
     monkeypatch.setattr(mg, "_node_testing", fake_testing)
     g = compile_main_graph(mode="placeholder")
-    final = g.invoke(
-        _base_state("t" * 20),
-        {"configurable": {"thread_id": "placeholder-test-hitl"}},
-    )
+    final = graph_invoke(g, thread_id="placeholder-test-hitl", description="t" * 20)
     assert final.get("current_phase") == "complete"
     assert visits["testing"] >= 2

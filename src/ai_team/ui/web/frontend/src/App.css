@@ -1114,6 +1114,7 @@ button:disabled {
 
 .status-running { background: rgba(88, 166, 255, 0.2); color: var(--cyan); }
 .status-complete { background: rgba(63, 185, 80, 0.2); color: var(--green); }
+.status-complete_approved { background: rgba(210, 153, 34, 0.2); color: var(--yellow); }
 .status-error { background: rgba(248, 81, 73, 0.2); color: var(--red); }
 .status-awaiting_human { background: rgba(188, 140, 255, 0.2); color: var(--magenta); }
 .status-cancelled { background: rgba(210, 153, 34, 0.2); color: var(--yellow); }
