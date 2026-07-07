@@ -7,7 +7,7 @@
 #   --integration   Also run pytest tests/integration (CI: main push only)
 #   --frontend      Also run npm ci && npm run build (web dashboard)
 #   --e2e           Also run Playwright web E2E (implies --frontend)
-#   --main          Shorthand for --integration --frontend (pushing to main)
+#   --main          Shorthand for --integration --frontend --e2e (pushing to main)
 #   --quick         Lint + security only (skip all pytest / npm)
 #   -h, --help      Show usage
 set -euo pipefail
@@ -37,6 +37,7 @@ while [[ $# -gt 0 ]]; do
     --main)
       RUN_INTEGRATION=true
       RUN_FRONTEND=true
+      RUN_E2E=true
       ;;
     --quick)
       RUN_UNIT=false

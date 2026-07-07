@@ -8,38 +8,44 @@ from playwright.sync_api import Page, expect
 pytestmark = [pytest.mark.browser_e2e, pytest.mark.web_e2e]
 
 
+def _expect_run_detail_ready(page: Page) -> None:
+    """Wait for run detail after demo/navigation (IA-1 replaced the old Dashboard page)."""
+    expect(page.get_by_test_id("run-detail")).to_be_visible(timeout=90_000)
+
+
 class TestWebUiNavigation:
     def test_app_shell_and_nav(self, page: Page, browser_base_url: str) -> None:
         page.goto(browser_base_url)
-        expect(page.get_by_text("AI-Team Dashboard")).to_be_visible()
-        expect(page.get_by_test_id("nav-dashboard")).to_be_visible()
-        expect(page.get_by_test_id("nav-run")).to_be_visible()
+        expect(page.get_by_test_id("home-page")).to_be_visible()
+        expect(page.get_by_role("heading", name="Runs")).to_be_visible()
+        expect(page.get_by_test_id("nav-home")).to_be_visible()
         expect(page.get_by_test_id("nav-compare")).to_be_visible()
-        expect(page.get_by_test_id("nav-artifacts")).to_be_visible()
+        expect(page.get_by_test_id("home-new-run")).to_be_visible()
 
     def test_navigate_run_and_compare(self, page: Page, browser_base_url: str) -> None:
         page.goto(browser_base_url)
-        page.get_by_test_id("nav-run").click()
+        page.get_by_test_id("home-new-run").click()
         expect(page.get_by_role("heading", name="Run Pipeline")).to_be_visible()
         page.get_by_test_id("nav-compare").click()
         expect(page.get_by_role("heading", name="Compare Backends")).to_be_visible()
 
 
 class TestWebUiDemoFlow:
-    """Demo button triggers simulated pipeline; Dashboard shows COMPLETE."""
+    """Demo button triggers simulated pipeline; run detail shows COMPLETE."""
 
-    def test_demo_reaches_complete_on_dashboard(self, page: Page, browser_base_url: str) -> None:
+    def test_demo_reaches_complete_on_run_detail(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-demo").click()
-        page.wait_for_url(f"{browser_base_url}/**")
-        expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
+        page.wait_for_url(f"{browser_base_url}/runs/**")
+        _expect_run_detail_ready(page)
         expect(page.get_by_test_id("phase-pipeline")).to_contain_text("COMPLETE", timeout=90_000)
 
     def test_demo_shows_agent_activity(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-demo").click()
-        expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
-        expect(page.get_by_role("heading", name="Agent timeline")).to_be_visible()
+        _expect_run_detail_ready(page)
+        page.get_by_test_id("run-tab-activity").click()
+        expect(page.get_by_role("heading", name="Agent timeline")).to_be_visible(timeout=90_000)
         expect(page.get_by_role("heading", name="Activity Log")).to_be_visible()
 
 
@@ -65,38 +71,42 @@ class TestWebUiRunFormValidation:
         assert any("Claude" in label for label in labels)
 
 
-class TestWebUiDashboardRuns:
+class TestWebUiHomeRuns:
     def test_demo_shows_assignment_in_run_list(self, page: Page, browser_base_url: str) -> None:
         page.goto(f"{browser_base_url}/run")
         page.get_by_test_id("run-demo").click()
-        expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
-        expect(page.locator(".run-list-assignment").first).to_contain_text("Demo: Flask REST API")
-        expect(page.get_by_test_id("run-summary-card")).to_be_visible(timeout=90_000)
+        _expect_run_detail_ready(page)
+        expect(page.get_by_test_id("phase-pipeline")).to_contain_text("COMPLETE", timeout=90_000)
+        expect(page.get_by_role("heading", name="Demo: Flask REST API")).to_be_visible()
+        page.get_by_test_id("nav-home-runs").click()
+        expect(page.get_by_test_id("home-page")).to_be_visible()
+        expect(page.locator(".run-list-description").first).to_contain_text(
+            "Demo: Flask REST API", timeout=15_000
+        )
 
-    def test_dashboard_empty_state_has_launch_demo_cta(
-        self, page: Page, browser_base_url: str
-    ) -> None:
-        """Empty dashboard shows Go to Run + Launch Demo (when no runs in session)."""
+    def test_home_empty_state_has_launch_demo_cta(self, page: Page, browser_base_url: str) -> None:
+        """Empty home shows New run + Play sample run (when no runs in session)."""
         page.goto(browser_base_url)
-        if page.get_by_test_id("dashboard-active").is_visible(timeout=2_000):
-            pytest.skip("Dashboard showing a run (session-scoped server has prior runs)")
+        if page.get_by_test_id("run-detail").is_visible(timeout=2_000):
+            pytest.skip("Run detail visible (session-scoped server has an open run)")
         if page.locator(".run-list-item").count() > 0:
-            pytest.skip("Dashboard has prior runs in session-scoped server")
-        empty = page.get_by_test_id("dashboard-empty")
+            pytest.skip("Home has prior runs in session-scoped server")
+        empty = page.get_by_test_id("home-empty")
         if not empty.is_visible(timeout=3_000):
-            pytest.skip("Dashboard not empty (session-scoped server)")
-        expect(page.get_by_role("link", name="Go to Run")).to_be_visible()
-        expect(page.get_by_test_id("dashboard-demo")).to_be_visible()
+            pytest.skip("Home not empty (session-scoped server)")
+        expect(page.get_by_test_id("home-new-run")).to_be_visible()
+        expect(page.get_by_test_id("home-demo")).to_be_visible()
 
-    def test_dashboard_demo_via_api_deep_link(self, page: Page, browser_base_url: str) -> None:
-        """Dashboard demo flow: POST /api/demo then open /runs/{id}."""
+    def test_home_demo_via_api_deep_link(self, page: Page, browser_base_url: str) -> None:
+        """Home demo flow: POST /api/demo then open /runs/{id}."""
         import httpx
 
         with httpx.Client(base_url=browser_base_url, timeout=30.0) as client:
             run_id = client.post("/api/demo").json()["run_id"]
         page.goto(f"{browser_base_url}/runs/{run_id}")
-        expect(page.get_by_test_id("dashboard-active")).to_be_visible(timeout=90_000)
-        expect(page.locator(".run-list-assignment").first).to_contain_text("Demo: Flask REST API")
+        _expect_run_detail_ready(page)
+        expect(page.get_by_test_id("phase-pipeline")).to_contain_text("COMPLETE", timeout=90_000)
+        expect(page.get_by_role("heading", level=2)).to_contain_text("Demo: Flask REST API")
 
 
 class TestWebUiComparePage:
