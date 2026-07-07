@@ -174,7 +174,7 @@ Local reproduction:
 | **917 passed**, job exit **1**, junit **0 failures** | Coverage `fail_under` on Linux (3.12) or missing `coverage.xml` upload (3.11) | See §0 step map; run `./scripts/ci_unit_test.sh --cov` |
 | `tests/unit/test_run_demo.py` fails on Linux only | `run_demo.main()` arms **SIGALRM** | Mock `_install_timeout` to return `False`; load script via `importlib` with a **unique module name** (see existing tests) |
 | `demos/02_todo_app` not found | Archived demo path in tests | Use `demos/02_todo_app` (tracked) or `tmp_path` for txt fixtures; never `demos/01_hello_world` (archived) |
-| Test (3.11) **cancelled** | Sibling matrix leg failed first (old runs) | `fail-fast: false` now; fix the red leg |
+| `OpenAIError: Missing credentials` on Linux CI only | `compile_planning_subgraph` eagerly built manager LLM for single-worker mode | Lazy-init manager LLM in supervisor branch only (see `planning.py`); reproduce with `env -u OPENAI_API_KEY` in fresh Linux clone |
 
 If only one area changed, run the narrowest `tests/unit/...` path first, then full unit suite.
 
