@@ -101,8 +101,6 @@ def compile_planning_subgraph(
             return explicit
         return create_chat_model_for_role(role, model_id_override=overrides.get(role))
 
-    m_llm = _llm_for("manager", manager_llm)
-
     worker_agents = []
     for role in active_workers:
         llm_map = {"product_owner": product_owner_llm, "architect": architect_llm}
@@ -113,6 +111,7 @@ def compile_planning_subgraph(
         behavioral_role = active_workers[0]
         logger.info("planning_subgraph_compiled", workers=active_workers, mode="single_agent")
     else:
+        m_llm = _llm_for("manager", manager_llm)
         supervisor_prompt = (
             build_system_prompt("manager") + "\n\n" + _STRUCTURED_OUTPUT_INSTRUCTIONS
         )
