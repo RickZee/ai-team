@@ -90,7 +90,7 @@ AI_TEAM_SKIP_FRONTEND_BUILD=1 uv run pytest tests/e2e/web -m web_e2e -v
 | `Would reformat: tests/e2e/web/...` | Lint, not E2E | `uv run ruff format tests/e2e/web/` |
 | `Frontend build did not produce .../index.html` | `npm` build failed | `cd src/ai_team/ui/web/frontend && npm ci && npm run build` |
 | `playwright` / browser missing | Chromium not installed | `uv run playwright install chromium` |
-| `dashboard-active` / `COMPLETE` timeout | Demo slow or UI drift on Linux CI | Confirm `data-testid` on `src/ai_team/ui/web/frontend/src/pages/Run.tsx`, `Dashboard.tsx`, `PhasePipeline.tsx`; demo ~30–60s — tests use 90s; check `src/ai_team/ui/web/server.py` `_run_demo_async` |
+| `dashboard-active` / `run-detail` / `COMPLETE` timeout | Demo slow or UI drift on Linux CI | Confirm `data-testid` on `Home.tsx`, `RunDetail.tsx`, `PhasePipeline.tsx`; demo ~30–60s — tests use 90s; check `src/ai_team/ui/web/server.py` `_run_demo_async` |
 | `get_by_test_id(...)` not found | React `data-testid` ≠ Python selector | Grep `data-testid` in `frontend/src` and align `tests/e2e/web/test_browser_e2e.py` |
 | `get_by_text("CrewAI")` etc. | Copy/layout change on Compare/Run | Update test or restore visible labels |
 | API demo timeout | `/api/demo` never reaches `complete` | Run `test_demo_run_reaches_complete_via_rest` alone; inspect `GET /api/runs/{id}` |
@@ -134,7 +134,7 @@ Before declaring CI fixed locally:
 
 ```bash
 ./scripts/pre_push_check.sh --main
-# or step by step:
+# --main = integration + frontend build + web E2E (matches main-branch CI)
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy src/

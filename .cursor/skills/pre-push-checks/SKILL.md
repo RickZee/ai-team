@@ -27,7 +27,7 @@ Default gate: **ruff** + **mypy** + **unit tests** + **pip-audit**.
 
 | Flag | Adds |
 |------|------|
-| `--main` | `pytest tests/integration` + `npm run build` (use before pushing **main**) |
+| `--main` | `pytest tests/integration` + `npm run build` + Playwright E2E (use before pushing **main**) |
 | `--frontend` | `npm ci && npm run build` in `src/ai_team/ui/web/frontend` |
 | `--integration` | `pytest tests/integration` |
 | `--e2e` | frontend build + Playwright Chromium + `pytest tests/e2e/web -m web_e2e` |
@@ -37,7 +37,7 @@ Examples:
 
 ```bash
 ./scripts/pre_push_check.sh              # everyday push (feature branches)
-./scripts/pre_push_check.sh --main       # push to main (integration + TS build)
+./scripts/pre_push_check.sh --main       # push to main (integration + TS build + web E2E)
 ./scripts/pre_push_check.sh --e2e        # after web UI changes
 ./scripts/pre_push_check.sh --quick      # lint-only iteration
 ```
@@ -63,7 +63,7 @@ uv run python -m pip install --upgrade "pip>=26.1.2"
 - Use **`uv run …`** so tools use the project virtualenv.
 - **`pip-audit`** is a project dev dependency; do not assume a global install.
 - A **Cursor hook** (`.cursor/hooks.json`) blocks `git push` when `./scripts/pre_push_check.sh` fails.
-  On branch **`main`**, the hook automatically passes **`--main`**.
+  On branch **`main`**, the hook automatically passes **`--main`** (integration, frontend build, and web E2E).
 - Optional **pre-commit**: `uv run pre-commit install` (ruff + ruff-format on commit).
 
 ## Optional (heavier gates)
