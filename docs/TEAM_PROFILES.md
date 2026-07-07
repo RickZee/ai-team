@@ -11,19 +11,13 @@ Select a profile with `--team <name>` on the CLI, in the web dashboard run form,
 | Profile | Agents | Phases | Typical use |
 | ------- | ------ | ------ | ----------- |
 | `full` (default) | manager, product_owner, architect, backend_developer, frontend_developer, fullstack_developer, devops_engineer, cloud_engineer, qa_engineer | intake, planning, development, testing, deployment | End-to-end software project |
+| `full-claude` | same as `full` | intake, planning, development, testing, deployment | Same-model matrix: every role pinned to `claude-sonnet-4` via OpenRouter |
 | `backend-api` | manager, product_owner, architect, backend_developer, qa_engineer, devops_engineer | intake, planning, development, testing, deployment | REST API / microservice (no frontend specialists) |
 | `frontend-app` | manager, product_owner, architect, frontend_developer, qa_engineer, devops_engineer | intake, planning, development, testing, deployment | SPA / static site |
 | `data-pipeline` | manager, product_owner, architect, backend_developer, qa_engineer | intake, planning, development, testing | ETL / data engineering (no deployment phase) |
 | `prototype` | architect, fullstack_developer, qa_engineer | intake, planning, development, testing | Minimal crew: design → implement → test |
+| `smoke` | architect, backend_developer, qa_engineer | planning, development, testing | CI smoke checks; tight phase timeouts |
 | `infra-only` | architect, devops_engineer, cloud_engineer | intake, planning, deployment | IaC / CI-CD only (no application development or QA) |
-| `research-optimizer` | optimizer | optimize | Karpathy AutoOptimizer Loop (`ai-team optimize`, demo 06) |
-
-### Optional RAG metadata
-
-| Profile | RAG topics (when enabled) |
-| ------- | ------------------------- |
-| `full` | python, security, testing, api, devops |
-| `research-optimizer` | performance, optimization, profiling, caching, algorithms |
 
 ---
 
@@ -54,8 +48,8 @@ uv run ai-team run "Build a todo API" --backend langgraph
 # Backend API profile
 uv run ai-team run "Build a todo API" --backend langgraph --team backend-api
 
-# Optimizer loop (demo 06)
-uv run ai-team optimize ./workspace/... --team research-optimizer ...
+# Same-model comparison (LangGraph vs SDK with Claude held constant)
+uv run ai-team run "Build a todo API" --backend langgraph --team full-claude
 ```
 
 - **REST:** `GET /api/profiles` — returns agents, phases, and model overrides per profile from YAML.
@@ -77,7 +71,6 @@ uv run ai-team optimize ./workspace/... --team research-optimizer ...
 | Demo | Suggested profile | Notes |
 | ---- | ----------------- | ----- |
 | `00_smoke_test` | `prototype` | Set in `input.json`; use `--backend langgraph` for lean agent set |
-| `01`–`05` | `full` (default) | Full pipeline |
-| `06_karpathy_optimization` | `research-optimizer` | Uses `ai-team optimize`, not `run_demo.py` |
+| `02_todo_app` | `full` (default) | Full pipeline |
 
 See [DEMOS.md](DEMOS.md) for run commands.

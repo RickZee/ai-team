@@ -1,5 +1,9 @@
 # Backend Comparison Results
 
+Historical run diary — live comparison data with commit receipts. For narrative
+context see [journal/README.md](journal/README.md). For non-obvious bugs see
+[troubleshooting/README.md](troubleshooting/README.md).
+
 ## First post-wiring-fix 3-way comparison — 2026-07-01 evening
 
 - **Comparison id:** `432ec61f-0d2c-48ad-a10d-b724f748d588` (`GET /api/comparisons/432ec61f-...`)
@@ -367,12 +371,10 @@ with 9 `ruff` whitespace warnings) ever being resolved.
    worth narrowing investigation to that backend specifically rather than the shared
    tree-serving code.
 5. **Terminal runs still lose activity log and guardrail events for CrewAI** —
-   reconfirms [UI_UX_IMPROVEMENT_PLAN.md](UI_UX_IMPROVEMENT_PLAN.md) P0-6 with fresh
-   evidence: CrewAI's `monitor.log` and `monitor.guardrail_events` are both `[]` in the
+   CrewAI's `monitor.log` and `monitor.guardrail_events` are both `[]` in the
    terminal API response despite this being a genuinely completed run with real
    guardrail activity implied by its earlier retry history.
-6. **HITL Approve-button trap reconfirmed live** ([UI_UX_IMPROVEMENT_PLAN.md](UI_UX_IMPROVEMENT_PLAN.md)
-   P1-1, first flagged 2026-07-03): clicking "Approve" only pre-filled the textarea
+6. **HITL Approve-button trap reconfirmed live** (journal 2026-07-04, P1-1, first flagged 2026-07-03): clicking "Approve" only pre-filled the textarea
    with "Approved. Proceed with the current plan." — did not submit. A second,
    separate "Submit & Resume" click was required to actually resume the run.
 7. **HITL panel doesn't clear after resume without reload** (P1-2, also first flagged
@@ -480,14 +482,11 @@ Same family as P1-1/P1-2.
 Note: the AutoOptimizer subsystem referenced in earlier drafts was removed in
 `60b6880`.
 
-### Regressions to investigate
+### Resolved in later 2026-07-06 verification
 
-- **Claude SDK results-bundle write (finding 1 above)** is the one that most needs
-  attention: it's not a new bug, it's a previously-fixed bug (journal fix #7,
-  `887549c`) recurring with an identical symptom. Suggested next step: diff the
-  code path this Compare-tab launch takes against whatever path fix #7's verification
-  run used — the fix may only cover one entrypoint (e.g. CLI `run()`) while the web
-  server's launch path calls something else, or a later change reintroduced the gap.
+The Claude SDK results-bundle write gap (finding 1 in the Jul-06 section above) was
+re-verified the same evening after server restart — SDK tree, metrics, and bundle
+writes all correct. See § "Post-fix comparison 2026-07-06_1906xx" above.
 
 ---
 

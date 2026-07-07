@@ -6,15 +6,13 @@ This document describes the AI Team system architecture: flows, crews, agents, t
 
 ## 0. UI & Monitoring Layer
 
-Three UI interfaces serve different audiences — all integrate through the same `TeamMonitor`, `Backend` protocol, and cost tracking APIs.
+Two primary interfaces plus an optional CLI monitor — all integrate through `TeamMonitor`, the `Backend` protocol, and cost tracking APIs.
 
 ```mermaid
 graph TB
     subgraph UI["High Level Diagram"]
         WD["<b>Web Dashboard</b><br/>(FastAPI + React)<br/>• REST + WebSocket<br/>• Real-time stream<br/>• Compare backends<br/>• Cost estimation<br/>• Agent monitoring"]
-        TUI["<b>Textual TUI</b><br/>(ai-team-tui)<br/>• 3 tabs: Dash, Run, Compare<br/>• Keyboard nav<br/>• Demo mode<br/>• Cost estimate"]
         CLI["<b>Rich CLI Monitor</b><br/>(--monitor)<br/>• Inline CLI live display<br/>• Phase, log, agents, guardrails"]
-        QD["<b>Quick Demo</b>"]
 
         TM["<b>TeamMonitor</b> (monitor.py)<br/>• Phase tracking &nbsp;&nbsp;&nbsp;• Agent status table<br/>• Metrics: tasks, guardrails, tests, files<br/>• Activity log &nbsp;&nbsp;&nbsp;• Guardrail events"]
 
@@ -22,9 +20,7 @@ graph TB
     end
 
     WD --> TM
-    TUI --> TM
     CLI --> TM
-    QD --> TM
     TM --> BR
 ```
 
@@ -34,10 +30,7 @@ graph TB
 |------|---------|
 | `src/ai_team/ui/web/server.py` | FastAPI server — REST + WebSocket endpoints |
 | `src/ai_team/ui/web/frontend/` | React + TypeScript + Vite dashboard |
-| `src/ai_team/ui/tui/app.py` | Textual TUI application |
-| `src/ai_team/ui/tui/widgets.py` | Custom Textual widgets (PhasePipeline, AgentTable, etc.) |
-| `src/ai_team/ui/web/server.py` | FastAPI web dashboard server |
-| `src/ai_team/monitor.py` | TeamMonitor — shared data model for all UIs |
+| `src/ai_team/monitor.py` | TeamMonitor — shared event collector for web + CLI |
 
 ---
 
@@ -65,7 +58,7 @@ graph TB
     TOOLS --> GL & ML
 
     GL["<b>Guardrails</b><br/><i>Behavioral · Security · Quality</i>"]
-    ML["<b>Memory</b><br/><i>short-term · long-term · entity · RAG</i>"]
+    ML["<b>Memory</b><br/><i>SQLite long-term · lessons · self-improvement</i>"]
 ```
 
 ---
@@ -84,9 +77,9 @@ graph TB
 
 | Backend | Entry | Role |
 |---------|--------|------|
-| **CrewAI** | `CrewAIBackend` → `run_ai_team` / `AITeamFlow` | Default production path: hierarchical crews, tools, memory, guardrails. |
-| **LangGraph** | `LangGraphBackend` → compiled `StateGraph` (`compile_main_graph`) | Alternative orchestration with the same high-level phases (intake → planning → … → deployment). Supports SQLite/Postgres checkpointing, `graph.stream(..., stream_mode="updates")`, and `Command(resume=...)` after `interrupt()` for HITL. |
-| **Claude Agent SDK** | `ClaudeAgentBackend` → `orchestrator.run_orchestrator` / `iter_orchestrator_messages` | Single top-level `query()` with nested **subagents** (phase coordinators + specialists). State is **workspace files** + **Claude session** transcript; OpenRouter is not used—Anthropic API + Claude Code CLI. |
+| **CrewAI** | `CrewAIBackend` → `run_ai_team` / `AITeamFlow` | Comparison datapoint: hierarchical crews, subprocess-isolated, hard-killed on timeout. |
+| **LangGraph** | `LangGraphBackend` → compiled `StateGraph` (`compile_main_graph`) | Recommended default: same phases (intake → planning → … → deployment), checkpointing, HITL via `interrupt()`. |
+| **Claude Agent SDK** | `ClaudeAgentBackend` → `orchestrator.run_orchestrator` / `iter_orchestrator_messages` | Recommended for reliability: nested subagents, Anthropic API + Claude Code CLI (not OpenRouter). |
 
 Both implement the shared `Backend` protocol and return `ProjectResult`. Team composition and phase lists come from the same `TeamProfile` (`config/team_profiles.yaml`). The CLI selects the backend with `--backend crewai|langgraph|claude-agent-sdk`. See ADR-004, ADR-005, ADR-006, and ADR-007 below.
 
@@ -101,7 +94,7 @@ Both implement the shared `Backend` protocol and return `ProjectResult`. Team co
 
 #### 2.1.2 Claude Agent SDK backend (diagram)
 
-Implementation lives under `src/ai_team/backends/claude_agent_sdk_backend/` (`backend.py`, `orchestrator.py`, `agents/`, `hooks/`, `tools/mcp_server.py`). The orchestrator builds `ClaudeAgentOptions` (system prompt + repo `CLAUDE.md` + `docs/CLAUDE_PROFILE.md`), registers the in-process **ai_team_tools** MCP server (guardrails, pytest, RAG), and streams or runs until a `ResultMessage`.
+Implementation lives under `src/ai_team/backends/claude_agent_sdk_backend/` (`backend.py`, `orchestrator.py`, `agents/`, `hooks/`, `tools/mcp_server.py`). The orchestrator builds `ClaudeAgentOptions` (system prompt + repo `CLAUDE.md` + `docs/CLAUDE_PROFILE.md`), registers the in-process **ai_team_tools** MCP server (guardrails, pytest, smoke), and streams or runs until a `ResultMessage`.
 
 ```mermaid
 flowchart TB
@@ -124,7 +117,7 @@ flowchart TB
 
   subgraph sidecar [Enforcement and observability]
     H["Hooks:\nPreToolUse security\nPostToolUse quality + audit\nSubagentStart/Stop audit"]
-    MCP["MCP ai_team_tools\nrun_guardrails, tests, RAG, …"]
+    MCP["MCP ai_team_tools\nrun_guardrails, tests, smoke, …"]
   end
 
   subgraph fs [Workspace as state]
@@ -140,7 +133,7 @@ flowchart TB
   MCP --> W
 ```
 
-For operator steps (env vars, budget, recovery), see [docs/claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md) and [docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md](claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md).
+For operator steps (env vars, budget, recovery), see [docs/claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md).
 
 ### 2.2 Crew Layer
 
@@ -191,11 +184,13 @@ Configured via `GuardrailConfig` in settings; full chain built by `create_full_g
 
 | Type | Storage | Use |
 |------|---------|-----|
-| **Short-term** | ChromaDB | Session/conversation context; recent tasks and outputs. |
-| **Long-term** | SQLite | Cross-session recall; summarization and retrieval. |
-| **Entity** | Entity memory | Persistent entities and relationships for consistency across phases. |
+| **Long-term** | SQLite (`LongTermStore`) | Cross-session recall; lessons and self-improvement metadata |
+| **Lessons** | SQLite + optional injection at run start | Failure patterns distilled from prior runs (`memory/lessons.py`) |
+| **Self-improvement** | Runtime smoke loop + manager reports | Post-run verification and structured improvement suggestions (`self_improvement_runtime.py`) |
 
-Configured via `MemoryConfig` (Chroma persist dir, SQLite path, limits). Used by agents via CrewAI memory hooks and knowledge sources.
+ChromaDB short-term memory, entity memory, and the RAG subsystem were removed. CrewAI may still use its own internal Chroma storage when that backend runs.
+
+See [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md) and [GUARDRAILS.md](GUARDRAILS.md) (runtime smoke gate).
 
 ---
 
@@ -273,12 +268,11 @@ stateDiagram-v2
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| Orchestration | **CrewAI Flows** | Flow, routers, state; event-driven pipeline. |
-| LLM | **OpenRouter** | Models per agent (openrouter/deepseek/..., openrouter/mistralai/...) via AI_TEAM_ENV. |
-| State & schemas | **Pydantic** | ProjectState, RequirementsDocument, ArchitectureDocument, CodeFile, TestResult, DeploymentConfig. |
-| Short-term memory | **ChromaDB** | Vector store for recent context. |
-| Long-term memory | **SQLite** | Persistent memory store. |
-| UI | **Textual** / **FastAPI + React** | Terminal TUI and web dashboard for project input, progress, and output. |
+| Orchestration | **CrewAI Flows**, **LangGraph**, **Claude Agent SDK** | Three backends behind one `Backend` protocol. |
+| LLM | **OpenRouter** (CrewAI/LangGraph), **Anthropic API** (SDK) | Models per agent via `AI_TEAM_ENV` and `team_profiles.yaml` overrides. |
+| State & schemas | **Pydantic** | ProjectState, LangGraphProjectState, results bundles, guardrail models. |
+| Memory | **SQLite** | Long-term store, lessons, self-improvement metadata. |
+| UI | **FastAPI + React** (port 8421) | Web dashboard: run, compare, artifacts. Optional Rich `--monitor` on CLI. |
 | Config | **pydantic-settings** | Settings, OpenRouter, guardrails, memory from env. |
 | Logging | **structlog** | Structured logs for flow and agents. |
 
@@ -289,34 +283,25 @@ stateDiagram-v2
 ```
 ai-team/
 ├── src/ai_team/
-│   ├── config/           # Flow/Crew/Agent config
-│   │   ├── settings.py   # Settings, guardrails, memory
-│   │   └── agents.yaml   # Agent definitions (role, goal, backstory)
-│   ├── agents/           # Agent implementations (BaseAgent, Manager, PO, Architect, …)
+│   ├── core/             # Backend protocol, results bundles, spend guard, team profiles
+│   ├── config/           # settings.py, agents.yaml, team_profiles.yaml, models.py
+│   ├── backends/
+│   │   ├── crewai_backend/
+│   │   ├── langgraph_backend/
+│   │   └── claude_agent_sdk_backend/
+│   ├── agents/           # Agent implementations (CrewAI path)
 │   ├── crews/            # PlanningCrew, DevelopmentCrew, TestingCrew, DeploymentCrew
-│   ├── flows/            # Flow layer
-│   │   └── main_flow.py  # AITeamFlow, ProjectState, run_ai_team()
-│   ├── tools/            # File, Code, Git, Test tools (with security wrappers)
-│   ├── guardrails/       # Guardrail layer
-│   │   └── __init__.py   # Behavioral, Security, Quality + create_full_guardrail_chain
-│   ├── memory/           # Short-term, long-term, entity memory config & access
-│   ├── optimizers/       # AutoOptimizer Loop (Karpathy-style edit→run→measure→keep/revert)
-│   │   ├── loop.py       # KarpathyLoop, LoopConfig, LoopResult
-│   │   ├── metric.py     # MetricConfig, extract_metric, load_metric_config
-│   │   ├── experiment_log.py  # ExperimentRecord, append/load/summarise (JSONL)
-│   │   └── git_reset.py  # git_reset_hard, git_stash helpers
-│   ├── utils/            # Shared helpers
-│   └── ui/               # Textual TUI (`tui/`), FastAPI + React web dashboard (`web/`)
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── evals/
-│   ├── scenarios/        # JSON scenario specs (hello-world, todo-api, devops, iac, qa, security, arch)
-│   └── role_evals/       # Role-specific eval modules + optimizer eval
-├── docs/                 # ARCHITECTURE.md, AGENTS.md, GUARDRAILS.md, FLOWS.md, TOOLS.md, MEMORY.md, EVALS.md
-├── scripts/              # setup_openrouter.sh, test_models.py, run_demo.py
-└── demos/                # Demo projects 01–06 (input.json, expected_output.json)
+│   ├── flows/            # AITeamFlow, ProjectState, run_ai_team()
+│   ├── tools/            # File, code, git, test, smoke tools
+│   ├── guardrails/       # Behavioral, security, quality
+│   ├── memory/           # LongTermStore, lessons, self-improvement runtime
+│   ├── monitor.py        # TeamMonitor event collector
+│   └── ui/web/           # FastAPI server + React dashboard
+├── tests/                # unit/, integration/, e2e/
+├── evals/                # run_evals.py, backends/, scenarios/
+├── docs/                 # ARCHITECTURE, GUARDRAILS, DEMOS, EVALS, journal/, troubleshooting/
+├── demos/                # 00_smoke_test, 02_todo_app
+└── scripts/              # quickstart, run_demo, compare_backends, pre_push_check
 ```
 
 ---

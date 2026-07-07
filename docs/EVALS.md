@@ -1,3 +1,5 @@
+> **Scope note (2026-07):** On-disk layout matches `evals/run_evals.py`, `evals/backends/`, and `evals/scenarios/`. Sections below that reference `evals/role_evals/`, `evals/trajectory.py`, or other paths not in the repo are **planned** — not implemented yet.
+
 # Evals
 
 > How we measure whether the AI-Team system actually works — not just that tests pass.

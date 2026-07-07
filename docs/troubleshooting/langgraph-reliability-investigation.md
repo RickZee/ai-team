@@ -95,7 +95,7 @@ opposite way — LangGraph graph tests invoking `graph.invoke()` directly with
 workspace. That problem was root-caused and fixed the same day (run-identity
 contract `run_id ≡ thread_id ≡ project_id`, `RunSession` scoping, post-run
 report lifted out of the graph, isolated test harness) — see
-[journal/2026-07-06.md](journal/2026-07-06.md).
+[journal/2026-07-06.md](../journal/2026-07-06.md).
 
 ## Suggested order
 

@@ -40,7 +40,7 @@ output/
 Required fields:
 
 - `project_id`
-- `backend` (`crewai` | `langgraph` | ...)
+- `backend` (`crewai` | `langgraph` | `claude-agent-sdk`)
 - `team_profile`
 - `env` (`dev` | `test` | `prod`)
 - `started_at`, `completed_at`

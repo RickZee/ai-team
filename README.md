@@ -83,6 +83,7 @@ Not every project needs all nine agents. Select a profile with `--team`:
 | `frontend-app` | Manager, PO, Architect, Frontend Dev, QA, DevOps | SPA / static site |
 | `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering |
 | `prototype` | Architect, Fullstack Dev, QA | Minimal design → build → test |
+| `smoke` | Architect, Backend Dev, QA | CI smoke checks (plan → code → test) |
 | `infra-only` | Architect, DevOps, Cloud | IaC / CI-CD only |
 
 Source: [`src/ai_team/config/team_profiles.yaml`](src/ai_team/config/team_profiles.yaml).
@@ -232,7 +233,9 @@ ai-team/
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema |
 | [EVALS.md](docs/EVALS.md) | Eval methodology |
+| [TEAM_PROFILES.md](docs/TEAM_PROFILES.md) | Profile catalog (`full`, `full-claude`, `smoke`, …) |
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
+| [SELF_IMPROVEMENT.md](docs/SELF_IMPROVEMENT.md) | Runtime smoke gate and lessons loop |
 
 ## License and acknowledgments
 

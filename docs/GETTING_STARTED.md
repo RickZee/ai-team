@@ -63,17 +63,17 @@ uv run pytest tests/unit -v
    uv run python -m ai_team.main run "Create a minimal Hello World Flask API"
    ```
 
-3. **Optional: run the web dashboard or TUI**
+3. **Optional: run the web dashboard**
 
    ```bash
-   uv run ai-team-web   # FastAPI + React on http://127.0.0.1:8421
-   uv run ai-team-tui   # Textual terminal UI
+   uv run ai-team-web   # FastAPI on http://127.0.0.1:8421
+   cd src/ai_team/ui/web/frontend && npm run dev   # React on :5173 (proxies API)
    ```
 
 4. **Run a demo**:
 
    ```bash
-   uv run python scripts/run_demo.py demos/01_hello_world --skip-estimate
+   uv run python scripts/run_demo.py demos/00_smoke_test --skip-estimate --backend langgraph
    ```
 
 5. **Smoke-test all backends** (optional):
@@ -98,7 +98,8 @@ print(result.existed, result.workspace_deleted, result.bundle_deleted)
 
 If you use the web dashboard and want to drop a finished run from the in-memory sidebar (without restarting the server), call `RunState.remove_run(run_id)` on a terminal run (`complete`, `error`, or `cancelled`) after `delete_run()`.
 
-REST `DELETE /api/runs/{id}`, a CLI `clean` subcommand, and a Dashboard delete button are planned; see [UX_IMPLEMENTATION_TASKS.md](UX_IMPLEMENTATION_TASKS.md) (T12). Full detail: [README — Managing runs](../README.md#managing-runs).
+REST `DELETE /api/runs/{id}` and a CLI `clean` subcommand are not implemented yet.
+Full detail: [README — Managing runs](../README.md#managing-runs).
 
 ## Troubleshooting common issues
 
@@ -119,19 +120,17 @@ REST `DELETE /api/runs/{id}`, a CLI `clean` subcommand, and a Dashboard delete b
 
 - Before each run, AI-Team checks that all configured OpenRouter models (LLM per role and the embedding model) exist. If any are missing, it fails immediately and lists the invalid model IDs.
 - Set `OPENROUTER_EMBEDDING_MODEL` (or `MEMORY_EMBEDDING_MODEL`) to a valid OpenRouter embedding model (e.g. `openai/text-embedding-3-small`).
-- Fix the model IDs for your `AI_TEAM_ENV` in `config/models.py` so they match models available on OpenRouter.
+- Fix the model IDs for your `AI_TEAM_ENV` in `src/ai_team/config/models.py` so they match models available on OpenRouter.
 
-### ChromaDB: "Embedding function conflict: new: openai vs persisted: ollama"
+### ChromaDB: "Embedding function conflict" (CrewAI backend only)
 
 **Symptom:** Memory search fails with `ValueError: An embedding function already exists in the collection configuration... new: openai vs persisted: ollama`.
 
-**Cause:** ChromaDB data was created when the app used Ollama for embeddings. The app now uses OpenRouter/OpenAI; ChromaDB does not allow changing the embedding function on an existing collection.
+**Cause:** CrewAI internal RAG storage was created when embeddings used a different provider. AI-Team no longer maintains a project-level Chroma short-term store (`memory_config.py` uses SQLite long-term memory + lessons).
 
-**Fix:** Remove existing ChromaDB data so new collections use the current embedder.
+**Fix:** Remove CrewAI Chroma files in the app data directory. On macOS: `~/Library/Application Support/<project_dir_name>/` (or set `CREWAI_STORAGE_DIR`). Remove `chroma.sqlite3` and `chromadb-*.lock`. Example:
 
-1. **AI-Team short-term store** (if you use it): remove `./data/chroma` (or `MEMORY_CHROMADB_PATH` if set), e.g. `rm -rf ./data/chroma`.
-2. **CrewAI’s internal RAG storage** (default): CrewAI stores Chroma in the app data directory. On macOS: `~/Library/Application Support/<project_dir_name>/` (project dir name is your current working directory name, or set `CREWAI_STORAGE_DIR`). Remove the ChromaDB files there: `chroma.sqlite3` and `chromadb-*.lock`. Example (macOS, project name `ai-team`):  
-   `rm -f "$HOME/Library/Application Support/ai-team/chroma.sqlite3" "$HOME/Library/Application Support/ai-team/chromadb-"*.lock`
+`rm -f "$HOME/Library/Application Support/ai-team/chroma.sqlite3" "$HOME/Library/Application Support/ai-team/chromadb-"*.lock`
 
 Back up first if you need to keep old memory data.
 
@@ -152,7 +151,7 @@ Back up first if you need to keep old memory data.
 
 **Fix:**
 
-- Use `AI_TEAM_ENV=dev` for cheaper/dev models; see `config/models.py` for tier model IDs.
+- Use `AI_TEAM_ENV=dev` for cheaper/dev models; see `src/ai_team/config/models.py` for tier model IDs.
 - Check OpenRouter dashboard for usage and limits.
 
 ### Tests hang or time out
@@ -176,4 +175,4 @@ Back up first if you need to keep old memory data.
 
 ---
 
-For more detail on architecture, agents, and configuration, see [ARCHITECTURE.md](ARCHITECTURE.md), [AGENTS.md](AGENTS.md), and the main [README.md](../README.md).
+For more detail on architecture and configuration, see [ARCHITECTURE.md](ARCHITECTURE.md), [GUARDRAILS.md](GUARDRAILS.md), [troubleshooting/README.md](troubleshooting/README.md), and the main [README.md](../README.md).
