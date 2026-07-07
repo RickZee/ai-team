@@ -68,7 +68,6 @@ uv run ai-team run "Build a REST API" --backend crewai
 
 CrewAI stays in the matrix on purpose — demoting a backend because it fails is a data
 point, not a reason to hide it. See
-[gil-starvation-post.md](docs/posts/gil-starvation-post.md) and
 [docs/posts/failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2/#3 for what its
 failures actually taught the harness.
 
@@ -96,9 +95,9 @@ bug, documented in the journal:
 
 | Guardrail | Catches | Journal reference |
 |---|---|---|
-| **Runtime smoke gate** | "70/70 pytest green, app 500s on every request" — boots the real app, probes real HTTP, drives a create→read→update→delete round-trip | [smoke-gate-post.md](docs/posts/smoke-gate-post.md) |
+| **Runtime smoke gate** | "70/70 pytest green, app 500s on every request" — boots the real app, probes real HTTP, drives a create→read→update→delete round-trip | [docs/GUARDRAILS.md](docs/GUARDRAILS.md) |
 | **Per-run spend guard** | Runaway retry loops that are also billing loops; scoped per-run (`contextvars`) so concurrent Compare runs don't share a budget | [COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md) |
-| **Subprocess isolation + hard kill** | A hung backend thread starving the GIL for every other backend in the same process (traced live: a 78-minute false report) | [gil-starvation-post.md](docs/posts/gil-starvation-post.md) |
+| **Subprocess isolation + hard kill** | A hung backend thread starving the GIL for every other backend in the same process (traced live: a 78-minute false report) | [docs/COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md) |
 | **Calibrated behavioral guardrails** | Lexical scope checks that flagged correct QA output for using test vocabulary — fixed from measured false-positive/true-negative distributions, not guessed thresholds | [failure-taxonomy.md](docs/posts/failure-taxonomy.md) #5 |
 | **Flow-wiring regression test** | A CrewAI event-bus self-trigger bug that produced 93,284 runaway iterations in 15 minutes — a meta-test now fails the build if any flow method ever listens to its own name again | [failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2 |
 | **Atomic run-id allocation** | Concurrent Compare launches colliding on the same run id and workspace (a classic TOCTOU race) | [failure-taxonomy.md](docs/posts/failure-taxonomy.md) #4 |
@@ -228,7 +227,6 @@ ai-team/
 | [Engineering journal](docs/journal/README.md) | Session-by-session debugging record, including corrections |
 | [Comparison results](docs/COMPARISON_RESULTS.md) | Live 3-way comparison data and the same-model matrix |
 | [Failure taxonomy](docs/posts/failure-taxonomy.md) | Ten failure classes with receipts |
-| [Showcase plan](docs/SHOWCASE_PLAN.md) | The project's own task list and acceptance criteria |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema |

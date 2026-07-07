@@ -6,7 +6,7 @@
 - **Brief:** `demos/02_todo_app` (Flask + SQLite TODO app, SPA frontend, Docker, pytest)
 - **Context:** first 3-way run after the CrewAI flow-wiring fix (`dabef2b` — self-triggering
   listeners eliminated, retry caps actually route) and the CrewAI subprocess isolation +
-  hard-kill (`c4a2e53`). See [SHOWCASE_PLAN.md](SHOWCASE_PLAN.md) step 1.
+  hard-kill (`c4a2e53`). See [SHOWCASE_PLAN.md](../.archive/rick-prep/SHOWCASE_PLAN.md) step 1.
 - **Launched:** 21:07 local, all three concurrently through the web Compare tab
   (distinct run ids — the run-id TOCTOU collision fix `157841a` held).
 
@@ -81,7 +81,7 @@ All patches live: flow wiring (`dabef2b`), scope code-stripping (`1b7bd6d`), sco
 3. **The model confound is now the dominant variable.** The comparison currently measures
    framework+model pairs (SDK runs Claude; the others run deepseek). The next scientific
    step is a same-model matrix plus n≥5 runs per configuration for variance — see the
-   strategic notes in [SHOWCASE_PLAN.md](SHOWCASE_PLAN.md).
+   strategic notes in [SHOWCASE_PLAN.md](../.archive/rick-prep/SHOWCASE_PLAN.md).
 
 ---
 
@@ -495,4 +495,4 @@ Note: the AutoOptimizer subsystem referenced in earlier drafts was removed in
 
 Earlier comparisons (pre-wiring-fix) are described in
 [journal/2026-07-01.md](journal/2026-07-01.md) (§11 and the demo status table) and
-[posts/todo_compare_results.md](posts/todo_compare_results.md) (2026-06-26 CLI/eval run).
+[todo_compare_results.md](../.archive/rick-prep/posts/todo_compare_results.md) (2026-06-26 CLI/eval run).
