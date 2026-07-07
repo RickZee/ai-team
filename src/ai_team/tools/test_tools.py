@@ -152,9 +152,9 @@ def agent_test_result_matches_verified(data: dict[str, Any]) -> tuple[bool, str]
 def _project_workspace_root() -> Path:
     """Resolved project workspace directory from settings."""
     try:
-        from ai_team.config.settings import get_settings
+        from ai_team.config.settings import get_workspace_dir
 
-        return Path(get_settings().project.workspace_dir).resolve()
+        return Path(get_workspace_dir()).resolve()
     except Exception:
         return Path.cwd().resolve()
 

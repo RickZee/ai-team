@@ -102,9 +102,9 @@ class TestCrewAIBackendRun:
         seen: dict[str, str] = {}
 
         def _capture_workspace(*args: Any, **kwargs: Any) -> dict[str, Any]:
-            from ai_team.config.settings import get_settings
+            from ai_team.config.settings import get_workspace_dir
 
-            seen["workspace_dir"] = get_settings().project.workspace_dir
+            seen["workspace_dir"] = get_workspace_dir()
             return {"state": {"project_id": "test-id", "current_phase": "complete"}}
 
         with patch(

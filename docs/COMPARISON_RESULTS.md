@@ -420,6 +420,41 @@ with 9 `ruff` whitespace warnings) ever being resolved.
     unconditionally — that part isn't backend-specific, it looks like nothing in the
     pipeline ever populates those two fields at all, for any backend.
 
+### Verification run — same day, post-fix build (comparison `2026-07-06_183440`)
+
+Fresh 3-way run after the data-integrity fixes merged, watched live with disk
+cross-checks. **Partial pass, and it root-caused the remaining failures to one
+bug:**
+
+Passed: SDK results bundle now written on the web path (`output/runs/_03/` with
+`state.json`, `run.json`, `logs/costs.jsonl` — costs.jsonl populated with
+`run_total` rows); live cost display working for LangGraph ($0.0059 mid-run) and
+SDK ($0.715); LangGraph terminal data fully correct (metrics 6 tasks / 4 files /
+1 retry, workspace tree API populated, `passed: true` with clean ruff); Compare
+UI single-variant columns, collapsed launcher, readable log all held. CrewAI hit
+its 1800s hard-kill (known slow-on-deepseek class, orthogonal).
+
+Failed: SDK workspace tree still empty / metrics still zero / phase stuck at
+"intake", and `workspace/_02/_03/` cross-run nesting reproduced.
+
+**Root cause (found by inspecting the live server process):**
+`scoped_workspace_dir` in `config/settings.py` mutated **process-global**
+`os.environ["PROJECT_WORKSPACE_DIR"]` and reloaded the **global settings
+singleton**. LangGraph and the SDK backends run concurrently in the same web
+server process — whichever backend scoped last won, and every other run resolved
+workspace paths under the *wrong run's* directory. One bug, four symptoms: empty
+SDK tree API, zeroed metrics, cross-run `workspace/<a>/<b>/` nesting
+([journal/2026-07-04.md](journal/2026-07-04.md) open item 5), and the phase-stuck
+display. CrewAI was immune only because it is subprocess-isolated.
+
+**Fix:** context-local override (`contextvars.ContextVar`) consumed by a new
+`get_workspace_dir()`; scoped-intent readers (file/QA/test tools, path guardrail,
+deployment crew) migrated to it; the env var is still mirrored solely for child
+process inheritance; the settings singleton is never reloaded by scoping.
+`loop.run_in_executor` copies the caller's context, so each backend thread sees
+only its own override. Regression test:
+`test_concurrent_contexts_do_not_interfere`.
+
 ### Regressions to investigate
 
 - **Claude SDK results-bundle write (finding 1 above)** is the one that most needs

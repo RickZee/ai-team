@@ -16,7 +16,7 @@ from typing import Any
 import structlog
 from ai_team.agents.cloud_engineer import create_cloud_engineer
 from ai_team.agents.devops_engineer import create_devops_engineer
-from ai_team.config.settings import get_settings
+from ai_team.config.settings import get_settings, get_workspace_dir
 from ai_team.guardrails import crewai_code_safety_guardrail, crewai_iac_security_guardrail
 from ai_team.tasks.deployment_tasks import (
     create_deployment_packaging_task,
@@ -214,7 +214,7 @@ class DeploymentCrew:
             raise ValueError(f"Invalid output path: {e}") from e
 
         allowed_roots = [
-            Path(settings.project.workspace_dir).resolve(),
+            Path(get_workspace_dir()).resolve(),
             Path(settings.project.output_dir).resolve(),
         ]
         under_any = False

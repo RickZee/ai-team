@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 import structlog
-from ai_team.config.settings import get_settings
+from ai_team.config.settings import get_settings, get_workspace_dir
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +24,7 @@ def _get_allowed_roots() -> list[Path]:
     """Return resolved absolute paths for workspace and output directories."""
     settings = get_settings()
     return [
-        Path(settings.project.workspace_dir).resolve(),
+        Path(get_workspace_dir()).resolve(),
         Path(settings.project.output_dir).resolve(),
     ]
 
@@ -44,11 +44,10 @@ def _resolve_and_validate_path(
     """
     if ".." in path:
         raise ValueError("Path traversal (..) is not allowed")
-    settings = get_settings()
     if Path(path).is_absolute():
         p = Path(path)
     else:
-        base = Path(settings.project.workspace_dir).resolve()
+        base = Path(get_workspace_dir()).resolve()
         p = (base / path).resolve()
 
     try:
@@ -205,8 +204,7 @@ def write_file(path: str, content: str) -> bool:
     resolved = _resolve_and_validate_path(path, allow_new_file=True)
     # Prevent accidental creation of pytest-collected scratch files at workspace root.
     # Root-level files named "test_*.py" will be collected by pytest and can break runs.
-    settings = get_settings()
-    ws_root = Path(settings.project.workspace_dir).resolve()
+    ws_root = Path(get_workspace_dir()).resolve()
     try:
         rel = resolved.relative_to(ws_root)
     except ValueError:

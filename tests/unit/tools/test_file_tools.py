@@ -36,7 +36,13 @@ def tmp_workspace(tmp_path):
         r"\b\d{3}-\d{2}-\d{4}\b",
         r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
     ]
-    with patch("ai_team.tools.file_tools.get_settings", return_value=mock_settings):
+    with (
+        patch("ai_team.tools.file_tools.get_settings", return_value=mock_settings),
+        patch(
+            "ai_team.tools.file_tools.get_workspace_dir",
+            side_effect=lambda: mock_settings.project.workspace_dir,
+        ),
+    ):
         yield workspace
 
 
