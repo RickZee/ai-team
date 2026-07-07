@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { ActivityLog } from "../components/ActivityLog";
 import { AgentTable } from "../components/AgentTable";
 import { AgentTimeline, AgentTimelineNote } from "../components/AgentTimeline";
@@ -32,10 +32,40 @@ function tabFromHash(hash: string): RunTab {
   return "overview";
 }
 
+function runInfoFromDetail(data: Awaited<ReturnType<typeof getRun>>): RunInfo {
+  const {
+    run_id,
+    backend,
+    profile,
+    description,
+    status,
+    started_at,
+    finished_at,
+    error,
+    comparison_id,
+    estimate_usd,
+    complexity,
+    is_sample,
+  } = data;
+  return {
+    run_id,
+    backend,
+    profile,
+    description,
+    status,
+    started_at: started_at ?? "",
+    finished_at: finished_at ?? null,
+    error: error ?? null,
+    comparison_id: comparison_id ?? null,
+    estimate_usd,
+    complexity,
+    is_sample,
+  };
+}
+
 /** Run detail with internal tabs (IA-1). */
 export function RunDetail() {
   const { runId } = useParams<{ runId: string }>();
-  const navigate = useNavigate();
   const [tab, setTab] = useState<RunTab>(() => tabFromHash(window.location.hash));
   const [runs, setRuns] = useState<RunInfo[]>([]);
   const [runDetail, setRunDetail] = useState<RunInfo | null>(null);
@@ -101,17 +131,7 @@ export function RunDetail() {
       .then((data) => {
         if (cancelled) return;
         setStaticMonitor(data.monitor ?? null);
-        setRunDetail({
-          run_id: data.run_id,
-          backend: data.backend,
-          profile: data.profile,
-          description: data.description,
-          status: data.status,
-          started_at: (data as RunInfo).started_at ?? "",
-          finished_at: (data as RunInfo).finished_at ?? null,
-          error: (data as RunInfo).error ?? null,
-          comparison_id: (data as RunInfo).comparison_id ?? null,
-        });
+        setRunDetail(runInfoFromDetail(data));
         setLoading(false);
       })
       .catch((e) => {
@@ -146,16 +166,7 @@ export function RunDetail() {
       await postCancel(runId);
       setShowCancelConfirm(false);
       const data = await getRun(runId);
-      setRunDetail({
-        run_id: data.run_id,
-        backend: data.backend,
-        profile: data.profile,
-        description: data.description,
-        status: data.status,
-        started_at: (data as RunInfo).started_at ?? "",
-        finished_at: (data as RunInfo).finished_at ?? null,
-        error: (data as RunInfo).error ?? null,
-      });
+      setRunDetail(runInfoFromDetail(data));
     } catch (e) {
       setApiError(e instanceof Error ? e.message : "Cancel failed");
       setShowCancelConfirm(false);

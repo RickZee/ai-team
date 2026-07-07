@@ -4,12 +4,12 @@ const API_BASE = getApiBase();
 
 /** API error with HTTP status for distinct 404 handling (V-4). */
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
+  status: number;
+
+  constructor(message: string, status: number) {
     super(message);
     this.name = "ApiError";
+    this.status = status;
   }
 }
 
@@ -66,16 +66,13 @@ export function getRuns() {
 }
 
 export function getRun(runId: string) {
-  return fetchJson<{
-    run_id: string;
-    status: string;
-    backend: string;
-    profile: string;
-    description: string;
-    monitor: import("../types").MonitorState | null;
-    hitl_payload?: Record<string, unknown> | null;
-    thread_id?: string | null;
-  }>(`/runs/${runId}`);
+  return fetchJson<
+    import("../types").RunInfo & {
+      monitor: import("../types").MonitorState | null;
+      hitl_payload?: Record<string, unknown> | null;
+      thread_id?: string | null;
+    }
+  >(`/runs/${runId}`);
 }
 
 export function postDemo() {
