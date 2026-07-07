@@ -6,7 +6,7 @@
 - **Brief:** `demos/02_todo_app` (Flask + SQLite TODO app, SPA frontend, Docker, pytest)
 - **Context:** first 3-way run after the CrewAI flow-wiring fix (`dabef2b` — self-triggering
   listeners eliminated, retry caps actually route) and the CrewAI subprocess isolation +
-  hard-kill (`c4a2e53`). See [journal/2026-07-02.md](journal/2026-07-02.md) showcase review, step 1.
+  hard-kill (`c4a2e53`). See [journal/2026-07-02.md](journal/2026-07-02.md).
 - **Launched:** 21:07 local, all three concurrently through the web Compare tab
   (distinct run ids — the run-id TOCTOU collision fix `157841a` held).
 
@@ -28,7 +28,7 @@
    QA-vocabulary false positive (LangGraph burned ~20+ min of retry cycles on it), not
    CrewAI's runtime.
 
-### Next (per 2026-07-02 showcase review)
+### Next
 
 - Fix scope-guardrail false positive (`qa_engineer` → low-relevance roles), bump CrewAI
   budget to 1800s, rerun for a shot at the first all-three-green comparison.
@@ -478,7 +478,7 @@ click no-ops on an empty textarea with no feedback — had to re-enter text.
 Same family as P1-1/P1-2.
 
 Note: the AutoOptimizer subsystem referenced in earlier drafts was removed in
-`60b6880` (SHOWCASE_PLAN 3.1) and is excluded from the publication set.
+`60b6880`.
 
 ### Regressions to investigate
 

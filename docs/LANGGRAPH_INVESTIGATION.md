@@ -102,4 +102,4 @@ report lifted out of the graph, isolated test harness) — see
 1. Finding 1 (layout contract) + Finding 3 (gate feedback into retries).
 2. Finding 2 (lint gate policy).
 3. Finding 4 (failing-run metrics).
-4. Re-run n=5 batch → publish the before/after.
+4. Re-run n=5 batch → record the before/after in comparison results.

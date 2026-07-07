@@ -2018,7 +2018,7 @@ Create scripts/record_demo.py — automated demo recording:
 
 3. Output:
    - GIF recordings for README (compressed, < 5MB)
-   - Full MP4 for YouTube/LinkedIn
+   - Full MP4 for documentation or demo hosting
    - Screenshot gallery for documentation
 
 4. Annotations:
@@ -2115,40 +2115,9 @@ Create scripts/polish_repo.py and associated files for GitHub showcase quality:
 At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
 ```
 
-### Prompt 6.8: Generate LinkedIn/social announcement
-```
-Create docs/ANNOUNCEMENT.md with social media content:
+### Prompt 6.8: ~~Generate LinkedIn/social announcement~~ (cancelled)
 
-1. LinkedIn post (300 words):
-   - Hook: compelling opening about AI-augmented development
-   - What it is: autonomous multi-agent dev team on local hardware
-   - Key differentiators: local-first, enterprise guardrails, CrewAI Flows
-   - Technical highlights: 7 agents, 3 guardrail categories, 5 demo projects
-   - Personal angle: what was learned building it
-   - Call to action: link to GitHub, invite to try it
-   - Relevant hashtags
-
-2. Twitter/X thread (5 tweets):
-   - Tweet 1: Hook + what it does
-   - Tweet 2: Architecture overview
-   - Tweet 3: Guardrails and safety
-   - Tweet 4: Demo GIF or screenshot
-   - Tweet 5: Link + call to action
-
-3. Dev.to / Hashnode article outline:
-   - Title options (3 alternatives)
-   - Article structure: problem, solution, architecture, demo, lessons
-   - Key screenshots to include
-   - Code snippets to highlight
-
-4. README-friendly summary (50 words):
-   - One-paragraph project description for portfolio site
-
-Tone: professional but enthusiastic, technical depth without jargon overload.
-Focus on: practical value, engineering quality, portfolio-worthy demonstration.
-
-At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
-```
+Social-media announcement prompts removed — not part of the engineering documentation set.
 
 ---
 
@@ -2723,7 +2692,7 @@ Create infra/stacks/budget_stack.py and docs/COST_ESTIMATION.md:
 | Phase 3: Tasks & Flows | 3.1–3.13 | 13/13 | ✅ Complete |
 | Phase 4: Memory & Integration | 4.1–4.8 | 7/8* | ✅ Complete |
 | Phase 5: Testing & Demos | 5.1–5.9 | 9/9 | ✅ Complete |
-| Phase 6: UI & Showcase | 6.1–6.8 | 8/8 | ✅ Complete |
+| Phase 6: UI & Showcase | 6.1–6.8 | 7/8* | ✅ Complete |
 | Phase 7: AgentCore Deployment | 7.1–7.13 | 13/13 | Pending |
 | **TOTAL** | **74 tasks** | **74 prompts** | |
 

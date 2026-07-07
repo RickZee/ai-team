@@ -341,7 +341,7 @@ The two graph/SDK backends were green and fast. CrewAI **hung on the calculator*
 
 **Why not drop it entirely?** The whole thesis of the project is honest multi-backend comparison, and "we tried CrewAI for autonomous file-handoff orchestration and it fought us at the runtime level" is the most useful thing we can tell someone evaluating these frameworks. Deleting it would erase the finding. Keeping it *as a supported production path* would be dishonest given the data. Demoting-but-documenting is the truthful middle.
 
-**Updated the substack post** accordingly — the old "Use CrewAI if you have an existing CrewAI codebase" verdict undersold the problem (it framed CrewAI as merely *slower*). The corrected verdict says the runtime actively fights non-interactive, file-handoff orchestration and hangs on a task the other two finish in a minute.
+The corrected verdict says the runtime actively fights non-interactive, file-handoff orchestration and hangs on a task the other two finish in a minute.
 
 ---
 
@@ -477,10 +477,4 @@ that finished the previous evening. Lesson for any future screenshot pass: read 
 image back before trusting the filename — a screenshot of the wrong thing is worse
 than no screenshot, because it's a *confident* wrong thing.
 
-**Closed the loop on publication.** Two drafts written: a ~200-word LinkedIn post
-leading with "93,284 retries in 15 minutes, and the bug was mine," and the full
-Substack correction arc — three verdicts the journal published and later reversed
-(flow-wiring blame, the model-vs-framework confound, and now CrewAI's demotion) ending
-on the n=5 table and the harness > model > framework thesis.
-publication drafts written this session (LinkedIn hook + Substack correction arc; drafts
-later removed from the repo).
+---
