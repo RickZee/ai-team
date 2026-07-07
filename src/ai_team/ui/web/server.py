@@ -1496,7 +1496,6 @@ def _sync_spend_to_monitor(monitor: Any, run_id: str) -> None:
 def _load_monitor_snapshot_from_bundle(run_id: str) -> dict[str, Any] | None:
     """Load persisted monitor snapshot for terminal runs after server restart."""
     try:
-        from ai_team.config.settings import get_settings
         from ai_team.core.results.writer import ResultsBundle
 
         bundle = ResultsBundle(run_id)
@@ -1612,7 +1611,7 @@ def _resolve_cost_usd(monitor, run_id: str | None) -> float | None:
 def _resolve_token_estimate(monitor, run_id: str | None) -> int:
     """Token count for the dashboard — prefer live monitor, else spend registry."""
     if monitor.metrics.token_estimate > 0:
-        return monitor.metrics.token_estimate
+        return int(monitor.metrics.token_estimate)
     if not run_id:
         return 0
     run = state.runs.get(run_id) or {}

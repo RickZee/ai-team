@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from ai_team.config.settings import get_settings
+from ai_team.config.settings import get_workspace_dir
 from ai_team.utils.coverage_paths import coverage_subprocess_env
 from crewai.tools import tool
 
@@ -19,7 +19,7 @@ QA_MIN_COVERAGE_DEFAULT = 0.8
 
 def _workspace_root() -> Path:
     """Return workspace root from settings, resolved and created if needed."""
-    root = Path(get_settings().project.workspace_dir).resolve()
+    root = Path(get_workspace_dir()).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return root
 

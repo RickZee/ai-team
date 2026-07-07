@@ -12,7 +12,7 @@ import re
 from collections.abc import Callable
 from typing import Any, Literal
 
-from ai_team.config.settings import get_settings
+from ai_team.config.settings import get_settings, get_workspace_dir
 from pydantic import BaseModel, Field
 
 # =============================================================================
@@ -331,7 +331,7 @@ def path_security_guardrail(
     settings = get_settings()
     if allowed_dirs is None:
         allowed_dirs = [
-            os.path.abspath(settings.project.workspace_dir),
+            os.path.abspath(get_workspace_dir()),
             os.path.abspath(settings.project.output_dir),
         ]
 

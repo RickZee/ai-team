@@ -24,7 +24,10 @@ def qa_workspace(tmp_path: Path) -> Path:
     ws.mkdir()
     mock_settings = MagicMock()
     mock_settings.project.workspace_dir = str(ws)
-    with patch("ai_team.tools.qa_tools.get_settings", return_value=mock_settings):
+    with (
+        patch("ai_team.tools.qa_tools.get_settings", return_value=mock_settings, create=True),
+        patch("ai_team.tools.qa_tools.get_workspace_dir", side_effect=lambda: str(ws)),
+    ):
         yield ws
 
 

@@ -5,6 +5,7 @@ This module provides centralized configuration management using Pydantic setting
 Configuration is loaded from .env by default; alternative YAML loading is supported.
 """
 
+import contextvars
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -307,29 +308,55 @@ def reload_settings() -> Settings:
     return _settings
 
 
+# Per-execution-context workspace override. Set by scoped_workspace_dir and read
+# by get_workspace_dir(). A ContextVar (not os.environ / not the settings
+# singleton) because concurrent backend runs share one server process: the web
+# server executes each backend.run() in its own executor thread via
+# loop.run_in_executor, which copies the calling context — so a value set here
+# is visible to everything inside that run's thread and invisible to sibling
+# runs and to server request handlers. The previous implementation mutated
+# os.environ and reloaded the global settings singleton, so during a 3-way
+# comparison whichever backend scoped last won and every other run resolved
+# workspace paths under the wrong run's directory (empty tree APIs, zeroed
+# metrics, cross-run workspace/<a>/<b>/ nesting).
+_workspace_override: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "ai_team_workspace_override", default=None
+)
+
+
+def get_workspace_dir() -> str:
+    """Active workspace dir: context-scoped override if inside a run, else settings.
+
+    Readers that want the *current run's* workspace (tools, guardrails, crews)
+    must use this instead of ``get_settings().project.workspace_dir`` — the
+    settings singleton intentionally keeps its process-boot value and is never
+    reloaded by run scoping.
+    """
+    override = _workspace_override.get()
+    if override is not None:
+        return override
+    return get_settings().project.workspace_dir
+
+
 @contextmanager
 def scoped_workspace_dir(workspace: str) -> Iterator[None]:
-    """Set ``PROJECT_WORKSPACE_DIR`` for the duration of the ``with`` block, then restore it.
+    """Scope the active workspace dir to *workspace* for the ``with`` block.
 
-    Backends set this env var so downstream tools/guardrails can read the
-    active per-run workspace via the global :func:`get_settings` singleton
-    without threading a path through every call. A bare
-    ``os.environ["PROJECT_WORKSPACE_DIR"] = ...`` never restores the previous
-    value, so it leaks into any later call in the same process that forgets to
-    override it — observed as stray ``workspace/<literal-thread-id-value>/``
-    directories accumulating from a test that set ``thread_id="tid"`` and left
-    that value stuck in the environment for the rest of the process. Always
-    reloads settings on entry and exit so ``get_settings()`` reflects the
-    scoped value inside the block and the prior value outside it.
+    Sets the context-local override consumed by :func:`get_workspace_dir`, and
+    mirrors the value into ``PROJECT_WORKSPACE_DIR`` **only** so child
+    processes spawned inside the block (CrewAI's subprocess isolation, CLI
+    helpers) inherit it — in-process readers must not consult the env var, and
+    the settings singleton is deliberately not reloaded (reloading it was a
+    process-wide race under concurrent runs).
     """
+    token = _workspace_override.set(workspace)
     prev = os.environ.get("PROJECT_WORKSPACE_DIR")
     os.environ["PROJECT_WORKSPACE_DIR"] = workspace
-    reload_settings()
     try:
         yield
     finally:
+        _workspace_override.reset(token)
         if prev is None:
             os.environ.pop("PROJECT_WORKSPACE_DIR", None)
         else:
             os.environ["PROJECT_WORKSPACE_DIR"] = prev
-        reload_settings()

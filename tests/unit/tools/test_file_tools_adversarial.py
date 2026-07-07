@@ -22,7 +22,13 @@ def tmp_workspace(tmp_path: Path):
     mock_settings.guardrails.max_file_size_kb = 500
     mock_settings.guardrails.dangerous_patterns = ["eval("]
     mock_settings.guardrails.pii_patterns = []
-    with patch("ai_team.tools.file_tools.get_settings", return_value=mock_settings):
+    with (
+        patch("ai_team.tools.file_tools.get_settings", return_value=mock_settings),
+        patch(
+            "ai_team.tools.file_tools.get_workspace_dir",
+            side_effect=lambda: mock_settings.project.workspace_dir,
+        ),
+    ):
         yield workspace
 
 

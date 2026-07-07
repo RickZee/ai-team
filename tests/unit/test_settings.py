@@ -12,6 +12,7 @@ from ai_team.config.settings import (
     MemorySettings,
     Settings,
     get_settings,
+    get_workspace_dir,
     reload_settings,
     scoped_workspace_dir,
 )
@@ -100,9 +101,38 @@ class TestScopedWorkspaceDir:
     """
 
     def test_sets_workspace_dir_inside_block(self) -> None:
+        base = get_workspace_dir()
         with scoped_workspace_dir("/tmp/scoped-test-a"):
+            # Env is mirrored for child-process inheritance only.
             assert os.environ.get("PROJECT_WORKSPACE_DIR") == "/tmp/scoped-test-a"
-            assert get_settings().project.workspace_dir == "/tmp/scoped-test-a"
+            # In-process readers see the context-scoped value...
+            assert get_workspace_dir() == "/tmp/scoped-test-a"
+        # ...and the settings singleton is never reloaded by scoping (that
+        # reload was a process-wide race under concurrent backend runs).
+        assert get_workspace_dir() == base
+
+    def test_settings_singleton_not_reloaded_by_scoping(self) -> None:
+        before = get_settings()
+        with scoped_workspace_dir("/tmp/scoped-test-singleton"):
+            assert get_settings() is before
+        assert get_settings() is before
+
+    def test_concurrent_contexts_do_not_interfere(self) -> None:
+        import contextvars
+
+        results: dict[str, str] = {}
+
+        def in_scope(name: str, ws: str) -> None:
+            with scoped_workspace_dir(ws):
+                results[name] = get_workspace_dir()
+
+        # Each context copy sees only its own override — the regression this
+        # guards: two concurrent runs racing a process-global env variable.
+        ctx_a = contextvars.copy_context()
+        ctx_b = contextvars.copy_context()
+        ctx_a.run(in_scope, "a", "/tmp/ws-a")
+        ctx_b.run(in_scope, "b", "/tmp/ws-b")
+        assert results == {"a": "/tmp/ws-a", "b": "/tmp/ws-b"}
 
     def test_restores_prior_value_on_exit(self) -> None:
         with patch.dict(os.environ, {"PROJECT_WORKSPACE_DIR": "/tmp/prior"}, clear=False):
