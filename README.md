@@ -227,6 +227,7 @@ ai-team/
 | [Engineering journal](docs/journal/README.md) | Session-by-session debugging record, including corrections |
 | [Comparison results](docs/COMPARISON_RESULTS.md) | Live 3-way comparison data and the same-model matrix |
 | [Failure taxonomy](docs/posts/failure-taxonomy.md) | Ten failure classes with receipts |
+| [Troubleshooting](docs/troubleshooting/README.md) | Deep-dive post-mortems of non-obvious bugs |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema |
