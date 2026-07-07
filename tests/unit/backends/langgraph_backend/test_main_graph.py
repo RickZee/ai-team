@@ -8,26 +8,27 @@ from uuid import uuid4
 from ai_team.backends.langgraph_backend.graphs import main_graph as mg
 from ai_team.backends.langgraph_backend.graphs.main_graph import compile_main_graph
 
-
-def _init_state() -> dict:
-    return {
-        "project_description": "x" * 20,
-        "project_id": str(uuid4()),
-        "current_phase": "intake",
-        "phase_history": [],
-        "errors": [],
-        "retry_count": 0,
-        "max_retries": 3,
-        "messages": [],
-        "generated_files": [],
-        "metadata": {},
-    }
+from tests.unit.backends.langgraph_backend.harness import graph_invoke
 
 
 def test_main_graph_invoke_reaches_complete() -> None:
     graph = compile_main_graph()
-    final = graph.invoke(_init_state(), {"configurable": {"thread_id": "unit-test-thread"}})
+    final = graph_invoke(graph, thread_id="unit-test-thread")
     assert final.get("current_phase") == "complete"
+    assert final.get("project_id") == "unit-test-thread"
+
+
+def test_intake_binds_project_id_from_thread_id_not_uuid() -> None:
+    """Mismatched ``project_id`` in seed state is corrected at intake."""
+    graph = compile_main_graph()
+    wrong_id = str(uuid4())
+    final = graph_invoke(
+        graph,
+        thread_id="bound-thread",
+        project_id=wrong_id,
+    )
+    assert final.get("project_id") == "bound-thread"
+    assert final.get("project_id") != wrong_id
 
 
 def test_smoke_failure_loops_back_to_development_then_completes() -> None:
@@ -48,7 +49,7 @@ def test_smoke_failure_loops_back_to_development_then_completes() -> None:
 
     with patch.object(mg, "_node_smoke_placeholder", _flaky_smoke):
         graph = compile_main_graph()
-        final = graph.invoke(_init_state(), {"configurable": {"thread_id": "smoke-loop-thread"}})
+        final = graph_invoke(graph, thread_id="smoke-loop-thread")
 
     assert final.get("current_phase") == "complete"
     assert calls["n"] >= 2  # smoke ran again after the retry

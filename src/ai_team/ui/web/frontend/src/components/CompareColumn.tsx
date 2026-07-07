@@ -35,11 +35,13 @@ function TerminalResultCard({
 }) {
   const m = monitor.metrics;
   const statusLabel =
-    status === "complete" || status === "complete_approved"
+    status === "complete"
       ? "Complete"
-      : status === "cancelled"
-        ? "Cancelled"
-        : "Failed";
+      : status === "complete_approved"
+        ? "Approved"
+        : status === "cancelled"
+          ? "Cancelled"
+          : "Failed";
 
   return (
     <div className="compare-terminal-card" data-testid={`${testIdPrefix}-terminal`}>

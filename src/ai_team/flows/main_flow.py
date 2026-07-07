@@ -343,6 +343,13 @@ class AITeamFlow(Flow[ProjectState]):
         except Exception as exc:
             logger.debug("kickoff_observability_hooks_skipped", error=str(exc))
 
+        if not self.state.project_id.strip():
+            self.state.project_id = resolve_run_id(
+                description=self.state.project_description,
+                team_profile=str(self.state.metadata.get("team_profile") or "full"),
+                run_label=str(self.state.metadata.get("run_label") or ""),
+            )
+
         # Per-run workspace isolation: tools resolve relative paths under workspace/<project_id>/.
         # Scoped via the ExitStack passed in from kickoff() (closed in its
         # finally, covering the rest of this method including the SystemExit
