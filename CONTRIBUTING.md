@@ -113,14 +113,14 @@ New behavior should be covered by unit and/or integration tests as appropriate.
 2. **Implement** in `src/ai_team/agents/` (extend the base agent pattern used by existing agents).
 3. **Map to a model** in settings (e.g. `MY_AGENT_MODEL` in `.env` or in the app config).
 4. **Wire into a crew** in `src/ai_team/crews/` and reference in the flow if needed.
-5. **Document** in [docs/AGENTS.md](docs/AGENTS.md) and add tests.
+5. **Document** the role in [`config/agents.yaml`](src/ai_team/config/agents.yaml) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and add tests.
 
 ### Adding a new tool
 
 1. **Implement** the tool in `src/ai_team/tools/` (CrewAI tool interface; use existing file/code/git tools as reference).
 2. **Apply guardrails** where relevant (e.g. path validation, code safety) via the guardrail layer.
 3. **Attach** to the appropriate agent(s) in the crew or base agent setup.
-4. **Document** in [docs/TOOLS.md](docs/TOOLS.md) and add unit tests (and integration tests if it calls external services).
+4. **Document** the tool alongside the others in [`src/ai_team/tools/`](src/ai_team/tools/) and add unit tests (and integration tests if it calls external services).
 
 ### Adding or changing guardrails
 

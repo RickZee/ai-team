@@ -64,8 +64,7 @@ single scenario so the sidebar holds exactly one row.
 
 ## Per-stage capture sequence (web UI)
 
-Run a scenario from the **Run** tab, then capture in this order. Each stage maps to a
-specific UI region described in [../docs/UX_REVIEW.md](../docs/UX_REVIEW.md).
+Run a scenario from the **Run** tab, then capture in this order.
 
 | # | Stage | Page / region | What must be visible | Junk to remove |
 |---|-------|---------------|----------------------|----------------|
@@ -89,18 +88,14 @@ specific UI region described in [../docs/UX_REVIEW.md](../docs/UX_REVIEW.md).
 
 ---
 
-## CLI captures (Scenario 4 and terminal-first shots)
+## CLI captures (terminal-first shots)
 
-For the AutoOptimizer loop and any terminal screenshot:
+For `run_demo.py`, `compare_backends.py`, or any terminal screenshot:
 
 - Use a **clean terminal**: large readable font, default theme, no rainbow prompt,
   window sized ~120 cols.
 - Clear scrollback (`clear`) before the command so only relevant output shows.
-- Capture the **budget/experiment counters** and the **keep/revert** decisions.
-- For `logs/experiments.jsonl`, pipe through a formatter for readability:
-  ```bash
-  tail -n 5 demos/02_todo_app/output/logs/experiments.jsonl | python -m json.tool
-  ```
+- Capture the **phase/cost counters** and the final results table.
 - **Scrub the prompt** — your shell prompt can leak `username@hostname` and the full
   home path. Use a minimal prompt for captures: `PS1='$ '`.
 
@@ -140,8 +135,6 @@ docs/images/
   scenario-02-todo/03-summary.png
   scenario-02-todo/04-artifacts-files.png
   scenario-02-todo/05-app-running.png
-  scenario-03-microservices/...
-  scenario-04-optimizer/01-loop.png
 ```
 
 - Format: **PNG**, 2× (retina) where possible, then keep file size reasonable

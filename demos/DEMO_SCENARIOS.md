@@ -18,8 +18,6 @@ backends**, what to expect, and which web-UI stages to screenshot.
 |---|----------|----------------|--------------|----------|-------|
 | 1 | [Smoke test — calculator](#scenario-1--smoke-test-calculator) | The pipeline runs end-to-end on minimum spend | `prototype` | all 3 | ~1–2 min |
 | 2 | [To-do REST API + web UI (Dockerized)](#scenario-2--to-do-rest-api--web-ui-dockerized) | A real vertical slice: API + DB + UI, one command to run | `full` | all 3 | ~5–12 min |
-| 3 | [Microservices system](#scenario-3--microservices-system) | Agent coordination across service boundaries | `full` | all 3 | ~8–20 min |
-| 4 | [AutoOptimizer loop (Karpathy)](#scenario-4--autooptimizer-loop-karpathy) | A governed edit→measure→keep/revert loop with a budget | `research-optimizer` | claude-agent-sdk | ~5–15 min |
 
 ¹ Wall-clock varies with model, network, and complexity. Smoke test is the cheapest possible run.
 
@@ -39,7 +37,7 @@ git-ignored.
 | Python 3.11+ | Runtime | `python --version` |
 | uv | Dependency + script runner | `uv --version` |
 | Node 18+ & npm | Web UI frontend | `node --version` |
-| Docker | Scenarios 2 & 3 build/run containers | `docker --version` |
+| Docker | Scenario 2 builds/runs containers | `docker --version` |
 | **One** LLM key | CrewAI/LangGraph use `OPENROUTER_API_KEY`; Claude Agent SDK uses `ANTHROPIC_API_KEY` | see `.env.example` |
 
 ```bash
@@ -141,11 +139,9 @@ Acceptance (`expected_output.json`): `calc.py` defines all four functions,
 
 ### Verify
 
-```bash
-uv run python scripts/capture_demo.py \
-  --output-dir demos/00_smoke_test/output \
-  --demo-id 00_smoke_test --skip-docker
-```
+`run_demo.py` prints a result JSON and exits non-zero on failure. Check the output
+against the acceptance contract in `expected_output.json`, then run the generated
+tests directly (below).
 
 ### Try it
 
@@ -168,8 +164,7 @@ Run the brief via the **Run** tab (`prototype` profile), then capture:
 **Folder:** `demos/02_todo_app` · **Profile:** `full`
 
 A real vertical slice: REST backend + persistent storage + a simple browser UI,
-all runnable with **one command**. This is the flagship "agents replaced a short
-contractor engagement" demo, and the optimization target for Scenario 4.
+all runnable with **one command**. This is the flagship end-to-end demo.
 
 ### Brief
 
@@ -214,14 +209,10 @@ persistence, a browser UI, `docker compose up` starts the stack, and tests pass.
 
 ### Verify
 
-```bash
-uv run python scripts/capture_demo.py \
-  --output-dir demos/02_todo_app/output --demo-id 02_todo_app
-```
-
-`capture_demo.py` runs, in order: required-file check → pytest (≥80% coverage) →
-ruff (fails >50 violations) → Docker build → container smoke test (health + CRUD).
-It stops at the first failure.
+Check the generated tree against the acceptance contract in `expected_output.json`
+(CRUD + health endpoints, SQLite persistence, a browser UI, a working
+`docker compose up`, and passing tests), then exercise the app with the commands
+under **Try it** below.
 
 ### Try it
 
@@ -250,132 +241,6 @@ Run the brief via the **Run** tab (`full` profile). Capture:
 
 ---
 
-## Scenario 3 — Microservices system
-
-**Folder:** `demos/05_microservices` · **Profile:** `full`
-
-The highest-complexity scenario. It tests whether agents can produce a coherent
-**multi-service** layout — not just one API — with a single public entry point and
-independently deployable services, using current best practices.
-
-### Brief
-
-> Build a microservices system with three Flask services and a single public entry
-> point.
-> **API Gateway** (port 8080) routes requests to the internal services and is the
-> only port exposed to clients.
-> **User Service** (port 5001) owns user data — CRUD backed by SQLite.
-> **Notification Service** (port 5002) sends notifications via a mock SMTP client and
-> can change without touching user code.
-> Services communicate over HTTP. Apply current best practices: per-service
-> `Dockerfile` and `requirements.txt`, health-check endpoints, environment-based
-> config (no hardcoded hosts/secrets), structured logging, graceful error handling
-> on inter-service calls, and pytest unit tests per service. Provide a
-> `docker-compose.yml` that orchestrates all three locally and a README.
-
-### Run it
-
-```bash
-# CrewAI
-uv run python scripts/run_demo.py demos/05_microservices --backend crewai --skip-estimate
-
-# LangGraph
-uv run python scripts/run_demo.py demos/05_microservices --backend langgraph --skip-estimate
-
-# Claude Agent SDK
-uv run python scripts/run_demo.py demos/05_microservices --backend claude-agent-sdk --skip-estimate
-```
-
-### Expected output
-
-```
-gateway/               Flask gateway, Dockerfile, requirements.txt, tests
-user_service/          Flask CRUD + SQLite, Dockerfile, requirements.txt, tests
-notification_service/  Flask + mock SMTP, Dockerfile, requirements.txt, tests
-docker-compose.yml     orchestrates all three
-README.md
-```
-
-Acceptance (`expected_output.json`): three services with clear boundaries, gateway
-as the only public port, HTTP inter-service calls, health checks, per-service tests,
-and a working compose file.
-
-### Verify
-
-```bash
-uv run python scripts/capture_demo.py \
-  --output-dir demos/05_microservices/output --demo-id 05_microservices
-```
-
-### Try it
-
-```bash
-cd demos/05_microservices/output
-docker compose up --build
-# everything routes through the gateway (8080); internal ports stay internal:
-curl localhost:8080/health
-curl -X POST localhost:8080/users -H 'content-type: application/json' \
-  -d '{"name":"Ada","email":"ada@example.com"}'
-curl localhost:8080/users
-```
-
-### Screenshots (web UI)
-
-Run the brief via the **Run** tab (`full` profile). Capture:
-
-1. **Run** tab — brief pasted (note the multi-service spec), `full` profile.
-2. **Dashboard** — live pipeline with multiple agents active during *Development*.
-3. **Dashboard** — Guardrails panel (expanded) showing security/quality checks.
-4. **Dashboard** — *Run summary* card.
-5. **Artifacts → Files** — three service folders + `docker-compose.yml`.
-6. **Artifacts → Architecture** — service-boundary view.
-7. **Compare** (optional) — same brief across all three backends, summary table.
-
----
-
-## Scenario 4 — AutoOptimizer loop (Karpathy)
-
-**Folder:** `demos/06_karpathy_optimization` · **Profile:** `research-optimizer`
-· **Backend:** `claude-agent-sdk`
-
-A governed, budgeted **edit → run → measure → keep/revert** loop that optimizes an
-existing codebase one change at a time, logging every experiment and injecting prior
-lessons via RAG. It optimizes the **Scenario 2 to-do app**, so build that first.
-
-### Run it
-
-```bash
-# 1. Build the optimization target (Scenario 2) if you haven't:
-uv run python scripts/run_demo.py demos/02_todo_app --backend claude-agent-sdk --skip-estimate
-
-# 2. Run the optimizer against that workspace:
-ai-team optimize ./demos/02_todo_app/output \
-  --metric demos/06_karpathy_optimization/metric.yaml \
-  --strategy demos/06_karpathy_optimization/strategy.md \
-  --backend claude-agent-sdk \
-  --budget 2.00 \
-  --max-experiments 10
-```
-
-### Expected output
-
-Experiments are appended to the target workspace at `logs/experiments.jsonl`.
-Acceptance (`expected_output.json`): at least one experiment runs, no regression to
-the API contract or test suite, and each experiment is logged. Positive movement on
-the target metric (`test_pass_rate`) when infra supports it.
-
-The scenario ships with `metric.yaml` (the `test_pass_rate` metric via pytest),
-`strategy.md` (prioritized optimization hints), and `input.json` (workspace
-description).
-
-### Screenshots
-
-This scenario is CLI-driven. Capture the terminal showing budget/experiment counters
-and the tail of `logs/experiments.jsonl` (keep/revert decisions). See
-[SCREENSHOTS.md](SCREENSHOTS.md) → *CLI captures*.
-
----
-
 ## Compare backends on one brief
 
 Any scenario brief can be run through all three backends at once to benchmark output
@@ -400,9 +265,9 @@ for a zero-cost simulated comparison, or **Run All Backends** for a real (paid)
 - [ ] `.env` has the key matching your chosen backend (`OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY`).
 - [ ] `uv sync` completed without errors.
 - [ ] Smoke test (Scenario 1) passes before running paid scenarios.
-- [ ] For Scenarios 2 & 3: Docker is running.
+- [ ] For Scenario 2: Docker is running.
 - [ ] You ran the brief from the **Run** tab (not the Demo button) for real artifacts.
-- [ ] `capture_demo.py` reports green for the scenario you ran.
+- [ ] The generated `output/` meets `expected_output.json` (files present, tests pass).
 
 ---
 
@@ -413,8 +278,7 @@ for a zero-cost simulated comparison, or **Run All Backends** for a real (paid)
 3. Write `input.json` (`project_name`, `description`, optional `team_profile` / `stack`).
 4. Write `expected_output.json` (intended artifacts + one-line summary).
 5. Run `scripts/run_demo.py demos/NN_name` to exercise the flow.
-6. Run `scripts/capture_demo.py --output-dir demos/NN_name/output --demo-id NN_name` to verify.
+6. Verify the generated output in `demos/NN_name/output/` against `expected_output.json` (required files, tests, and any Docker/runtime checks).
 7. Add a section here and (optionally) commit the generated `RESULTS.md` as a baseline.
 
-See [SCREENSHOTS.md](SCREENSHOTS.md) for capturing clean, junk-free screenshots and
-[../docs/UX_REVIEW.md](../docs/UX_REVIEW.md) for the web-UI design notes.
+See [SCREENSHOTS.md](SCREENSHOTS.md) for capturing clean, junk-free screenshots.

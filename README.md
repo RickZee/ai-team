@@ -4,45 +4,44 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**The same nine-agent software team, run through three orchestration frameworks —
-CrewAI, LangGraph, Claude Agent SDK — side by side, with real cost and real failure
-data.** Not a demo. An operational harness: a runtime smoke gate that catches "tests
-pass, app 500s"; spend guards and subprocess isolation that survived a live 93,000-
-iteration runaway and a GIL-starvation incident; guardrails calibrated from real
-false-positive data. Every finding has a commit and a receipt in the
-[engineering journal](docs/journal/README.md).
+A nine-agent software team (Manager, Product Owner, Architect, Backend/Frontend/
+Fullstack Developers, DevOps, Cloud Engineer, QA) implemented over three
+orchestration frameworks — CrewAI, LangGraph, and the Claude Agent SDK — behind one
+`Backend` protocol, so the same brief can be run through each and compared on
+correctness, wall-clock time, and cost. The shared harness adds a runtime smoke gate
+(boots the generated app and probes real HTTP), a per-run spend guard, subprocess
+isolation with a hard kill, and behavioral/security/quality guardrails. Findings are
+recorded with commit references in the [engineering journal](docs/journal/README.md).
 
 ![AI-Team architecture — multi-backend agent pipeline with shared tools, guardrails, and workspace output](docs/images/architecture_diagram.svg)
 
-## The headline result
+## Results
 
-A controlled experiment settles the question this project exists to ask: is a
-comparison-tab failure a framework problem or a model problem? Same framework
-(LangGraph), same brief, same guardrails — only the model changed.
+Whether a comparison-tab failure is a framework or a model property was tested
+directly: same framework (LangGraph), same brief, same guardrails, only the model
+changed.
 
 ![Same framework, same brief — deepseek wrote zero test suites in 3 runs, claude wrote them in all 4](docs/images/same-model-matrix.svg)
 
-**deepseek wrote zero test files in 3/3 runs. Claude wrote real test suites in 4/4.**
-The "framework failure" was a model property. Full data:
-[COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md). Full write-up:
+deepseek wrote no test files in 3/3 runs; Claude wrote test suites in 4/4 — a model
+property, not a framework one. Full data:
+[COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md). Failure analysis:
 [failure-taxonomy.md](docs/posts/failure-taxonomy.md) — ten failure classes across
-model, framework, harness, and provider layers, each with a live trace and a shipped
-fix.
+the model, framework, harness, and provider layers, each with a trace and a fix.
 
-And because single runs are anecdotes (the same backend, same config, varied
-6m50s → 10m41s within one hour), verdicts come from batches — n=5 per backend on
-the smoke brief:
+Single runs vary widely (same backend and config ranged 6m50s → 10m41s within one
+hour), so verdicts are taken from batches of n=5 per backend on the smoke brief:
 
 | Backend | Green | Wall-clock min / median / max | Spend per run |
 |---|---|---|---|
-| Claude Agent SDK | **5/5** | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
-| CrewAI | **5/5** | 6m50s / 9m07s / 11m57s | pennies (deepseek) |
+| Claude Agent SDK | 5/5 | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
+| CrewAI | 5/5 | 6m50s / 9m07s / 11m57s | pennies (deepseek) |
 | LangGraph | 1/5 | 1m25s / 3m55s / 5m08s | pennies (deepseek) |
 
-LangGraph's 1/5 decomposes into two harness bugs (dev/QA file-layout contract,
-lint-gate policy) — root-caused with fixes in flight:
-[LANGGRAPH_INVESTIGATION.md](docs/LANGGRAPH_INVESTIGATION.md). When it's green,
-it's the fastest backend in the matrix.
+LangGraph's 1/5 traces to two harness bugs (the dev/QA file-layout contract and the
+lint-gate policy), root-caused with fixes in progress:
+[langgraph-reliability-investigation.md](docs/troubleshooting/langgraph-reliability-investigation.md).
+When green it is the fastest backend in the matrix.
 
 ## Quick start
 
@@ -73,11 +72,11 @@ For step-by-step setup and troubleshooting, see
 All three implement the same `Backend` protocol over the same tools, guardrails, and
 workspace layout — swap at runtime with `--backend`.
 
-| Backend | Measured character (n≥5) | Orchestration model |
+| Backend | Measured behavior (n≥5) | Orchestration model |
 |---|---|---|
-| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Consistency champion — 5/5 green, tightest wall-clock spread, highest cost | Nested subagents, native tool-calling |
-| **[CrewAI](https://crewai.com)** | Slow but reliably green — 5/5, widest spread, pennies on deepseek | Crews + Flows (`@start`, `@listen`, `@router`) |
-| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | Fastest when green, escalates cleanly when not — 1/5 pre-fix, harness fixes in flight | `StateGraph`, conditional edges, checkpointing |
+| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | 5/5 green, tightest wall-clock spread, highest cost | Nested subagents, native tool-calling |
+| **[CrewAI](https://crewai.com)** | 5/5 green, slowest, widest spread, pennies on deepseek | Crews + Flows (`@start`, `@listen`, `@router`) |
+| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | 1/5 pre-fix, fastest when green, harness fixes in progress | `StateGraph`, conditional edges, checkpointing |
 
 ```bash
 uv run ai-team run "Build a REST API" --backend langgraph
@@ -85,10 +84,9 @@ uv run ai-team run "Build a REST API" --backend claude-agent-sdk
 uv run ai-team run "Build a REST API" --backend crewai
 ```
 
-CrewAI stays in the matrix on purpose — demoting a backend because it fails is a data
-point, not a reason to hide it. See
-[docs/posts/failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2/#3 for what its
-failures actually taught the harness.
+CrewAI is kept in the matrix despite its failures: they are data points, and their
+root causes are documented in
+[docs/posts/failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2/#3.
 
 ## Team profiles
 
@@ -107,11 +105,10 @@ Not every project needs all nine agents. Select a profile with `--team`:
 
 Source: [`src/ai_team/config/team_profiles.yaml`](src/ai_team/config/team_profiles.yaml).
 
-## What's actually in the harness
+## Harness components
 
-The comparison thesis only means something if the runs are honest. These are the
-pieces that make them honest — every one of them earned its place by catching a real
-bug, documented in the journal:
+Each component below was added in response to a specific bug encountered during real
+runs; the journal reference links to the incident:
 
 | Guardrail | Catches | Journal reference |
 |---|---|---|
@@ -203,16 +200,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 | `OPENROUTER_API_KEY` | OpenRouter API key (CrewAI / LangGraph backends) | — |
 | `ANTHROPIC_API_KEY` | Anthropic API key (Claude Agent SDK backend) | — |
 | `AI_TEAM_ENV` | Model tier: `dev`, `test`, `prod` | `dev` |
-| `AI_TEAM_BACKEND` | Default backend: `crewai`, `langgraph`, `claude-agent-sdk` | `crewai` |
-| `AI_TEAM_RUN_BUDGET_USD` | Per-run spend ceiling before a non-retryable abort | `5.0` |
+| `AI_TEAM_MAX_COST_PER_RUN` | Pre-run estimate ceiling; abort if the estimate exceeds it | `5.0` |
+| `AI_TEAM_RUN_BUDGET_USD` | Runtime spend guard; non-retryable abort once actual spend crosses it | `5.0` |
 | `CREWAI_HARD_TIMEOUT_SECONDS` | Wall-clock kill deadline for the CrewAI subprocess | `900` |
+| `AI_TEAM_LANGGRAPH_GRAPH_MODE` | LangGraph nodes: `placeholder` (stubs) or `full` (subgraphs) | `placeholder` |
 | `AI_TEAM_LANGGRAPH_POSTGRES_URI` | Postgres URI for LangGraph checkpointing (optional) | SQLite |
-| `GUARDRAIL_MAX_RETRIES` | Max guardrail retries | `3` |
+| `GUARDRAIL_BEHAVIORAL_MAX_RETRIES` | Per-category guardrail retries (also `_SECURITY_`, `_QUALITY_`) | `3` |
 
-Copy `.env.example` to `.env` and set the key for your chosen backend. Guardrail
-behavior is documented in [docs/GUARDRAILS.md](docs/GUARDRAILS.md); agent→model
-mapping lives in [`src/ai_team/config/agents.yaml`](src/ai_team/config/agents.yaml)
-and [`models.py`](src/ai_team/config/models.py).
+The backend is selected per run with `--backend` (default `crewai`), not an env
+var. Copy `.env.example` to `.env` and set the key for your chosen backend.
+Guardrail behavior is documented in [docs/GUARDRAILS.md](docs/GUARDRAILS.md);
+agent→model mapping lives in
+[`src/ai_team/config/agents.yaml`](src/ai_team/config/agents.yaml) and
+[`models.py`](src/ai_team/config/models.py).
 
 ## Project structure
 
