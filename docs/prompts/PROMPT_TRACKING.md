@@ -156,7 +156,7 @@ Prompts in the same parallel group have no dependency on each other and can be e
 
 | ID   | Prompt | File | Status | Notes |
 |------|--------|------|--------|------|
-| 6.1  | ~~Generate Gradio UI~~ | — | **Cancelled** | Superseded by `ai-team-web` (FastAPI + React). See `docs/WEB_DASHBOARD.md`. |
+| 6.1  | Generate UI shell | — | **Cancelled** | Superseded by `ai-team-web` (FastAPI + React). Original prompt in [PROMPTS.md](PROMPTS.md) §6.1. |
 | 6.2  | ~~Generate Project Input Component~~ | — | **Cancelled** | Superseded by Run page (`/run`). |
 | 6.3  | ~~Generate Progress Display Component~~ | — | **Cancelled** | Superseded by Dashboard live monitor. |
 | 6.4  | Generate Output Display Component | [phase-6-4-output-display-component.md](phase-6-4-output-display-component.md) | **Done** | Web dashboard: `/artifacts` page, FastAPI artifact APIs, `ui/artifacts/service.py`. |

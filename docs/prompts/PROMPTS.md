@@ -1945,18 +1945,111 @@ At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to 
 
 ## Phase 6: UI, Deployment & Showcase (Days 36-42)
 
-> **Note:** Prompts **6.1–6.3** (Gradio UI) are **cancelled**. The shipped UI is the FastAPI + React web dashboard (`ai-team-web`, port **8421**) with Textual TUI parity via the same REST/WebSocket API. See `docs/WEB_DASHBOARD.md` and `docs/UX_IMPLEMENTATION_TASKS.md`.
+### Prompt 6.1: Generate Gradio UI
+```
+Create ui/app.py — the main Gradio application:
 
-### Prompt 6.1–6.3: ~~Gradio UI~~ (superseded)
+1. Sidebar:
+   - Configuration panel: select Ollama models per role (dropdowns)
+   - Settings: max retries, coverage threshold, guardrail toggles
+   - Ollama status indicator (green/red dot)
+   - Project history (list of past runs with links)
 
-Implemented instead under `src/ai_team/ui/web/`:
+2. Main area:
+   - Project input: large text area for project description
+   - Template buttons: "Flask API", "Todo App", "Data Pipeline" (pre-fill description)
+   - "Generate Project" button with loading state
+   - Real-time progress: phase indicator (Planning → Development → Testing → Deployment)
+   - Agent activity feed: scrolling log of what each agent is doing
 
-- **Run page** — project input, templates, backend/team selection, start/stop
-- **Dashboard** — live phase pipeline, agent timeline, activity log, HITL banner
-- **Compare** — side-by-side run comparison
-- **Artifacts** — file tree, code viewer, tests, architecture, ZIP download (Prompt 6.4)
+3. Output area:
+   - File tree: expandable tree showing all generated files
+   - Code viewer: syntax-highlighted code display with tabs per file
+   - Test results: pass/fail badge, coverage bar chart, failure details
+   - Download button: ZIP of entire generated project
 
-Launch: `uv run ai-team-web` (or `docker/` image on port 8421).
+4. Styling:
+   - Custom CSS for professional dark/light theme
+   - Animated progress indicators
+   - Responsive layout for different screen sizes
+
+5. Error display:
+   - Human feedback modal when flow requests clarification
+   - Error details with recovery suggestions
+   - Retry button with modified parameters
+
+Import from ui/components/ and ui/pages/ for modularity.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 6.2: Generate Project Input Component
+```
+Create ui/components/project_input.py with a structured input form:
+
+1. ProjectInputForm Gradio component:
+   - Project name (text input, required)
+   - Project description (large text area, required, min 50 chars)
+   - Project type selector (API, Web App, CLI Tool, Data Pipeline, Library)
+   - Complexity selector (Simple, Intermediate, Advanced)
+   - Technology preferences (optional multi-select: Python/Node/Go, Flask/FastAPI/Django, etc.)
+   - Features checklist: Authentication, Database, Docker, CI/CD, Tests, Documentation
+   - Additional notes (optional text area)
+
+2. Template system:
+   - Load templates from demos/ input.json files
+   - "Use Template" button pre-fills all fields
+   - Custom templates can be saved to JSON
+
+3. Input validation:
+   - Real-time validation with Gradio warning/alert messages
+   - Minimum description length check
+   - Conflicting options detection (e.g., Go + Django)
+
+4. Output: ProjectRequest Pydantic model with all form fields
+   - to_prompt() method that formats as natural language for the flow
+
+Include form state persistence using Gradio state (gr.State) or session.
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
+
+### Prompt 6.3: Generate Progress Display Component
+```
+Create ui/components/progress_display.py with real-time progress tracking:
+
+1. PhaseProgressBar component:
+   - Horizontal bar showing all phases: Intake → Planning → Development → Testing → Deployment → Complete
+   - Current phase highlighted, completed phases checked
+   - Animated transition between phases
+   - Estimated time remaining per phase
+
+2. AgentActivityFeed component:
+   - Scrolling feed of agent actions in real-time
+   - Format: [timestamp] [agent_icon] Agent Name: Action description
+   - Color-coded by agent role
+   - Expandable details for each action (tool used, input/output preview)
+   - Auto-scroll to latest with manual scroll override
+
+3. LiveMetrics component:
+   - Elapsed time counter
+   - Tasks completed: X/Y
+   - Files generated: count
+   - Test status: running/passed/failed
+   - Token usage estimate
+
+4. Integration:
+   - Uses Gradio's progress/state and dynamic updates for real-time updates
+   - Polls flow state via callback or session state
+   - Supports both synchronous and streaming updates
+
+5. Error overlay:
+   - Red banner on error with phase and message
+   - "Details" expander with full error context
+   - "Retry" and "Skip" buttons for recovery
+
+At the end, update docs/prompts/PROMPT_TRACKING.md: set this prompt's Status to Done and add any Notes.
+```
 
 ### Prompt 6.4: Generate Output Display Component
 ```
