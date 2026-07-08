@@ -15,34 +15,6 @@ recorded with commit references in the [engineering journal](docs/journal/README
 
 ![AI-Team architecture — multi-backend agent pipeline with shared tools, guardrails, and workspace output](docs/images/architecture_diagram.svg)
 
-## Results
-
-Whether a comparison-tab failure is a framework or a model property was tested
-directly: same framework (LangGraph), same brief, same guardrails, only the model
-changed.
-
-![Same framework, same brief — deepseek wrote zero test suites in 3 runs, claude wrote them in all 4](docs/images/same-model-matrix.svg)
-
-deepseek wrote no test files in 3/3 runs; Claude wrote test suites in 4/4 — a model
-property, not a framework one. Full data:
-[COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md). Failure analysis:
-[failure-taxonomy.md](docs/posts/failure-taxonomy.md) — ten failure classes across
-the model, framework, harness, and provider layers, each with a trace and a fix.
-
-Single runs vary widely (same backend and config ranged 6m50s → 10m41s within one
-hour), so verdicts are taken from batches of n=5 per backend on the smoke brief:
-
-| Backend | Green | Wall-clock min / median / max | Spend per run |
-|---|---|---|---|
-| Claude Agent SDK | 5/5 | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
-| CrewAI | 5/5 | 6m50s / 9m07s / 11m57s | pennies (deepseek) |
-| LangGraph | 1/5 | 1m25s / 3m55s / 5m08s | pennies (deepseek) |
-
-LangGraph's 1/5 traces to two harness bugs (the dev/QA file-layout contract and the
-lint-gate policy), root-caused with fixes in progress:
-[langgraph-reliability-investigation.md](docs/troubleshooting/langgraph-reliability-investigation.md).
-When green it is the fastest backend in the matrix.
-
 ## Quick start
 
 ```bash
@@ -87,6 +59,34 @@ uv run ai-team run "Build a REST API" --backend crewai
 CrewAI is kept in the matrix despite its failures: they are data points, and their
 root causes are documented in
 [docs/posts/failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2/#3.
+
+## Results
+
+Whether a comparison-tab failure is a framework or a model property was tested
+directly: same framework (LangGraph), same brief, same guardrails, only the model
+changed.
+
+![Same framework, same brief — deepseek wrote zero test suites in 3 runs, claude wrote them in all 4](docs/images/same-model-matrix.svg)
+
+deepseek wrote no test files in 3/3 runs; Claude wrote test suites in 4/4 — a model
+property, not a framework one. Full data:
+[COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md). Failure analysis:
+[failure-taxonomy.md](docs/posts/failure-taxonomy.md) — ten failure classes across
+the model, framework, harness, and provider layers, each with a trace and a fix.
+
+Single runs vary widely (same backend and config ranged 6m50s → 10m41s within one
+hour), so verdicts are taken from batches of n=5 per backend on the smoke brief:
+
+| Backend | Green | Wall-clock min / median / max | Spend per run |
+|---|---|---|---|
+| Claude Agent SDK | 5/5 | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
+| CrewAI | 5/5 | 6m50s / 9m07s / 11m57s | pennies (deepseek) |
+| LangGraph | 1/5 | 1m25s / 3m55s / 5m08s | pennies (deepseek) |
+
+LangGraph's 1/5 traces to two harness bugs (the dev/QA file-layout contract and the
+lint-gate policy), root-caused with fixes in progress:
+[langgraph-reliability-investigation.md](docs/troubleshooting/langgraph-reliability-investigation.md).
+When green it is the fastest backend in the matrix.
 
 ## Team profiles
 
@@ -153,7 +153,11 @@ Full behavioral/security/quality guardrail catalog: [docs/GUARDRAILS.md](docs/GU
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design.
+How each backend moves work between agents (manager → specialists → shared state):
+
+![Inter-agent communication — CrewAI typed state, LangGraph graph channels, Claude Agent SDK session + files](docs/images/inter-agent-overview.svg)
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full design, including [inter-agent communication](docs/ARCHITECTURE.md#213-inter-agent-communication) per backend.
 
 ## Demo projects
 
