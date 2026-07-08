@@ -135,6 +135,123 @@ flowchart TB
 
 For operator steps (env vars, budget, recovery), see [docs/claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md).
 
+#### 2.1.3 Inter-agent communication
+
+Every backend runs the same phases (intake → planning → development → testing → deployment), but each moves work between agents differently. There are always **two** levels:
+
+1. **Within-phase** — how a manager/coordinator hands work to specialists.
+2. **Cross-phase** — how one phase's output reaches the next phase.
+
+```mermaid
+graph LR
+    subgraph CrewAI["CrewAI — typed state object"]
+        A1[Manager] -->|delegates| A2[Specialists]
+        A2 -->|typed Pydantic docs| A3[ProjectState]
+    end
+    subgraph LangGraph["LangGraph — shared graph channels"]
+        B1[Supervisor] -->|handoff msgs| B2[Worker ReAct agents]
+        B2 -->|state channels| B3[Graph State]
+    end
+    subgraph SDK["Claude Agent SDK — session + files"]
+        C1[Orchestrator] -->|Agent tool| C2[Subagents]
+        C2 -->|writes| C3[Workspace files]
+    end
+```
+
+| | **CrewAI** | **LangGraph** | **Claude Agent SDK** |
+|--|------------|---------------|----------------------|
+| **What carries the message** | `ProjectState` + CrewAI task context | TypedDict state channels + workspace files | Session transcript + workspace files |
+| **Manager → specialist** | `Process.hierarchical`, `manager_agent` delegates | `create_supervisor` handoff messages | Built-in `Agent` tool spawns subagents |
+| **Specialist → next phase** | Typed docs written into `ProjectState` | Node returns dict; reducers merge channels | Files under `docs/` / `src/` / `tests/` |
+| **Human-in-the-loop** | Flow flags / `human_feedback` | `interrupt()` + resume | `AskUserQuestion` / `can_use_tool` |
+
+##### CrewAI — shared typed state
+
+**Cross-phase:** `AITeamFlow` holds one `ProjectState` Pydantic object. Each crew's `kickoff()` takes the previous phase's typed output as input and returns typed output; the flow writes it back into `ProjectState`. Example: `development_crew.kickoff()` receives `RequirementsDocument` + `ArchitectureDocument` and returns `list[CodeFile]` + `DeploymentConfig`.
+
+**Within-phase:** a hierarchical crew. The `manager_agent` (Manager for planning, Architect for development) decides who does what. Specialists do not talk to each other directly — they chain through **task context** (`task.context = [prior_task]`) and hand off **typed Pydantic docs** (`output_pydantic`).
+
+```mermaid
+flowchart TB
+    US([User request]) --> FLOW[AITeamFlow / ProjectState]
+    FLOW --> PC[PlanningCrew]
+    subgraph PC[PlanningCrew - hierarchical]
+        MGR[Manager manager_agent] -->|delegates| PO[Product Owner]
+        MGR -->|delegates| ARCH[Architect]
+        PO -->|RequirementsDocument via task context| ARCH
+    end
+    PC -->|requirements + architecture| FLOW
+    FLOW --> DC[DevelopmentCrew]
+    subgraph DC[DevelopmentCrew - hierarchical]
+        ARCH2[Architect = manager] --> BE[Backend Dev]
+        ARCH2 --> FE[Frontend Dev]
+        ARCH2 --> DO[DevOps]
+    end
+    DC -->|CodeFiles| FLOW
+```
+
+Key idea: agents communicate through **structured, typed objects**. The manager is a real delegating agent.
+
+##### LangGraph — shared graph state channels
+
+**Cross-phase:** a single `LangGraphProjectState` TypedDict flows through the graph. Each node returns a **dict of updates**; **reducers** decide how they merge into channels (e.g. `generated_files` uses `operator.add`; `messages` uses `add_messages`). Conditional edges (`route_after_planning`, etc.) pick the next node. State is checkpointed to SQLite, which enables `--resume`.
+
+**Within-phase:** each phase node runs a **subgraph** built with `langgraph-supervisor`. The supervisor (Manager LLM) delegates to worker **ReAct agents** via **handoff messages** on a shared `messages` channel (`add_handoff_messages=True`). Only the **new message delta** from the subgraph is merged back into the parent state.
+
+```mermaid
+flowchart TB
+    START([START]) --> IN[intake]
+    IN --> PL[planning node]
+    subgraph PLAN[planning subgraph]
+        SUP[Supervisor manager] -->|handoff msg| POa[product_owner ReAct]
+        SUP -->|handoff msg| ARa[architect ReAct]
+    end
+    PL --> PLAN
+    PLAN -->|requirements, architecture, messages| DEV[development node]
+    DEV --> TEST[testing node] --> SMOKE[smoke] --> DEP[deployment] --> DONE([END])
+    TEST -.retry.-> DEV
+    PLAN -.needs clarification.-> HR[human_review: interrupt]
+```
+
+Key idea: agents communicate through **shared state channels** (plus workspace files — subgraphs also snapshot the disk because models sometimes write files instead of returning structured data).
+
+##### Claude Agent SDK — session + filesystem
+
+**Cross-phase:** there is **no typed state object**. A single long-lived `query()` session runs. The orchestrator's system prompt *is* the Manager. It delegates to **subagents** (`AgentDefinition` map) via the SDK's built-in **`Agent` tool**. The durable handoff between phases is the **workspace filesystem** (`docs/`, `src/`, `tests/`, `logs/`) — each phase reads what the last one wrote.
+
+**Within-phase:** subagents are **nested**. Phase agents (`planning-agent`, `development-agent`, `deployment-agent`) act as the Manager and themselves delegate to specialists in the profile (e.g. `planning-agent` gets `available_label="product-owner, architect"`).
+
+```mermaid
+flowchart TB
+    Q[query session] --> ORCH[Orchestrator = Manager]
+    ORCH -->|Agent tool| PA[planning-agent]
+    ORCH -->|Agent tool| DA[development-agent]
+    ORCH -->|Agent tool| TA[testing-agent]
+    subgraph PA_NEST[planning-agent nested]
+        PO2[product-owner]
+        AR2[architect]
+    end
+    subgraph DA_NEST[development-agent nested]
+        BE2[backend-developer]
+        FE2[frontend-developer]
+    end
+    PA --> PA_NEST
+    DA --> DA_NEST
+    PA_NEST -->|writes docs/| WS[(Workspace files)]
+    DA_NEST -->|writes src/| WS
+    TA -->|writes tests/| WS
+    WS -->|next agent reads| ORCH
+    HOOKS[Pre/PostToolUse + Subagent audit hooks] -.->|enforce| WS
+```
+
+Key idea: agents communicate through the **session transcript** (subagent results return in-context to the orchestrator) plus **files on disk** for durable phase-to-phase handoff. Guardrails are enforced via **hooks** wrapping tool calls, not by task validators.
+
+##### One-line summary
+
+- **CrewAI** — agents pass typed Pydantic documents through a shared `ProjectState`; a manager agent delegates hierarchically.
+- **LangGraph** — agents pass updates through shared graph state channels with reducers; a supervisor delegates via handoff messages; checkpointed for resume.
+- **Claude Agent SDK** — an orchestrator spawns nested subagents via the `Agent` tool; handoff is the session transcript + workspace files; hooks enforce rules.
+
 ### 2.2 Crew Layer
 
 | Crew | Purpose | Key agents |
