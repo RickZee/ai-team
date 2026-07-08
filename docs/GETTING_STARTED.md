@@ -151,7 +151,7 @@ Back up first if you need to keep old memory data.
 
 **Fix:**
 
-- Use `AI_TEAM_ENV=dev` for cheaper/dev models; see `src/ai_team/config/models.py` for tier model IDs.
+- Use `AI_TEAM_ENV=dev` for cheaper/dev models; see [MODELS.md](MODELS.md) for the full dev/test/prod matrix and [models.py](../src/ai_team/config/models.py) for exact model IDs.
 - Check OpenRouter dashboard for usage and limits.
 
 ### Tests hang or time out

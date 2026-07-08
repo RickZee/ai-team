@@ -1,6 +1,6 @@
 # AI Team Agent Definitions
 # This file defines all agents with their roles, goals, and backstories.
-# Models are configured in settings.py and can be overridden via environment variables.
+# Models are configured per environment tier in config/models.py (see docs/MODELS.md).
 
 manager:
   role: "Engineering Manager / Project Coordinator"

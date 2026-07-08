@@ -43,7 +43,7 @@ def lg_result(tmp_path_factory) -> tuple[EvalResult, Path]:
 
     # Override dev agent to claude-sonnet: deepseek-v3 narrates tool calls without
     # calling them (~50% fail rate), claude-sonnet reliably uses file_writer tool.
-    profile.model_overrides["fullstack_developer"] = "openrouter/anthropic/claude-sonnet-4"
+    profile.model_overrides["fullstack_developer"] = "openrouter/anthropic/claude-sonnet-4.6"
 
     t0 = time.time()
     raw = backend.run(

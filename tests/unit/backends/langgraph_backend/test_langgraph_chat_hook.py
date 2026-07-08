@@ -57,7 +57,7 @@ def _completion_body(
         ]
     return {
         "id": "gen-1",
-        "model": "deepseek/deepseek-chat-v3-0324",
+        "model": "deepseek/deepseek-v4-flash",
         "choices": [{"index": 0, "message": message, "finish_reason": "stop"}],
         "usage": usage,
     }

@@ -95,7 +95,7 @@ Not every project needs all nine agents. Select a profile with `--team`:
 | Profile | Agents | Use case |
 |---|---|---|
 | `full` (default) | All 9 agents, all phases | Full software project |
-| `full-claude` | All 9, pinned to `claude-sonnet-4` via OpenRouter | Same-model comparison runs |
+| `full-claude` | All 9, pinned to `claude-sonnet-4.6` via OpenRouter | Same-model comparison runs |
 | `backend-api` | Manager, PO, Architect, Backend Dev, QA, DevOps | REST API / microservice |
 | `frontend-app` | Manager, PO, Architect, Frontend Dev, QA, DevOps | SPA / static site |
 | `data-pipeline` | Manager, PO, Architect, Backend Dev, QA | ETL / data engineering |
@@ -253,6 +253,8 @@ ai-team/
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema |
 | [EVALS.md](docs/EVALS.md) | Eval methodology |
+| [AGENTS.md](docs/AGENTS.md) | Persona registry (goal, backstory, delegation per role) |
+| [MODELS.md](docs/MODELS.md) | dev/test/prod model matrix, provider comparison, failure modes |
 | [TEAM_PROFILES.md](docs/TEAM_PROFILES.md) | Profile catalog (`full`, `full-claude`, `smoke`, …) |
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
 | [SELF_IMPROVEMENT.md](docs/SELF_IMPROVEMENT.md) | Runtime smoke gate and lessons loop |
