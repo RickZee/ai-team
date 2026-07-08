@@ -49,7 +49,7 @@ class TestCreateAgent:
     def mock_llm(self):
         """Mock LLM for tests (no network)."""
         llm = MagicMock()
-        llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+        llm.model = "openrouter/deepseek/deepseek-v4-flash"
         return llm
 
     @pytest.fixture
@@ -96,7 +96,7 @@ class TestBaseAgent:
     def mock_llm(self):
         """Mock LLM for tests (no network)."""
         llm = MagicMock()
-        llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+        llm.model = "openrouter/deepseek/deepseek-v4-flash"
         return llm
 
     def test_token_usage_starts_zero(self, mock_llm) -> None:

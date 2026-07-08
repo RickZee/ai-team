@@ -155,7 +155,7 @@ class TestCreateProductOwnerAgent:
             return llm
 
         mock_llm = MagicMock()
-        mock_llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+        mock_llm.model = "openrouter/deepseek/deepseek-v4-flash"
         with (
             patch("ai_team.agents.base.get_settings") as mock_settings,
             patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),

@@ -27,7 +27,7 @@ def _identity_llm(llm: object) -> object:
 @pytest.fixture
 def mock_llm():
     llm = MagicMock()
-    llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+    llm.model = "openrouter/deepseek/deepseek-v4-flash"
     return llm
 
 

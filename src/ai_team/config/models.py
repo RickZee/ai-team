@@ -3,7 +3,8 @@ OpenRouter model configuration for 3-tier environments (dev, test, prod).
 
 CrewAI uses LiteLLM under the hood. Model IDs use the
 'openrouter/<provider>/<model>' format for LiteLLM routing.
-Controlled by AI_TEAM_ENV; see the config guide for exact model IDs and pricing.
+Controlled by AI_TEAM_ENV; see docs/MODELS.md for the role×tier matrix,
+strengths/weaknesses, and justification for each pick.
 """
 
 from __future__ import annotations
@@ -74,28 +75,28 @@ ROLE_TOKEN_BUDGETS: dict[str, dict[str, int]] = {
 }
 
 # ── Model ID constants (openrouter/<provider>/<model>) ──────────────────────
-# IDs match OpenRouter's /models API (with openrouter/ prefix for LiteLLM routing).
-# See https://openrouter.ai/models for current list and pricing.
+# IDs verified against OpenRouter /models (2026-07). Pricing is OpenRouter
+# pass-through $/1M tokens — re-check https://openrouter.ai/models before prod budgets.
+# Justification for each assignment: docs/MODELS.md.
 
-_DEEPSEEK_V3 = "openrouter/deepseek/deepseek-chat-v3-0324"
-_DEVSTRAL_2 = "openrouter/mistralai/devstral-2512"
-_DEEPSEEK_R1 = "openrouter/deepseek/deepseek-r1-0528"
-_GEMINI_FLASH = "openrouter/google/gemini-3-flash-preview"
-_MINIMAX_M2 = "openrouter/minimax/minimax-m2"
-_CLAUDE_SONNET = "openrouter/anthropic/claude-sonnet-4"
-_GPT52 = "openrouter/openai/gpt-5.2"
-_GPT53_CODEX = "openrouter/openai/gpt-5.3-codex"
+_DEEPSEEK_V4_FLASH = "openrouter/deepseek/deepseek-v4-flash"
+_DEEPSEEK_V4_PRO = "openrouter/deepseek/deepseek-v4-pro"
+_GEMINI_35_FLASH = "openrouter/google/gemini-3.5-flash"
+_MINIMAX_M3 = "openrouter/minimax/minimax-m3"
+_CLAUDE_SONNET_46 = "openrouter/anthropic/claude-sonnet-4.6"
+_CLAUDE_OPUS_48 = "openrouter/anthropic/claude-opus-4.8"
+_GPT54 = "openrouter/openai/gpt-5.4"
+_GPT55 = "openrouter/openai/gpt-5.5"
 
-# Pricing per 1M tokens (input, output) — check OpenRouter pricing for latest.
 _PRICES: dict[str, ModelPricing] = {
-    _DEEPSEEK_V3: ModelPricing(input_per_m=0.25, output_per_m=0.38),
-    _DEVSTRAL_2: ModelPricing(input_per_m=0.06, output_per_m=0.22),
-    _DEEPSEEK_R1: ModelPricing(input_per_m=0.40, output_per_m=1.75),
-    _GEMINI_FLASH: ModelPricing(input_per_m=0.50, output_per_m=3.00),
-    _MINIMAX_M2: ModelPricing(input_per_m=0.28, output_per_m=1.20),
-    _CLAUDE_SONNET: ModelPricing(input_per_m=3.00, output_per_m=15.00),
-    _GPT52: ModelPricing(input_per_m=2.00, output_per_m=14.00),
-    _GPT53_CODEX: ModelPricing(input_per_m=3.00, output_per_m=12.00),
+    _DEEPSEEK_V4_FLASH: ModelPricing(input_per_m=0.09, output_per_m=0.18),
+    _DEEPSEEK_V4_PRO: ModelPricing(input_per_m=0.435, output_per_m=0.87),
+    _GEMINI_35_FLASH: ModelPricing(input_per_m=1.50, output_per_m=9.00),
+    _MINIMAX_M3: ModelPricing(input_per_m=0.30, output_per_m=1.20),
+    _CLAUDE_SONNET_46: ModelPricing(input_per_m=3.00, output_per_m=15.00),
+    _CLAUDE_OPUS_48: ModelPricing(input_per_m=5.00, output_per_m=25.00),
+    _GPT54: ModelPricing(input_per_m=2.50, output_per_m=15.00),
+    _GPT55: ModelPricing(input_per_m=5.00, output_per_m=30.00),
 }
 
 
@@ -113,47 +114,50 @@ def _role(
 
 
 ENV_MODELS: dict[Environment, dict[str, RoleModelConfig]] = {
+    # DEV — one cheap generalist; validate wiring, not quality ceilings.
     Environment.DEV: {
-        "manager": _role(_DEEPSEEK_V3),
-        "product_owner": _role(_DEEPSEEK_V3),
-        "architect": _role(_DEEPSEEK_V3),
-        "backend_developer": _role(_DEEPSEEK_V3, temperature=0.4),
-        "frontend_developer": _role(_DEEPSEEK_V3, temperature=0.4),
-        "fullstack_developer": _role(_DEEPSEEK_V3, temperature=0.4),
-        "cloud_engineer": _role(_DEVSTRAL_2, temperature=0.4),
-        "devops": _role(_DEVSTRAL_2, temperature=0.4),
-        "qa_engineer": _role(_DEEPSEEK_V3, temperature=0.4),
+        "manager": _role(_DEEPSEEK_V4_FLASH),
+        "product_owner": _role(_DEEPSEEK_V4_FLASH),
+        "architect": _role(_DEEPSEEK_V4_FLASH),
+        "backend_developer": _role(_DEEPSEEK_V4_FLASH, temperature=0.4),
+        "frontend_developer": _role(_DEEPSEEK_V4_FLASH, temperature=0.4),
+        "fullstack_developer": _role(_DEEPSEEK_V4_FLASH, temperature=0.4),
+        "cloud_engineer": _role(_DEEPSEEK_V4_FLASH, temperature=0.4),
+        "devops": _role(_DEEPSEEK_V4_FLASH, temperature=0.4),
+        "qa_engineer": _role(_DEEPSEEK_V4_FLASH, temperature=0.4),
     },
+    # TEST — role-fit mid-tier: orchestrators vs reasoners vs coders.
     Environment.TEST: {
-        "manager": _role(_GEMINI_FLASH),
-        "product_owner": _role(_GEMINI_FLASH),
-        "architect": _role(_DEEPSEEK_R1, temperature=0.3),
-        "backend_developer": _role(_MINIMAX_M2, temperature=0.4),
-        "frontend_developer": _role(_MINIMAX_M2, temperature=0.4),
-        "fullstack_developer": _role(_MINIMAX_M2, temperature=0.4),
-        "cloud_engineer": _role(_DEEPSEEK_R1, temperature=0.3),
-        "devops": _role(_DEVSTRAL_2, temperature=0.4),
-        "qa_engineer": _role(_DEEPSEEK_R1, temperature=0.3),
+        "manager": _role(_GEMINI_35_FLASH),
+        "product_owner": _role(_GEMINI_35_FLASH),
+        "architect": _role(_DEEPSEEK_V4_PRO, temperature=0.3),
+        "backend_developer": _role(_MINIMAX_M3, temperature=0.4),
+        "frontend_developer": _role(_MINIMAX_M3, temperature=0.4),
+        "fullstack_developer": _role(_MINIMAX_M3, temperature=0.4),
+        "cloud_engineer": _role(_DEEPSEEK_V4_PRO, temperature=0.3),
+        "devops": _role(_MINIMAX_M3, temperature=0.4),
+        "qa_engineer": _role(_DEEPSEEK_V4_PRO, temperature=0.3),
     },
+    # PROD — best-fit frontier mix; Opus only where ambiguity cost is highest.
     Environment.PROD: {
-        "manager": _role(_CLAUDE_SONNET, temperature=0.5),
-        "product_owner": _role(_GPT52, temperature=0.5),
-        "architect": _role(_CLAUDE_SONNET, temperature=0.3),
-        "backend_developer": _role(_GPT53_CODEX, temperature=0.2),
-        "frontend_developer": _role(_CLAUDE_SONNET, temperature=0.3),
-        "fullstack_developer": _role(_GPT53_CODEX, temperature=0.2),
-        "cloud_engineer": _role(_CLAUDE_SONNET, temperature=0.3),
-        "devops": _role(_GPT53_CODEX, temperature=0.3),
-        "qa_engineer": _role(_CLAUDE_SONNET, temperature=0.3),
+        "manager": _role(_CLAUDE_SONNET_46, temperature=0.5),
+        "product_owner": _role(_GPT54, temperature=0.5),
+        "architect": _role(_CLAUDE_OPUS_48, temperature=0.3),
+        "backend_developer": _role(_GPT55, temperature=0.2),
+        "frontend_developer": _role(_CLAUDE_SONNET_46, temperature=0.3),
+        "fullstack_developer": _role(_GPT55, temperature=0.2),
+        "cloud_engineer": _role(_CLAUDE_SONNET_46, temperature=0.3),
+        "devops": _role(_GPT54, temperature=0.3),
+        "qa_engineer": _role(_CLAUDE_SONNET_46, temperature=0.3),
     },
 }
 
 # ── Anthropic Messages API (Claude Agent SDK) ─────────────────────────────────
 # The SDK accepts short tokens (sonnet, opus, haiku). Use these full strings when
 # pinning models in team profile overrides or documentation.
-ANTHROPIC_MESSAGES_MODEL_SONNET = "claude-sonnet-4-20250514"
-ANTHROPIC_MESSAGES_MODEL_OPUS = "claude-opus-4-20250514"
-ANTHROPIC_MESSAGES_MODEL_HAIKU = "claude-3-5-haiku-20241022"
+ANTHROPIC_MESSAGES_MODEL_SONNET = "claude-sonnet-4-6"
+ANTHROPIC_MESSAGES_MODEL_OPUS = "claude-opus-4-8"
+ANTHROPIC_MESSAGES_MODEL_HAIKU = "claude-haiku-4-5"
 
 
 class OpenRouterSettings(BaseSettings):

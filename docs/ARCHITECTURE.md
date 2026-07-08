@@ -157,7 +157,7 @@ For operator steps (env vars, budget, recovery), see [docs/claude-agent-sdk/RUNB
 | **DevOps Engineer** | CI/CD, Docker, K8s, monitoring, observability. |
 | **QA Engineer** | Test strategy, automation, coverage, quality checks. |
 
-Agents are defined in `config/agents.yaml` (role, goal, backstory, verbose, allow_delegation, max_iter, memory) and mapped to OpenRouter models in config (OpenRouterSettings, AI_TEAM_ENV).
+Agents are defined in [`config/agents.yaml`](../src/ai_team/config/agents.yaml) (role, goal, backstory) — see [AGENTS.md](AGENTS.md). Models per role and environment tier are in [`config/models.py`](../src/ai_team/config/models.py) — see [MODELS.md](MODELS.md).
 
 ### 2.4 Tool Layer
 

@@ -19,10 +19,9 @@ profiles:
       knowledge_topics: [python, security, testing, api, devops]
       include_markdown_sources: true
 
-  # Same-model matrix config (SHOWCASE_PLAN / comparison confound): the "full"
-  # team with every role pinned to the same Claude model the SDK backend uses,
-  # via OpenRouter. Lets langgraph run framework-vs-framework against
-  # claude-agent-sdk with the model held constant.
+  # Same-model matrix: every role pinned to Claude Sonnet 4.6 via OpenRouter so
+  # framework-vs-framework comparisons (e.g. langgraph vs claude-agent-sdk) hold
+  # the model constant. See docs/MODELS.md.
   full-claude:
     agents:
       - manager
@@ -36,15 +35,15 @@ profiles:
       - qa_engineer
     phases: [intake, planning, development, testing, deployment]
     model_overrides:
-      manager: openrouter/anthropic/claude-sonnet-4
-      product_owner: openrouter/anthropic/claude-sonnet-4
-      architect: openrouter/anthropic/claude-sonnet-4
-      backend_developer: openrouter/anthropic/claude-sonnet-4
-      frontend_developer: openrouter/anthropic/claude-sonnet-4
-      fullstack_developer: openrouter/anthropic/claude-sonnet-4
-      devops_engineer: openrouter/anthropic/claude-sonnet-4
-      cloud_engineer: openrouter/anthropic/claude-sonnet-4
-      qa_engineer: openrouter/anthropic/claude-sonnet-4
+      manager: openrouter/anthropic/claude-sonnet-4.6
+      product_owner: openrouter/anthropic/claude-sonnet-4.6
+      architect: openrouter/anthropic/claude-sonnet-4.6
+      backend_developer: openrouter/anthropic/claude-sonnet-4.6
+      frontend_developer: openrouter/anthropic/claude-sonnet-4.6
+      fullstack_developer: openrouter/anthropic/claude-sonnet-4.6
+      devops_engineer: openrouter/anthropic/claude-sonnet-4.6
+      cloud_engineer: openrouter/anthropic/claude-sonnet-4.6
+      qa_engineer: openrouter/anthropic/claude-sonnet-4.6
 
   backend-api:
     agents:

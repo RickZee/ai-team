@@ -26,7 +26,7 @@ def _identity_llm(llm: object) -> object:
 def mock_ollama_llm():
     """Mock LLM for agent tests (OpenRouter-style; no network)."""
     llm = MagicMock()
-    llm.model = "openrouter/deepseek/deepseek-chat-v3-0324"
+    llm.model = "openrouter/deepseek/deepseek-v4-flash"
     return llm
 
 
