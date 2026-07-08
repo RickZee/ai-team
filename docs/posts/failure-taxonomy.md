@@ -162,21 +162,59 @@ nobody.
 
 ## 9. The same model id speaks different dialects depending on who serves it
 
-**Symptom:** a controlled experiment (same framework, same brief, model swapped to
-claude-sonnet-4 via OpenRouter) drowned in HTTP 400s — 133 provider-error retries in a
-single run, burning the entire spend budget mid-pipeline.
+**Symptom:** In the same-model matrix (LangGraph + `02_todo_app`, every role pinned to
+`anthropic/claude-sonnet-4` via OpenRouter), runs drowned in HTTP 400s — **133
+provider-error retries in a single run**, burning the spend budget mid-pipeline. The
+agents were not “bad at Claude”; the *wire* between us and Claude was failing.
 
-**Root cause:** OpenRouter served the model from Google Vertex, whose
-Anthropic-translation layer rejects the tool-call ids the client sends. Same model id,
-different upstream provider, incompatible tool-calling dialect. Bonus discovery: a hard
-pin to provider "Anthropic" 404s — endpoint pools are *account-specific* (this key's
-pool was Vertex + Bedrock only).
+**What the stack actually is.** Asking OpenRouter for an Anthropic model id does **not**
+guarantee traffic hits `api.anthropic.com`:
 
-**Fix:** steer away from the broken provider (`ignore: ["Google"]`), verified with a
-live tool round-trip and then a full run with zero provider errors (from 133).
+```text
+LangGraph agent (tool calls with ids)
+  → OpenRouter  (model: anthropic/claude-sonnet-4)
+    → OpenRouter picks an upstream host for that request:
+         Anthropic first-party  |  Amazon Bedrock  |  Google Vertex AI  | …
+```
 
-**Lesson:** for tool-calling agents, the provider routing layer is part of your
-correctness surface, not just your latency/cost surface.
+OpenRouter is a **router**. Several clouds host “Claude-compatible” endpoints. Which
+upstream you get depends on account entitlements, price, and load — not on the model
+string alone.
+
+**Root cause — Vertex’s Anthropic translation layer.** Google Vertex does not speak
+Anthropic’s API natively. It exposes Claude through Google’s API surface, then a
+**compatibility / translation adapter** rewrites requests and responses toward an
+Anthropic-like shape (messages, tools, etc.).
+
+Tool-calling agents send structured **tool call ids**: the model emits “call tool X
+(id=…)”; the next turn must attach “result for id=…”. Vertex’s adapter **rejected those
+tool-call ids** with HTTP 400. Same OpenRouter model id, same weights class — but a
+different **tool-calling dialect** than Bedrock (or first-party Anthropic) would accept.
+
+So “Claude on OpenRouter” was not one endpoint. It was “whatever Cloud OpenRouter picked,”
+and the Google pick broke the agent protocol while a Bedrock pick (largely) did not.
+
+**Bonus discovery — endpoint pools are account-specific.** A hard pin to upstream
+provider `"Anthropic"` returned **404 / “No endpoints found”** on this OpenRouter key.
+That account’s pool for the Claude id was **Vertex + Bedrock only**. You cannot assume
+every key can “just use Anthropic” because the model id starts with `anthropic/`.
+
+**Fix:** for `anthropic/*` models in LangGraph chat
+(`langgraph_chat.py`), steer OpenRouter away from Google:
+
+```python
+extra_body = {"provider": {"ignore": ["Google"]}}
+```
+
+Validated with a live tool round-trip, then a full matrix run with **0** provider errors
+(down from 133). Residual Bedrock throttles still happen (ops noise); the Vertex
+tool-id dialect failure stopped.
+
+**Receipts:** [COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md) (same-model matrix
+table), [journal/2026-07-02.md](../journal/2026-07-02.md).
+
+**Lesson:** for tool-calling agents, the **provider routing layer** is part of your
+correctness surface — not just latency and cost. Model id ≠ serving dialect.
 
 ![Same framework, same brief — deepseek wrote zero test suites in 3 runs, claude wrote them in all 4](../images/same-model-matrix.svg)
 
