@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" font-family="Helvetica, Arial, sans-serif">
+  <rect width="900" height="560" fill="#ffffff"/>
+
+  <text x="40" y="42" font-size="24" font-weight="700" fill="#111827">CrewAI — shared typed state</text>
+  <text x="40" y="68" font-size="14" fill="#6b7280">One ProjectState flows the flow; hierarchical crews delegate and hand off typed Pydantic docs</text>
+
+  <rect x="360" y="92" width="180" height="52" rx="8" fill="#f3f4f6" stroke="#9ca3af"/>
+  <text x="450" y="116" text-anchor="middle" font-size="15" font-weight="600" fill="#374151">AITeamFlow</text>
+  <text x="450" y="134" text-anchor="middle" font-size="12.5" fill="#6b7280">one ProjectState</text>
+
+  <!-- PlanningCrew -->
+  <rect x="60" y="192" width="360" height="168" rx="10" fill="none" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="5 4"/>
+  <text x="240" y="216" text-anchor="middle" font-size="13" font-weight="600" fill="#7c3aed">PlanningCrew — hierarchical</text>
+  <rect x="155" y="228" width="170" height="50" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="240" y="250" text-anchor="middle" font-size="15" font-weight="600" fill="#4c1d95">Manager</text>
+  <text x="240" y="268" text-anchor="middle" font-size="12" fill="#7c3aed">manager_agent</text>
+  <rect x="80" y="300" width="150" height="46" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="155" y="328" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">Product owner</text>
+  <rect x="250" y="300" width="150" height="46" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="325" y="328" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">Architect</text>
+  <line x1="205" y1="278" x2="165" y2="298" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="275" y1="278" x2="315" y2="298" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="230" y1="323" x2="248" y2="323" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="240" y="359" text-anchor="middle" font-size="11.5" fill="#6b7280">RequirementsDocument via task context</text>
+
+  <!-- DevelopmentCrew -->
+  <rect x="480" y="192" width="360" height="168" rx="10" fill="none" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="5 4"/>
+  <text x="660" y="216" text-anchor="middle" font-size="13" font-weight="600" fill="#7c3aed">DevelopmentCrew — hierarchical</text>
+  <rect x="575" y="228" width="170" height="50" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="660" y="250" text-anchor="middle" font-size="15" font-weight="600" fill="#4c1d95">Architect</text>
+  <text x="660" y="268" text-anchor="middle" font-size="12" fill="#7c3aed">= manager</text>
+  <rect x="500" y="300" width="100" height="46" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="550" y="328" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">Backend</text>
+  <rect x="610" y="300" width="100" height="46" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="660" y="328" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">Frontend</text>
+  <rect x="720" y="300" width="100" height="46" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="770" y="328" text-anchor="middle" font-size="14" font-weight="600" fill="#4c1d95">DevOps</text>
+  <line x1="620" y1="278" x2="560" y2="298" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="660" y1="278" x2="660" y2="298" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="700" y1="278" x2="760" y2="298" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <line x1="410" y1="144" x2="270" y2="190" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="240" y1="360" x2="380" y2="418" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="520" y1="418" x2="660" y2="360" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <rect x="360" y="420" width="180" height="52" rx="8" fill="#f3f4f6" stroke="#9ca3af"/>
+  <text x="450" y="444" text-anchor="middle" font-size="15" font-weight="600" fill="#374151">ProjectState</text>
+  <text x="450" y="462" text-anchor="middle" font-size="12.5" fill="#6b7280">requirements + CodeFiles</text>
+
+  <rect x="60" y="500" width="780" height="44" rx="8" fill="#faf5ff" stroke="#c4b5fd"/>
+  <text x="80" y="527" font-size="13.5" font-weight="600" fill="#5b21b6">Key idea: agents communicate through structured, typed objects. The manager is a real delegating agent.</text>
+
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+</svg>
