@@ -29,6 +29,21 @@ The "framework failure" was a model property. Full data:
 model, framework, harness, and provider layers, each with a live trace and a shipped
 fix.
 
+And because single runs are anecdotes (the same backend, same config, varied
+6m50s → 10m41s within one hour), verdicts come from batches — n=5 per backend on
+the smoke brief:
+
+| Backend | Green | Wall-clock min / median / max | Spend per run |
+|---|---|---|---|
+| Claude Agent SDK | **5/5** | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
+| CrewAI | **5/5** | 6m50s / 9m07s / 11m57s | pennies (deepseek) |
+| LangGraph | 1/5 | 1m25s / 3m55s / 5m08s | pennies (deepseek) |
+
+LangGraph's 1/5 decomposes into two harness bugs (dev/QA file-layout contract,
+lint-gate policy) — root-caused with fixes in flight:
+[LANGGRAPH_INVESTIGATION.md](docs/LANGGRAPH_INVESTIGATION.md). When it's green,
+it's the fastest backend in the matrix.
+
 ## Quick start
 
 ```bash
@@ -46,19 +61,23 @@ cd src/ai_team/ui/web/frontend && npm run dev      # React on :5173 (proxies API
 ```
 
 Open `http://localhost:5173/compare`, describe a project, click **Run All Backends** —
-three orchestrators race the same brief, live. For step-by-step setup and
-troubleshooting, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
+three orchestrators race the same brief, live:
+
+![Three backends racing the same brief in the Compare tab — live phases, cost, and activity logs](docs/images/compare-launch-2026-07-06.gif)
+
+For step-by-step setup and troubleshooting, see
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Orchestration backends
 
 All three implement the same `Backend` protocol over the same tools, guardrails, and
 workspace layout — swap at runtime with `--backend`.
 
-| Backend | Status | Orchestration model | Notes |
-|---|---|---|---|
-| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | Recommended | `StateGraph`, explicit conditional edges, checkpointing | Default for reliability + speed |
-| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Recommended | Nested subagents, native tool-calling | Most reliable end-to-end completion in the comparison data |
-| **[CrewAI](https://crewai.com)** | Comparison-only | Crews + Flows (`@start`, `@listen`, `@router`) | Kept specifically *because* it surfaced real findings — see the journal |
+| Backend | Measured character (n≥5) | Orchestration model |
+|---|---|---|
+| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | Consistency champion — 5/5 green, tightest wall-clock spread, highest cost | Nested subagents, native tool-calling |
+| **[CrewAI](https://crewai.com)** | Slow but reliably green — 5/5, widest spread, pennies on deepseek | Crews + Flows (`@start`, `@listen`, `@router`) |
+| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | Fastest when green, escalates cleanly when not — 1/5 pre-fix, harness fixes in flight | `StateGraph`, conditional edges, checkpointing |
 
 ```bash
 uv run ai-team run "Build a REST API" --backend langgraph
@@ -96,9 +115,10 @@ bug, documented in the journal:
 
 | Guardrail | Catches | Journal reference |
 |---|---|---|
-| **Runtime smoke gate** | "70/70 pytest green, app 500s on every request" — boots the real app, probes real HTTP, drives a create→read→update→delete round-trip | [docs/GUARDRAILS.md](docs/GUARDRAILS.md) |
+| **Runtime smoke gate** | "70/70 pytest green, app 500s on every request" — boots the real app, probes real HTTP, drives a create→read→update→delete round-trip | [tests-pass-app-broken.md](docs/troubleshooting/tests-pass-app-broken.md) |
 | **Per-run spend guard** | Runaway retry loops that are also billing loops; scoped per-run (`contextvars`) so concurrent Compare runs don't share a budget | [COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md) |
-| **Subprocess isolation + hard kill** | A hung backend thread starving the GIL for every other backend in the same process (traced live: a 78-minute false report) | [docs/COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md) |
+| **Subprocess isolation + hard kill** | A hung backend thread starving the GIL for every other backend in the same process (traced live: a 78-minute false report) | [gil-starvation-hitl-delay.md](docs/troubleshooting/gil-starvation-hitl-delay.md) |
+| **Auditable human overrides** | A human approving a run past a *failing* quality gate silently reading as success — now a distinct `complete_approved` terminal status, rendered differently everywhere | [COMPARISON_RESULTS.md](docs/COMPARISON_RESULTS.md) |
 | **Calibrated behavioral guardrails** | Lexical scope checks that flagged correct QA output for using test vocabulary — fixed from measured false-positive/true-negative distributions, not guessed thresholds | [failure-taxonomy.md](docs/posts/failure-taxonomy.md) #5 |
 | **Flow-wiring regression test** | A CrewAI event-bus self-trigger bug that produced 93,284 runaway iterations in 15 minutes — a meta-test now fails the build if any flow method ever listens to its own name again | [failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2 |
 | **Atomic run-id allocation** | Concurrent Compare launches colliding on the same run id and workspace (a classic TOCTOU race) | [failure-taxonomy.md](docs/posts/failure-taxonomy.md) #4 |
