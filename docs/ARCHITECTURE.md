@@ -49,7 +49,7 @@ graph TB
 
     PC & DC & TC & DEPC --> AG
 
-    AG["<b>Agents</b> (7–8 roles)<br/><i>Manager, PO, Architect, Dev, Cloud, DevOps, QA</i>"]
+    AG["<b>Agents</b> (9 roles)<br/><i>Manager, PO, Architect, Backend/Frontend/Fullstack Dev, Cloud, DevOps, QA</i>"]
 
     AG --> TOOLS
 
@@ -261,7 +261,7 @@ Key idea: agents communicate through the **session transcript** (subagent result
 | **TestingCrew** | Run tests, collect coverage, validate acceptance. | QA Engineer; uses test-runner and code tools. |
 | **DeploymentCrew** | Produce deployment and CI/CD artifacts. | DevOps Engineer, Cloud Engineer; Docker, K8s, Terraform, CI configs. |
 
-### 2.3 Agent Layer (7–8 specialized agents)
+### 2.3 Agent Layer (9 specialized agents)
 
 | Agent | Responsibility |
 |-------|----------------|
@@ -270,6 +270,7 @@ Key idea: agents communicate through the **session transcript** (subagent result
 | **Architect** | System design, technology choices, interfaces, ADRs. Output: `ArchitectureDocument`. Can delegate to Cloud/DevOps. |
 | **Backend Developer** | APIs, services, DB schemas, backend code (Python/Node/Go). |
 | **Frontend Developer** | UI components, state, styling (React/Vue, etc.). |
+| **Fullstack Developer** | End-to-end features spanning backend and frontend; used by leaner profiles (e.g. `prototype`). |
 | **Cloud Engineer** | IaC (Terraform/CloudFormation), cost/security/reliability. |
 | **DevOps Engineer** | CI/CD, Docker, K8s, monitoring, observability. |
 | **QA Engineer** | Test strategy, automation, coverage, quality checks. |
@@ -461,11 +462,13 @@ ai-team/
 
 ### ADR-001: Why CrewAI Flows over LangGraph
 
-**Status:** Accepted  
+**Status:** Superseded by ADR-004, ADR-005, and ADR-006
+
+> **Note (current state):** This ADR records the *original* decision to build on CrewAI Flows first, and the reasoning below still explains why CrewAI was a reasonable starting point. It is kept for the historical record. The project has since moved to a **multi-backend architecture** behind one `Backend` protocol (ADR-005), where CrewAI, LangGraph, and the Claude Agent SDK are peers selected with `--backend`. LangGraph is the current recommended default for reliability and speed, and the Claude Agent SDK for Anthropic-native safety — see the backend table in §2.1.1. Do not read this ADR as "CrewAI is the primary engine"; that has not been true since ADR-004.
 
 **Context:** We need an orchestrator that coordinates multiple crews (planning, development, testing, deployment) with shared state, conditional routing, and human-in-the-loop.
 
-**Decision:** Use **CrewAI Flows** as the main orchestration layer.
+**Decision (at the time):** Use **CrewAI Flows** as the initial orchestration layer.
 
 **Rationale:**
 
@@ -484,15 +487,17 @@ ai-team/
 
 **Context:** Agents need an LLM and embedding backend; we want a single API key, multiple models per role, and no local GPU requirement.
 
-**Decision:** Use **OpenRouter** as the sole provider for inference and embeddings.
+**Decision:** Use **OpenRouter** as the provider for the CrewAI and LangGraph backends.
+
+> **Note (current state):** "Sole provider" was true when CrewAI/LangGraph were the only backends. The Claude Agent SDK backend (ADR-006) runs on the **Anthropic API** with `ANTHROPIC_API_KEY`, not OpenRouter. So provider choice is now per-backend: OpenRouter for CrewAI/LangGraph, Anthropic for the SDK.
 
 **Rationale:**
 
-- **Single key:** One `OPENROUTER_API_KEY` for chat and embeddings.
+- **Single key:** One `OPENROUTER_API_KEY` for chat and embeddings across the OpenRouter-based backends.
 - **Model choice:** Different models per role via `OpenRouterSettings` and `AI_TEAM_ENV` (dev/test/prod).
 - **No local GPU:** No Ollama or local model setup; works in CI and on any host with network.
 
-**Consequences:** Requires network and OpenRouter account. See `scripts/setup_openrouter.sh` and `.env.example`.
+**Consequences:** The OpenRouter backends require network and an OpenRouter account; the SDK backend requires an Anthropic key instead. See `scripts/setup_openrouter.sh` and `.env.example`.
 
 ---
 
@@ -537,9 +542,9 @@ ai-team/
 
 **Decision:** Centralize backend selection in `get_backend(name)` and team composition in `load_team_profile(team)`. CLI flags: `--backend`, `--team`. CrewAI, LangGraph, and Claude Agent SDK backends receive the same `TeamProfile` and project description string.
 
-**Rationale:** One configuration surface (`team_profiles.yaml`); demos and comparison scripts exercise both backends with identical inputs.
+**Rationale:** One configuration surface (`team_profiles.yaml`); demos and comparison scripts exercise all three backends with identical inputs.
 
-**Consequences:** New backend features should be reflected in both stacks when parity matters, or documented as backend-specific.
+**Consequences:** New backend features should be reflected across the backends when parity matters, or documented as backend-specific.
 
 ---
 
