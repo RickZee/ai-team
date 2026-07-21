@@ -56,8 +56,11 @@ uv run ai-team run "Build a REST API" --backend claude-agent-sdk
 uv run ai-team run "Build a REST API" --backend crewai
 ```
 
-CrewAI is kept in the matrix despite its failures: they are data points, and their
-root causes are documented in
+CrewAI earned its way back to a full peer in the matrix. It was demoted early after a
+runtime hang on the trivial smoke brief, but the n=5 batch traced that to two harness
+bugs of mine (a workspace-scoping fallback and an environment-variable leak), not the
+framework — and once fixed, it ran green across a multi-run streak on the exact
+scenario it was demoted over. That whole arc, including the correction, is in
 [docs/posts/failure-taxonomy.md](docs/posts/failure-taxonomy.md) #2/#3.
 
 ## Results
