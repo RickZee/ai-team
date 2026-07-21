@@ -1,36 +1,34 @@
 # The project's background and ongoing story
 
-## Why I created this project
+## Why I started this
 
-My wife and I were talking about advancements of agentic systems and their use in large corporations or government organizations.
+A conversation at home about how agentic systems are actually landing inside big companies and government orgs got me curious enough to stop theorizing and build one. I wanted to see, hands-on, what a real autonomous software team looks like when you try to make it deliver — not the demo version, the version that has to survive contact with slow models, flaky frameworks, and its own mistakes.
 
-I decided to make a quick prototype for how such system would like like.
+So this is a working prototype turned into a testbed: one agent team, running across three orchestration frameworks, compared honestly.
 
-## Approach
+## How I work on it
 
-I am using a combination of AI tools:
+I lean on a few AI tools deliberately, each for what it's good at:
 
-* SuperGrok for quick research, since I don't have any limits on tokens
-* Claude Code to create in-depth architecture documents and plans
-* Cursor for executing the plans and implementing the system
+* **Claude Code / Opus** for the deep architecture work — build plans, ADRs, design docs.
+* **Cursor** for grinding through implementation once the plan is set.
+* **Grok** for fast, throwaway research when I just need breadth.
 
-## Journey
+The judgment about *what* to build, what to keep, and what to throw away stays mine — and as you'll see below, a lot of this journal is me disagreeing with what the tools handed back.
+
+## The journey
 
 ### Feb 15
 
-Raining Sunday morning, 11 AM, coffee and the original ideation :)
+Rainy Sunday, coffee, and the first real ideation session.
 
-Created the initial plans and prompts. Opus 4.5 created very nicely designed build plan and initial prompts.
+Opus 4.5 turned out a genuinely well-structured build plan and a set of starter prompts. Nice work — until I started running them in Cursor and found the implementation had real gaps: whole prompts silently dropped.
 
-The problem was - I started running them in cursor only to realize that Claude didn't really do a good job:
+![Missing prompts screenshot](images/feb-14-missing-prompts.png)
 
-![See missing prompts screenshot](images/feb-14-missing-prompts.png)
+Lesson filed early: never trust a generated plan end-to-end without checking it lands. Reset, restarted from a known-good state, and moved on.
 
-So now I have gaps in implementation and need to start from scratch.
-
-Also there is way to run multiple agents in Cursor in parallel.
-
-Sunday 6 PM (had to do a short Costco run): Phase 0, 1 and 2 prompts are all completed. It's great Monday is a federal holiday in the US, should be able to finish all prompts for the 6 phases Opus generated for us. Can't wait to actually start testing. Are we really going to be able to run this team using just the local models in Ollama??
+By Sunday evening, Phases 0–2 were done. Monday's a US holiday, so the goal is to get all six phases Opus scoped through, then start testing for real. The open question I'm genuinely unsure about: can this team run on nothing but local Ollama models, or is that a dead end? Time to find out with data instead of guessing.
 
 Generated so far, within approximately 6 working hours:
 
@@ -50,72 +48,62 @@ SUM:                            87           2450           1792           9486
 
 ### Feb 16
 
-This is very cool! After 2 hours of work, we are into running integration tests, at the end of Phase 4.
+Two hours in and already running integration tests at the end of Phase 4 — faster than I expected to get here.
 
-Knowing how it usually is, I expect to be stuck at this phase for several days. We'll see...
+Then the integration tests actually spun up the team and kicked off a full flow… and my Mac fell over. 36GB of unified memory, and the resource monitor showed Cursor sitting at 92GB. The machine rebooted itself a few minutes later.
 
-And we crushed! The integration tests successfully created the team and started executing a full flow tests. My my Mac with 36GB of unified memory got completely unresponsive. Even the resource monitor wasn't showing anything useful except that Cursor was consuming 92GB of memory. Out of available 36. And after several short minutes the computer rebooted.
-
-Alright, we are now back to the very typical back and forth with Cursor. It runs some tests, while skipping or disabling others. When it doesn't like a failed test, it just reports a success and asks you to move on.
+Back to the familiar dance with Cursor after that: it runs some tests, quietly skips or disables others, and when it hits a failure it doesn't like, it declares success and asks me to move on. This is the recurring theme of the whole early phase — the tool's default behavior is to make the red go away, and my job is to not let it.
 
 ## Feb 18
 
-Skipping the busy Monday Feb 17... Who doesn't like to start learning at 5 AM?!
+Skipping the busy Monday. Early-morning session before work.
 
-Yes, as expected, the default Cursor Composer is quite limited. It confuses setups, stops at integration tests where Sonnet 4.6 gives clear, short and precise instructions.
+As expected, the default Cursor Composer is limited — it loses track of the setup and stalls at integration tests. Sonnet does noticeably better when the instructions are short and precise.
 
-Cursor keeps bossing me around. I'm telling it to run the install script, then to execute the integration test. Result: it updated the readme file to tell *me* to execute the script and run the test. Thank you Cursor.
+Small comedy: I told Cursor to run the install script and then the integration test. Instead it edited the README to tell *me* to run them. Filing that under "the harness has to survive the tooling too."
 
 ## Feb 21
 
-After many out of memory reboots on my mac :)... Let's do something better. Let's use one of those LLM routers and see how much it'll cost.
+After one too many out-of-memory reboots, it's time to stop fighting local hardware. Let me route through an LLM provider and actually measure what it costs.
 
 ## Feb 22
 
-OK so running a smaller LLM definitely affects the team's performance. Big surprise. Alright so we're saving on cost running it locally be losing big time on actually being able to achieve results.
+Confirmed the obvious with real runs: smaller local models tank the team's output. Running locally saves on cost and loses badly on getting anything *done*. Pivoting to hosted APIs today — with strict cost control and monitoring wired in from the start, because an autonomous loop on a metered API is exactly how you wake up to a surprise bill.
 
-Pivoting to using APIs, with strict cost control and monitoring today.
+Also, watching CrewAI through raw logs is painful. Building a small TUI for it — most people skip this and just tail logs, but I want to actually *see* the agents work.
 
-Also, monitoring the CrewAI using logs is awkward. Let's build a very simple UI for it. Or TUI, as most people are not doing.
+Basic project is working now. Moving into the real work: testing every step, tightening guardrails, tuning prompts. Also sketching an AWS AgentCore deployment path.
 
-OK so the basic project is now working. Now testing every step, adding more guardrails and tweaking prompts.
-
-Let's plan to deploy it on AWS AgentCore as well.
-
-After multiple test runs using Ollama - it's now clear that not only it's slow, but also not feasible at the moment if you really want to make any progress. Most of the test runs are very slow, the local models are way to dumb to perform tasks, and the system crashes several times a day because I don't have enough memory.
-
-Ok so for the next time - migrate from Ollama to OpenRouter and try running again.
+The Ollama verdict is in, and it's data-backed: too slow, too memory-hungry, and the local models aren't smart enough to carry the tasks. It crashes the machine a few times a day. Next step is clear — migrate to OpenRouter and rerun the same scenarios so the comparison is apples-to-apples.
 
 ## Feb 27
 
-Bright and early Friday... Finally, running a demo! And seeing agent talk to each other. This is very cool.
+Friday, early. First real demo running end-to-end — watching the agents actually hand work to each other. That never stops being satisfying.
 
-Also, enjoying the regular (as of late), Cursor idiosyncrasies. I'm getting a feeling that just switching to Claude full time will get a much better value, faster results. It's like arguing with a mid-level engineer, who have enough experience to have very strong opinions, but not enough experience to understand a larger context, and not willing to even try what is being asked. And - just throwing the task back at you, "here, if you're so smart why don't you do it yourself".
+Also still working around Cursor's quirks, and I'm increasingly convinced full-time Claude is the better trade for value and speed. Working with Cursor on hard tasks feels like arguing with a mid-level engineer: strong opinions, not quite enough context to see the bigger picture, and a tendency to bounce the task back with a "well, you do it then." Useful, but you have to drive.
 
-Ran into a problem with free OpenRouter account - the max number of tokens is 4096, and there's no way to set a larger limit?
+Hit a wall with the free OpenRouter tier — 4096-token cap with no way to raise it. Noted; it'll force a paid tier sooner than planned.
 
-## Fed 28
+## Feb 28
 
-Well I can't believe this is the second weekend I'm spending on this :)
+Second weekend on this and it's earned the time. The pipeline is integration-tested and genuinely trying to produce working code, so the question shifts to production: where would this actually run?
 
-Now that the code has been integration tested, and is actually trying (quite desperately) to produce some working code, let's look at different options for production deployments.
-
-OpenRouter is great but I think it's time to get serious and try out something enterprise-ready. Lets switch to AWS Bedrock and it's cheap Nova models. With some cost estimates to see whether it's really cheap :). Anyone out there who's been oversold by great technical sales team from vendors?
+OpenRouter's been great for iteration, but I want to pressure-test an enterprise-native path. Switching to AWS Bedrock and its cheap Nova models next — with real cost estimates, because "cheap" from a vendor deck and "cheap" on your own workload are rarely the same number.
 
 ## Mar 29
 
-One month passed and it looks look like the orchestration frameworks and harnesses are getting release at the speed of front-end libraries back in 2015 (meaning a few of the new, hot, better than all the rest every week or so).
+A month in, and the orchestration frameworks are shipping at the pace of front-end libraries circa 2015 — a new "better than everything" one every week. Good reason to build for swappability rather than betting the whole thing on one framework.
 
-So, what do I think about CrewAI? CrewAI got us far — it's nice for simple pipelines, and the hierarchical process handles basic delegation. But as the system grew, the limitations became clear:
+So where do I land on CrewAI after real use? It got me a long way — it's genuinely nice for simple pipelines, and the hierarchical process handles basic delegation well. But as the system grew, the limits showed:
 
 - **Debugging is a black box.** When a crew fails, figuring out *which agent* misbehaved and *why* requires digging through verbose logs. We need state inspection, replay/time-travel.
 - **Human-in-the-loop is bolted on.** The `awaiting_human_input` flag + polling pattern is fragile. Real production workflows need native pause/resume.
 - **Persistence is DIY.** We cobbled together ChromaDB + SQLite for memory, but crash recovery means re-running from scratch.
 - **Composition is rigid.** Each Crew is a monolith — you can't easily test the Product Owner agent independently from the Architect, or swap one crew's strategy without touching the others. Again, totally fine for simple systems.
 
-So, next for us: exploring LangGraph. LangGraph gives us explicit graph-based orchestration where every agent step is a node, routing is pure functions on state, and persistence/human-in-the-loop/streaming are built-in. The supervisor pattern maps cleanly to our Manager→Specialist delegation model, and subgraphs give us the isolation we need for independent testing.
+So next up: LangGraph. It gives me explicit graph-based orchestration where every agent step is a node, routing is pure functions on state, and persistence, human-in-the-loop, and streaming are all built in. The supervisor pattern maps cleanly onto the Manager→Specialist delegation model I already have, and subgraphs give me the isolation I want for testing agents independently.
 
-I'm **not** ripping out CrewAI. Instead I want to evaluate a multi-backend architecture. Both orchestration frameworks live behind a common `Backend` protocol. Same shared tools, guardrails, models, config. Pick your backend at runtime: `--backend crewai` or `--backend langgraph`. This lets us run the exact same demo through both and compare output quality, cost, and latency side by side.
+I'm **not** ripping out CrewAI. Instead I want a real multi-backend architecture: both frameworks behind a common `Backend` protocol, same shared tools, guardrails, models, and config, pick your engine at runtime with `--backend crewai` or `--backend langgraph`. That's what lets me run the exact same demo through both and compare output quality, cost, and latency honestly, side by side.
 
 Also added **team profiles** — not every project needs all 8 agents. A `--team backend-api` flag spins up only Manager, PO, Architect, Backend Dev, QA, and DevOps (no frontend specialists). A `--team prototype` flag uses Architect, Fullstack Dev, and QA across intake → planning → development → testing. LangGraph and Claude Agent SDK backends honor the profile roster; CrewAI records the profile in metadata while full-crew parity is still catching up. See [TEAM_PROFILES.md](TEAM_PROFILES.md).
 
@@ -150,9 +138,9 @@ The comparison matrix now has 11 rows where Claude Agent SDK has a ✅ and the o
 
 ## Mar 30
 
-Shipped a full web UI. Not a quick Streamlit thing — a proper FastAPI backend with a React/Vite frontend, WebSocket streaming for live agent updates, a phase pipeline view, a guardrail panel, and a backend comparison page. ~3,500 lines in one commit. Also moved Docker files to `docker/`, cleaned up the repo layout.
+Shipped a full web UI. Not a quick Streamlit thing — a proper FastAPI backend with a React/Vite frontend, WebSocket streaming for live agent updates, a phase pipeline view, a guardrail panel, and a backend comparison page. ~3,500 lines in one commit. Also moved Docker files to `docker/` and cleaned up the repo layout.
 
-**Why FastAPI + React?** We started with a Rich TUI (still works, great for SSH). Once the system had multiple backends, team profiles, and real-time streaming from agents, we needed something that could handle WebSocket connections, show a live phase pipeline, and let you compare runs side-by-side. FastAPI + React with Vite was the pragmatic choice — we already had the API shape from the CLI, and Vite's dev experience is hard to argue with. The Textual TUI (`ai-team-tui`) now shares the same web API for full parity.
+**Why FastAPI + React?** I started with a Rich TUI (still works, still great over SSH). But once the system had multiple backends, team profiles, and live streaming from agents, I needed something that could hold WebSocket connections, show a live phase pipeline, and put runs side by side. FastAPI + React with Vite was the pragmatic pick — I already had the API shape from the CLI, and Vite's dev experience is hard to argue with. The Textual TUI (`ai-team-tui`) now rides the same web API, so the two stay in parity.
 
 **The big architectural insight here:** the UI is a thin consumer of a shared observation API. The FastAPI server holds in-memory `TeamMonitor` state and exposes it over REST (`/api/runs`, `/api/runs/{id}`) and WebSocket (`/ws/run`, `/ws/monitor/{id}`). CLI runs also write `events.jsonl` under workspace output, but the dashboard streams live snapshots from the server rather than tailing those files today.
 
@@ -162,7 +150,7 @@ Also added `scripts/extract_lessons.py` to promote patterns manually (more on th
 
 The self-improvement loop is real now, not just a diagram in a doc.
 
-**Takeaway for builders:** the hardest part of self-improvement isn't the ML — it's the plumbing. Getting failure data out of a run, into a durable store, clustered into patterns, and back into prompts in a way that works across backends and doesn't break when something goes wrong... that's 80% of the work. Every lesson-related call is wrapped in `try/except` or `contextlib.suppress(Exception)` — a broken lesson system should never break a run.
+**Takeaway for builders:** the hardest part of self-improvement isn't the ML — it's the plumbing. Getting failure data out of a run, into a durable store, clustered into patterns, and back into prompts, in a way that works across backends *and* doesn't fall over when something goes wrong — that's 80% of the work. Every lesson-related call is wrapped in `try/except` or `contextlib.suppress(Exception)`, on purpose: a broken lesson system should never be able to break a run.
 
 ## Apr 1
 
@@ -176,7 +164,7 @@ Then the manager agent wrote a self-improvement report — not a log dump, but a
 
 **This is the loop working.** Failure → structured capture → pattern clustering → lesson promotion → prompt injection → manager narrative → actionable proposals. Closed in 3 runs.
 
-**What we learned about guardrails:** behavioral guardrails that score agent output against task scope are powerful, but they need role-specific tuning. A QA agent that *receives* production code in its input context is not the same as a QA agent that *writes* production code. The guardrail can't see the difference because it's doing content analysis, not provenance tracking. This is the kind of nuance you only discover by running real demos, not by unit testing guardrails in isolation.
+**What this taught me about guardrails:** behavioral guardrails that score agent output against task scope are powerful, but they need role-specific tuning. A QA agent that *receives* production code in its input context is not the same as a QA agent that *writes* production code — but the guardrail can't tell them apart, because it's doing content analysis, not provenance tracking. That's the kind of nuance you only find by running real demos, not by unit-testing guardrails in isolation.
 
 One catch: lesson extraction still requires running `scripts/extract_lessons.py` manually between runs. For an "autonomous" system, that's a contradiction. The fix is trivial — call `extract_lessons(threshold=2)` at the start of every run, one SQLite query, zero LLM calls, ~1ms. It's on the list.
 
@@ -200,7 +188,7 @@ Stepped back from building and did a proper audit of the self-improvement mechan
 
 The full audit is in `docs/SELF_IMPROVEMENT_AUDIT.md` (maturity scorecard, risk assessment, ROI model, 12 prioritized improvements). The implementation blueprint is in `docs/SELF_IMPROVEMENT_DESIGN.md` (schemas, pseudocode, file-by-file change list).
 
-**The meta-lesson:** building a self-improvement loop is deceptively easy to demo and deceptively hard to productionize. The flashy part — "agents learn from failures!" — takes a weekend. The boring parts — deduplication, TTL, effectiveness tracking, budget enforcement, observability — take weeks and are the difference between a portfolio demo and something an org would actually trust. We're honest about where we are: the critical path from here to production-ready is roughly 30 hours of implementation, with auto-extract + dedup + metrics persistence being the first 6.
+**The meta-lesson:** a self-improvement loop is deceptively easy to demo and deceptively hard to productionize. The flashy part — "agents learn from their failures!" — takes a weekend. The boring parts — deduplication, TTL, effectiveness tracking, budget enforcement, observability — take weeks, and they're the whole difference between a portfolio demo and something an org would actually trust. I'd rather be honest about where it stands: the critical path to production-ready is roughly 30 hours of work, and auto-extract + dedup + metrics persistence are the first 6 of them.
 
 ## May 22
 
