@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run pip-audit with the same ignore list as .github/workflows/ci.yml security job.
 # Transitive / pinned advisories are documented inline; bump direct deps in pyproject.toml first.
+# GHSA-xf7x-x43h-rpqh: crewai pins json-repair~=0.25.2; fix is 0.60.1+ (DoS via circular $ref).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,4 +27,5 @@ exec uv run pip-audit \
   --ignore-vuln CVE-2026-54282 \
   --ignore-vuln GHSA-4gg8-gxpx-9rph \
   --ignore-vuln CVE-2026-48775 \
-  --ignore-vuln CVE-2026-48776
+  --ignore-vuln CVE-2026-48776 \
+  --ignore-vuln GHSA-xf7x-x43h-rpqh
