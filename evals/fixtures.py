@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import statistics
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import anthropic
+import httpx
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -167,8 +170,36 @@ class JudgeVerdict:
     reason: str
 
 
+def _parse_judge_json(raw_text: str, *, context: str = "") -> JudgeVerdict:
+    """Parse a judge's JSON reply, tolerating markdown fences."""
+    if not raw_text.strip():
+        raise ValueError(f"judge returned empty response ({context})")
+    text = raw_text.strip()
+    if text.startswith("```"):
+        text = "\n".join(text.split("\n")[1:])
+        text = text.rstrip("`").strip()
+    data = json.loads(text)
+    return JudgeVerdict(
+        passed=bool(data.get("passed", False)),
+        score=float(data.get("score", 0.0)),
+        reason=str(data.get("reason", "")),
+    )
+
+
 class LLMJudge:
-    """Claude-as-judge: checks whether evidence satisfies a criterion."""
+    """LLM-as-judge: checks whether evidence satisfies a criterion.
+
+    **Provider independence matters here.** This project compares backends, one of
+    which (``claude-agent-sdk``) runs on Anthropic models. A judge that is also
+    Anthropic introduces a self-preference confound: the judge shares a vendor with
+    a contestant. Use :class:`EnsembleJudge` (or set ``AI_TEAM_JUDGE_PROVIDER`` to a
+    provider that differs from the backends under test) whenever a published number
+    depends on judge output.
+
+    Configuration (env, all optional):
+        ``AI_TEAM_JUDGE_PROVIDER`` — ``anthropic`` (default) or ``openrouter``.
+        ``AI_TEAM_JUDGE_MODEL``    — model id for that provider.
+    """
 
     SYSTEM = (
         "You are a strict evaluator. Given a criterion and evidence (code, file listings, "
@@ -177,10 +208,30 @@ class LLMJudge:
     )
 
     TIMEOUT_S: int = 60
+    DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
+    DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.4"
 
-    def __init__(self, model: str = "claude-haiku-4-5-20251001") -> None:
-        self._client = anthropic.Anthropic(timeout=self.TIMEOUT_S)
-        self._model = model
+    def __init__(
+        self,
+        model: str | None = None,
+        provider: str | None = None,
+    ) -> None:
+        self._provider = (provider or os.getenv("AI_TEAM_JUDGE_PROVIDER") or "anthropic").lower()
+        env_model = os.getenv("AI_TEAM_JUDGE_MODEL")
+        if self._provider == "anthropic":
+            self._model = model or env_model or self.DEFAULT_ANTHROPIC_MODEL
+            self._client: Any = anthropic.Anthropic(timeout=self.TIMEOUT_S)
+        elif self._provider == "openrouter":
+            self._model = model or env_model or self.DEFAULT_OPENROUTER_MODEL
+            self._client = None  # plain HTTP; see _check_once_openrouter
+        else:
+            msg = f"Unknown judge provider {self._provider!r}. Use 'anthropic' or 'openrouter'."
+            raise ValueError(msg)
+
+    @property
+    def identity(self) -> str:
+        """Provider/model string, for recording judge provenance alongside scores."""
+        return f"{self._provider}:{self._model}"
 
     def check(self, criterion: str, evidence: str) -> JudgeVerdict:
         last_exc: Exception | None = None
@@ -189,37 +240,51 @@ class LLMJudge:
                 return self._check_once(criterion, evidence)
             except Exception as exc:
                 last_exc = exc
-                logger.warning("llm_judge_retry", attempt=attempt + 1, error=str(exc))
-        logger.warning("llm_judge_error", error=str(last_exc))
+                logger.warning(
+                    "llm_judge_retry", attempt=attempt + 1, judge=self.identity, error=str(exc)
+                )
+        logger.warning("llm_judge_error", judge=self.identity, error=str(last_exc))
         return JudgeVerdict(passed=False, score=0.0, reason=f"judge error: {last_exc}")
 
     def _check_once(self, criterion: str, evidence: str) -> JudgeVerdict:
+        prompt = f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}"
+        if self._provider == "openrouter":
+            return self._check_once_openrouter(prompt)
+        return self._check_once_anthropic(prompt)
+
+    def _check_once_anthropic(self, prompt: str) -> JudgeVerdict:
         msg = self._client.messages.create(
             model=self._model,
             max_tokens=256,
             system=self.SYSTEM,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Criterion: {criterion}\n\nEvidence:\n{evidence[:4000]}",
-                }
-            ],
+            messages=[{"role": "user", "content": prompt}],
             timeout=float(self.TIMEOUT_S),
         )
         raw_text = msg.content[0].text if msg.content else ""
-        if not raw_text.strip():
-            raise ValueError(f"judge returned empty response (stop_reason={msg.stop_reason})")
-        # Strip markdown fences if model wrapped JSON
-        text = raw_text.strip()
-        if text.startswith("```"):
-            text = "\n".join(text.split("\n")[1:])
-            text = text.rstrip("`").strip()
-        data = json.loads(text)
-        return JudgeVerdict(
-            passed=bool(data.get("passed", False)),
-            score=float(data.get("score", 0.0)),
-            reason=str(data.get("reason", "")),
+        return _parse_judge_json(raw_text, context=f"stop_reason={msg.stop_reason}")
+
+    def _check_once_openrouter(self, prompt: str) -> JudgeVerdict:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            msg = "OPENROUTER_API_KEY is required for the 'openrouter' judge provider"
+            raise ValueError(msg)
+        response = httpx.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": self._model,
+                "max_tokens": 256,
+                "messages": [
+                    {"role": "system", "content": self.SYSTEM},
+                    {"role": "user", "content": prompt},
+                ],
+            },
+            timeout=float(self.TIMEOUT_S),
         )
+        response.raise_for_status()
+        payload = response.json()
+        raw_text = payload["choices"][0]["message"]["content"]
+        return _parse_judge_json(raw_text, context="openrouter")
 
     def score_goal_alignment(self, goal: str, output_text: str) -> float:
         """0-1 score: how well does output align with the stated goal?"""
@@ -236,6 +301,79 @@ class LLMJudge:
             results[c] = self.check(c, evidence)
             print(f"    [judge {i}/{len(criteria)}] score={results[c].score:.2f}", flush=True)
         return results
+
+
+class EnsembleJudge:
+    """Runs several :class:`LLMJudge` instances and reports their agreement.
+
+    Use this for any number that gets published. A single-vendor judge cannot be
+    distinguished from vendor self-preference; an ensemble drawn from different
+    providers can at least *measure* how much the verdict depends on who is asking.
+
+    ``spread`` (max score minus min score) is the number to watch: a criterion where
+    judges disagree by more than ``DISAGREEMENT_THRESHOLD`` should not be reported as
+    a settled result without human review.
+    """
+
+    DISAGREEMENT_THRESHOLD = 0.34
+
+    def __init__(self, judges: list[LLMJudge] | None = None) -> None:
+        # Note the `is None` check: an explicitly-passed empty list is a caller error,
+        # not a request for the default panel, and must not silently fall back.
+        self.judges = self._default_panel() if judges is None else judges
+        if not self.judges:
+            msg = (
+                "EnsembleJudge requires at least one judge. With no judges passed "
+                "explicitly, set ANTHROPIC_API_KEY and/or OPENROUTER_API_KEY."
+            )
+            raise ValueError(msg)
+
+    @staticmethod
+    def _default_panel() -> list[LLMJudge]:
+        """One judge per provider that has credentials available."""
+        panel: list[LLMJudge] = []
+        if os.getenv("ANTHROPIC_API_KEY"):
+            panel.append(LLMJudge(provider="anthropic"))
+        if os.getenv("OPENROUTER_API_KEY"):
+            panel.append(LLMJudge(provider="openrouter"))
+        return panel
+
+    @property
+    def identity(self) -> str:
+        return "ensemble[" + ", ".join(j.identity for j in self.judges) + "]"
+
+    @property
+    def is_single_vendor(self) -> bool:
+        """True when every judge shares one provider — i.e. bias is not controlled."""
+        return len({j.identity.split(":", 1)[0] for j in self.judges}) < 2
+
+    def check(self, criterion: str, evidence: str) -> dict[str, Any]:
+        """Return the mean verdict plus per-judge detail and an agreement spread."""
+        verdicts = {j.identity: j.check(criterion, evidence) for j in self.judges}
+        scores = [v.score for v in verdicts.values()]
+        spread = max(scores) - min(scores) if len(scores) > 1 else 0.0
+        passed_votes = [v.passed for v in verdicts.values()]
+        contested = spread > self.DISAGREEMENT_THRESHOLD or len(set(passed_votes)) > 1
+        if contested:
+            logger.warning(
+                "judge_disagreement",
+                criterion=criterion[:80],
+                spread=round(spread, 3),
+                scores={k: round(v.score, 2) for k, v in verdicts.items()},
+            )
+        return {
+            "score": statistics.fmean(scores),
+            "passed": sum(passed_votes) > len(passed_votes) / 2,
+            "spread": spread,
+            "contested": contested,
+            "single_vendor": self.is_single_vendor,
+            "judges": {k: {"score": v.score, "passed": v.passed} for k, v in verdicts.items()},
+        }
+
+    def score_goal_alignment(self, goal: str, output_text: str) -> float:
+        return float(
+            self.check(f"The output fully addresses this goal: {goal}", output_text)["score"]
+        )
 
 
 # ---------------------------------------------------------------------------

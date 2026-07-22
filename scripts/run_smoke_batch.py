@@ -27,6 +27,13 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from batch_stats import (  # noqa: E402
+    bootstrap_median_ci,
+    verdict_is_supported,
+    wilson_interval,
+)
+
 REPO = Path(__file__).resolve().parent.parent
 DEMO = "demos/00_smoke_test"
 RUNS_DIR = REPO / "output" / "runs"
@@ -142,19 +149,73 @@ def run_once(backend: str, index: int) -> dict:
     }
 
 
-def variance_row(backend: str, rows: list[dict]) -> str:
+def _fmt_seconds(sec: float) -> str:
+    return f"{int(sec // 60)}m{int(sec % 60):02d}s"
+
+
+def backend_stats(rows: list[dict]) -> dict:
+    """Green-rate and wall-clock summaries, each with a 95% interval."""
     walls = [r["wall_seconds"] for r in rows if r["wall_seconds"] is not None]
     green = sum(1 for r in rows if r["tests_ok"])
     spends = [r["spent_usd"] for r in rows if r["spent_usd"] is not None]
+    return {
+        "n": len(rows),
+        "green": green,
+        "green_ci": wilson_interval(green, len(rows)),
+        "walls": walls,
+        "wall_ci": bootstrap_median_ci(walls) if walls else None,
+        "spends": spends,
+    }
 
-    def fmt(sec: float) -> str:
-        return f"{int(sec // 60)}m{int(sec % 60):02d}s"
 
+def variance_row(backend: str, rows: list[dict]) -> str:
+    st = backend_stats(rows)
+    walls, wall_ci = st["walls"], st["wall_ci"]
     wall_s = (
-        f"{fmt(min(walls))} / {fmt(statistics.median(walls))} / {fmt(max(walls))}" if walls else "—"
+        f"{_fmt_seconds(min(walls))} / {_fmt_seconds(statistics.median(walls))} / "
+        f"{_fmt_seconds(max(walls))}"
+        if walls
+        else "—"
     )
+    wall_ci_s = (
+        f"{_fmt_seconds(wall_ci.low)}–{_fmt_seconds(wall_ci.high)}" if wall_ci is not None else "—"
+    )
+    spends = st["spends"]
     spend_s = f"${min(spends):.3f}–${max(spends):.3f}" if spends else "—"
-    return f"| {backend} | {green}/{len(rows)} | {wall_s} | {spend_s} |"
+    return (
+        f"| {backend} | {st['green']}/{st['n']} | {st['green_ci'].as_pct()} | "
+        f"{wall_s} | {wall_ci_s} | {spend_s} |"
+    )
+
+
+def verdict_section(backends: list[str], results: list[dict]) -> list[str]:
+    """Pairwise green-rate comparisons, stating only what the intervals support."""
+    lines = ["", "### Pairwise verdicts (95% Wilson intervals on green-rate)", ""]
+    stats = {b: backend_stats([r for r in results if r["backend"] == b]) for b in backends}
+    any_supported = False
+    for i, a in enumerate(backends):
+        for b in backends[i + 1 :]:
+            ia, ib = stats[a]["green_ci"], stats[b]["green_ci"]
+            if verdict_is_supported(ia, ib):
+                any_supported = True
+                better, worse = (a, b) if ia.point > ib.point else (b, a)
+                lines.append(
+                    f"- **{better} > {worse}** — intervals do not overlap "
+                    f"({stats[better]['green_ci'].as_pct()} vs {stats[worse]['green_ci'].as_pct()})."
+                )
+            else:
+                lines.append(
+                    f"- {a} vs {b}: **no significant difference at this n** — "
+                    f"{ia.as_pct()} overlaps {ib.as_pct()}."
+                )
+    if not any_supported:
+        n_now = max((stats[b]["n"] for b in backends), default=0)
+        lines += [
+            "",
+            f"> No pairwise verdict is statistically supported at n={n_now}. "
+            "Report these as observations, not rankings.",
+        ]
+    return lines
 
 
 def main() -> int:
@@ -196,11 +257,13 @@ def main() -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
 
-    print("\n| Backend | Green | Wall min/median/max | Spend range |")
-    print("|---|---|---|---|")
+    print("\n| Backend | Green | Green 95% CI | Wall min/median/max | Median 95% CI | Spend range |")
+    print("|---|---|---|---|---|---|")
     for backend in backends:
         rows = [r for r in results if r["backend"] == backend]
         print(variance_row(backend, rows))
+    for line in verdict_section(backends, results):
+        print(line)
     print(f"\nRaw results: {out_path.relative_to(REPO)}")
     return 0
 
