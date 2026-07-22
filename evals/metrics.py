@@ -121,10 +121,29 @@ def compute_metrics(
         print("  [judge] goal alignment...", flush=True)
         m["goal_alignment"] = _judge.score_goal_alignment(scenario["description"], evidence)
         print(f"  [judge] done — goal_alignment={m['goal_alignment']:.2f}", flush=True)
+
+        # Judge provenance: who produced these scores, and is vendor bias controlled?
+        m["judge_identity"] = getattr(_judge, "identity", "unknown")
+        single_vendor = getattr(_judge, "is_single_vendor", True)
+        m["judge_single_vendor"] = single_vendor
+        if single_vendor:
+            # A judge sharing a vendor with a backend under test cannot rule out
+            # self-preference. Scores stay usable, but are flagged as provisional.
+            m["judge_provisional"] = True
+            print(
+                "  [judge] WARNING: single-vendor judge — scores are provisional "
+                "(set AI_TEAM_JUDGE_PROVIDER or use EnsembleJudge to control for bias)",
+                flush=True,
+            )
+        else:
+            m["judge_provisional"] = False
     else:
         m["acceptance_criteria_scores"] = {}
         m["acceptance_criteria_mean"] = None
         m["goal_alignment"] = None
+        m["judge_identity"] = None
+        m["judge_single_vendor"] = None
+        m["judge_provisional"] = None
 
     result.metrics = m
     return m
