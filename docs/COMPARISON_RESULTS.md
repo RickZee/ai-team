@@ -237,20 +237,33 @@ the n≥5 batch the tables should have been built from all along
 (`scripts/run_smoke_batch.py`, CLI path via `run_demo.py`, smoke profile, same brief;
 raw rows in `output/smoke_batch_20260704_*.json`).
 
-| Backend | Green | Wall min / median / max | Spend/run | Failure modes |
-|---|---|---|---|---|
-| claude-agent-sdk | **5/5** | 2m20s / 3m17s / 3m47s | $0.48–$0.95 (median $0.71) | — |
-| crewai | **5/5** | 6m50s / 9m07s / 11m57s | n/a (CLI spend gap) | — |
-| langgraph | **1/5** | 1m25s / 3m55s / 5m08s | n/a (CLI spend gap) | 2× lint-gate on auto-fixable style (F401 unused import; W293 whitespace) — one of them with **pytest 5/5 green**; 3× pytest `collected 0 items` (dev/QA test-layout mismatch) |
+> **Two limits this table cannot escape, both discovered after it was first published:**
+>
+> - **It is mixed-model.** crewai/langgraph ran deepseek; the SDK ran Claude. So the
+>   rows compare *framework+model bundles*. A model-controlled rerun needs the
+>   `smoke-claude` profile (`--team smoke-claude`), which pins every role to one Claude
+>   model. Until that batch exists, none of these rows is a framework verdict.
+> - **n=5 is underpowered for a binary outcome.** Wilson 95% intervals: 5/5 → **57–100%**,
+>   1/5 → **4–62%**. They overlap, so *"5/5 vs 1/5" is not a statistically supported
+>   difference at n=5.* Treat everything below as observation, not ranking. The runner
+>   now enforces this (`scripts/batch_stats.py`: no verdict when intervals overlap).
+
+| Backend (model) | Green | Green 95% CI | Wall min / median / max | Spend/run | Failure modes |
+|---|---|---|---|---|---|
+| claude-agent-sdk (Claude) | **5/5** | 57–100% | 2m20s / 3m17s / 3m47s | $0.48–$0.95 (median $0.71) | — |
+| crewai (deepseek) | **5/5** | 57–100% | 6m50s / 9m07s / 11m57s | n/a (CLI spend gap) | — |
+| langgraph (deepseek) | **1/5** | 4–62% | 1m25s / 3m55s / 5m08s | n/a (CLI spend gap) | 2× lint-gate on auto-fixable style (F401 unused import; W293 whitespace) — one of them with **pytest 5/5 green**; 3× pytest `collected 0 items` (dev/QA test-layout mismatch) |
 
 **What n=5 shows that n=1 could not:**
 
 1. **CrewAI's demotion verdict is due for correction.** Counting the two Jul 3
    comparison runs, CrewAI is now on a **7-run green streak** on the scenario that had
    *zero successful baselines* on Jun 30 ("hangs at 12min/140min, kill -9 only"). The
-   flow-wiring + subprocess-isolation + salvage fixes didn't just stop the bleeding —
-   they made it the second-most-reliable backend on this brief. Slow (2-3× SDK
-   wall-clock, widest spread: 6m50s–11m57s), but consistently green.
+   flow-wiring + subprocess-isolation + salvage fixes turned a backend that couldn't
+   finish into one that finishes green every time on this brief. (Whether it's "more
+   reliable" than another backend is *not* something n=5 can say — see the CI caveat
+   above. What it can say: CrewAI went from 0% to a streak.) Slow though — 2-3× the
+   SDK's wall-clock, widest spread at 6m50s–11m57s.
 2. **LangGraph's 1/5 is not one bug, it's two classes.** (a) The ruff lint gate fails
    runs for auto-fixable style noise — including a run whose tests were 5/5 green;
    a `ruff --fix` pass before the gate (or gating on `check --fix --diff` cleanliness)
@@ -258,9 +271,11 @@ raw rows in `output/smoke_batch_20260704_*.json`).
    (`collected 0 items`, 3×) is the old coordination problem from Jun 28 — planning
    needs to pin the test layout into both prompts. Its one green run (1m25s) matches
    the historical 60-77s baseline: when it works, it's the fastest by far.
-3. **SDK is the consistency champion, at a price.** Tightest wall-clock spread
-   (2m20s–3m47s), 5/5 green, but $0.48–$0.95/run vs pennies for the deepseek backends —
-   a 2× spend variance between identical runs is itself worth knowing.
+3. **SDK has the tightest spread, at a price.** Wall-clock 2m20s–3m47s, 5/5 green, but
+   $0.48–$0.95/run vs pennies for the deepseek backends. The 2× spend swing between
+   otherwise-identical runs is itself worth knowing. Note this is the one backend on
+   Claude, so its green rate can't be compared to the deepseek backends' without the
+   `smoke-claude` control.
 4. **Remaining plumbing gap (honest ledger):** CrewAI/LangGraph CLI runs still write no
    `costs.jsonl` (the finalize hook fires on the web path and the SDK backend only),
    and the batch runner had to normalize **three** different `test_results` schemas.

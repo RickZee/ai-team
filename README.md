@@ -44,11 +44,11 @@ For step-by-step setup and troubleshooting, see
 All three implement the same `Backend` protocol over the same tools, guardrails, and
 workspace layout — swap at runtime with `--backend`.
 
-| Backend | Measured behavior (n≥5) | Orchestration model |
+| Backend | Observed at n=5 (mixed-model, not a verdict — see [Results](#results)) | Orchestration model |
 |---|---|---|
-| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | 5/5 green, tightest wall-clock spread, highest cost | Nested subagents, native tool-calling |
-| **[CrewAI](https://crewai.com)** | 5/5 green, slowest, widest spread, pennies on deepseek | Crews + Flows (`@start`, `@listen`, `@router`) |
-| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | 1/5 pre-fix, fastest when green, harness fixes in progress | `StateGraph`, conditional edges, checkpointing |
+| **[Claude Agent SDK](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agent-sdk)** | 5/5 green on Claude, tightest spread, highest cost | Nested subagents, native tool-calling |
+| **[CrewAI](https://crewai.com)** | 5/5 green on deepseek, slowest, widest spread | Crews + Flows (`@start`, `@listen`, `@router`) |
+| **[LangGraph](https://langchain-ai.github.io/langgraph/)** | 1/5 on deepseek pre-fix, fastest when green | `StateGraph`, conditional edges, checkpointing |
 
 ```bash
 uv run ai-team run "Build a REST API" --backend langgraph
@@ -78,18 +78,33 @@ property, not a framework one. Full data:
 the model, framework, harness, and provider layers, each with a trace and a fix.
 
 Single runs vary widely (same backend and config ranged 6m50s → 10m41s within one
-hour), so verdicts are taken from batches of n=5 per backend on the smoke brief:
+hour), so numbers are taken from batches of n=5 per backend on the smoke brief. Two
+caveats you must read before trusting the table below.
 
-| Backend | Green | Wall-clock min / median / max | Spend per run |
-|---|---|---|---|
-| Claude Agent SDK | 5/5 | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
-| CrewAI | 5/5 | 6m50s / 9m07s / 11m57s | pennies (deepseek) |
-| LangGraph | 1/5 | 1m25s / 3m55s / 5m08s | pennies (deepseek) |
+> **⚠️ This table is confounded and underpowered — it does not support framework verdicts.**
+>
+> 1. **Mixed models.** CrewAI and LangGraph run deepseek here; the Claude SDK runs
+>    Claude. So a difference between rows is a *framework+model bundle* difference, not
+>    a framework difference. The model-controlled comparison uses the `smoke-claude`
+>    profile (every role pinned to one Claude model) — run it with
+>    `uv run python scripts/run_smoke_batch.py --team smoke-claude`.
+> 2. **n=5 is too small to rank.** A 1/5 green rate has a 95% Wilson interval of
+>    **4–62%**, which overlaps 5/5's interval of **57–100%**. So even "5/5 vs 1/5"
+>    is *not* a statistically supported difference at this sample size. The batch
+>    runner now prints "no significant difference at this n" instead of a ranking.
 
-LangGraph's 1/5 traces to two harness bugs (the dev/QA file-layout contract and the
-lint-gate policy), root-caused with fixes in progress:
+| Backend (model) | Green | Green 95% CI | Wall min / median / max | Spend per run |
+|---|---|---|---|---|
+| Claude Agent SDK (Claude) | 5/5 | 100% [57–100] | 2m20s / 3m17s / 3m47s | $0.48–$0.95 |
+| CrewAI (deepseek) | 5/5 | 100% [57–100] | 6m50s / 9m07s / 11m57s | pennies |
+| LangGraph (deepseek) | 1/5 | 20% [4–62] | 1m25s / 3m55s / 5m08s | pennies |
+
+Read these as **observations, not rankings**: at n=5 no pairwise verdict survives its
+own confidence interval. LangGraph's 1/5 traces to two harness bugs (the dev/QA
+file-layout contract and the lint-gate policy), root-caused with fixes in progress:
 [langgraph-reliability-investigation.md](docs/troubleshooting/langgraph-reliability-investigation.md).
-When green it is the fastest backend in the matrix.
+The honest headline is not "backend X wins" — it's "the harness and the model choice
+dominate, and I don't yet have the runs to separate the frameworks."
 
 ## Team profiles
 
@@ -202,6 +217,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 
 ## Configuration reference
 
+`.env.example` is a minimal template (keys + common overrides). Defaults live in
+`src/ai_team/config/settings.py` and `models.py` — unset vars use those.
+
 | Variable | Description | Default |
 |---|---|---|
 | `OPENROUTER_API_KEY` | OpenRouter API key (CrewAI / LangGraph backends) | — |
@@ -209,16 +227,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 | `AI_TEAM_ENV` | Model tier: `dev`, `test`, `prod` | `dev` |
 | `AI_TEAM_MAX_COST_PER_RUN` | Pre-run estimate ceiling; abort if the estimate exceeds it | `5.0` |
 | `AI_TEAM_RUN_BUDGET_USD` | Runtime spend guard; non-retryable abort once actual spend crosses it | `5.0` |
+| `PROJECT_PLANNING_SEQUENTIAL` | Sequential planning crew (disable PO tools / planning) | `false` |
 | `CREWAI_HARD_TIMEOUT_SECONDS` | Wall-clock kill deadline for the CrewAI subprocess | `900` |
 | `AI_TEAM_LANGGRAPH_GRAPH_MODE` | LangGraph nodes: `placeholder` (stubs) or `full` (subgraphs) | `placeholder` |
 | `AI_TEAM_LANGGRAPH_POSTGRES_URI` | Postgres URI for LangGraph checkpointing (optional) | SQLite |
-| `GUARDRAIL_BEHAVIORAL_MAX_RETRIES` | Per-category guardrail retries (also `_SECURITY_`, `_QUALITY_`) | `3` |
+| `AI_TEAM_USE_REAL_LLM` | Run live-LLM integration/evals when set to `1` | unset |
+| `AI_TEAM_TEST_MEMORY` | Run live memory/embedder integration tests when set to `1` | unset |
 
 The backend is selected per run with `--backend` (default `crewai`), not an env
 var. Copy `.env.example` to `.env` and set the key for your chosen backend.
-Guardrail behavior is documented in [docs/GUARDRAILS.md](docs/GUARDRAILS.md);
-agent→model mapping lives in
-[`src/ai_team/config/agents.yaml`](src/ai_team/config/agents.yaml) and
+More knobs (`MEMORY_*`, `GUARDRAIL_*`, `ANTHROPIC_SMOKE_*`, OpenRouter attribution)
+exist in Settings with code defaults — see [docs/GUARDRAILS.md](docs/GUARDRAILS.md)
+and [docs/MODELS.md](docs/MODELS.md). Agent→model mapping:
+[`agents.yaml`](src/ai_team/config/agents.yaml) and
 [`models.py`](src/ai_team/config/models.py).
 
 ## Project structure

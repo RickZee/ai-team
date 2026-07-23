@@ -98,13 +98,16 @@ uv run pytest
 
 ### If your PR makes a backend-comparison claim
 
-Anything of the form "backend X is faster / cheaper / more reliable than Y" needs evidence from a batch, not a single run, because same-config variance is large. Run the smoke brief n≥5 times per backend and include the variance table in the PR:
+Anything of the form "backend X is faster / cheaper / more reliable than Y" needs evidence from a batch, not a single run, because same-config variance is large. Two rules the batch runner now enforces for you:
+
+- **Control the model.** The default profile is mixed-model (deepseek vs Claude), so its numbers compare framework+model bundles, not frameworks. Use `--team smoke-claude` to pin one model across backends.
+- **Don't rank on the canary.** The smoke demo is a wiring check. Use `--demo demos/02_todo_app` for a claim you intend to generalize.
 
 ```bash
-uv run python scripts/run_smoke_batch.py --n 5
+uv run python scripts/run_smoke_batch.py --n 5 --team smoke-claude --demo demos/02_todo_app
 ```
 
-Verdicts have a shelf life here — a claim that held at n=1 has more than once reversed at n=5. When in doubt, attach the numbers.
+The runner prints a Wilson confidence interval per backend and refuses to declare a winner when intervals overlap ("no significant difference at this n"). Paste its output into the PR. Verdicts have a shelf life here — a claim that held at n=1 reversed at n=5 more than once, and several "n=5 winners" don't survive their own interval.
 
 ### Commit message convention
 

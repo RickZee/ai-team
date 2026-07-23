@@ -96,6 +96,36 @@ profiles:
       development: 300
       testing: 300
 
+  smoke-claude:
+    # Same roster/phases as `smoke`, but every role pinned to the same Claude
+    # model. This is the SAME-MODEL control for backend comparison: with the
+    # model held constant, a difference between backends is a framework
+    # difference, not a model difference. Verdicts published as "framework X vs
+    # framework Y" must come from this profile (or full-claude), not from the
+    # default mixed-model profiles where CrewAI/LangGraph run deepseek and the
+    # SDK runs Claude.
+    #
+    # CAVEAT: the claude-agent-sdk backend talks to the Anthropic API directly
+    # and does NOT read these OpenRouter `model_overrides`. It is same-model
+    # only if its own config points at the matching Claude model. For CrewAI vs
+    # LangGraph the control is exact; for anything involving the SDK, confirm the
+    # SDK model matches before treating the comparison as model-controlled.
+    agents:
+      - architect
+      - backend_developer
+      - qa_engineer
+    phases: [planning, development, testing]
+    min_coverage_pct: 0
+    max_complexity: simple
+    phase_timeouts_seconds:
+      planning: 180
+      development: 300
+      testing: 300
+    model_overrides:
+      architect: openrouter/anthropic/claude-sonnet-4.6
+      backend_developer: openrouter/anthropic/claude-sonnet-4.6
+      qa_engineer: openrouter/anthropic/claude-sonnet-4.6
+
   infra-only:
     agents:
       - architect
