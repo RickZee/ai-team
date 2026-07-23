@@ -1,5 +1,19 @@
 # Runtime self-improvement loop
 
+> **Status — read before relying on this.** Two different things live under
+> "self-improvement" and they are at very different maturity:
+>
+> - **Runtime smoke gate (this doc, below): shipped and load-bearing.** Boots the
+>   generated app, probes real HTTP, drives a CRUD round-trip. This is the part that
+>   catches "tests green, app 500s". Trust it.
+> - **Lessons loop (capture → cluster → inject): experimental, half-built.** The
+>   capture/extract/inject chain works, but the [Apr 1 audit](journal/journey.md)
+>   found five gaps blocking production use, of which **two are closed and three are
+>   open** (lesson-effectiveness tracking, dedup/TTL hardening, richer per-backend
+>   comparison snapshots). Do not treat "agents learn from failures" as a finished
+>   feature. It is a promising subsystem under active development, and where it is
+>   incomplete the docs say so.
+
 ## Problem
 
 The testing phase ran pytest and reported `test_results.json: PASS` while the

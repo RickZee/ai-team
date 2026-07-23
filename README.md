@@ -1,17 +1,28 @@
-# AI-Team: Multi-Backend Agent Comparison Platform
+# AI-Team: A Field Study of Multi-Agent Failure Modes
 
 [![CI](https://github.com/RickZee/ai-team/actions/workflows/ci.yml/badge.svg)](https://github.com/RickZee/ai-team/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A nine-agent software team (Manager, Product Owner, Architect, Backend/Frontend/
-Fullstack Developers, DevOps, Cloud Engineer, QA) implemented over three
+The same nine-agent software team (Manager, Product Owner, Architect,
+Backend/Frontend/Fullstack Developers, DevOps, Cloud Engineer, QA) runs over three
 orchestration frameworks — CrewAI, LangGraph, and the Claude Agent SDK — behind one
-`Backend` protocol, so the same brief can be run through each and compared on
-correctness, wall-clock time, and cost. The shared harness adds a runtime smoke gate
-(boots the generated app and probes real HTTP), a per-run spend guard, subprocess
-isolation with a hard kill, and behavioral/security/quality guardrails. Findings are
+`Backend` protocol. That three-backend testbed exists to answer one honest question:
+**which failures are the framework's, which are the model's, and which are mine?**
+
+The most useful output isn't a leaderboard — it's the **[failure taxonomy](docs/posts/failure-taxonomy.md)**:
+ten distinct ways a multi-agent build breaks, each with a trace and a fix, spread
+across the model, framework, harness, and provider layers. The shared harness that
+came out of chasing them — a runtime smoke gate that boots the app and probes real
+HTTP, a per-run spend guard, subprocess isolation with a hard kill, and
+behavioral/security/quality guardrails — is the real deliverable. Every finding is
 recorded with commit references in the [engineering journal](docs/journal/README.md).
+
+> **On the comparison numbers:** treat them as observations, not a ranking. The
+> current batches are small (n=5) and, by default, mixed-model — so the published
+> tables cannot yet support "framework X beats Y" (see [Results](#results)). The
+> tooling now says so out loud rather than implying a winner. That honesty is the
+> point; a benchmark you can't attack isn't worth publishing.
 
 ![AI-Team architecture — multi-backend agent pipeline with shared tools, guardrails, and workspace output](docs/images/architecture_diagram.svg)
 
@@ -105,6 +116,23 @@ file-layout contract and the lint-gate policy), root-caused with fixes in progre
 [langgraph-reliability-investigation.md](docs/troubleshooting/langgraph-reliability-investigation.md).
 The honest headline is not "backend X wins" — it's "the harness and the model choice
 dominate, and I don't yet have the runs to separate the frameworks."
+
+### Reproduce these numbers — or prove them wrong
+
+The fastest way to trust a contrarian result is to make it easy to attack, so the raw
+run bundles ship with the repo and the table is regenerable end-to-end:
+
+```bash
+# model-controlled, real build, with confidence intervals and an overlap-aware verdict
+uv run python scripts/run_smoke_batch.py --n 5 --team smoke-claude --demo demos/02_todo_app
+```
+
+Every batch writes a provenance bundle (`output/smoke_batch_<ts>.json`: team, model
+control, demo, timestamp, per-run rows) and prints a pairwise verdict that says "no
+significant difference at this n" whenever the Wilson intervals overlap
+([`scripts/batch_stats.py`](scripts/batch_stats.py)). If your numbers disagree with
+the tables above, that is a **valid and welcome issue** — open one with your bundle
+attached. Disagreement backed by data is the entire point of the project.
 
 ## Team profiles
 
