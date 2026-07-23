@@ -64,6 +64,18 @@ ROLE_RESTRICTIONS: dict[str, dict[str, Any]] = {
                 r"file_writer.*?['\"](?!test_|conftest\.|fixtures)[a-z]\w*\.py['\"]",
                 "Writing non-test source file",
             ),
+            # Authoring verb + a production path (src/, app/, or a non-test .py under
+            # a non-tests dir). Keyed on an *authoring* verb so that QA quoting or
+            # reviewing code it *received* ("reviewed the following source", "my tests
+            # import the app") is not flagged — that provenance-blind false positive
+            # (2026-04-01) is exactly what the corpus guards against. Recall gap the
+            # corpus caught: "I wrote src/app.py with the full Flask application" was
+            # sailing through because the old pattern only matched file_writer() calls.
+            (
+                r"\b(wrote|created|authored|implemented|added)\b[^.\n]{0,40}?"
+                r"\b(src|app|lib|backend|frontend)/[\w/]*\.py\b",
+                "Authoring production source under a non-test path",
+            ),
         ],
         "message": (
             "QA Engineer should only write test files (test_*.py, conftest.py, "
@@ -181,12 +193,34 @@ def role_adherence_guardrail(
 
 _FENCED_CODE_RE = re.compile(r"```.*?```", re.DOTALL)
 
+# A line is treated as code (and dropped before prose scoring) if it looks like
+# a statement rather than a sentence: def/return/import/class keywords, an
+# assignment or call with brackets, or a decorator. Deliberately conservative —
+# a normal English sentence rarely matches — because over-stripping loses the
+# prose the scope check needs, and under-stripping is what caused the false
+# positives in the first place.
+_CODE_LINE_RE = re.compile(
+    r"""^\s*(
+        (def|class|return|import|from|for|while|if|elif|else|try|except|with|raise|assert|yield|async|await|@)\b
+        | [\w.\[\]]+\s*=\s*\S           # assignment:  x = ...
+        | [\w.]+\s*\([^)]*\)\s*[:;]?\s*$  # bare call:   foo(bar)
+    )""",
+    re.VERBOSE,
+)
+
+
+def _strip_code_for_scope(task_output: str) -> str:
+    """Remove fenced blocks and obvious unfenced code lines, leaving prose to score."""
+    without_fences = _FENCED_CODE_RE.sub(" ", task_output)
+    kept = [ln for ln in without_fences.splitlines() if not _CODE_LINE_RE.match(ln)]
+    return "\n".join(kept)
+
 
 def scope_control_guardrail(
     task_output: str,
     original_requirements: str,
     max_expansion: float = 0.25,
-    min_relevance: float = 0.5,
+    min_relevance: float = 0.15,
 ) -> GuardrailResult:
     """
     Ensure output addresses the task and doesn't add unrequested features.
@@ -203,8 +237,18 @@ def scope_control_guardrail(
     Code content is validated by the security and quality guardrails that run
     immediately after this one; scope control judges the surrounding prose.
     Output that is entirely code passes (nothing prose-shaped to judge).
+
+    ``min_relevance`` defaults to **0.15**. The floor was moved from 0.25 -> 0.15
+    on live data (2026-07-01, commit 2aa9870) after QA prose kept scoring ~18%,
+    but that change never reached this default and the runtime caller
+    ``make_scope_control_guardrail`` passes no override — so the fix was
+    documented but never actually applied. The labeled corpus
+    (tests/fixtures/guardrail_corpus) caught the gap; this is the real fix.
+    Not fenced but obviously code lines are also stripped now, because models
+    routinely emit code without ``` fences, and unstripped ``def``/``return``
+    tokens poison the prose vocabulary.
     """
-    prose_only = _FENCED_CODE_RE.sub(" ", task_output)
+    prose_only = _strip_code_for_scope(task_output)
     req_words = set(re.findall(r"\b\w{4,}\b", original_requirements.lower()))
     out_words = set(re.findall(r"\b\w{4,}\b", prose_only.lower()))
 
@@ -220,6 +264,25 @@ def scope_control_guardrail(
             status="pass",
             message="Output is entirely code; scope judged by security/quality gates.",
             details={"relevance_ratio": None, "code_only": True},
+            retry_allowed=True,
+        )
+
+    # Mostly-code output: when the response contained code and only a little
+    # prose is left after stripping it, that residual (a one-line note, a
+    # synonym of the requirement that doesn't token-match) can't reliably signal
+    # scope creep — scoring it just manufactures false positives like the
+    # on-topic "def add(): ... Added input validation" case in the corpus. This
+    # is gated on code actually having been present, so a short *pure-prose*
+    # off-topic answer ("the weather is sunny") is still scored and still fails.
+    had_code = task_output != _FENCED_CODE_RE.sub(" ", task_output) or bool(
+        _CODE_LINE_RE.search(task_output)
+    )
+    min_prose_words = 8
+    if had_code and len(out_words) < min_prose_words:
+        return GuardrailResult(
+            status="pass",
+            message="Output is mostly code; too little prose to judge scope reliably.",
+            details={"relevance_ratio": None, "prose_word_count": len(out_words)},
             retry_allowed=True,
         )
 
