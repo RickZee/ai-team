@@ -230,3 +230,6 @@ workspace/
 # Logs
 logs/
 evals/results/
+
+# Generated performance artifacts (regenerate with AI_TEAM_BENCHMARK_FULL=1)
+docs/benchmark_results.json
