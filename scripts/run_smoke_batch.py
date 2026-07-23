@@ -1,12 +1,22 @@
-"""Run the smoke demo N times per backend and emit a variance table.
+"""Run a demo N times per backend and emit a variance table with confidence intervals.
 
-Single-run comparisons at smoke scale are anecdotes — same-config variance
-observed on 2026-07-03 was 6m50s -> 10m41s (CrewAI) and clean-complete ->
-HITL-escalation (LangGraph) within one hour. This script produces the n>=5
-evidence COMPARISON_RESULTS.md tables should be built from.
+Single-run comparisons are anecdotes — same-config variance observed on 2026-07-03
+was 6m50s -> 10m41s (CrewAI) and clean-complete -> HITL-escalation (LangGraph)
+within one hour. This script produces the n>=5 evidence that comparison tables
+should be built from, and refuses to hand you a ranking the numbers can't support.
+
+Three things it forces you to be honest about:
+    * --team smoke-claude pins one model across backends (framework comparison);
+      the default mixed-model profile is flagged as confounded.
+    * --demo demos/02_todo_app runs a real build; the default smoke demo is a
+      canary and is flagged as not-a-verdict.
+    * verdicts print only when the Wilson intervals on green-rate do not overlap
+      (see scripts/batch_stats.py); otherwise it says "no significant difference".
 
 Usage:
-    uv run python scripts/run_smoke_batch.py --n 5
+    uv run python scripts/run_smoke_batch.py --n 5                       # canary, confounded
+    uv run python scripts/run_smoke_batch.py --n 5 --team smoke-claude   # model-controlled
+    uv run python scripts/run_smoke_batch.py --n 5 --demo demos/02_todo_app --team smoke-claude
     uv run python scripts/run_smoke_batch.py --n 3 --backends langgraph,claude-agent-sdk
 
 Each run goes through scripts/run_demo.py (which already applies the CrewAI
@@ -42,6 +52,12 @@ RUNS_DIR = REPO / "output" / "runs"
 # claude-sdk ~3m, crewai 7-11m, langgraph 9-23m (incl. HITL wait, which the
 # CLI path answers via hitl_default_answer, so no operator stall here).
 TIMEOUTS = {"claude-agent-sdk": 900, "crewai": 1500, "langgraph": 1800}
+
+# The smoke demo (add(a,b) + pytest) is a *canary*, not a benchmark: passing it
+# says the pipeline is wired, not that a backend can build software. Framework
+# verdicts must come from a harder tier. Multiplier scales the per-run ceilings
+# for heavier demos (full build + deploy).
+TIER_TIMEOUT_MULTIPLIER = {"demos/00_smoke_test": 1.0, "demos/02_todo_app": 3.0}
 
 
 def _existing_run_ids() -> set[str]:
@@ -97,19 +113,20 @@ def _spend_from_costs(costs_path: Path) -> float | None:
     return spent
 
 
-def run_once(backend: str, index: int) -> dict:
+def run_once(backend: str, index: int, team: str = "smoke", demo: str = DEMO) -> dict:
     before = _existing_run_ids()
+    timeout = int(TIMEOUTS[backend] * TIER_TIMEOUT_MULTIPLIER.get(demo, 1.0))
     cmd = [
         sys.executable,
         "scripts/run_demo.py",
-        DEMO,
+        demo,
         "--backend",
         backend,
         "--team",
-        "smoke",
+        team,
         "--skip-estimate",
         "--timeout",
-        str(TIMEOUTS[backend]),
+        str(timeout),
     ]
     # Guardrail tools (ruff, pytest) are invoked as bare commands by the
     # flows; a detached shell may not have .venv/bin on PATH — langgraph's
@@ -123,7 +140,7 @@ def run_once(backend: str, index: int) -> dict:
         env=env,
         capture_output=True,
         text=True,
-        timeout=TIMEOUTS[backend] + 120,
+        timeout=timeout + 120,
     )
     wall = round(time.monotonic() - t0, 1)
 
@@ -226,15 +243,54 @@ def main() -> int:
         default="claude-agent-sdk,langgraph,crewai",
         help="Comma-separated backend list.",
     )
+    ap.add_argument(
+        "--team",
+        default="smoke",
+        help=(
+            "Team profile. Default 'smoke' runs each backend's own tier model "
+            "(mixed-model: results confound framework with model). Use "
+            "'smoke-claude' to pin every role to one Claude model — the "
+            "same-model control required for framework-vs-framework verdicts."
+        ),
+    )
+    ap.add_argument(
+        "--demo",
+        default=DEMO,
+        help=(
+            f"Demo to run (default {DEMO}). The smoke demo is a CANARY — passing it "
+            "proves the pipeline is wired, not that a backend can build software. "
+            "Use demos/02_todo_app (a real full-stack build) for verdicts you intend "
+            "to generalize."
+        ),
+    )
     args = ap.parse_args()
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
+
+    is_canary = args.demo == "demos/00_smoke_test"
+    if is_canary:
+        print(
+            "NOTE: demos/00_smoke_test is a canary (add(a,b) + one pytest). Green here "
+            "means 'pipeline wired', not 'backend can build software'. Do not generalize "
+            "a framework verdict from it — use --demo demos/02_todo_app.\n",
+            flush=True,
+        )
+
+    same_model = args.team.endswith("-claude") or args.team == "full-claude"
+    if not same_model:
+        print(
+            "WARNING: team profile "
+            f"'{args.team}' is mixed-model. Any framework-vs-framework verdict "
+            "from this batch is confounded with model choice. Use "
+            "--team smoke-claude for a model-controlled comparison.\n",
+            flush=True,
+        )
 
     results: list[dict] = []
     for backend in backends:
         for i in range(1, args.n + 1):
             print(f"[{backend} {i}/{args.n}] running…", flush=True)
             try:
-                row = run_once(backend, i)
+                row = run_once(backend, i, team=args.team, demo=args.demo)
             except subprocess.TimeoutExpired:
                 row = {
                     "backend": backend,
@@ -252,11 +308,27 @@ def main() -> int:
                 flush=True,
             )
 
-    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    now = datetime.now(UTC)
+    stamp = now.strftime("%Y%m%d_%H%M%S")
     out_path = REPO / "output" / f"smoke_batch_{stamp}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    # Wrap results with provenance so a table can never be read without knowing
+    # whether it was model-controlled and when it was produced.
+    bundle = {
+        "generated_at_utc": now.isoformat(),
+        "team": args.team,
+        "same_model": same_model,
+        "demo": args.demo,
+        "is_canary": is_canary,
+        "n_per_backend": args.n,
+        "backends": backends,
+        "runs": results,
+    }
+    out_path.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
 
+    kind = "SAME-MODEL (framework comparison valid)" if same_model else "MIXED-MODEL (confounded)"
+    tier = "CANARY demo (not a verdict)" if is_canary else f"demo={args.demo}"
+    print(f"\n**{kind}** — {tier}, team={args.team}, n={args.n}, {now.date().isoformat()}")
     print("\n| Backend | Green | Green 95% CI | Wall min/median/max | Median 95% CI | Spend range |")
     print("|---|---|---|---|---|---|")
     for backend in backends:
@@ -264,6 +336,11 @@ def main() -> int:
         print(variance_row(backend, rows))
     for line in verdict_section(backends, results):
         print(line)
+    if not same_model:
+        print(
+            "\n> Mixed-model batch: the verdicts above compare framework+model bundles, "
+            "not frameworks. Re-run with --team smoke-claude before ranking frameworks."
+        )
     print(f"\nRaw results: {out_path.relative_to(REPO)}")
     return 0
 

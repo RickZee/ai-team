@@ -19,6 +19,7 @@ Select a profile with `--team <name>` on the CLI, in the web dashboard run form,
 | `data-pipeline` | manager, product_owner, architect, backend_developer, qa_engineer | intake, planning, development, testing | ETL / data engineering (no deployment phase) |
 | `prototype` | architect, fullstack_developer, qa_engineer | intake, planning, development, testing | Minimal crew: design → implement → test |
 | `smoke` | architect, backend_developer, qa_engineer | planning, development, testing | CI smoke checks; tight phase timeouts |
+| `smoke-claude` | same as `smoke` | planning, development, testing | Same-model control for backend comparison: `smoke` roster with every role pinned to `claude-sonnet-4.6`. Use for framework-vs-framework verdicts (see caveat below) |
 | `infra-only` | architect, devops_engineer, cloud_engineer | intake, planning, deployment | IaC / CI-CD only (no application development or QA) |
 
 ---
@@ -30,6 +31,13 @@ Select a profile with `--team <name>` on the CLI, in the web dashboard run form,
 | `langgraph` | Yes — subgraphs compile only agents listed in the profile |
 | `claude-agent-sdk` | Yes — subagents built from profile agents and phases |
 | `crewai` | **Partial** — `team_profile` is recorded in run metadata and reports; the legacy flow may still invoke the full crew until CrewAI parity is implemented |
+
+> **Same-model caveat for `smoke-claude` / `full-claude`.** The `model_overrides` in
+> these profiles are OpenRouter model ids, honored by the crewai and langgraph
+> backends. The `claude-agent-sdk` backend calls the Anthropic API directly and does
+> **not** read them, so the comparison is exactly model-controlled only for
+> crewai-vs-langgraph. For anything involving the SDK, confirm the SDK's own configured
+> model matches before treating the batch as same-model.
 
 For the leanest real run (e.g. demo `00_smoke_test` with `prototype`), prefer:
 
