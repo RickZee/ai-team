@@ -109,6 +109,14 @@ uv run python scripts/run_smoke_batch.py --n 5 --team smoke-claude --demo demos/
 
 The runner prints a Wilson confidence interval per backend and refuses to declare a winner when intervals overlap ("no significant difference at this n"). Paste its output into the PR. Verdicts have a shelf life here — a claim that held at n=1 reversed at n=5 more than once, and several "n=5 winners" don't survive their own interval.
 
+**No API budget? Validate the harness for free.** If your change is to the batch runner, the statistics, or the verdict rendering — not to a backend's live behavior — you don't need to pay for runs. Replay a recorded bundle instead:
+
+```bash
+uv run python scripts/run_smoke_batch.py --replay example_mixed_model_n5
+```
+
+This exercises the full parse → confidence-interval → verdict pipeline at $0. See [tests/fixtures/smoke_batch/RECORD_REPLAY.md](tests/fixtures/smoke_batch/RECORD_REPLAY.md) for how to record your own fixture from a real run.
+
 ### Commit message convention
 
 - Use present tense, imperative mood: “Add feature X”, “Fix parsing of Y”.

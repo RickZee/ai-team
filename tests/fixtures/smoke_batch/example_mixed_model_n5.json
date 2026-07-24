@@ -1,0 +1,29 @@
+{
+  "_about": "Recorded batch bundle for zero-cost replay. Rows are representative of a real n=5 mixed-model smoke run (deepseek on crewai/langgraph, Claude on the SDK). Replay with: uv run python scripts/run_smoke_batch.py --replay example_mixed_model_n5. This exercises the full parse -> stats -> verdict pipeline with no API calls, so a contributor can validate a harness change for free. Regenerate real bundles per RECORD_REPLAY.md.",
+  "generated_at_utc": "2026-07-04T12:00:00+00:00",
+  "team": "smoke",
+  "same_model": false,
+  "demo": "demos/00_smoke_test",
+  "is_canary": true,
+  "n_per_backend": 5,
+  "backends": ["claude-agent-sdk", "crewai", "langgraph"],
+  "runs": [
+    {"backend": "claude-agent-sdk", "index": 1, "run_id": "rec-sdk-1", "exit_code": 0, "wall_seconds": 140.0, "tests_ok": true, "spent_usd": 0.71, "final_status": "complete"},
+    {"backend": "claude-agent-sdk", "index": 2, "run_id": "rec-sdk-2", "exit_code": 0, "wall_seconds": 197.0, "tests_ok": true, "spent_usd": 0.48, "final_status": "complete"},
+    {"backend": "claude-agent-sdk", "index": 3, "run_id": "rec-sdk-3", "exit_code": 0, "wall_seconds": 210.0, "tests_ok": true, "spent_usd": 0.95, "final_status": "complete"},
+    {"backend": "claude-agent-sdk", "index": 4, "run_id": "rec-sdk-4", "exit_code": 0, "wall_seconds": 205.0, "tests_ok": true, "spent_usd": 0.70, "final_status": "complete"},
+    {"backend": "claude-agent-sdk", "index": 5, "run_id": "rec-sdk-5", "exit_code": 0, "wall_seconds": 227.0, "tests_ok": true, "spent_usd": 0.73, "final_status": "complete"},
+
+    {"backend": "crewai", "index": 1, "run_id": "rec-crew-1", "exit_code": 0, "wall_seconds": 410.0, "tests_ok": true, "spent_usd": null, "final_status": "complete"},
+    {"backend": "crewai", "index": 2, "run_id": "rec-crew-2", "exit_code": 0, "wall_seconds": 547.0, "tests_ok": true, "spent_usd": null, "final_status": "complete"},
+    {"backend": "crewai", "index": 3, "run_id": "rec-crew-3", "exit_code": 0, "wall_seconds": 641.0, "tests_ok": true, "spent_usd": null, "final_status": "complete"},
+    {"backend": "crewai", "index": 4, "run_id": "rec-crew-4", "exit_code": 0, "wall_seconds": 717.0, "tests_ok": true, "spent_usd": null, "final_status": "complete"},
+    {"backend": "crewai", "index": 5, "run_id": "rec-crew-5", "exit_code": 0, "wall_seconds": 545.0, "tests_ok": true, "spent_usd": null, "final_status": "complete"},
+
+    {"backend": "langgraph", "index": 1, "run_id": "rec-lg-1", "exit_code": 0, "wall_seconds": 85.0, "tests_ok": true, "spent_usd": null, "final_status": "complete"},
+    {"backend": "langgraph", "index": 2, "run_id": "rec-lg-2", "exit_code": 1, "wall_seconds": 235.0, "tests_ok": false, "spent_usd": null, "final_status": "failed", "stderr_tail": "lint gate: F401 unused import"},
+    {"backend": "langgraph", "index": 3, "run_id": "rec-lg-3", "exit_code": 1, "wall_seconds": 240.0, "tests_ok": false, "spent_usd": null, "final_status": "failed", "stderr_tail": "collected 0 items (dev/QA layout mismatch)"},
+    {"backend": "langgraph", "index": 4, "run_id": "rec-lg-4", "exit_code": 1, "wall_seconds": 308.0, "tests_ok": false, "spent_usd": null, "final_status": "failed", "stderr_tail": "collected 0 items"},
+    {"backend": "langgraph", "index": 5, "run_id": "rec-lg-5", "exit_code": 1, "wall_seconds": 275.0, "tests_ok": false, "spent_usd": null, "final_status": "failed", "stderr_tail": "lint gate: W293 whitespace"}
+  ]
+}
