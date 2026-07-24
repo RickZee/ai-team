@@ -18,6 +18,7 @@ Usage:
     uv run python scripts/run_smoke_batch.py --n 5 --team smoke-claude   # model-controlled
     uv run python scripts/run_smoke_batch.py --n 5 --demo demos/02_todo_app --team smoke-claude
     uv run python scripts/run_smoke_batch.py --n 3 --backends langgraph,claude-agent-sdk
+    uv run python scripts/run_smoke_batch.py --replay example_mixed_model_n5  # $0, no live runs
 
 Each run goes through scripts/run_demo.py (which already applies the CrewAI
 hard-kill wrapper). Wall-clock is measured here; tests and spend are read
@@ -263,8 +264,21 @@ def main() -> int:
             "to generalize."
         ),
     )
+    ap.add_argument(
+        "--replay",
+        metavar="FIXTURE",
+        help=(
+            "Replay recorded run rows from a fixture bundle instead of executing live "
+            "runs. Zero API cost — for validating the harness (parsing, stats, verdict "
+            "rendering) in CI or a contributor's PR without spending a cent. See "
+            "tests/fixtures/smoke_batch/ and RECORD_REPLAY.md."
+        ),
+    )
     args = ap.parse_args()
     backends = [b.strip() for b in args.backends.split(",") if b.strip()]
+
+    if args.replay:
+        return _run_replay(args.replay)
 
     is_canary = args.demo == "demos/00_smoke_test"
     if is_canary:
@@ -325,10 +339,30 @@ def main() -> int:
         "runs": results,
     }
     out_path.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    render_report(bundle)
+    print(f"\nRaw results: {out_path.relative_to(REPO)}")
+    return 0
+
+
+def render_report(bundle: dict) -> None:
+    """Print the provenance header, CI table, and pairwise verdicts for a bundle.
+
+    Pure with respect to the run mechanism — it takes the recorded rows and does not
+    care whether they came from live subprocesses or a replay fixture. This is what
+    lets `--replay` exercise the entire stats/verdict pipeline at zero API cost.
+    """
+    backends = bundle["backends"]
+    results = bundle["runs"]
+    same_model = bundle.get("same_model", False)
+    is_canary = bundle.get("is_canary", False)
+    date = bundle.get("generated_at_utc", "")[:10]
 
     kind = "SAME-MODEL (framework comparison valid)" if same_model else "MIXED-MODEL (confounded)"
-    tier = "CANARY demo (not a verdict)" if is_canary else f"demo={args.demo}"
-    print(f"\n**{kind}** — {tier}, team={args.team}, n={args.n}, {now.date().isoformat()}")
+    tier = "CANARY demo (not a verdict)" if is_canary else f"demo={bundle.get('demo')}"
+    print(
+        f"\n**{kind}** — {tier}, team={bundle.get('team')}, "
+        f"n={bundle.get('n_per_backend')}, {date}"
+    )
     print("\n| Backend | Green | Green 95% CI | Wall min/median/max | Median 95% CI | Spend range |")
     print("|---|---|---|---|---|---|")
     for backend in backends:
@@ -341,7 +375,30 @@ def main() -> int:
             "\n> Mixed-model batch: the verdicts above compare framework+model bundles, "
             "not frameworks. Re-run with --team smoke-claude before ranking frameworks."
         )
-    print(f"\nRaw results: {out_path.relative_to(REPO)}")
+
+
+def _run_replay(fixture: str) -> int:
+    """Replay a recorded bundle: render the report from fixture rows, no live runs."""
+    path = Path(fixture)
+    if not path.is_absolute():
+        # Accept a bare name from the fixtures dir, or a repo-relative path.
+        candidates = [
+            REPO / fixture,
+            REPO / "tests" / "fixtures" / "smoke_batch" / fixture,
+            REPO / "tests" / "fixtures" / "smoke_batch" / f"{fixture}.json",
+        ]
+        path = next((c for c in candidates if c.exists()), path)
+    if not path.exists():
+        print(f"ERROR: replay fixture not found: {fixture}", flush=True)
+        return 2
+
+    bundle = json.loads(path.read_text(encoding="utf-8"))
+    if "runs" not in bundle or "backends" not in bundle:
+        print(f"ERROR: {path} is not a batch bundle (missing 'runs'/'backends').", flush=True)
+        return 2
+
+    print(f"REPLAY (no live runs, $0) — source: {path}", flush=True)
+    render_report(bundle)
     return 0
 
 
