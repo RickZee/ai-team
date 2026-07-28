@@ -23,10 +23,7 @@ from ai_team.guardrails.behavioral import (
 from ai_team.guardrails.corpus_metrics import format_report, score
 
 _CORPUS = (
-    Path(__file__).resolve().parents[2]
-    / "fixtures"
-    / "guardrail_corpus"
-    / "behavioral_cases.json"
+    Path(__file__).resolve().parents[2] / "fixtures" / "guardrail_corpus" / "behavioral_cases.json"
 )
 
 
@@ -82,7 +79,10 @@ class TestScopeControlCorpus:
     def test_precision_and_fpr_thresholds(self) -> None:
         cases = _load()["scope_control"]
         outcomes = [
-            (_fired(scope_control_guardrail(c["output"], c["requirements"]).status), _expected_fire(c))
+            (
+                _fired(scope_control_guardrail(c["output"], c["requirements"]).status),
+                _expected_fire(c),
+            )
             for c in cases
         ]
         counts = score(outcomes)

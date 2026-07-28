@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="640" fill="#faf9f5"/>
+
+  <text x="60" y="66" font-size="30" font-weight="700" fill="#1a1a2e">One run is a story. Five runs is barely a measurement.</text>
+  <text x="60" y="98" font-size="17" fill="#5f5e5a">Green-rate on the smoke brief, n=5, with 95% Wilson confidence intervals. At this sample size the intervals overlap —</text>
+  <text x="60" y="120" font-size="17" fill="#5f5e5a">so none of the "rankings" I'd published actually held. The batch runner now refuses to declare a winner.</text>
+
+  <!-- axis -->
+  <line x1="230" y1="180" x2="230" y2="470" stroke="#b4b2a9" stroke-width="1.5"/>
+  <line x1="230" y1="470" x2="1120" y2="470" stroke="#b4b2a9" stroke-width="1.5"/>
+  <g font-size="13" fill="#888780">
+    <text x="222" y="475" text-anchor="end">0%</text>
+    <text x="222" y="398" text-anchor="end">25%</text>
+    <text x="222" y="325" text-anchor="end">50%</text>
+    <text x="222" y="252" text-anchor="end">75%</text>
+    <text x="222" y="185" text-anchor="end">100%</text>
+  </g>
+  <!-- gridlines -->
+  <g stroke="#e8e6df" stroke-width="1">
+    <line x1="230" y1="393" x2="1120" y2="393"/>
+    <line x1="230" y1="320" x2="1120" y2="320"/>
+    <line x1="230" y1="247" x2="1120" y2="247"/>
+    <line x1="230" y1="180" x2="1120" y2="180"/>
+  </g>
+
+  <!-- y-scale: 100%->y180, 0%->y470, so y = 470 - pct*2.9 -->
+  <!-- Claude SDK 5/5: point 100 (y180), CI 57-100 (y470-57*2.9=304 .. y180) -->
+  <g>
+    <text x="410" y="510" text-anchor="middle" font-size="16" font-weight="600" fill="#712b13">Claude SDK</text>
+    <text x="410" y="530" text-anchor="middle" font-size="13" fill="#993c1d">5/5 green</text>
+    <rect x="360" y="180" width="100" height="124" rx="6" fill="#f0997b" opacity="0.35"/>
+    <line x1="360" y1="180" x2="460" y2="180" stroke="#993c1d" stroke-width="3"/>
+    <circle cx="410" cy="180" r="6" fill="#993c1d"/>
+    <text x="470" y="184" font-size="13" fill="#993c1d">100% [57–100]</text>
+  </g>
+
+  <!-- CrewAI 5/5: same as SDK -->
+  <g>
+    <text x="675" y="510" text-anchor="middle" font-size="16" font-weight="600" fill="#3c3489">CrewAI</text>
+    <text x="675" y="530" text-anchor="middle" font-size="13" fill="#534ab7">5/5 green</text>
+    <rect x="625" y="180" width="100" height="124" rx="6" fill="#afa9ec" opacity="0.35"/>
+    <line x1="625" y1="180" x2="725" y2="180" stroke="#3c3489" stroke-width="3"/>
+    <circle cx="675" cy="180" r="6" fill="#3c3489"/>
+    <text x="735" y="184" font-size="13" fill="#3c3489">100% [57–100]</text>
+  </g>
+
+  <!-- LangGraph 1/5: point 20 (y=470-58=412), CI 4-62 (y470-4*2.9=458 .. y470-62*2.9=290) -->
+  <g>
+    <text x="940" y="510" text-anchor="middle" font-size="16" font-weight="600" fill="#085041">LangGraph</text>
+    <text x="940" y="530" text-anchor="middle" font-size="13" fill="#0f6e56">1/5 green</text>
+    <rect x="890" y="290" width="100" height="168" rx="6" fill="#5dcaa5" opacity="0.35"/>
+    <line x1="890" y1="412" x2="990" y2="412" stroke="#085041" stroke-width="3"/>
+    <circle cx="940" cy="412" r="6" fill="#085041"/>
+    <text x="1000" y="416" font-size="13" fill="#085041">20% [4–62]</text>
+  </g>
+
+  <!-- overlap band annotation: dashed line marks where all three CIs share ground.
+       Label sits in the clear gap between the CrewAI and LangGraph bars (x 735-885). -->
+  <line x1="340" y1="304" x2="1010" y2="304" stroke="#a32d2d" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="762" y="345" font-size="13.5" font-weight="600" fill="#a32d2d">all three</text>
+  <text x="762" y="363" font-size="13.5" font-weight="600" fill="#a32d2d">intervals</text>
+  <text x="762" y="381" font-size="13.5" font-weight="600" fill="#a32d2d">overlap here</text>
+
+  <!-- verdict box -->
+  <rect x="60" y="560" width="1080" height="56" rx="10" fill="#fcebeb" stroke="#e24b4a"/>
+  <text x="82" y="594" font-size="16" font-weight="600" fill="#791f1f">Verdict at n=5: "no significant difference." The tool I built to measure the backends proved my own table wrong — and I left the correction in.</text>
+</svg>

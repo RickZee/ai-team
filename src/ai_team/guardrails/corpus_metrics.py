@@ -32,12 +32,7 @@ class ConfusionCounts:
 
     @property
     def total(self) -> int:
-        return (
-            self.true_positive
-            + self.false_positive
-            + self.true_negative
-            + self.false_negative
-        )
+        return self.true_positive + self.false_positive + self.true_negative + self.false_negative
 
     @property
     def precision(self) -> float:

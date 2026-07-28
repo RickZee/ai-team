@@ -363,7 +363,9 @@ def render_report(bundle: dict) -> None:
         f"\n**{kind}** — {tier}, team={bundle.get('team')}, "
         f"n={bundle.get('n_per_backend')}, {date}"
     )
-    print("\n| Backend | Green | Green 95% CI | Wall min/median/max | Median 95% CI | Spend range |")
+    print(
+        "\n| Backend | Green | Green 95% CI | Wall min/median/max | Median 95% CI | Spend range |"
+    )
     print("|---|---|---|---|---|---|")
     for backend in backends:
         rows = [r for r in results if r["backend"] == backend]

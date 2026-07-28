@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 627" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="627" fill="#0f1117"/>
+
+  <!-- subtle layer grid on the right -->
+  <g opacity="0.5">
+    <rect x="760" y="70" width="380" height="487" rx="14" fill="none" stroke="#1e293b" stroke-width="1"/>
+  </g>
+
+  <!-- eyebrow -->
+  <text x="80" y="120" font-size="20" font-weight="500" fill="#5dcaa5" letter-spacing="3">A FIELD STUDY IN MULTI-AGENT SYSTEMS</text>
+
+  <!-- headline -->
+  <text x="80" y="205" font-size="62" font-weight="700" fill="#e2e8f0">Building the harness</text>
+  <text x="80" y="278" font-size="62" font-weight="700" fill="#e2e8f0">that survives the agent</text>
+
+  <!-- subhead -->
+  <text x="80" y="345" font-size="24" font-weight="400" fill="#94a3b8">One nine-agent software team. Three orchestration frameworks.</text>
+  <text x="80" y="380" font-size="24" font-weight="400" fill="#94a3b8">Ten ways it breaks — and what survives them.</text>
+
+  <!-- three stat chips -->
+  <g>
+    <rect x="80" y="440" width="200" height="96" rx="12" fill="#12213a" stroke="#185fa5" stroke-width="1"/>
+    <text x="100" y="486" font-size="40" font-weight="700" fill="#85b7eb">3</text>
+    <text x="100" y="514" font-size="16" fill="#b5d4f4">backends, one protocol</text>
+
+    <rect x="300" y="440" width="200" height="96" rx="12" fill="#12261f" stroke="#0f6e56" stroke-width="1"/>
+    <text x="320" y="486" font-size="40" font-weight="700" fill="#5dcaa5">10</text>
+    <text x="320" y="514" font-size="16" fill="#9fe1cb">failure classes, traced</text>
+
+    <rect x="520" y="440" width="200" height="96" rx="12" fill="#2a1a10" stroke="#ba7517" stroke-width="1"/>
+    <text x="540" y="486" font-size="40" font-weight="700" fill="#ef9f27">1</text>
+    <text x="540" y="514" font-size="16" fill="#fac775">was the model being dumb</text>
+  </g>
+
+  <!-- right: the layered-failure motif -->
+  <g font-size="15" font-weight="600">
+    <rect x="790" y="105" width="320" height="58" rx="8" fill="#2a1a10" stroke="#ba7517"/>
+    <text x="810" y="132" fill="#fac775">MODEL</text>
+    <text x="810" y="151" font-size="12.5" font-weight="400" fill="#ef9f27">writes code as prose, never calls the tool</text>
+
+    <rect x="790" y="177" width="320" height="58" rx="8" fill="#1c1533" stroke="#7f77dd"/>
+    <text x="810" y="204" fill="#afa9ec">FRAMEWORK</text>
+    <text x="810" y="223" font-size="12.5" font-weight="400" fill="#7f77dd">event bus triggers itself, 93k loops</text>
+
+    <rect x="790" y="249" width="320" height="130" rx="8" fill="#0c2318" stroke="#1d9e75"/>
+    <text x="810" y="276" fill="#5dcaa5">HARNESS</text>
+    <text x="810" y="295" font-size="12.5" font-weight="400" fill="#5dcaa5">tests pass, app 500s on every request</text>
+    <text x="810" y="316" font-size="12.5" font-weight="400" fill="#5dcaa5">spend cap swallowed by except Exception</text>
+    <text x="810" y="337" font-size="12.5" font-weight="400" fill="#5dcaa5">one hung thread starves the GIL</text>
+    <text x="810" y="358" font-size="12.5" font-weight="400" fill="#5dcaa5">guardrail flags its own correct output</text>
+
+    <rect x="790" y="393" width="320" height="58" rx="8" fill="#0c2036" stroke="#378add"/>
+    <text x="810" y="420" fill="#85b7eb">PROVIDER</text>
+    <text x="810" y="439" font-size="12.5" font-weight="400" fill="#378add">same model id, different provider, 133 errors</text>
+
+    <text x="790" y="490" font-size="13" font-weight="400" fill="#64748b">Only one of ten failures was the LLM.</text>
+    <text x="790" y="510" font-size="13" font-weight="400" fill="#64748b">The rest were systems engineering.</text>
+  </g>
+
+  <!-- byline -->
+  <text x="80" y="580" font-size="16" font-weight="400" fill="#475569">Rick Zakharov · CrewAI · LangGraph · Claude Agent SDK</text>
+</svg>

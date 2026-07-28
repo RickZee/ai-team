@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="600" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <!-- eyebrow -->
+  <text x="80" y="110" font-size="18" font-weight="600" fill="#0f6e56" letter-spacing="2">FIELD REPORT · MULTI-AGENT SYSTEMS</text>
+
+  <!-- headline -->
+  <text x="80" y="185" font-size="56" font-weight="700" fill="#1a1a2e">Building the harness</text>
+  <text x="80" y="250" font-size="56" font-weight="700" fill="#1a1a2e">that survives the agent</text>
+
+  <!-- subhead -->
+  <text x="80" y="308" font-size="23" font-weight="400" fill="#5f5e5a">The same nine-agent software team, run across three orchestration</text>
+  <text x="80" y="340" font-size="23" font-weight="400" fill="#5f5e5a">frameworks — so I can tell whose failure it actually is.</text>
+
+  <!-- the honest question, pulled out -->
+  <rect x="80" y="388" width="700" height="120" rx="12" fill="#ffffff" stroke="#d3d1c7" stroke-width="1"/>
+  <rect x="80" y="388" width="6" height="120" rx="3" fill="#1d9e75"/>
+  <text x="112" y="430" font-size="21" font-weight="500" fill="#2c2c2a" font-style="italic">"Which of my problems are the framework's,</text>
+  <text x="112" y="462" font-size="21" font-weight="500" fill="#2c2c2a" font-style="italic">which are the model's, and which are mine?"</text>
+  <text x="112" y="490" font-size="15" font-weight="400" fill="#888780">Run all three on the same task and the opinions turn into data.</text>
+
+  <!-- right: three framework marks -->
+  <g>
+    <rect x="830" y="120" width="290" height="110" rx="12" fill="#eeedfe" stroke="#7f77dd"/>
+    <text x="855" y="162" font-size="20" font-weight="700" fill="#3c3489">CrewAI</text>
+    <text x="855" y="190" font-size="14" fill="#534ab7">typed Pydantic docs in</text>
+    <text x="855" y="210" font-size="14" fill="#534ab7">a shared state object</text>
+
+    <rect x="830" y="245" width="290" height="110" rx="12" fill="#e1f5ee" stroke="#1d9e75"/>
+    <text x="855" y="287" font-size="20" font-weight="700" fill="#085041">LangGraph</text>
+    <text x="855" y="315" font-size="14" fill="#0f6e56">reducer-merged graph</text>
+    <text x="855" y="335" font-size="14" fill="#0f6e56">state channels</text>
+
+    <rect x="830" y="370" width="290" height="110" rx="12" fill="#faece7" stroke="#d85a30"/>
+    <text x="855" y="412" font-size="20" font-weight="700" fill="#712b13">Claude Agent SDK</text>
+    <text x="855" y="440" font-size="14" fill="#993c1d">session transcript plus</text>
+    <text x="855" y="460" font-size="14" fill="#993c1d">files on disk</text>
+  </g>
+
+  <!-- byline -->
+  <text x="80" y="552" font-size="16" font-weight="400" fill="#888780">Rick Zakharov</text>
+</svg>
