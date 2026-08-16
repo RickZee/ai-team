@@ -24,7 +24,7 @@ Rainy Sunday, coffee, and the first real ideation session.
 
 Opus 4.5 turned out a genuinely well-structured build plan and a set of starter prompts. Nice work — until I started running them in Cursor and found the implementation had real gaps: whole prompts silently dropped.
 
-![Missing prompts screenshot](images/feb-14-missing-prompts.png)
+![Missing prompts screenshot](../images/feb-14-missing-prompts.png)
 
 Lesson filed early: never trust a generated plan end-to-end without checking it lands. Reset, restarted from a known-good state, and moved on.
 
@@ -105,7 +105,7 @@ So next up: LangGraph. It gives me explicit graph-based orchestration where ever
 
 I'm **not** ripping out CrewAI. Instead I want a real multi-backend architecture: both frameworks behind a common `Backend` protocol, same shared tools, guardrails, models, and config, pick your engine at runtime with `--backend crewai` or `--backend langgraph`. That's what lets me run the exact same demo through both and compare output quality, cost, and latency honestly, side by side.
 
-Also added **team profiles** — not every project needs all 8 agents. A `--team backend-api` flag spins up only Manager, PO, Architect, Backend Dev, QA, and DevOps (no frontend specialists). A `--team prototype` flag uses Architect, Fullstack Dev, and QA across intake → planning → development → testing. LangGraph and Claude Agent SDK backends honor the profile roster; CrewAI records the profile in metadata while full-crew parity is still catching up. See [TEAM_PROFILES.md](TEAM_PROFILES.md).
+Also added **team profiles** — not every project needs all 8 agents. A `--team backend-api` flag spins up only Manager, PO, Architect, Backend Dev, QA, and DevOps (no frontend specialists). A `--team prototype` flag uses Architect, Fullstack Dev, and QA across intake → planning → development → testing. LangGraph and Claude Agent SDK backends honor the profile roster; CrewAI records the profile in metadata while full-crew parity is still catching up. See [TEAM_PROFILES.md](../TEAM_PROFILES.md).
 
 The architecture is also designed for future frameworks: AutoGen, Claude Agent SDK, AWS Bedrock Agents, Strands — each would just be another `Backend` implementation.
 
@@ -464,5 +464,168 @@ next-day reattach screenshot showing "Elapsed 28h 30m" still ticking upward on a
 that finished the previous evening. Lesson for any future screenshot pass: read every
 image back before trusting the filename — a screenshot of the wrong thing is worse
 than no screenshot, because it's a *confident* wrong thing.
+
+---
+
+## Jul 7–8 — making the front door match the data
+
+A cleanup week, and mostly a documentation one. The README had been carrying claims the
+measurements no longer supported: a backend table written before the n=5 batch, a
+troubleshooting section pointing at files that had moved, and architecture ADRs still
+describing a two-backend world. Fixed all three, embedded a live Compare GIF and the
+actual n=5 results table, and redrew the architecture diagrams — plus four new per-backend
+inter-agent diagrams, because "how does work actually get handed between agents" was the
+question I kept answering by hand.
+
+Also deleted `poetry.lock`: 7,828 lines of a dependency manager we stopped using months
+ago, still sitting in the repo looking authoritative. The most common form of stale
+documentation isn't a wrong sentence, it's a file nobody remembers is there.
+
+## Jul 21–22 — an adversarial review of my own project
+
+I ran a deliberately hostile review pass over the whole repo — the brief being *find the
+claims that would not survive a competent skeptic* — and then actually fixed what it
+found instead of arguing with it. Four of the findings were bad enough to be worth
+recording.
+
+**The judge shared a vendor with a contestant.** The LLM judge was hardcoded to
+claude-haiku while the claude-agent-sdk backend also runs on Anthropic models. Every
+cross-backend verdict I'd published had an unexcluded self-preference confound sitting in
+it. `LLMJudge` is now provider-agnostic (`AI_TEAM_JUDGE_PROVIDER` / `AI_TEAM_JUDGE_MODEL`),
+and a new `EnsembleJudge` runs a cross-vendor panel reporting per-judge scores plus an
+agreement spread, flagging contested criteria. `compute_metrics()` records judge
+provenance and stamps single-vendor scores as **provisional**.
+
+**The rankings didn't survive their own confidence intervals.** I'd been publishing point
+estimates from n=5. A 1/5 green rate has a 95% Wilson interval of roughly 4–62%; 5/5 gives
+57–100%. Those overlap. The table had been asserting a ranking the data cannot support —
+in a project whose whole pitch is honest comparison. `scripts/batch_stats.py` now computes
+Wilson intervals on green rate, a deterministic bootstrap CI on median wall-clock, and a
+**no-verdict-when-intervals-overlap rule**; the runner prints "no significant difference at
+this n" when that's the truth. `min_n_for_separation()` answers how many runs the
+comparison would actually need. One of the 36 new tests asserts exactly the embarrassing
+claim: 1/5 vs 5/5 is not separable at n=5.
+
+**I was comparing bundles, not frameworks.** The published table ran deepseek for
+CrewAI/LangGraph and Claude for the SDK — framework and model varied together. Added a
+`smoke-claude` profile pinning every role to one model, a `--team` flag that warns loudly
+on a mixed-model profile, and relabeled the existing tables as **confounded** rather than
+quietly regenerating them. Same for task scope: the batch ran `add(a, b)` and generalized
+to production verdicts, so there's now a `--demo` flag with per-tier timeout scaling and a
+canary warning, and batch output is a provenance bundle (`team`, `same_model`, `demo`,
+`is_canary`, timestamp) instead of a bare list of results.
+
+**The README led with its weakest claim.** "Multi-Backend Agent Comparison Platform" is
+the most attackable sentence in the project — it promises a leaderboard I've just spent a
+week proving I can't defend at this sample size. Retitled to **"A Field Study of
+Multi-Agent Failure Modes"** and promoted the ten-class taxonomy to the headline
+deliverable, with the comparison numbers explicitly framed as observations. Added a
+"Reproduce these numbers — or prove them wrong" section with the exact model-controlled
+command and a note that a disagreeing bundle is a *welcome* issue. Also purged
+`docs/performance_report.md`, which had been committed with mock-LLM all-zero timings that
+read like real data — the generator now stamps UTC time, commit SHA, and a mock-run
+warning.
+
+The through-line: nearly every fix was replacing a confident sentence with a narrower one
+plus a number. That's uncomfortable to do to your own README, and it's the only version of
+this project worth publishing.
+
+## Jul 23 — the n=1 mistake, applied to the defense layer
+
+The comparison side of the project had spent a month insisting on n≥5. Meanwhile the
+guardrail thresholds had been tuned on **single runs** — the scope floor moved 0.25→0.15
+off one batch's readings. Same mistake, pointed at the defense layer instead of the
+measurement layer, and I hadn't noticed because guardrails felt like plumbing rather than
+science.
+
+Built a labeled FP/FN corpus (`tests/fixtures/guardrail_corpus/behavioral_cases.json`)
+encoding this journal's real false positives as regression anchors, a precision/recall
+harness, and a test that gates on FP-rate and recall. It immediately caught two shipped
+defects:
+
+1. **The documented 0.15 scope floor never reached the code.** The default was still 0.5
+   and the runtime caller passed no override — so the documented "fix" was live
+   only in the docs, and QA vocabulary was still being flagged as scope creep. Weeks of
+   believing a bug was fixed because I'd written that it was.
+2. **`role_adherence` only caught QA writing production files via an explicit
+   `file_writer()` call.** "I wrote src/app.py with the full Flask app" in prose sailed
+   straight through. Added an authoring-verb + production-path pattern, keyed on the verb
+   so QA *quoting* received code still isn't flagged — the provenance-blind false positive
+   the corpus also guards.
+
+`scope_control` now scores precision 1.00 / recall 1.00 / FPR 0.00 on the corpus. The
+lesson generalizes past guardrails: **anything you tune has to be measured on a labeled
+set, including the things that don't feel like models.**
+
+## Jul 24 — free is a feature
+
+CONTRIBUTING asked drive-by contributors to run n≥5 comparison batches, which meant
+metered calls across three backends. In effect: *submit a harness PR, and also pay for
+it.* Nobody was going to do that.
+
+Added `--replay`. It reads a recorded bundle and runs the entire report pipeline — Wilson
+intervals, median bootstrap, pairwise verdicts, confounded/canary banners — against
+recorded rows. No backend runs, no API calls, $0.00. Live and replay share one
+`render_report(bundle)` path, so replay can't drift from the real thing.
+
+Replay validates the **measurement**, not the **measured**. It proves the parsing,
+statistics, and verdict rule are right, which is precisely what a harness PR needs to
+demonstrate and precisely what you shouldn't have to buy. This is also the idea the whole
+August eval harness is built on, three weeks early and at a smaller scale — I just didn't
+know that yet when I wrote it.
+
+## Aug 16 — the taxonomy becomes executable
+
+The ten failure classes had been the project's headline deliverable since July, and they
+were still an **essay**. Written from memory, after the fact, with no eval linked to any
+of them. A taxonomy nobody can run against a new trace is a blog post wearing a lab coat.
+
+Spec first — `.kiro/specs/eval-harness/`, 16 requirements in EARS, a design with a $5 cost
+model, 12 phases and ~47 tasks — then Cursor executing one task at a time against a
+definition of done. The architecture rests on a single decision: **separate execution from
+scoring at a `Trace` boundary.** Everything left of it (backend runs) costs money and is
+flaky; everything right of it (checks, judges, aggregation) is free and deterministic, and
+there's a test that monkeypatches `socket.connect` to raise, to keep it that way. A $0.00
+PR gate and retroactive analysis of ~315 old workspaces both fall out of that one line.
+
+FM-001…FM-010 now live in `evals/taxonomy/failure_modes.yaml`, each carrying its layer
+attribution — model / framework / harness / provider — and each bound to a deterministic
+check. So the essay's central claim, *reliability budget ranks harness > model >
+framework*, becomes something the report computes rather than something I assert. Checks
+have to earn their place too: a mutation test flips each check's passing fixture in the
+specific way its failure mode describes and asserts the check catches it, because a check
+that returns `pass` for everything passes CI forever.
+
+Judges are binary now, one yes/no question from a versioned prompt file, and — the part I
+care most about — **a judge may only gate after it earns it**: TPR ≥ 0.90, TNR ≥ 0.90,
+κ ≥ 0.70, n ≥ 100 on a held-out test split, with split assignment a deterministic hash and
+test-split access logged per prompt hash. Below the bar, verdicts are advisory and the
+report says so out loud. And errors are no longer failures: `LLMJudge.check()` used to
+return `passed=False` when it timed out, which means for weeks a flaky judge and a broken
+run were the same number in my output.
+
+Two CI-only bugs closed the day, one of them perfect. A global `logs/` line in
+`.gitignore` had swallowed `tests/fixtures/mini_workspace/logs/` — the JSONL the
+`TraceBuilder` integration test reads. Locally the files sat there untracked and green; in
+CI there were no logs, the builder reported `status: failed`, and the test went red. That
+is FM-010, `gate_environment_mismatch`, occurring in the tooling built to detect FM-010,
+on the day it shipped.
+
+**What's honestly done, and what isn't.** The plumbing is real: ~11.3k lines under
+`evals/`, 73 committed trace fixtures, 30 test modules, a `$0` Tier A job in CI. The
+ground truth is not. Human open coding on the live corpus (task 5.2) was deliberately
+*not* delegated to a model — a model labeling its own ground truth makes every number
+downstream meaningless — so taxonomy examples are still synthetic fixtures, judges are
+advisory, and the live Tier C run and `judge align` are unspent budget. Four deferrals,
+written into `tasks.md`, `EVAL_METHODOLOGY.md`, and a dated run note rather than left for
+a reader to discover.
+
+Which is the same discipline as the July review pass, one layer up. Building the thing
+that measures you is easy to do dishonestly, because nobody audits the auditor. So the
+harness publishes its own error bars — TPR/TNR on the judge, Wilson intervals on the
+rates, `n` on everything, errors excluded from denominators — and states plainly that it
+currently measures correctly and has almost nothing true to measure yet.
+
+Full handoff: [2026-08-16](2026-08-16.md).
 
 ---

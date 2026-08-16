@@ -16,11 +16,22 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-07-02](2026-07-02.md) | The big one: flow self-trigger root cause (93k-iteration runaway → 0), three live comparisons to zero platform bugs, failure taxonomy, −12.6k-line axe; morning: same-model matrix confirms the confound — claude writes tests 4/4 where deepseek wrote 0/3. |
 | [2026-07-04](2026-07-04.md) | n≥5 batch runner, twelve results-plumbing fixes, CrewAI 5/5 green streak. |
 | [2026-07-06](2026-07-06.md) | LangGraph run identity: GUID workspace litter traced to graph tests, `RunSession` + intake binding, post-run moved out of graph, test harness isolation. |
+| [2026-08-16](2026-08-16.md) | The taxonomy becomes executable: Trace boundary, FM-001…010 bound to deterministic checks, $0 Tier A gate in CI — and the four things deliberately left undone. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
+
+The July rigor arc (Jul 21–24) has no standalone entry — it lives in
+[journey.md](journey.md): an adversarial review that found the judge sharing a vendor
+with a contestant, n=5 rankings that don't survive their own Wilson intervals, a
+model/framework confound in the published table, a labeled guardrail corpus that caught
+two shipped defects on first run, and `$0` replay mode so a contributor can validate the
+harness without paying to exercise it.
 
 The 2026-07-01 late-evening arc concluded in
 [COMPARISON_RESULTS.md](../COMPARISON_RESULTS.md): the flow-wiring self-trigger bug
 (93,284-iteration runaway → 0), two guardrail false-positive classes fixed with live
 evidence, and the first comparison where every backend's outcome was attributable to
 model behavior rather than platform defects. The distilled version is
-[posts/failure-taxonomy.md](../posts/failure-taxonomy.md).
+[posts/failure-taxonomy.md](../posts/failure-taxonomy.md) — now also machine-readable as
+[`evals/taxonomy/failure_modes.yaml`](../../evals/taxonomy/failure_modes.yaml)
+(FM-001…FM-010), with method and limitations in
+[EVAL_METHODOLOGY.md](../EVAL_METHODOLOGY.md).
