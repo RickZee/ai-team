@@ -133,10 +133,7 @@ def listener_self_trigger(trace: Trace) -> CheckResult:
     elif trace.raw_result.get("skip_listener_check"):
         return na(cid, trace, "listener check skipped by fixture", failure_mode_id=fm)
     else:
-        from ai_team.flows.listener_introspection import self_triggering_listeners
-        from ai_team.flows.main_flow import AITeamFlow
-
-        offenders = self_triggering_listeners(AITeamFlow)
+        offenders = _cached_self_triggering_listeners()
 
     if offenders:
         return failed(
@@ -147,6 +144,20 @@ def listener_self_trigger(trace: Trace) -> CheckResult:
             detail={"offenders": offenders},
         )
     return passed(cid, trace, failure_mode_id=fm, evidence_text="no self-triggering listeners")
+
+
+_SELF_TRIGGER_CACHE: list[str] | None = None
+
+
+def _cached_self_triggering_listeners() -> list[str]:
+    """Memoize flow introspection — class wiring is process-static (R5.5)."""
+    global _SELF_TRIGGER_CACHE
+    if _SELF_TRIGGER_CACHE is None:
+        from ai_team.flows.listener_introspection import self_triggering_listeners
+        from ai_team.flows.main_flow import AITeamFlow
+
+        _SELF_TRIGGER_CACHE = list(self_triggering_listeners(AITeamFlow))
+    return _SELF_TRIGGER_CACHE
 
 
 @check(id="CHK-interrupt-latency", failure_mode_id="FM-003", tier="A")

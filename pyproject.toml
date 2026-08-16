@@ -147,6 +147,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [
+  "tests/fixtures/mini_workspace",
+  "evals/fixtures/traces",
+  "evals/judges/cache",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
@@ -201,6 +206,20 @@ ignore_errors = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
+norecursedirs = [
+  ".*",
+  "build",
+  "dist",
+  "CVS",
+  "_darcs",
+  "{arch}",
+  "*.egg",
+  "venv",
+  ".venv",
+  "mini_workspace",
+  "fixtures/traces",
+  "fixtures/parser_samples",
+]
 markers = [
     "integration: integration tests (may require API keys or external services).",
     "e2e: end-to-end tests (real AITeamFlow run, no mocks).",
