@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "trace_id": "CHK-interrupt-latency__pass__fixture",
+  "scenario_id": "smoke-test",
+  "backend": "crewai",
+  "status": "complete",
+  "started_at": "2026-08-01T12:00:00Z",
+  "ended_at": "2026-08-01T12:05:00Z",
+  "spans": [
+    {
+      "span_id": "span_0000",
+      "parent_span_id": null,
+      "type": "human_interrupt",
+      "t_start": "2026-08-01T12:00:00Z",
+      "t_end": "2026-08-01T12:00:30Z",
+      "agent_role": null,
+      "phase": null,
+      "payload": {
+        "surfaced_at": "2026-08-01T12:00:30+00:00"
+      }
+    }
+  ],
+  "artifacts": [],
+  "cost": {
+    "usd": 0.01,
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "source": "provider_usage",
+    "per_model": {}
+  },
+  "provenance": {
+    "git_sha": "deadbeef",
+    "git_dirty": false,
+    "python_version": "3.12.0",
+    "platform": "test",
+    "harness_version": "0.1.0",
+    "taxonomy_version": "1.0.0",
+    "pricing_table_version": "unset",
+    "seed": null,
+    "tier": "A",
+    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model_ids": {
+      "fullstack_developer": "test-model"
+    }
+  },
+  "warnings": [],
+  "raw_result": {},
+  "workspace_dir": null
+}

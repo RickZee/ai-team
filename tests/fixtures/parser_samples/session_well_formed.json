@@ -1,0 +1,6 @@
+{
+  "session_id": "sess-abc",
+  "success": true,
+  "total_cost_usd": 0.0579,
+  "stop_reason": "end_turn"
+}

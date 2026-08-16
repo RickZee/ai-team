@@ -176,3 +176,5 @@ Back up first if you need to keep old memory data.
 ---
 
 For more detail on architecture and configuration, see [ARCHITECTURE.md](ARCHITECTURE.md), [GUARDRAILS.md](GUARDRAILS.md), [troubleshooting/README.md](troubleshooting/README.md), and the main [README.md](../README.md).
+
+Eval harness (offline Tier A gate, taxonomy, checks): [../evals/README.md](../evals/README.md) · [EVALS.md](EVALS.md) · [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md).

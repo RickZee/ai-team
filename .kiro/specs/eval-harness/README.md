@@ -3,12 +3,13 @@
 Kiro-style three-document spec for building a rigorous eval system for `ai-team`.
 Read in order:
 
-1. **[`requirements.md`](./requirements.md)** — 15 requirements with EARS acceptance
-   criteria, the seeded failure taxonomy (FM-001…FM-010), constraints, and non-goals.
+1. **[`requirements.md`](./requirements.md)** — 16 requirements with EARS acceptance
+   criteria (incl. **R16 harness self-test**), the seeded failure taxonomy (FM-001…FM-010),
+   constraints, and non-goals.
 2. **[`design.md`](./design.md)** — architecture, data models, component design, the
-   $5 cost model, error handling, testing strategy, and migration sequencing.
-3. **[`tasks.md`](./tasks.md)** — 11 phases, ~40 tasks, each with a definition of done
-   and requirement traceability.
+   $5 cost model, error handling, testing strategy (§7), and migration sequencing.
+3. **[`tasks.md`](./tasks.md)** — 12 phases, ~47 tasks, each with a definition of done
+   and requirement traceability. Phase 11 closes design §7 / R16 test gaps.
 
 ## The one-line version
 
@@ -36,8 +37,11 @@ Point the agent at one task at a time:
 Read .kiro/specs/eval-harness/requirements.md and design.md for context.
 Implement task 1.2 from .kiro/specs/eval-harness/tasks.md.
 Do not start any other task. Stop when its Definition of done is satisfied
-and `uv run ruff check . && uv run mypy evals/ && uv run pytest tests/unit/evals` passes.
+and `uv run ruff check . && uv run mypy evals/ && uv run pytest tests/unit/evals tests/integration/evals` passes.
 ```
+
+**Harness tests (R16):** unit under `tests/unit/evals/`; integration under
+`tests/integration/evals/` (design §7). Never assert live judge quality in pytest.
 
 Phases 1–3 are strictly additive and safe to run unattended. **Phase 5 is human work**
 and cannot be delegated — a model labeling its own ground truth makes every number

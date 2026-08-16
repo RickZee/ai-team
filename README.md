@@ -12,10 +12,13 @@ orchestration frameworks — CrewAI, LangGraph, and the Claude Agent SDK — beh
 
 The most useful output isn't a leaderboard — it's the **[failure taxonomy](docs/posts/failure-taxonomy.md)**:
 ten distinct ways a multi-agent build breaks, each with a trace and a fix, spread
-across the model, framework, harness, and provider layers. The shared harness that
-came out of chasing them — a runtime smoke gate that boots the app and probes real
-HTTP, a per-run spend guard, subprocess isolation with a hard kill, and
-behavioral/security/quality guardrails — is the real deliverable. Every finding is
+across the model, framework, harness, and provider layers. Those ten classes are now
+also a **machine-readable taxonomy** (`evals/taxonomy/failure_modes.yaml`, FM-001…010)
+bound to deterministic checks and a **$0 Tier A** replay gate — see
+[evals/README.md](evals/README.md) and [EVAL_METHODOLOGY.md](docs/EVAL_METHODOLOGY.md).
+The shared harness that came out of chasing them — a runtime smoke gate that boots the
+app and probes real HTTP, a per-run spend guard, subprocess isolation with a hard kill,
+and behavioral/security/quality guardrails — is the real deliverable. Every finding is
 recorded with commit references in the [engineering journal](docs/journal/README.md).
 
 > **On the comparison numbers:** treat them as observations, not a ranking. The
@@ -261,6 +264,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and PR requirements.
 | `AI_TEAM_LANGGRAPH_POSTGRES_URI` | Postgres URI for LangGraph checkpointing (optional) | SQLite |
 | `AI_TEAM_USE_REAL_LLM` | Run live-LLM integration/evals when set to `1` | unset |
 | `AI_TEAM_TEST_MEMORY` | Run live memory/embedder integration tests when set to `1` | unset |
+| `AI_TEAM_EVAL_BUDGET_USD` | Hard ceiling for live eval suite spend (Tier B/C) | `5.00` |
 
 The backend is selected per run with `--backend` (default `crewai`), not an env
 var. Copy `.env.example` to `.env` and set the key for your chosen backend.
@@ -288,7 +292,15 @@ ai-team/
 │   ├── monitor.py              # TeamMonitor — thread-safe event collector
 │   └── ui/web/                 # FastAPI server + React/TypeScript/Vite dashboard
 ├── tests/
-├── evals/                      # JSON scenario specs, LLM judge, backend eval suites
+│   ├── unit/evals/             # Harness unit tests (R16)
+│   └── integration/evals/      # Tier A / TraceBuilder / gate integration
+├── evals/                      # Eval harness: traces, taxonomy, checks, Tier A–C
+│   ├── cli.py                  # `python -m evals.cli` (backfill, sample, run, gate…)
+│   ├── taxonomy/               # FM-001…010 ↔ failure-taxonomy essay
+│   ├── checks/                 # Deterministic detectors bound to FM ids
+│   ├── fixtures/traces/        # Committed Tier A corpus ($0 replay)
+│   ├── scenarios/              # JSON scenario contracts
+│   └── backends/               # Live backend eval clients (pytest)
 ├── demos/                      # 00_smoke_test, 02_todo_app
 ├── docs/
 │   ├── journal/                 # Session-by-session engineering record
@@ -297,18 +309,34 @@ ai-team/
 └── scripts/                      # quickstart, run_demo, compare_backends, pre_push_check
 ```
 
+### Eval harness (offline)
+
+```bash
+# $0.00 PR gate — replay committed fixtures, deterministic checks + report
+uv run python -m evals.cli run --tier A --warn-only
+
+# Build a free corpus from past workspaces, then sample for open coding
+uv run python -m evals.cli trace backfill --workspace-root ./workspace
+uv run python -m evals.cli index rebuild
+```
+
+Details: [evals/README.md](evals/README.md) · methodology: [EVAL_METHODOLOGY.md](docs/EVAL_METHODOLOGY.md).
+
 ## Documentation
 
 | Document | Description |
 |---|---|
 | [Engineering journal](docs/journal/README.md) | Session-by-session debugging record, including corrections |
 | [Comparison results](docs/COMPARISON_RESULTS.md) | Live 3-way comparison data and the same-model matrix |
-| [Failure taxonomy](docs/posts/failure-taxonomy.md) | Ten failure classes with receipts |
+| [Failure taxonomy](docs/posts/failure-taxonomy.md) | Ten failure classes with receipts (↔ FM-001…010) |
 | [Troubleshooting](docs/troubleshooting/README.md) | Deep-dive post-mortems of non-obvious bugs |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema |
-| [EVALS.md](docs/EVALS.md) | Eval methodology |
+| [evals/README.md](evals/README.md) | Eval harness quickstart (Tier A, backfill, tests) |
+| [EVALS.md](docs/EVALS.md) | What the eval system implements today |
+| [EVAL_METHODOLOGY.md](docs/EVAL_METHODOLOGY.md) | Error-analysis-first method + limitations |
+| [EVALS_ROADMAP.md](docs/EVALS_ROADMAP.md) | Aspirational / role-eval backlog |
 | [AGENTS.md](docs/AGENTS.md) | Persona registry (goal, backstory, delegation per role) |
 | [MODELS.md](docs/MODELS.md) | dev/test/prod model matrix, provider comparison, failure modes |
 | [TEAM_PROFILES.md](docs/TEAM_PROFILES.md) | Profile catalog (`full`, `full-claude`, `smoke`, …) |

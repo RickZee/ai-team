@@ -803,6 +803,10 @@ cheap and deterministic.
 - Gate: synthetic report + baseline pairs covering each row of the R12.2 table.
 - Network isolation: Tier A run under a `socket` monkeypatch that raises on connect.
 
+These live under `tests/integration/evals/` (R16.2), not only as unit tests. Unit
+tests may still cover the same behaviours for fast iteration; integration tests are
+the CI contract that the package layout matches this section.
+
 ### 7.4 What is deliberately not tested automatically
 
 Judge quality. That is what the golden set and R8 alignment are for, and it is

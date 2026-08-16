@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "trace_id": "coverage__langgraph__budget_abort",
+  "scenario_id": "smoke-test",
+  "backend": "langgraph",
+  "status": "budget_abort",
+  "started_at": "2026-08-01T12:00:00Z",
+  "ended_at": "2026-08-01T12:05:00Z",
+  "spans": [
+    {
+      "span_id": "span_0000",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:00Z",
+      "t_end": "2026-08-01T12:00:00Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    },
+    {
+      "span_id": "span_0001",
+      "parent_span_id": null,
+      "type": "tool_use",
+      "t_start": "2026-08-01T12:00:05Z",
+      "t_end": "2026-08-01T12:00:05Z",
+      "agent_role": null,
+      "phase": "development",
+      "payload": {
+        "tool": "file_writer",
+        "path": "calc.py"
+      }
+    },
+    {
+      "span_id": "span_0002",
+      "parent_span_id": null,
+      "type": "phase_end",
+      "t_start": "2026-08-01T12:00:10Z",
+      "t_end": "2026-08-01T12:00:10Z",
+      "agent_role": null,
+      "phase": "development",
+      "payload": {}
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "calc.py",
+      "size_bytes": 40,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "kind": "source"
+    }
+  ],
+  "cost": {
+    "usd": 0.01,
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "source": "provider_usage",
+    "per_model": {}
+  },
+  "provenance": {
+    "git_sha": "deadbeef",
+    "git_dirty": false,
+    "python_version": "3.12.0",
+    "platform": "test",
+    "harness_version": "0.1.0",
+    "taxonomy_version": "1.0.0",
+    "pricing_table_version": "unset",
+    "seed": null,
+    "tier": "A",
+    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model_ids": {
+      "fullstack_developer": "test-model"
+    }
+  },
+  "warnings": [],
+  "raw_result": {},
+  "workspace_dir": null
+}

@@ -1,0 +1,29 @@
+{
+  "tier": "A",
+  "accepted_at": "2026-08-16T19:51:53.426053Z",
+  "git_sha": "f534ceee31262d9ce5e3440506df531640814379",
+  "reason": "initial Tier A baseline from curated fixture corpus",
+  "check_outcomes": {
+    "CHK-gate-env-fidelity": "fail",
+    "CHK-guardrail-fp-budget": "fail",
+    "CHK-hallucination-density": "fail",
+    "CHK-interrupt-latency": "fail",
+    "CHK-listener-self-trigger": "fail",
+    "CHK-metric-source-agreement": "fail",
+    "CHK-phase-repeat-bounded": "fail",
+    "CHK-provider-error-rate": "fail",
+    "CHK-required-artifacts": "fail",
+    "CHK-runtime-smoke-present": "fail",
+    "CHK-spend-ceiling": "fail",
+    "CHK-tool-call-emitted": "fail",
+    "CHK-workspace-isolation": "fail"
+  },
+  "guardrails": {},
+  "judge_failure_rates": {},
+  "suite_pass_pow_k": 0.0,
+  "suite_cost_usd": 0.0,
+  "cost_ceiling_usd": 5.0,
+  "p95_latency_s": 300.0,
+  "guardrail_recall_floor": 0.9,
+  "guardrail_fpr_ceiling": 0.1
+}

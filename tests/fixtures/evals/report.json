@@ -1,0 +1,327 @@
+{
+  "check_results": [
+    {
+      "check_id": "CHK-provider-error-rate",
+      "detail": {},
+      "evidence_span_ids": [],
+      "evidence_text": "",
+      "failure_mode_id": "FM-009",
+      "outcome": "pass",
+      "trace_id": "trace_pass_001"
+    },
+    {
+      "check_id": "CHK-tool-call-emitted",
+      "detail": {},
+      "evidence_span_ids": [
+        "span_0001"
+      ],
+      "evidence_text": "no tool_use in development phase",
+      "failure_mode_id": "FM-001",
+      "outcome": "fail",
+      "trace_id": "trace_fail_001"
+    },
+    {
+      "check_id": "CHK-tool-call-emitted",
+      "detail": {},
+      "evidence_span_ids": [
+        "span_0002"
+      ],
+      "evidence_text": "",
+      "failure_mode_id": "FM-001",
+      "outcome": "pass",
+      "trace_id": "trace_pass_001"
+    }
+  ],
+  "comparisons": [
+    {
+      "backends": [
+        "claude-agent-sdk",
+        "crewai",
+        "langgraph"
+      ],
+      "reason": "single-vendor judge (fm-001-tool-call-omission, vendor=anthropic) cannot settle comparison involving backend=claude-agent-sdk",
+      "scenario_id": "smoke-test",
+      "status": "indeterminate"
+    }
+  ],
+  "cost": {
+    "by_backend": {},
+    "ceiling_usd": 0.0,
+    "source_breakdown": {},
+    "total_usd": 0.0
+  },
+  "failed_checks": [
+    {
+      "check_id": "CHK-tool-call-emitted",
+      "evidence_text": "no tool_use in development phase",
+      "failure_mode_id": "FM-001",
+      "span_id": "span_0001",
+      "trace_id": "trace_fail_001"
+    }
+  ],
+  "failure_mode_incidence": [
+    {
+      "fail_count": 1,
+      "failure_mode_id": "FM-001",
+      "layer": "model",
+      "raw": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.9054713451991339,
+        "ci_low": 0.09452865480086614,
+        "n": 2,
+        "successes": 1,
+        "suppression_reason": null,
+        "value": 0.5
+      },
+      "title": "Model emits code as prose instead of calling the write tool"
+    },
+    {
+      "fail_count": 0,
+      "failure_mode_id": "FM-009",
+      "layer": "provider",
+      "raw": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.7934567085261071,
+        "ci_low": 0.0,
+        "n": 1,
+        "successes": 0,
+        "suppression_reason": null,
+        "value": 0.0
+      },
+      "title": "Provider HTTP 4xx errors exceed the green-run budget"
+    }
+  ],
+  "flaky_cells": [
+    "langgraph/smoke-test"
+  ],
+  "generated_at": "2026-08-16T12:00:00Z",
+  "guardrails": [
+    {
+      "f1": 0.77,
+      "fpr": 0.1,
+      "n": 5,
+      "name": "scope_relevance",
+      "pr_curve": [
+        {
+          "precision": 0.5,
+          "recall": 0.9,
+          "threshold": 0.1
+        },
+        {
+          "precision": 0.8,
+          "recall": 0.75,
+          "threshold": 0.3
+        },
+        {
+          "precision": 0.95,
+          "recall": 0.4,
+          "threshold": 0.5
+        }
+      ],
+      "precision": 0.8,
+      "provisional": true,
+      "recall": 0.75
+    }
+  ],
+  "headline": "FAIL \u2014 1 failed check(s) across suite",
+  "judge_verdicts": [
+    {
+      "cached": true,
+      "eligible_to_gate": false,
+      "judge_id": "fm-001-tool-call-omission",
+      "single_vendor": true,
+      "trace_id": "trace_fail_001",
+      "vendor": "anthropic",
+      "verdict": "fail"
+    }
+  ],
+  "judges": [
+    {
+      "eligible_to_gate": false,
+      "failure_rate": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.9054713451991339,
+        "ci_low": 0.09452865480086614,
+        "n": 2,
+        "successes": 1,
+        "suppression_reason": null,
+        "value": 0.5
+      },
+      "judge_id": "fm-001-tool-call-omission",
+      "kappa": 0.6,
+      "suppressed": true,
+      "suppression_reason": "below eligibility thresholds (R8.6)",
+      "tnr": 0.8,
+      "tpr": 0.85
+    }
+  ],
+  "latency": {
+    "max_s": 3.0,
+    "n": 3,
+    "p50_s": 1.0,
+    "p95_s": 2.0
+  },
+  "layer_incidence": [
+    {
+      "fail_count": 1,
+      "layer": "model",
+      "n": 2,
+      "rate": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.9054713451991339,
+        "ci_low": 0.09452865480086614,
+        "n": 2,
+        "successes": 1,
+        "suppression_reason": null,
+        "value": 0.5
+      }
+    },
+    {
+      "fail_count": 0,
+      "layer": "framework",
+      "n": 0,
+      "rate": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "n": 0,
+        "successes": 0,
+        "suppression_reason": null,
+        "value": null
+      }
+    },
+    {
+      "fail_count": 0,
+      "layer": "harness",
+      "n": 0,
+      "rate": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.0,
+        "ci_low": 0.0,
+        "n": 0,
+        "successes": 0,
+        "suppression_reason": null,
+        "value": null
+      }
+    },
+    {
+      "fail_count": 0,
+      "layer": "provider",
+      "n": 1,
+      "rate": {
+        "bias_corrected": null,
+        "bias_corrected_suppressed": false,
+        "ci_high": 0.7934567085261071,
+        "ci_low": 0.0,
+        "n": 1,
+        "successes": 0,
+        "suppression_reason": null,
+        "value": 0.0
+      }
+    }
+  ],
+  "notes": [
+    "golden fixture for schema/diff tests"
+  ],
+  "provenance": {
+    "git_dirty": false,
+    "git_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "harness_version": "0.1.0",
+    "model_ids": {
+      "judge": "test-model"
+    },
+    "platform": "test-platform",
+    "pricing_table_version": "2026-08-16",
+    "python_version": "3.12.0",
+    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "seed": 0,
+    "taxonomy_version": "1.0.0",
+    "tier": "A"
+  },
+  "reliability": {
+    "indistinguishable_pairs": [
+      {
+        "a": "claude-agent-sdk",
+        "b": "crewai",
+        "reason": "Wilson CIs overlap (R9.5)",
+        "scenario_id": "smoke-test"
+      },
+      {
+        "a": "claude-agent-sdk",
+        "b": "langgraph",
+        "reason": "Wilson CIs overlap (R9.5)",
+        "scenario_id": "smoke-test"
+      },
+      {
+        "a": "crewai",
+        "b": "langgraph",
+        "reason": "Wilson CIs overlap (R9.5)",
+        "scenario_id": "smoke-test"
+      }
+    ]
+  },
+  "run_id": "golden_suite_001",
+  "schema_version": 1,
+  "scorecard": [
+    {
+      "backend": "claude-agent-sdk",
+      "flaky": false,
+      "indeterminate_reason": "single-vendor judge (fm-001-tool-call-omission, vendor=anthropic) cannot settle comparison involving backend=claude-agent-sdk",
+      "n": 2,
+      "outcome": "indeterminate",
+      "pass_at_k": 1.0,
+      "pass_pow_k": 1.0,
+      "pass_rate": 1.0,
+      "scenario_id": "smoke-test",
+      "successes": 2,
+      "wilson_ci": [
+        0.34237195288961925,
+        1.0
+      ]
+    },
+    {
+      "backend": "crewai",
+      "flaky": false,
+      "indeterminate_reason": "single-vendor judge (fm-001-tool-call-omission, vendor=anthropic) cannot settle comparison involving backend=claude-agent-sdk",
+      "n": 2,
+      "outcome": "indeterminate",
+      "pass_at_k": 1.0,
+      "pass_pow_k": 1.0,
+      "pass_rate": 1.0,
+      "scenario_id": "smoke-test",
+      "successes": 2,
+      "wilson_ci": [
+        0.34237195288961925,
+        1.0
+      ]
+    },
+    {
+      "backend": "langgraph",
+      "flaky": true,
+      "indeterminate_reason": "single-vendor judge (fm-001-tool-call-omission, vendor=anthropic) cannot settle comparison involving backend=claude-agent-sdk",
+      "n": 2,
+      "outcome": "indeterminate",
+      "pass_at_k": 1.0,
+      "pass_pow_k": 0.0,
+      "pass_rate": 0.5,
+      "scenario_id": "smoke-test",
+      "successes": 1,
+      "wilson_ci": [
+        0.09452865480086614,
+        0.9054713451991339
+      ]
+    }
+  ],
+  "suppressed": [
+    "judge:fm-001-tool-call-omission: below eligibility thresholds (R8.6)",
+    "guardrail:scope_relevance: provisional (n=5 below min_cases)"
+  ],
+  "tier": "A",
+  "verdict": "fail"
+}

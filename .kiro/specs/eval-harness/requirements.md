@@ -663,16 +663,50 @@ corpus from existing workspaces, run Tier A, read the report.
 
 ---
 
+### R16 — Harness self-test
+
+**User story:** As a maintainer, I want the eval harness itself covered by automated
+tests at the levels defined in design §7, so that a broken check, flaky sampler, or
+non-deterministic Tier A cannot silently ship.
+
+**Acceptance criteria**
+
+16.1 THE SYSTEM SHALL maintain unit tests under `tests/unit/evals/` covering at
+minimum: taxonomy loader (valid + each invalid variant); every registered check with
+fail / pass / `not_applicable` fixtures; check mutation sensitivity; check purity
+(network blocked) and performance (< 5 s over 200 traces); alignment math; reliability
+math (including Wilson CI published values and `pass^k` at k ∈ {1,3,5}); cost source
+paths and budget abort; golden `assign_split` determinism and ~40/60 distribution over
+≥ 10 000 synthetic ids; binary-judge grounding (`ungrounded` → `error`), three-attempt
+error contract (never coerce to `fail`), prompt version validation, and cache hits with
+sockets blocked; `--allow-retest` / validation-log guard; `baseline accept` refuses
+when `git_dirty`.
+
+16.2 THE SYSTEM SHALL maintain integration tests under `tests/integration/evals/`
+covering: `TraceBuilder.from_workspace()` against `tests/fixtures/mini_workspace/`;
+full Tier A pipeline determinism (two runs, `report.json` equal modulo `generated_at`);
+gate rows from R12.2 via synthetic report/baseline pairs (may share fixtures with unit);
+Tier A under a `socket` monkeypatch that raises on connect.
+
+16.3 THE SYSTEM SHALL NOT assert judge quality in `tests/` (no
+`assert judge_score >= …` / `assert verdict == "pass"` against a live model). Judge
+quality is measured via the golden set (R8), not pytest.
+
+16.4 `uv run pytest tests/unit/evals tests/integration/evals -q` SHALL pass with no
+network and no API keys required.
+
+---
+
 ## Traceability
 
 | Requirement | Primary artifacts |
 | --- | --- |
-| R1, R2 | `evals/trace.py`, `evals/store.py`, `evals/traces/` |
+| R1, R2 | `evals/trace/`, `evals/store.py`, `evals/traces/` |
 | R3 | `evals/annotate.py`, `evals/annotations/` |
-| R4 | `evals/taxonomy/failure_modes.yaml`, `evals/taxonomy.py` |
-| R5 | `evals/checks/`, `evals/registry.py` |
+| R4 | `evals/taxonomy/failure_modes.yaml`, `evals/taxonomy/loader.py` |
+| R5 | `evals/checks/` |
 | R6 | `evals/corpora/guardrails/`, `evals/guardrail_eval.py`, reuses `src/ai_team/guardrails/corpus_metrics.py` |
-| R7 | `evals/judges/`, refactor of `evals/fixtures.py` |
+| R7 | `evals/judges/`, refactor of `evals/fixtures/` |
 | R8 | `evals/alignment.py`, `evals/golden/` |
 | R9 | `evals/reliability.py` |
 | R10 | `evals/cost.py`, `evals/pricing.yaml` |
@@ -681,3 +715,4 @@ corpus from existing workspaces, run Tier A, read the report.
 | R13 | `evals/report.py`, `evals/results/` |
 | R14 | `evals/provenance.py` |
 | R15 | `docs/EVALS.md`, `docs/EVAL_METHODOLOGY.md`, `evals/README.md` |
+| R16 | `tests/unit/evals/`, `tests/integration/evals/` |

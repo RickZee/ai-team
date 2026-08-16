@@ -18,6 +18,29 @@ is not where most of your reliability budget goes.
 
 ---
 
+## Machine-readable taxonomy
+
+Each section below maps to an FM id in
+[`evals/taxonomy/failure_modes.yaml`](../../evals/taxonomy/failure_modes.yaml):
+
+| Essay § | FM id | Slug |
+| --- | --- | --- |
+| 1 | FM-001 | tool_call_omission |
+| 2 | FM-002 | self_triggering_retry_loop |
+| 3 | FM-003 | runtime_coupling_starvation |
+| 4 | FM-004 | run_id_collision |
+| 5 | FM-005 | guardrail_false_positive |
+| 6 | FM-006 | runtime_verification_gap |
+| 7 | FM-007 | unbounded_spend |
+| 8 | FM-008 | metric_source_drift |
+| 9 | FM-009 | provider_dialect_mismatch |
+| 10 | FM-010 | gate_environment_mismatch |
+
+Coverage table: [`evals/taxonomy/COVERAGE.md`](../../evals/taxonomy/COVERAGE.md).
+Methodology: [`docs/EVAL_METHODOLOGY.md`](../EVAL_METHODOLOGY.md).
+
+---
+
 ## 1. The model writes code as prose and asks permission
 
 **Symptom:** development "completes", workspace is empty, tests fail with ImportError,
