@@ -229,6 +229,9 @@ workspace/
 
 # Logs
 logs/
+# Keep miniature TraceBuilder fixture logs tracked for CI unit/integration tests
+!tests/fixtures/mini_workspace/logs/
+!tests/fixtures/mini_workspace/logs/**
 evals/results/
 
 # Eval harness live corpus / working dirs (fixtures, golden, cache, baselines stay tracked)

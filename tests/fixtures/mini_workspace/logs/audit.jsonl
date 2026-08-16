@@ -1,0 +1,4 @@
+{"timestamp":"2026-08-01T12:03:00+00:00","event":"PreToolUse","tool":"Write","session_id":"s1"}
+{"timestamp":"2026-08-01T12:03:01+00:00","event":"PostToolUse","tool":"Write","session_id":"s1"}
+{"timestamp":"2026-08-01T12:04:00+00:00","event":"SubagentStart","agent_type":"qa_engineer","session_id":"s1"}
+{"timestamp":"2026-08-01T12:04:30+00:00","event":"SubagentStop","agent_type":"qa_engineer","session_id":"s1"}

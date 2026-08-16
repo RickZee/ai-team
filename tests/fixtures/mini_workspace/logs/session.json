@@ -1,0 +1,7 @@
+{
+  "session_id": "s1",
+  "backend": "claude-agent-sdk",
+  "status": "complete",
+  "total_cost_usd": 0.05,
+  "model_ids": {"fullstack_developer": "claude-sonnet-4"}
+}
