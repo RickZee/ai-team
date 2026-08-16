@@ -13,26 +13,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from ai_team.flows.listener_introspection import flow_trigger_map, self_triggering_listeners
 from ai_team.flows.main_flow import AITeamFlow
-
-
-def _trigger_map() -> dict[str, tuple[list[str], bool]]:
-    """Map method name -> (trigger names, is_router) for all Flow-decorated methods."""
-    out: dict[str, tuple[list[str], bool]] = {}
-    for name in dir(AITeamFlow):
-        attr = getattr(AITeamFlow, name, None)
-        triggers = getattr(attr, "__trigger_methods__", None)
-        if triggers is None:
-            continue
-        is_router = bool(getattr(attr, "__is_router__", False))
-        out[name] = ([str(t) for t in triggers], is_router)
-    return out
 
 
 class TestNoSelfTriggeringListeners:
     def test_no_method_listens_to_its_own_name(self) -> None:
         """A method whose name appears in its own trigger set self-loops forever."""
-        offenders = [name for name, (triggers, _) in _trigger_map().items() if name in triggers]
+        offenders = self_triggering_listeners(AITeamFlow)
         assert offenders == [], (
             f"Flow methods listening to their own name (infinite self-trigger): {offenders}. "
             "Rename the method (on_<trigger> convention) — CrewAI emits the completed "
@@ -41,7 +29,7 @@ class TestNoSelfTriggeringListeners:
 
     def test_retry_listeners_have_routers(self) -> None:
         """Retry-cap decisions must flow through @router — plain @listen returns are discarded."""
-        tmap = _trigger_map()
+        tmap = flow_trigger_map(AITeamFlow)
         routed_sources: set[str] = set()
         for _name, (triggers, is_router) in tmap.items():
             if is_router:

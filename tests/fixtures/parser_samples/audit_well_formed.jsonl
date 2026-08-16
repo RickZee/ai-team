@@ -1,0 +1,5 @@
+{"timestamp": "2026-08-01T12:00:01Z", "event": "PreToolUse", "tool": "Write", "session_id": "s1"}
+{"timestamp": "2026-08-01T12:00:02Z", "event": "PostToolUse", "tool": "Write", "session_id": "s1"}
+{"timestamp": "2026-08-01T12:00:03Z", "event": "SubagentStart", "agent_type": "testing-agent", "session_id": "s1"}
+{"timestamp": "2026-08-01T12:00:04Z", "event": "SubagentStop", "agent_type": "testing-agent", "session_id": "s1"}
+{"timestamp": "2026-08-01T12:00:05Z", "event": "security_check", "tool": "Bash", "status": "deny", "category": "security"}

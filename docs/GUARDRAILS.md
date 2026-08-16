@@ -7,6 +7,13 @@ For deep-dive post-mortems of guardrail-adjacent bugs (smoke gate, GIL starvatio
 see [troubleshooting/README.md](troubleshooting/README.md). Runtime smoke verification
 is documented in [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md).
 
+**Measuring false positives:** lexical scope checks that flag correct QA vocabulary are
+FM-005 in the [failure taxonomy](posts/failure-taxonomy.md). The eval harness scores
+guardrails as classifiers (precision / recall / FPR) via
+`uv run python -m evals.cli guardrail eval` — corpus under
+`evals/corpora/guardrails/`, metrics from `corpus_metrics.py` (do not reimplement).
+See [EVALS.md](EVALS.md) and [evals/README.md](../evals/README.md).
+
 ## Behavioral guardrails
 
 Behavioral checks validate whether an agent stayed within its assigned role and task

@@ -1,0 +1,6 @@
+eval[A] fail: FAIL — 1 failed check(s) across suite
+run_id=golden_suite_001 cost=$0.0000
+failed_checks=1 flaky=1
+  FAIL CHK-tool-call-emitted trace=trace_fail_001 span=span_0001
+  layer[model] fails=1 0.500 (n=2, 95% CI [0.095, 0.905])
+git=aaaaaaaaaaaa dirty=False

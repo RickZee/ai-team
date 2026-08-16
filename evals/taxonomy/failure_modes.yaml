@@ -1,0 +1,213 @@
+# Failure taxonomy — versioned catalog of observed multi-agent failure modes.
+# Seeded from docs/posts/failure-taxonomy.md (R4.3).
+#
+# positive_examples / negative_examples point at synthetic check fixtures
+# (evals/fixtures/traces/, copied from tests/fixtures/traces/). These are
+# fail/pass wiring pairs — NOT production open-coding labels (task 5.2 is human).
+version: "1.0.0"
+failure_modes:
+  - id: FM-001
+    slug: tool_call_omission
+    title: Model emits code as prose instead of calling the write tool
+    definition: >
+      A development or QA phase ends with the agent having produced syntactically
+      valid code inside its message text (fenced or otherwise) while making zero
+      successful file-writing tool calls in that phase, leaving the workspace
+      without the corresponding file. Asking the user for permission to save counts
+      as this failure; there is no user.
+    layer: model
+    severity: blocker
+    detection: check
+    implemented_by: [CHK-tool-call-emitted]
+    positive_examples:
+      - {trace_id: CHK-tool-call-emitted__fail__fixture, span_id: span_0001}
+    negative_examples:
+      - {trace_id: CHK-tool-call-emitted__pass__fixture, span_id: span_0001}
+    references:
+      - docs/posts/failure-taxonomy.md#1
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-002
+    slug: self_triggering_retry_loop
+    title: Framework event bus lets a method re-trigger itself unbounded
+    definition: >
+      A CrewAI Flow method is decorated to listen to its own method name (or a
+      phase/agent pair restarts more times than the scenario's max_phase_repeats
+      budget), producing an unbounded retry or listener loop instead of a bounded
+      escalation. Evidence is either static self-listen wiring or phase_start
+      counts exceeding the configured repeat ceiling.
+    layer: framework
+    severity: blocker
+    detection: check
+    implemented_by: [CHK-phase-repeat-bounded, CHK-listener-self-trigger]
+    positive_examples:
+      - {trace_id: CHK-phase-repeat-bounded__fail__fixture, span_id: span_0000}
+      - {trace_id: CHK-listener-self-trigger__fail__fixture, span_id: run}
+    negative_examples:
+      - {trace_id: CHK-phase-repeat-bounded__pass__fixture, span_id: span_0000}
+      - {trace_id: CHK-listener-self-trigger__pass__fixture, span_id: run}
+    references:
+      - docs/posts/failure-taxonomy.md#2
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-003
+    slug: runtime_coupling_starvation
+    title: Co-hosted hung backend starves interrupt delivery (GIL)
+    definition: >
+      Elapsed wall time between a human_interrupt span and the event that surfaces
+      it to the operator exceeds max_interrupt_latency_s (default 60s). This flags
+      runtime coupling where a spinning co-hosted thread delayed interrupt handling.
+    layer: harness
+    severity: major
+    detection: check
+    implemented_by: [CHK-interrupt-latency]
+    positive_examples:
+      - {trace_id: CHK-interrupt-latency__fail__fixture, span_id: span_0000}
+    negative_examples:
+      - {trace_id: CHK-interrupt-latency__pass__fixture, span_id: span_0000}
+    references:
+      - docs/posts/failure-taxonomy.md#3
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-004
+    slug: run_id_collision
+    title: Concurrent launches collide on the same workspace / run id
+    definition: >
+      Two or more traces in the same suite run resolve to the identical
+      workspace_dir, indicating a TOCTOU race on run-id allocation where
+      concurrent backends overwrite each other's state.
+    layer: harness
+    severity: blocker
+    detection: check
+    implemented_by: [CHK-workspace-isolation]
+    positive_examples:
+      - {trace_id: CHK-workspace-isolation__fail__fixture, span_id: run}
+    negative_examples:
+      - {trace_id: CHK-workspace-isolation__pass__fixture, span_id: run}
+    references:
+      - docs/posts/failure-taxonomy.md#4
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-005
+    slug: guardrail_false_positive
+    title: Lexical guardrail rejects correct output for domain vocabulary
+    definition: >
+      One or more guardrail_check spans record outcome fail on a run that otherwise
+      met all acceptance criteria (status complete with required artifacts and
+      tests). A failing guardrail on a successful run is counted as a false positive.
+    layer: harness
+    severity: major
+    detection: check
+    implemented_by: [CHK-guardrail-fp-budget]
+    positive_examples:
+      - {trace_id: CHK-guardrail-fp-budget__fail__fixture, span_id: span_0000}
+    negative_examples:
+      - {trace_id: CHK-guardrail-fp-budget__pass__fixture, span_id: span_0000}
+    references:
+      - docs/posts/failure-taxonomy.md#5
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-006
+    slug: runtime_verification_gap
+    title: Tests pass but runtime smoke never ran or failed
+    definition: >
+      A run reports status complete with either no smoke_probe span present, or
+      with a smoke_probe whose payload indicates failure (success false / ran false
+      with unsuccessful probes). Unit-test green alone is not sufficient verification.
+    layer: harness
+    severity: major
+    detection: check
+    implemented_by: [CHK-runtime-smoke-present]
+    positive_examples:
+      - {trace_id: CHK-runtime-smoke-present__fail__fixture, span_id: run}
+    negative_examples:
+      - {trace_id: CHK-runtime-smoke-present__pass__fixture, span_id: span_0000}
+    references:
+      - docs/posts/failure-taxonomy.md#6
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-007
+    slug: unbounded_spend
+    title: Run spend exceeds ceiling or spend guard fails to abort
+    definition: >
+      Trace cost.usd exceeds the scenario budget_usd_max, or a spend_event span
+      shows cumulative spend past the ceiling without a non-retryable abort. Retry
+      loops that are also billing loops count as this failure.
+    layer: harness
+    severity: blocker
+    detection: check
+    implemented_by: [CHK-spend-ceiling]
+    positive_examples:
+      - {trace_id: CHK-spend-ceiling__fail__fixture, span_id: run}
+    negative_examples:
+      - {trace_id: CHK-spend-ceiling__pass__fixture, span_id: run}
+    references:
+      - docs/posts/failure-taxonomy.md#7
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-008
+    slug: metric_source_drift
+    title: Event-derived metrics disagree with artifact-derived ground truth
+    definition: >
+      Artifact-derived file count or cost disagrees with event-derived values beyond
+      tolerance (exact for files, 5% relative for cost by default). Dashboards that
+      report null cost or zero files while real artifacts exist fail this check.
+    layer: harness
+    severity: major
+    detection: check
+    implemented_by: [CHK-metric-source-agreement]
+    positive_examples:
+      - {trace_id: CHK-metric-source-agreement__fail__fixture, span_id: run}
+    negative_examples:
+      - {trace_id: CHK-metric-source-agreement__pass__fixture, span_id: run}
+    references:
+      - docs/posts/failure-taxonomy.md#8
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-009
+    slug: provider_dialect_mismatch
+    title: Provider HTTP 4xx errors exceed the green-run budget
+    definition: >
+      The count of provider/HTTP 4xx error spans in a run exceeds max_provider_errors
+      (default 0 for a green run). Tool-call id dialect mismatches and upstream
+      routing failures that surface as 4xx count here.
+    layer: provider
+    severity: major
+    detection: check
+    implemented_by: [CHK-provider-error-rate]
+    positive_examples:
+      - {trace_id: CHK-provider-error-rate__fail__fixture, span_id: span_0000}
+    negative_examples:
+      - {trace_id: CHK-provider-error-rate__pass__fixture, span_id: span_0000}
+    references:
+      - docs/posts/failure-taxonomy.md#9
+    introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-010
+    slug: gate_environment_mismatch
+    title: Gate venv lacks packages listed in generated requirements.txt
+    definition: >
+      A test or error span fails with ModuleNotFoundError for a package that is
+      listed in the generated requirements.txt artifact. The verification gate ran
+      in an environment that does not match the app's declared dependencies.
+    layer: harness
+    severity: major
+    detection: check
+    implemented_by: [CHK-gate-env-fidelity]
+    positive_examples:
+      - {trace_id: CHK-gate-env-fidelity__fail__fixture, span_id: span_0000}
+    negative_examples:
+      - {trace_id: CHK-gate-env-fidelity__pass__fixture, span_id: span_0000}
+    references:
+      - docs/posts/failure-taxonomy.md#10
+    introduced_in: "1.0.0"
+    status: active

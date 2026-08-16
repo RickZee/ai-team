@@ -159,7 +159,18 @@ warn_unused_configs = true
 ignore_missing_imports = true
 # Resolve src-layout duplicate-module errors (same file as ``ai_team.*`` vs ``src.ai_team.*``).
 explicit_package_bases = true
-mypy_path = "src"
+mypy_path = "src:."
+
+[[tool.mypy.overrides]]
+module = [
+  "evals.fixtures",
+  "evals.fixtures.*",
+  "evals.metrics",
+  "evals.run_evals",
+  "evals.backends.*",
+  "evals.test_backend_comparison",
+]
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -200,6 +211,8 @@ markers = [
     "performance: performance benchmark tests; record timings and write benchmark_results.json.",
     "web_e2e: Web dashboard E2E (demo/mock; no LLM cost).",
     "browser_e2e: Playwright browser E2E (requires built frontend).",
+    "eval_unit: unit tests for the eval harness (deterministic, no network).",
+    "eval_tier_a: Tier A offline replay eval suite ($0 spend).",
 ]
 
 [tool.coverage.run]

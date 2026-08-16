@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "trace_id": "CHK-phase-repeat-bounded__fail__fixture",
+  "scenario_id": "smoke-test",
+  "backend": "crewai",
+  "status": "complete",
+  "started_at": "2026-08-01T12:00:00Z",
+  "ended_at": "2026-08-01T12:05:00Z",
+  "spans": [
+    {
+      "span_id": "span_0000",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:00Z",
+      "t_end": "2026-08-01T12:00:00Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    },
+    {
+      "span_id": "span_0001",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:01Z",
+      "t_end": "2026-08-01T12:00:01Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    },
+    {
+      "span_id": "span_0002",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:02Z",
+      "t_end": "2026-08-01T12:00:02Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    },
+    {
+      "span_id": "span_0003",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:03Z",
+      "t_end": "2026-08-01T12:00:03Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    },
+    {
+      "span_id": "span_0004",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:04Z",
+      "t_end": "2026-08-01T12:00:04Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    },
+    {
+      "span_id": "span_0005",
+      "parent_span_id": null,
+      "type": "phase_start",
+      "t_start": "2026-08-01T12:00:05Z",
+      "t_end": "2026-08-01T12:00:05Z",
+      "agent_role": "fullstack_developer",
+      "phase": "development",
+      "payload": {}
+    }
+  ],
+  "artifacts": [],
+  "cost": {
+    "usd": 0.01,
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "source": "provider_usage",
+    "per_model": {}
+  },
+  "provenance": {
+    "git_sha": "deadbeef",
+    "git_dirty": false,
+    "python_version": "3.12.0",
+    "platform": "test",
+    "harness_version": "0.1.0",
+    "taxonomy_version": "1.0.0",
+    "pricing_table_version": "unset",
+    "seed": null,
+    "tier": "A",
+    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model_ids": {
+      "fullstack_developer": "test-model"
+    }
+  },
+  "warnings": [],
+  "raw_result": {
+    "scenario": {
+      "max_phase_repeats": 4
+    }
+  },
+  "workspace_dir": null
+}

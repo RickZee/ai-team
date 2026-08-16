@@ -1,0 +1,31 @@
+{
+  "judge_id": "fm-001-tool-call-omission",
+  "prompt_hash": "2864202ce15f7911cc7f78ea353a869213d19c62f09151e38e3f3523bec05aa9",
+  "split": "test",
+  "n": 0,
+  "tp": 0,
+  "fp": 0,
+  "tn": 0,
+  "fn": 0,
+  "tpr": 0.0,
+  "tnr": 0.0,
+  "precision": 0.0,
+  "f1": 0.0,
+  "accuracy": 0.0,
+  "kappa": 0.0,
+  "tpr_ci95": [
+    0.0,
+    0.0
+  ],
+  "tnr_ci95": [
+    0.0,
+    0.0
+  ],
+  "eligible_to_gate": false,
+  "ineligibility_reasons": [
+    "no live validation run; pending human golden set + budgeted align"
+  ],
+  "validated_at": "2026-08-16T20:02:11.931627Z",
+  "stale": false,
+  "disagreements": []
+}

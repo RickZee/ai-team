@@ -1,0 +1,14 @@
+# Model rate table for token_estimate cost normalization (R10.2).
+# Verify against provider pricing pages when updating; stamp version with the
+# date checked. Stale rates silently corrupt every estimated cost.
+version: "2026-08-16"
+models:
+  claude-haiku-4-5-20251001:
+    input_per_mtok: 1.00
+    output_per_mtok: 5.00
+  anthropic/claude-sonnet-4:
+    input_per_mtok: 3.00
+    output_per_mtok: 15.00
+  deepseek/deepseek-v3:
+    input_per_mtok: 0.27
+    output_per_mtok: 1.10

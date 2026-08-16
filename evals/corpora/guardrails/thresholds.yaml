@@ -1,0 +1,14 @@
+# Asymmetric floors per design §4.6 / R6.5.
+# Security: high recall floor, tolerant FPR. Scope relevance: reverse.
+scope_relevance:
+  recall_floor: 0.85
+  fpr_ceiling: 0.05
+  min_cases: 40
+role_boundary:
+  recall_floor: 0.90
+  fpr_ceiling: 0.02
+  min_cases: 40
+security_patterns:
+  recall_floor: 0.95
+  fpr_ceiling: 0.10
+  min_cases: 60

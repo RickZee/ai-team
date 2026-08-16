@@ -1,0 +1,12 @@
+{
+  "ran": true,
+  "success": true,
+  "entrypoint": "module",
+  "base_url": "http://127.0.0.1:8765",
+  "probes": [
+    {"method": "GET", "path": "/health", "status": 200, "ok": true, "detail": "ok"},
+    {"method": "GET", "path": "/", "status": 200, "ok": true, "detail": "home"}
+  ],
+  "message": "App booted and 2 probe(s) returned 2xx",
+  "logs": ""
+}

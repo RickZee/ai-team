@@ -6,7 +6,6 @@ import json
 import os
 import re
 import statistics
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -15,10 +14,22 @@ import anthropic
 import httpx
 import structlog
 
+from evals.trace.workspace import resolve_workspace as _resolve_workspace
+
 logger = structlog.get_logger(__name__)
 
-_SCENARIOS_DIR = Path(__file__).parent / "scenarios"
-_RESULTS_DIR = Path(__file__).parent / "results"
+_EVALS_ROOT = Path(__file__).resolve().parent.parent
+_SCENARIOS_DIR = _EVALS_ROOT / "scenarios"
+_RESULTS_DIR = _EVALS_ROOT / "results"
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy re-exports to avoid circular imports with ``evals.judges``."""
+    if name in {"run_pytest_in_workspace", "summarize_workspace"}:
+        from evals.judges import evidence as _evidence
+
+        return getattr(_evidence, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -56,49 +67,6 @@ class EvalResult:
     # Computed after __post_init__ / after judge runs
     judge_scores: dict[str, float] = field(default_factory=dict)
     metrics: dict[str, Any] = field(default_factory=dict)
-
-
-def _resolve_workspace(backend_name: str, raw_result: dict[str, Any]) -> Path | None:
-    """Find the actual workspace directory from the backend result."""
-    from ai_team.config.settings import get_settings
-
-    try:
-        ws_base = Path(get_settings().project.workspace_dir).resolve()
-    except Exception:
-        ws_base = Path("./workspace").resolve()
-
-    # langgraph: thread_id in raw; crewai: project_id in raw or state
-    run_id = (
-        raw_result.get("thread_id")
-        or raw_result.get("project_id")
-        or (raw_result.get("state") or {}).get("project_id")
-    )
-    if run_id:
-        p = ws_base / str(run_id)
-        if p.exists():
-            return p
-
-    # claude-agent-sdk: workspace path in raw
-    ws = raw_result.get("workspace_dir") or raw_result.get("workspace")
-    if ws:
-        p = Path(ws)
-        if p.exists():
-            return p.resolve()
-
-    # last-resort: most-recently-modified subdir
-    try:
-        if ws_base.exists():
-            subdirs = sorted(
-                (d for d in ws_base.iterdir() if d.is_dir()),
-                key=lambda d: d.stat().st_mtime,
-                reverse=True,
-            )
-            if subdirs:
-                return subdirs[0]
-    except Exception:
-        pass
-
-    return None
 
 
 def eval_result_from_run(
@@ -199,6 +167,11 @@ class LLMJudge:
     Configuration (env, all optional):
         ``AI_TEAM_JUDGE_PROVIDER`` — ``anthropic`` (default) or ``openrouter``.
         ``AI_TEAM_JUDGE_MODEL``    — model id for that provider.
+
+    .. deprecated::
+        Continuous ``check()`` scoring is deprecated for gating. Prefer
+        :class:`evals.judges.base.BinaryJudge` (R7.4). ``check()`` remains for
+        legacy callers in ``compute_metrics`` and is excluded from gate logic.
     """
 
     SYSTEM = (
@@ -234,6 +207,14 @@ class LLMJudge:
         return f"{self._provider}:{self._model}"
 
     def check(self, criterion: str, evidence: str) -> JudgeVerdict:
+        """Score evidence against a criterion (continuous Likert-style).
+
+        .. deprecated::
+            Do not use for gating. Prefer :class:`evals.judges.base.BinaryJudge`.
+            On transport failure this method returns ``passed=False``, which
+            inflates measured failure rates (see R7.9). BinaryJudge records
+            ``verdict: error`` instead.
+        """
         last_exc: Exception | None = None
         for attempt in range(3):
             try:
@@ -252,18 +233,27 @@ class LLMJudge:
             return self._check_once_openrouter(prompt)
         return self._check_once_anthropic(prompt)
 
-    def _check_once_anthropic(self, prompt: str) -> JudgeVerdict:
+    def _raw_complete(self, prompt: str, *, system: str | None = None) -> str:
+        """Return raw model text via the same transport as ``_check_once_*``.
+
+        Used by :class:`evals.judges.base.BinaryJudge` so provider plumbing is
+        not duplicated.
+        """
+        if self._provider == "openrouter":
+            return self._raw_once_openrouter(prompt, system=system)
+        return self._raw_once_anthropic(prompt, system=system)
+
+    def _raw_once_anthropic(self, prompt: str, *, system: str | None = None) -> str:
         msg = self._client.messages.create(
             model=self._model,
             max_tokens=256,
-            system=self.SYSTEM,
+            system=system if system is not None else self.SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             timeout=float(self.TIMEOUT_S),
         )
-        raw_text = msg.content[0].text if msg.content else ""
-        return _parse_judge_json(raw_text, context=f"stop_reason={msg.stop_reason}")
+        return msg.content[0].text if msg.content else ""
 
-    def _check_once_openrouter(self, prompt: str) -> JudgeVerdict:
+    def _raw_once_openrouter(self, prompt: str, *, system: str | None = None) -> str:
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             msg = "OPENROUTER_API_KEY is required for the 'openrouter' judge provider"
@@ -275,7 +265,7 @@ class LLMJudge:
                 "model": self._model,
                 "max_tokens": 256,
                 "messages": [
-                    {"role": "system", "content": self.SYSTEM},
+                    {"role": "system", "content": system if system is not None else self.SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
             },
@@ -283,7 +273,14 @@ class LLMJudge:
         )
         response.raise_for_status()
         payload = response.json()
-        raw_text = payload["choices"][0]["message"]["content"]
+        return str(payload["choices"][0]["message"]["content"])
+
+    def _check_once_anthropic(self, prompt: str) -> JudgeVerdict:
+        raw_text = self._raw_once_anthropic(prompt)
+        return _parse_judge_json(raw_text, context="anthropic")
+
+    def _check_once_openrouter(self, prompt: str) -> JudgeVerdict:
+        raw_text = self._raw_once_openrouter(prompt)
         return _parse_judge_json(raw_text, context="openrouter")
 
     def score_goal_alignment(self, goal: str, output_text: str) -> float:
@@ -374,82 +371,6 @@ class EnsembleJudge:
         return float(
             self.check(f"The output fully addresses this goal: {goal}", output_text)["score"]
         )
-
-
-# ---------------------------------------------------------------------------
-# Workspace helpers
-# ---------------------------------------------------------------------------
-
-
-def summarize_workspace(ws: Path, *, max_files: int = 10, max_chars: int = 500) -> str:
-    parts: list[str] = []
-    for py in sorted(ws.rglob("*.py"))[:max_files]:
-        rel = py.relative_to(ws)
-        parts.append(f"## {rel}\n{py.read_text(errors='replace')[:max_chars]}")
-    if not parts:
-        parts.append("(no .py files found)")
-    return "\n\n".join(parts)
-
-
-def run_pytest_in_workspace(ws: Path, *, timeout: int = 120) -> dict[str, Any]:
-    # Collect all src-like dirs: ws root + every nested src/ dir.
-    # SDK puts files at ws/workspace/src/ so rglob catches it.
-    import os as _os
-
-    src_dirs = [ws] + [d for d in ws.rglob("src") if d.is_dir()]
-    extra_paths = ":".join(str(d) for d in src_dirs)
-
-    # Write conftest at ws root AND in every src dir that has test files
-    # so pytest always finds the sys.path additions regardless of rootdir.
-    conftest_body = (
-        "import sys\nfrom pathlib import Path\n_here = Path(__file__).parent\n"
-    ) + "".join(
-        "sys.path.insert(0, str(_here))\n" if d == ws else f'sys.path.insert(0, r"{d}")\n'
-        for d in src_dirs
-    )
-    for candidate in [ws] + [d for d in ws.rglob("src") if d.is_dir()]:
-        cf = candidate / "conftest.py"
-        if not cf.exists():
-            cf.write_text(conftest_body, encoding="utf-8")
-
-    env = {**_os.environ, "PYTHONPATH": extra_paths}
-    result = subprocess.run(
-        [
-            "uv",
-            "run",
-            "pytest",
-            "-q",
-            f"--rootdir={ws}",
-            "--no-header",
-            "--tb=short",
-            "--import-mode=importlib",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        cwd=ws,
-        env=env,
-    )
-    stdout = (result.stdout or "") + (result.stderr or "")
-    passed = (
-        int(re.search(r"(\d+) passed", stdout).group(1))
-        if re.search(r"(\d+) passed", stdout)
-        else 0
-    )
-    failed = (
-        int(re.search(r"(\d+) failed", stdout).group(1))
-        if re.search(r"(\d+) failed", stdout)
-        else 0
-    )
-    total = passed + failed
-    return {
-        "ok": result.returncode == 0,
-        "returncode": result.returncode,
-        "passed": passed,
-        "failed": failed,
-        "pass_rate": passed / total if total else 0.0,
-        "output": stdout[:2000],
-    }
 
 
 # ---------------------------------------------------------------------------

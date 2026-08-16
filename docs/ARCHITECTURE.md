@@ -415,13 +415,15 @@ ai-team/
 │   ├── memory/           # LongTermStore, lessons, self-improvement runtime
 │   ├── monitor.py        # TeamMonitor event collector
 │   └── ui/web/           # FastAPI server + React dashboard
-├── tests/                # unit/, integration/, e2e/
-├── evals/                # run_evals.py, backends/, scenarios/
-├── docs/                 # ARCHITECTURE, GUARDRAILS, DEMOS, EVALS, journal/, troubleshooting/
+├── tests/                # unit/, integration/ (incl. evals/), e2e/
+├── evals/                # Trace harness, taxonomy FM-001…010, checks, Tier A–C CLI
+├── docs/                 # ARCHITECTURE, GUARDRAILS, EVALS*, journal/, troubleshooting/
 ├── demos/                # 00_smoke_test, 02_todo_app
 └── scripts/              # quickstart, run_demo, compare_backends, pre_push_check
 ```
 
+Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
+[EVALS.md](EVALS.md), [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md).
 ---
 
 ## 7. Integration Points and Extension Guide

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "trace_id": "CHK-metric-source-agreement__pass__fixture",
+  "scenario_id": "smoke-test",
+  "backend": "crewai",
+  "status": "complete",
+  "started_at": "2026-08-01T12:00:00Z",
+  "ended_at": "2026-08-01T12:05:00Z",
+  "spans": [],
+  "artifacts": [
+    {
+      "path": "a.py",
+      "size_bytes": 1,
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "kind": "source"
+    },
+    {
+      "path": "b.py",
+      "size_bytes": 1,
+      "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "kind": "source"
+    }
+  ],
+  "cost": {
+    "usd": 1.0,
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "source": "provider_usage",
+    "per_model": {}
+  },
+  "provenance": {
+    "git_sha": "deadbeef",
+    "git_dirty": false,
+    "python_version": "3.12.0",
+    "platform": "test",
+    "harness_version": "0.1.0",
+    "taxonomy_version": "1.0.0",
+    "pricing_table_version": "unset",
+    "seed": null,
+    "tier": "A",
+    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model_ids": {
+      "fullstack_developer": "test-model"
+    }
+  },
+  "warnings": [],
+  "raw_result": {
+    "event_metrics": {
+      "file_count": 2,
+      "cost_usd": 1.0
+    }
+  },
+  "workspace_dir": null
+}

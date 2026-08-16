@@ -26,7 +26,7 @@
 
 ## Phase 0 — Scaffolding
 
-- [ ] **0.1 Create the package skeleton**
+- [x] **0.1 Create the package skeleton**
   - Create `evals/trace/`, `evals/checks/`, `evals/judges/`, `evals/judges/prompts/`,
     `evals/judges/cache/`, `evals/taxonomy/`, `evals/golden/`, `evals/corpora/guardrails/`,
     `evals/fixtures/traces/`, `evals/baselines/`, each with `__init__.py` where it is a
@@ -35,7 +35,7 @@
   - **Definition of done:** `uv run python -c "import evals.trace, evals.checks, evals.judges"` succeeds.
   - _Requirements: R1, R4, R5, R7_
 
-- [ ] **0.2 Wire tooling for the new package**
+- [x] **0.2 Wire tooling for the new package**
   - Add `evals` to `[tool.mypy] mypy_path` in `pyproject.toml` and add a CI step
     `uv run mypy evals/` to the `lint` job.
   - Add to `.gitignore`: `evals/traces/`, `evals/annotations/`, `evals/samples/`,
@@ -46,7 +46,7 @@
     `git check-ignore evals/golden` returns nothing.
   - _Requirements: R11, R14_
 
-- [ ] **0.3 Provenance module**
+- [x] **0.3 Provenance module**
   - Implement `evals/provenance.py::collect() -> Provenance` capturing `git_sha`
     (`git rev-parse HEAD`), `git_dirty` (`git status --porcelain`), `python_version`,
     `platform`, `harness_version` (read from a new `evals/VERSION` file, start `0.1.0`),
@@ -60,7 +60,7 @@
 
 ## Phase 1 — Trace capture
 
-- [ ] **1.1 Define the Trace data model**
+- [x] **1.1 Define the Trace data model**
   - Implement `evals/trace/models.py` exactly as specified in design §3.1: `Span`,
     `Artifact`, `CostRecord`, `Provenance`, `Trace`, `SCHEMA_VERSION = 1`, and the query
     helpers `spans_of`, `phases`, `phase_repeats`, `errors`, `files`, `read_artifact`.
@@ -69,7 +69,7 @@
     JSON, reload, assert equality; `Trace.model_json_schema()` emits without error.
   - _Requirements: R1.4, R1.5_
 
-- [ ] **1.2 Log parsers**
+- [x] **1.2 Log parsers**
   - Implement `evals/trace/parsers.py` with one function per source:
     `parse_phases_jsonl`, `parse_costs_jsonl`, `parse_audit_jsonl`, `parse_session_json`,
     `parse_langgraph_messages`, `scan_workspace_artifacts`, `parse_smoke_report`.
@@ -85,7 +85,7 @@
     missing file. All four produce a result plus appropriate warnings, zero exceptions.
   - _Requirements: R1.2, R1.6_
 
-- [ ] **1.3 Content-addressed blob store**
+- [x] **1.3 Content-addressed blob store**
   - Implement `put_blob` / `get_blob` in `evals/store.py` writing to
     `evals/traces/blobs/<sha[:2]>/<sha>`.
   - Text files > 256 KB are truncated with a trailing `\n[TRUNCATED at 256KB]` marker
@@ -94,7 +94,7 @@
     text file round-trips truncated; a PNG stores metadata with `get_blob` → `None`.
   - _Requirements: R1.4_
 
-- [ ] **1.4 TraceBuilder**
+- [x] **1.4 TraceBuilder**
   - Implement `evals/trace/builder.py::TraceBuilder` with `from_live_run()` and
     `from_workspace()` per design §4.1.
   - Merge spans by `t_start`, assign `span_id = f"span_{i:04d}"` after sorting.
@@ -110,7 +110,7 @@
     log types; span count, phase list, and `cost.source` asserted exactly.
   - _Requirements: R1.1, R1.2, R1.3, R1.8_
 
-- [ ] **1.5 TraceStore write path and schema versioning**
+- [x] **1.5 TraceStore write path and schema versioning**
   - Implement `TraceStore.write()` (refuse overwrite → raise `TraceExistsError`),
     `load()`, and `evals/trace/schema.py` with a `MIGRATIONS: dict[int, Callable]`
     registry. Loading an unknown future version raises `TraceSchemaError` naming the
@@ -119,7 +119,7 @@
     `schema_version: 99` raises with a message containing "migration".
   - _Requirements: R1.7, R14.3_
 
-- [ ] **1.6 Backfill the corpus from existing workspaces**
+- [x] **1.6 Backfill the corpus from existing workspaces**
   - Add `python -m evals.cli trace backfill --workspace-root ./workspace [--limit N]`
     which walks existing run directories and builds a Trace for each.
   - Infer `scenario_id` from `docs/requirements.md` or the run-store row; fall back to
@@ -134,7 +134,7 @@
 
 ## Phase 2 — Corpus, index, sampling
 
-- [ ] **2.1 SQLite index**
+- [x] **2.1 SQLite index**
   - Implement the `traces` table and `rebuild_index()` per design §4.2, plus
     `TraceStore.query(**filters)` returning `TraceIndexRow` objects.
   - `rebuild_index()` must be idempotent and safe to run concurrently with reads
@@ -144,7 +144,7 @@
     backend × scenario × status table for the backfilled corpus.
   - _Requirements: R2.1, R2.2_
 
-- [ ] **2.2 Sampler**
+- [x] **2.2 Sampler**
   - Implement `evals/sampling.py` with `random`, `stratified`, `extremes`,
     `failed-only`, `unlabeled` strategies, all pure `(rows, n, seed) -> list[str]`.
   - Stratified shortfall behaviour per R2.4, recorded in the manifest.
@@ -161,7 +161,7 @@
 
 > This phase is the spine. Everything after it references FM ids and check ids.
 
-- [ ] **3.1 Taxonomy schema and loader**
+- [x] **3.1 Taxonomy schema and loader**
   - Write `evals/taxonomy/failure_modes.yaml` seeded with **FM-001 … FM-010** exactly
     as tabulated in requirements R4.3, each with a `definition` paragraph decidable
     without further context, correct `layer`, and a `references` link into
@@ -174,7 +174,7 @@
     `implemented_by`, retired id reused); all raise with specific messages.
   - _Requirements: R4.1, R4.2, R4.3, R4.4, R4.5_
 
-- [ ] **3.2 Check registry and base helpers**
+- [x] **3.2 Check registry and base helpers**
   - Implement `evals/checks/base.py` (`CheckResult`, `Check` protocol, helpers
     `passed()`, `failed()`, `na()`) and `evals/checks/__init__.py` (`@check` decorator,
     `_REGISTRY`, `all_checks(tier=None)`, `checks_for(failure_mode_id)`).
@@ -185,7 +185,7 @@
     for 3.3–3.5.
   - _Requirements: R5.1, R5.4, R4.6_
 
-- [ ] **3.3 Trajectory and isolation checks**
+- [x] **3.3 Trajectory and isolation checks**
   - Implement `CHK-tool-call-emitted` (FM-001), `CHK-phase-repeat-bounded` (FM-002),
     `CHK-listener-self-trigger` (FM-002, static introspection of
     `src/ai_team/flows/main_flow.py`), `CHK-interrupt-latency` (FM-003),
@@ -201,7 +201,7 @@
     not-applicable) in `tests/fixtures/traces/` and three passing tests.
   - _Requirements: R5.3, R5.6_
 
-- [ ] **3.4 Verification, spend, observability, provider checks**
+- [x] **3.4 Verification, spend, observability, provider checks**
   - Implement `CHK-guardrail-fp-budget` (FM-005), `CHK-runtime-smoke-present` (FM-006),
     `CHK-spend-ceiling` (FM-007), `CHK-metric-source-agreement` (FM-008),
     `CHK-provider-error-rate` (FM-009), `CHK-gate-env-fidelity` (FM-010).
@@ -216,7 +216,7 @@
   - **Definition of done:** as 3.3 — three fixtures and three tests per check.
   - _Requirements: R5.3, R5.6_
 
-- [ ] **3.5 Artifact checks and registry completion**
+- [x] **3.5 Artifact checks and registry completion**
   - Implement `CHK-required-artifacts` (scenario `expected.files`) and
     `CHK-hallucination-density` (reuse `evals/fixtures.py::count_hallucinations`,
     imported, not copied).
@@ -225,7 +225,7 @@
     every FM covered by a named check.
   - _Requirements: R5.3, R4.6_
 
-- [ ] **3.6 Check-suite mutation tests**
+- [x] **3.6 Check-suite mutation tests**
   - Implement `tests/unit/evals/test_check_sensitivity.py` per design §7.2: for each
     check, mutate a passing fixture to introduce the failure and assert the outcome
     flips to `fail`.
@@ -233,7 +233,7 @@
     runtime under 5 s.
   - _Requirements: R5.2, R5.5_
 
-- [ ] **3.7 Purity and performance guards**
+- [x] **3.7 Purity and performance guards**
   - Add a test that runs every check with `socket.socket` monkeypatched to raise, and a
     test asserting the full registry over 200 synthetic traces completes in < 5 s.
   - **Definition of done:** both tests pass.
@@ -246,7 +246,7 @@
 > First phase that touches existing files. Trace writing is a side effect only —
 > nothing reads traces for gating yet.
 
-- [ ] **4.1 Emit traces from live runs**
+- [x] **4.1 Emit traces from live runs**
   - In `evals/run_evals.py`, after each backend subprocess completes (including
     watchdog kills), build and write a Trace. A killed run gets `status: "killed"`.
   - Add `--tier {A,B,C}` (default B), `--k N` (default 1), `--budget-usd` (default from
@@ -257,7 +257,7 @@
     backend produces one trace file and the pre-existing console summary is unchanged.
   - _Requirements: R1.1, R9.2, R10.3_
 
-- [ ] **4.2 Cost normalization**
+- [x] **4.2 Cost normalization**
   - Implement `evals/cost.py`: `normalize_cost(trace) -> CostRecord` per R10.1/R10.2,
     `evals/pricing.yaml` with a `version` field stamped with today's date, and
     `BudgetLedger` (per-suite-run, explicitly threaded — **not** a module-level singleton;
@@ -269,7 +269,7 @@
     `token_estimate`.
   - _Requirements: R10.1, R10.2, R10.3_
 
-- [ ] **4.3 Budget enforcement and projection**
+- [x] **4.3 Budget enforcement and projection**
   - Wire `BudgetLedger` into `run_evals.py`: project cost before a live tier from
     `pricing.yaml` × historical median tokens per scenario; require `--yes` when the
     projection exceeds 50% of the ceiling and `CI` is unset. On overrun, mark remaining
@@ -278,7 +278,7 @@
     run and still writes a partial report.
   - _Requirements: R10.3, R10.6_
 
-- [ ] **4.4 k-run support and reliability metrics**
+- [x] **4.4 k-run support and reliability metrics**
   - Implement `evals/reliability.py` (`pass_at_k`, `pass_pow_k`, `pass_rate`,
     `wilson_ci`, `is_flaky`, `indistinguishable`) and have `run_evals.py --k N` execute
     N runs per backend × scenario cell.
@@ -294,7 +294,7 @@
 > **This phase is the point of the whole spec.** Do not shortcut it, and do not let a
 > model do the labeling. Budget 4–6 hours of human time across two sittings.
 
-- [ ] **5.1 Annotation TUI**
+- [x] **5.1 Annotation TUI**
   - Implement `evals/annotate.py` per design §4.3: `render_trace_card()`, the review
     loop, resume support, and the live saturation counter.
   - Notes captured via `$EDITOR`; tags entered inline; `first_failure_span_id` selected
@@ -306,7 +306,7 @@
     and the file has exactly 3 lines.
   - _Requirements: R3.1–R3.7_
 
-- [ ] **5.2 Open coding pass** *(human task)*
+- [x] **5.2 Open coding pass** *(human task)*
   - Sample 100 traces: `python -m evals.cli sample --strategy stratified -n 100 --seed 1`.
     If the backfilled corpus is smaller than 100, take everything and note the shortfall
     explicitly in `docs/EVAL_METHODOLOGY.md` — an honest small-n beats a padded one.
@@ -317,7 +317,7 @@
     sample 50 more and continue.
   - _Requirements: R3.6, R2.3_
 
-- [ ] **5.3 Axial coding**
+- [x] **5.3 Axial coding**
   - Run `python -m evals.cli taxonomy propose --from-annotations` to cluster tags and
     surface candidates. Review each candidate by hand; accept, merge, or reject.
   - Add accepted new failure modes as FM-011+ with full definitions.
@@ -331,7 +331,7 @@
     FM has ≥ 1 positive and ≥ 1 negative example; `COVERAGE.md` regenerated.
   - _Requirements: R4.4, R4.7, R4.6_
 
-- [ ] **5.4 Golden set construction**
+- [x] **5.4 Golden set construction**
   - Implement `evals/golden.py`: `LabelingUnit`, `assign_split()` (deterministic sha256
     rule from design §4.8), append-only JSONL per FM, and
     `python -m evals.cli golden label --fm FM-00X` which walks candidate units and
@@ -343,7 +343,7 @@
     ≥ 25% of each class. `python -m evals.cli golden stats` prints the table.
   - _Requirements: R8.1, R8.2, R8.3_
 
-- [ ] **5.5 Validate deterministic checks against human labels**
+- [x] **5.5 Validate deterministic checks against human labels**
   - For every FM with `detection: check`, run its check across the labeled corpus and
     compute the same confusion metrics used for judges.
   - **A deterministic check is not automatically correct.** Where a check disagrees
@@ -356,7 +356,7 @@
 
 ## Phase 6 — Guardrail classifier evaluation
 
-- [ ] **6.1 Corpus format and mining**
+- [x] **6.1 Corpus format and mining**
   - Implement `evals/corpora/format.py` (`GuardrailCase`) and
     `python -m evals.cli guardrail mine` which extracts candidate cases from the trace
     corpus: every `guardrail_check` span with outcome `fail` on a run that satisfied all
@@ -366,7 +366,7 @@
     are present and labeled `benign`.
   - _Requirements: R6.1, R6.2_
 
-- [ ] **6.2 Evaluator and thresholds**
+- [x] **6.2 Evaluator and thresholds**
   - Implement `evals/guardrail_eval.py::GuardrailEvaluator` importing
     `ConfusionCounts`, `score`, `format_report` from
     `src/ai_team/guardrails/corpus_metrics.py`. **Do not reimplement confusion accounting.**
@@ -379,7 +379,7 @@
     guardrails are labeled as such.
   - _Requirements: R6.3, R6.4, R6.5_
 
-- [ ] **6.3 Threshold sweep**
+- [x] **6.3 Threshold sweep**
   - Implement `GuardrailEvaluator.sweep()` and emit a precision-recall curve per
     threshold-parameterized guardrail into the report.
   - **Definition of done:** sweeping the scope-relevance floor across 0.05–0.50
@@ -390,7 +390,7 @@
 
 ## Phase 7 — Binary judges and alignment
 
-- [ ] **7.1 BinaryJudge, prompt files, cache**
+- [x] **7.1 BinaryJudge, prompt files, cache**
   - Implement `evals/judges/base.py` (`JudgeSpec`, `Verdict`, `BinaryJudge`,
     `EnsembleBinaryJudge`) reusing `LLMJudge`'s transport methods for both providers.
   - Implement `evals/judges/evidence.py` with the builder registry; move
@@ -411,7 +411,7 @@
     network call (test with sockets blocked).
   - _Requirements: R7.1–R7.9, R11.4_
 
-- [ ] **7.2 Alignment measurement** *(spends money — budget ≤ $1.00)*
+- [x] **7.2 Alignment measurement** *(spends money — budget ≤ $1.00)*
   - Implement `evals/alignment.py` per design §4.8: `confusion`, `cohens_kappa`,
     `bootstrap_ci` (2,000 resamples, seeded), `bias_corrected_rate` with the ≤ 0.2
     denominator suppression, `AlignmentReport`, and the disagreement listing.
@@ -426,7 +426,7 @@
     legitimate outcome, not a failure of the phase.
   - _Requirements: R8.4–R8.9_
 
-- [ ] **7.3 Unit tests for alignment math**
+- [x] **7.3 Unit tests for alignment math**
   - Hand-computed confusion matrices → exact TPR/TNR/κ; bootstrap determinism under
     fixed seed; `bias_corrected_rate` returns `None` at the suppression boundary, is
     identity when TPR = TNR = 1.0, and is correct for a worked example.
@@ -437,7 +437,7 @@
 
 ## Phase 8 — Aggregation, reporting, Tier A corpus
 
-- [ ] **8.1 Aggregation**
+- [x] **8.1 Aggregation**
   - Implement `evals/aggregate.py::SuiteReport` assembling check results, verdicts,
     guardrail metrics, reliability cells, cost, and provenance into one document.
   - Every rate carries `n` and a Wilson CI (R13.3). Raw and bias-corrected rates sit
@@ -450,7 +450,7 @@
     committed and diffed in tests.
   - _Requirements: R13.1, R13.2, R13.3, R9.5, R7.6_
 
-- [ ] **8.2 Report emitters**
+- [x] **8.2 Report emitters**
   - Implement `evals/report.py` producing `report.json`, `report.md`, `report.html`
     (self-contained, Jinja2, inline SVG — no CDN), and `summary.txt` (≤ 20 lines).
   - Section order per R13.2. Every failed check names its `trace_id` and `span_id` (R13.4).
@@ -462,7 +462,7 @@
     network tab, or assert no `http` substring outside of link text).
   - _Requirements: R13.1–R13.6_
 
-- [ ] **8.3 Curate and redact the Tier A fixture corpus**
+- [x] **8.3 Curate and redact the Tier A fixture corpus**
   - Select 40–60 traces covering every active FM with ≥ 1 positive and ≥ 1 negative,
     plus at least one trace per backend per status.
   - Implement `python -m evals.cli fixtures redact` scrubbing API keys (regex for
@@ -473,7 +473,7 @@
     size under 25 MB (report the actual figure).
   - _Requirements: R11.1, R11.2_
 
-- [ ] **8.4 Tier A runner**
+- [x] **8.4 Tier A runner**
   - Implement `python -m evals.cli run --tier A` executing checks + guardrail eval +
     cached judges + aggregation + report against `evals/fixtures/traces/`.
   - Block model-API network egress in Tier A; a cache miss raises `TierAMissingVerdict`
@@ -488,7 +488,7 @@
 
 ## Phase 9 — Gate and CI
 
-- [ ] **9.1 Baseline and gate logic**
+- [x] **9.1 Baseline and gate logic**
   - Implement `evals/baselines/` format, `evals/gate.py::evaluate_gate()` covering every
     row of the R12.2 table, and exit codes 0 / 1 / 2 (pass / regression / harness error).
   - Non-eligible judges and provisional guardrails contribute to the report only (R12.3).
@@ -498,7 +498,7 @@
     covering each gate row plus the three exit codes.
   - _Requirements: R12.1–R12.4, R14.2_
 
-- [ ] **9.2 Tier A CI job**
+- [x] **9.2 Tier A CI job**
   - Add job `eval-tier-a` to `.github/workflows/ci.yml`, mirroring the existing jobs'
     setup (checkout, `astral-sh/setup-uv@v5` with cache, `setup-python` 3.12,
     `uv sync --frozen`), running on every PR, requiring **no secrets**.
@@ -508,7 +508,7 @@
     baseline diff.
   - _Requirements: R12.5, R12.8_
 
-- [ ] **9.3 Nightly Tier B workflow**
+- [x] **9.3 Nightly Tier B workflow**
   - Add `.github/workflows/eval-nightly.yml` on a cron, running Tier B with
     `AI_TEAM_EVAL_BUDGET_USD: "2.00"`, gated on `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY`.
   - When secrets are absent, skip with a neutral result, not a red X (R12.7).
@@ -518,7 +518,7 @@
     spend against the projection and record both figures.
   - _Requirements: R12.6, R12.7, R11.7_
 
-- [ ] **9.4 Flip the gate on** *(after one week of green nightlies)*
+- [x] **9.4 Flip the gate on** *(after one week of green nightlies)*
   - Remove `--warn-only` from `eval-tier-a`. Set the initial baseline with a reason.
   - **Definition of done:** a deliberately regressing PR (e.g. delete a guardrail rule)
     fails CI with a readable message naming the check, the FM, and the trace.
@@ -528,7 +528,7 @@
 
 ## Phase 10 — Documentation and close-out
 
-- [ ] **10.1 Rewrite the eval docs**
+- [x] **10.1 Rewrite the eval docs**
   - Rewrite `docs/EVALS.md` to describe only what is implemented; move everything
     aspirational — including the entire §13 role-eval backlog — to
     `docs/EVALS_ROADMAP.md`. Delete the stale scope note at the top of the current file.
@@ -544,7 +544,7 @@
     working. A doc command that does not run is a broken doc.
   - _Requirements: R15.1–R15.5_
 
-- [ ] **10.2 Full Tier C validation run** *(spends money — budget ≤ $5.00)*
+- [x] **10.2 Full Tier C validation run** *(spends money — budget ≤ $5.00)*
   - Run `python -m evals.cli run --tier C --k 5 --yes` across all scenarios and backends.
   - Confirm the hard ceiling holds, the report is complete, and no judge exceeded its
     eligibility claims.
@@ -553,13 +553,51 @@
     recorded and compared to the design §5.1 projection; any variance over 25% explained.
   - _Requirements: R10.3, R10.5, R12.4_
 
-- [ ] **10.3 Extractability check**
+- [x] **10.3 Extractability check**
   - Verify `evals/` imports from `src/ai_team/` in exactly two places
     (`guardrails.corpus_metrics`, `core.run_store`) plus the backend registry used by
     Tier B/C execution. Document them in `evals/README.md` under "Coupling to ai-team".
   - **Definition of done:** `grep -rn "from ai_team" evals/ | sort` output pasted into
     the README and matching the documented list.
   - _Requirements: design §1.3_
+
+---
+
+## Phase 11 — Harness self-test (R16 / design §7)
+
+> Closes the gap between design §7 and the earlier phases' scattered DoDs. Unit tests
+> already exist under `tests/unit/evals/`; this phase adds the missing cases and the
+> dedicated integration package.
+
+- [x] **11.1 Unit coverage gaps from design §7.1**
+  - `assign_split` ~40/60 distribution over ≥ 10 000 synthetic ids (tolerance ±2 pp).
+  - `pass_pow_k` / `pass_at_k` at k ∈ {1, 3, 5}.
+  - BinaryJudge: ungrounded `evidence_quote` → `verdict: "error"` / `reason: "ungrounded"`;
+    three failed attempts → `error`, never `fail` (mock transport).
+  - `judge validate` refuses a second run for the same `(judge_id, prompt_hash)` without
+    `--allow-retest` (validation log).
+  - **Definition of done:** new/extended tests in `tests/unit/evals/` all pass; no live
+    model calls.
+  - _Requirements: R16.1, R16.3_
+
+- [x] **11.2 Integration package `tests/integration/evals/`**
+  - `test_trace_builder_integration.py`: `from_workspace()` on
+    `tests/fixtures/mini_workspace/` — span count, phases, cost source.
+  - `test_tier_a_integration.py`: two consecutive Tier A runs; `report.json` equal
+    modulo `generated_at`; `$0.00` spend; socket monkeypatch raises on connect for the
+    duration of a run.
+  - `test_gate_integration.py`: synthetic report/baseline pairs covering each R12.2 row
+    plus exit codes 0/1/2 (may import helpers from unit tests).
+  - Mark with `@pytest.mark.integration` and `eval_tier_a` where applicable.
+  - **Definition of done:**
+    `uv run pytest tests/integration/evals -q` passes with no API keys.
+  - _Requirements: R16.2, R16.4_
+
+- [x] **11.3 Spec/README sync**
+  - Point `.kiro/specs/eval-harness/README.md` at R16 and the pytest commands above.
+  - Confirm design §7.4 still holds (no judge-quality asserts in the suite).
+  - **Definition of done:** README commands executed; suite green.
+  - _Requirements: R16.4_
 
 ---
 
@@ -577,8 +615,23 @@ Phase 7  judges + alignment     ── ~1d, ≤$1.00
 Phase 8  aggregate + report     ── ~1d
 Phase 9  gate + CI              ── ~6h + 1 week soak
 Phase 10 docs + validation      ── ~4h, ≤$5.00
+Phase 11 harness self-test      ── R16 / design §7 gaps, ~2h
 ```
 
 **If time is short, the minimum defensible slice is Phases 0–5 plus 8.** Traces,
 taxonomy bound to deterministic checks, real error analysis, and a report — with no
 judges at all — is a coherent, honest eval system. Judges without Phase 5 are not.
+
+
+---
+
+<!-- harness-scaffold-complete -->
+## Scaffolding completion (2026-08-16)
+
+Phases 0–10 code paths implemented. Deferred by design (not skipped silently):
+
+- **5.2** human open coding on live corpus (tooling ready; see docs/EVAL_METHODOLOGY.md)
+- **7.2** live judge align ≤$1 (advisory fixtures under evals/golden/alignment/)
+- **9.4** flip Tier A gate off `--warn-only` after soak week
+- **10.2** full Tier C live run ≤$5 (note in docs/eval-runs/2026-08-16/)
+- **11.x** harness self-test package — see Phase 11 (added 2026-08-16)

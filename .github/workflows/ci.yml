@@ -57,6 +57,9 @@ jobs:
       - name: Mypy
         run: uv run mypy src/
 
+      - name: Mypy evals
+        run: uv run mypy evals/
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -223,3 +226,50 @@ jobs:
         with:
           name: bandit-report
           path: bandit-report.json
+
+  # ---------------------------------------------------------------------------
+  # Tier A offline eval — $0 spend, no secrets. Gate starts in --warn-only mode
+  # (task 9.4): DO NOT remove --warn-only until one week of green nightlies.
+  # ---------------------------------------------------------------------------
+  eval-tier-a:
+    name: Eval Tier A
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Redaction lint on fixtures
+        run: uv run python -m evals.cli fixtures redact --root evals/fixtures --lint
+
+      - name: Run Tier A (warn-only soak — do not flip gate yet)
+        # Task 9.4: leave --warn-only until a week of green nightlies, then remove it.
+        run: |
+          OUT="evals/results/ci-tier-a"
+          mkdir -p "$OUT"
+          uv run python -m evals.cli run --tier A --warn-only --out "$OUT" \
+            --github-summary "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Tier A report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-tier-a-report
+          path: |
+            evals/results/ci-tier-a/report.json
+            evals/results/ci-tier-a/report.md
+            evals/results/ci-tier-a/report.html
+            evals/results/ci-tier-a/summary.txt
+            evals/results/ci-tier-a/gate.md

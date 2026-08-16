@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Eval report golden_suite_001</title>
+<style>
+  :root { --fg: #1a1a1a; --muted: #555; --fail: #b00020; --pass: #0b6e4f; --bg: #f7f5f2; }
+  body { font-family: "IBM Plex Sans", "Segoe UI", sans-serif; color: var(--fg);
+         background: linear-gradient(160deg, #f7f5f2 0%, #e8eef2 100%);
+         margin: 0; padding: 2rem; line-height: 1.45; }
+  h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.15rem; margin-top: 1.75rem; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; }
+  .headline { font-size: 1.1rem; font-weight: 600; }
+  .verdict-pass { color: var(--pass); }
+  .verdict-fail { color: var(--fail); }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+  table { border-collapse: collapse; width: 100%; max-width: 960px; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
+  th { background: #eef2f5; }
+  svg.chart { background: #fff; border: 1px solid #ddd; margin: 0.5rem 0 1rem; }
+  code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.85rem; }
+  ul.failed { padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+  <h1>Eval suite report</h1>
+  <p class="muted">run_id=<code>golden_suite_001</code> · tier=A ·
+     generated_at=2026-08-16 12:00:00+00:00</p>
+  <p class="headline verdict-fail">FAIL — 1 failed check(s) across suite</p>
+
+  <h2>1. Headline verdict</h2>
+  <p>Verdict: <strong>fail</strong></p>
+
+  <h2>2. Scorecard</h2>
+  <table>
+    <thead><tr><th>Backend</th><th>Scenario</th><th>Outcome</th><th>pass^k</th>
+    <th>pass_rate</th><th>n</th><th>95% CI</th></tr></thead>
+    <tbody>
+    
+      <tr>
+        <td>claude-agent-sdk</td><td>smoke-test</td>
+        <td>indeterminate</td>
+        <td>1.000</td>
+        <td>1.000 (n=2)</td>
+        <td>2</td>
+        <td>[0.342, 1.000]</td>
+      </tr>
+    
+      <tr>
+        <td>crewai</td><td>smoke-test</td>
+        <td>indeterminate</td>
+        <td>1.000</td>
+        <td>1.000 (n=2)</td>
+        <td>2</td>
+        <td>[0.342, 1.000]</td>
+      </tr>
+    
+      <tr>
+        <td>langgraph</td><td>smoke-test</td>
+        <td>indeterminate</td>
+        <td>0.000</td>
+        <td>0.500 (n=2)</td>
+        <td>2</td>
+        <td>[0.095, 0.905]</td>
+      </tr>
+    
+    </tbody>
+  </table>
+
+  <h2>3. Regressions vs baseline</h2>
+  <p class="muted">See gate output / CI summary for baseline diff.</p>
+
+  <h2>4. Failure-mode incidence</h2>
+  <table>
+    <thead><tr><th>FM</th><th>Layer</th><th>Raw rate</th><th>Bias-corrected</th><th>Fails</th></tr></thead>
+    <tbody>
+    
+      <tr>
+        <td>FM-001</td><td>model</td>
+        <td>0.500 (n=2, 95% CI [0.095, 0.905])</td>
+        <td>—</td>
+        <td>1</td>
+      </tr>
+    
+      <tr>
+        <td>FM-009</td><td>provider</td>
+        <td>0.000 (n=1, 95% CI [0.000, 0.793])</td>
+        <td>—</td>
+        <td>0</td>
+      </tr>
+    
+    </tbody>
+  </table>
+
+  <h2>5. Reliability budget by layer</h2>
+  <svg class="chart" xmlns="http://www.w3.org/2000/svg" width="520" height="220" viewBox="0 0 520 220" role="img" aria-label="Failure incidence by layer"><text x="48" y="16" font-size="12" fill="#333">Failure incidence by taxonomy layer (total fails=1)</text><rect x="60.0" y="24.0" width="67.2" height="160.0" fill="#3d5a80"/><text x="93.6" y="208" text-anchor="middle" font-size="11" fill="#333">model</text><text x="93.6" y="20.0" text-anchor="middle" font-size="10" fill="#333">1</text><rect x="172.0" y="184.0" width="67.2" height="0.0" fill="#ee6c4d"/><text x="205.6" y="208" text-anchor="middle" font-size="11" fill="#333">framework</text><text x="205.6" y="180.0" text-anchor="middle" font-size="10" fill="#333">0</text><rect x="284.0" y="184.0" width="67.2" height="0.0" fill="#98c1d9"/><text x="317.6" y="208" text-anchor="middle" font-size="11" fill="#333">harness</text><text x="317.6" y="180.0" text-anchor="middle" font-size="10" fill="#333">0</text><rect x="396.0" y="184.0" width="67.2" height="0.0" fill="#293241"/><text x="429.6" y="208" text-anchor="middle" font-size="11" fill="#333">provider</text><text x="429.6" y="180.0" text-anchor="middle" font-size="10" fill="#333">0</text><line x1="48" y1="184" x2="504" y2="184" stroke="#999"/></svg>
+
+  <h2>6. Judge alignment</h2>
+  <table>
+    <thead><tr><th>Judge</th><th>Eligible</th><th>TPR</th><th>TNR</th><th>κ</th></tr></thead>
+    <tbody>
+    
+      <tr>
+        <td>fm-001-tool-call-omission</td>
+        <td>False</td>
+        <td>0.85</td>
+        <td>0.8</td>
+        <td>0.6</td>
+      </tr>
+    
+    </tbody>
+  </table>
+  
+  <h3>Suppressed</h3>
+  <ul><li><code>judge:fm-001-tool-call-omission: below eligibility thresholds (R8.6)</code></li><li><code>guardrail:scope_relevance: provisional (n=5 below min_cases)</code></li></ul>
+  
+
+  <h2>7. Guardrail precision-recall</h2>
+  <svg class="chart" xmlns="http://www.w3.org/2000/svg" width="520" height="260" viewBox="0 0 520 260" role="img" aria-label="Guardrail precision-recall"><text x="40" y="16" font-size="12" fill="#333">Guardrail precision-recall</text><line x1="40" y1="220" x2="480" y2="220" stroke="#999"/><line x1="40" y1="40" x2="40" y2="220" stroke="#999"/><text x="260.0" y="252" text-anchor="middle" font-size="10" fill="#555">recall</text><text x="12" y="130.0" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 12 130.0)">precision</text><circle cx="436.0" cy="130.0" r="3" fill="#3d5a80"/><circle cx="370.0" cy="76.0" r="3" fill="#3d5a80"/><circle cx="216.0" cy="49.0" r="3" fill="#3d5a80"/><polyline fill="none" stroke="#3d5a80" stroke-width="2" points="436.0,130.0 370.0,76.0 216.0,49.0"/><text x="476" y="54" text-anchor="end" font-size="10" fill="#3d5a80">scope_relevance</text></svg>
+  <table>
+    <thead><tr><th>Guardrail</th><th>n</th><th>Precision</th><th>Recall</th><th>FPR</th><th>Provisional</th></tr></thead>
+    <tbody>
+    
+      <tr>
+        <td>scope_relevance</td><td>5</td>
+        <td>0.8</td>
+        <td>0.75</td>
+        <td>0.1</td>
+        <td>True</td>
+      </tr>
+    
+    </tbody>
+  </table>
+
+  <h2>8. Cost and latency</h2>
+  <p>Cost: $0.0000
+     (ceiling $0.00)</p>
+  <p>Latency p95:
+     2.00s
+     (n=3)</p>
+
+  <h2>9. Flaky cells</h2>
+  
+  <ul><li><code>langgraph/smoke-test</code></li></ul>
+  
+
+  <h2>10. Failed checks</h2>
+  <ul class="failed">
+  
+    <li><code>CHK-tool-call-emitted</code> · trace=<code>trace_fail_001</code>
+        · span=<code>span_0001</code>
+         — no tool_use in development phase</li>
+  
+  </ul>
+
+  <h2>11. Provenance</h2>
+  <pre>{
+  &#34;git_dirty&#34;: false,
+  &#34;git_sha&#34;: &#34;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&#34;,
+  &#34;harness_version&#34;: &#34;0.1.0&#34;,
+  &#34;model_ids&#34;: {
+    &#34;judge&#34;: &#34;test-model&#34;
+  },
+  &#34;platform&#34;: &#34;test-platform&#34;,
+  &#34;pricing_table_version&#34;: &#34;2026-08-16&#34;,
+  &#34;python_version&#34;: &#34;3.12.0&#34;,
+  &#34;scenario_content_sha256&#34;: &#34;bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&#34;,
+  &#34;seed&#34;: 0,
+  &#34;taxonomy_version&#34;: &#34;1.0.0&#34;,
+  &#34;tier&#34;: &#34;A&#34;
+}</pre>
+</body>
+</html>
