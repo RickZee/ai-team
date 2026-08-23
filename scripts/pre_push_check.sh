@@ -97,7 +97,7 @@ if [[ "$RUN_E2E" == true ]]; then
 fi
 
 echo "==> pip-audit (upgrade pip like CI security job)"
-uv run python -m pip install --upgrade "pip>=26.1.2" -q
+uv run python -m pip install --upgrade "pip>=26.2" -q
 ./scripts/pip_audit.sh
 
 echo "All pre-push checks passed."

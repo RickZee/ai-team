@@ -234,6 +234,10 @@ markers = [
     "eval_tier_a: Tier A offline replay eval suite ($0 spend).",
 ]
 
+[tool.uv]
+# pip-api (via pip-audit) pulls pip; floor for PYSEC-2026-3721 / CVE-2026-13346.
+constraint-dependencies = ["pip>=26.2"]
+
 [tool.coverage.run]
 source = ["src/ai_team"]
 branch = true

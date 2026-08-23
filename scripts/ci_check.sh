@@ -63,7 +63,7 @@ if [[ "$RUN_MATRIX" == true ]]; then
 fi
 
 echo "==> CI parity: Security (pip-audit)"
-uv run python -m pip install --upgrade "pip>=26.1.2" -q
+uv run python -m pip install --upgrade "pip>=26.2" -q
 ./scripts/pip_audit.sh
 
 echo "All ci_check gates passed."

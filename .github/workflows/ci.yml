@@ -207,7 +207,7 @@ jobs:
         run: uv run pip install bandit
 
       - name: Upgrade pip (audit tooling CVEs)
-        run: uv run python -m pip install --upgrade "pip>=26.1.2"
+        run: uv run python -m pip install --upgrade "pip>=26.2"
 
       - name: Bandit security scan
         run: uv run bandit -r src/ -f json -o bandit-report.json || true

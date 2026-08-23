@@ -73,7 +73,7 @@ uv run pytest tests/integration -q --tb=short   # main push
 cd src/ai_team/ui/web/frontend && npm ci && npm run build
 uv run playwright install chromium
 uv run pytest tests/e2e/web -m web_e2e -q --tb=short --timeout=120
-uv run python -m pip install --upgrade "pip>=26.1.2"
+uv run python -m pip install --upgrade "pip>=26.2"
 ./scripts/pip_audit.sh
 ```
 
