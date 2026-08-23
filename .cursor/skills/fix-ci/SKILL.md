@@ -51,7 +51,7 @@ Matrix note: `fail-fast: false` — both Python versions finish; fix the leg tha
 | **Both Test legs** | `./scripts/ci_check.sh --matrix` |
 | **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
 | **Integration test** (main push only) | `uv run pytest tests/integration -v --tb=short` |
-| **Security** | `./scripts/pip_audit.sh` (after `pip install --upgrade "pip>=26.1.2"`) |
+| **Security** | `./scripts/pip_audit.sh` (after `pip install --upgrade "pip>=26.2"`) |
 
 With `gh` authenticated:
 
@@ -189,7 +189,7 @@ uv run pytest tests/integration -v --tb=short
 ## 6. Security job
 
 ```bash
-uv run python -m pip install --upgrade "pip>=26.1.2"
+uv run python -m pip install --upgrade "pip>=26.2"
 ./scripts/pip_audit.sh
 ```
 
