@@ -25,7 +25,7 @@
   "ineligibility_reasons": [
     "no live validation run; pending human golden set + budgeted align"
   ],
-  "validated_at": "2026-08-16T20:02:11.931627Z",
+  "validated_at": "2026-08-23T17:42:08.656997Z",
   "stale": false,
   "disagreements": []
 }
