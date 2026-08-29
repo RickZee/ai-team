@@ -93,6 +93,36 @@ class TestWebServerArtifacts:
         assert fr.status_code == 200
         assert "x = 1" in fr.json()["content"]
 
+    def test_get_run_receipt(
+        self, web_client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ws = tmp_path / "workspace"
+        out = tmp_path / "output"
+        ws.mkdir()
+        out.mkdir()
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws))
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out))
+        from ai_team.config.settings import reload_settings
+        from ai_team.harness.receipt import ReceiptWriter
+
+        reload_settings()
+        rid = "receipt-api-test"
+        bundle = out / "runs" / rid
+        ReceiptWriter().write_from_run(
+            output_dir=bundle,
+            workspace=ws / rid,
+            run_id=rid,
+            backend="crewai",
+            cost_usd=0.25,
+            smoke={"ran": True, "success": True},
+        )
+        r = web_client.get(f"/api/runs/{rid}/receipt")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["run_id"] == rid
+        assert "accepted" in body
+        assert body["cost_usd"] == 0.25
+
     def test_project_tests_architecture_empty(
         self, web_client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

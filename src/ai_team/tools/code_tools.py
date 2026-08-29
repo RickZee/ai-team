@@ -198,7 +198,7 @@ def _audit_log(
 # -----------------------------------------------------------------------------
 
 
-def execute_python(
+def _execute_python_impl(
     code: str,
     timeout: int = 30,
     blocked_imports: frozenset[str] | None = None,
@@ -291,7 +291,7 @@ builtins.__import__ = _guard
                 shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
+def _execute_shell_impl(command: str, timeout: int = 10) -> ExecutionResult:
     """
     Run a shell command in a restricted environment.
 
@@ -382,6 +382,62 @@ def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
         if tmpdir and tmpdir.exists():
             with contextlib.suppress(Exception):
                 shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _result_from_obs(obs: Any) -> ExecutionResult:
+    """Rebuild ExecutionResult from a ToolBus observation."""
+    from ai_team.tools.kinds import ToolObservation
+
+    assert isinstance(obs, ToolObservation)
+    detail = obs.detail
+    if obs.code == "gated":
+        return ExecutionResult(
+            stdout="",
+            stderr=obs.summary,
+            return_code=-1,
+            timed_out=False,
+            duration_seconds=0.0,
+        )
+    rc_raw = detail.get("return_code")
+    if not isinstance(rc_raw, int):
+        rc_raw = -1 if not obs.ok else 0
+    dur_raw = detail.get("duration_seconds")
+    duration = float(dur_raw) if isinstance(dur_raw, int | float) else 0.0
+    return ExecutionResult(
+        stdout=str(detail.get("stdout") or ""),
+        stderr=str(detail.get("stderr") or ("" if obs.ok else obs.summary)),
+        return_code=rc_raw,
+        timed_out=bool(detail.get("timed_out")),
+        duration_seconds=duration,
+    )
+
+
+def execute_python(
+    code: str,
+    timeout: int = 30,
+    blocked_imports: frozenset[str] | None = None,
+) -> ExecutionResult:
+    """Run Python via the ToolBus. ``blocked_imports`` is honored only on the impl path."""
+    from ai_team.tools.bus import get_bus
+    from ai_team.tools.kinds import ToolRequest
+
+    if blocked_imports is not None:
+        return _execute_python_impl(code, timeout=timeout, blocked_imports=blocked_imports)
+    obs = get_bus().invoke(
+        ToolRequest(tool="execute_python", args={"code": code, "timeout": timeout})
+    )
+    return _result_from_obs(obs)
+
+
+def execute_shell(command: str, timeout: int = 10) -> ExecutionResult:
+    """Run a shell command via the ToolBus (irreversible / gated without policy)."""
+    from ai_team.tools.bus import get_bus
+    from ai_team.tools.kinds import ToolRequest
+
+    obs = get_bus().invoke(
+        ToolRequest(tool="execute_shell", args={"command": command, "timeout": timeout})
+    )
+    return _result_from_obs(obs)
 
 
 def _parse_ruff_output(text: str) -> list[LintIssue]:

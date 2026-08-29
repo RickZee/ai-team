@@ -26,7 +26,7 @@
 
 ## Phase 0 — Scaffolding, taxonomy, docs stub
 
-- [ ] **0.1 Package skeleton**
+- [x] **0.1 Package skeleton**
   - Create `src/ai_team/harness/` with `__init__.py`, `context.py`, `receipt.py`,
     `router.py` (stubs that raise `NotImplementedError` or return empty
     structures — enough to import).
@@ -37,7 +37,7 @@
   - **Definition of done:** `uv run python -c "from ai_team.tools.bus import ToolObservation; from ai_team.harness import receipt"` succeeds; mypy clean on the new modules.
   - _Requirements: R1, R4, R20_
 
-- [ ] **0.2 Taxonomy `harness_layer` + FM-011…013 shells**
+- [x] **0.2 Taxonomy `harness_layer` + FM-011…013 shells**
   - Extend `evals/taxonomy/loader.py`: optional `harness_layer` enum
     `tools | verification | context | guardrails | observability | routing | feedback`.
   - Set `harness_layer` on FM-001…010 per requirements layer map; omit on
@@ -58,7 +58,7 @@
     FM-001…010 keep their original `layer` values; version is `1.1.0`.
   - _Requirements: R2_
 
-- [ ] **0.3 `docs/HARNESS.md` stub**
+- [x] **0.3 `docs/HARNESS.md` stub**
   - Write `docs/HARNESS.md` with the seven-layer table (post requirement, current
     module, FM ids, check ids, status `planned`). Mark each layer
     `instrumented | enforced | closed-loop` as `planned`.
@@ -72,7 +72,7 @@
 
 ## Phase 1 — ToolBus (stops escalation)
 
-- [ ] **1.1 ToolBus invoke pipeline**
+- [x] **1.1 ToolBus invoke pipeline**
   - Implement `ToolBus.register` and `ToolBus.invoke` per design §4.1:
     lookup → schema validate → permission → kind branch (read executes;
     write/irreversible still call handler but Phase 2 will change write) →
@@ -87,7 +87,7 @@
     artifact spill; no network.
   - _Requirements: R4, R6_
 
-- [ ] **1.2 Register existing file/code/git/test handlers**
+- [x] **1.2 Register existing file/code/git/test handlers**
   - Move live I/O in `file_tools`, `code_tools`, `git_tools` behind
     module-private impls. Register specs with `kind` / `risk_class`
     (reads = `read`/`low`; writes = `write`/`write`; `delete_file` =
@@ -101,7 +101,7 @@
     `tests/unit/` tool tests still pass.
   - _Requirements: R4, R5.1_
 
-- [ ] **1.3 Structured observation adapters (optional stringify)**
+- [x] **1.3 Structured observation adapters (optional stringify)**
   - Add `observation_to_agent_text(obs: ToolObservation) -> str` that
     returns `summary` plus artifact refs — never raw stdout as the only
     content.
@@ -109,7 +109,7 @@
     yields ≤ 2,000 char agent text and an artifact ref.
   - _Requirements: R6_
 
-- [ ] **1.4 Span emission compatible with eval traces**
+- [x] **1.4 Span emission compatible with eval traces**
   - Emit structures `TraceBuilder` / audit parsers can read (`tool_use` /
     `tool_result` with `kind`, `risk_class`, `ok`, `code`). Prefer the
     existing audit JSONL shape plus new fields.
@@ -117,7 +117,7 @@
     `parse_audit_jsonl` does not warn-and-drop it.
   - _Requirements: R4.2, R7.3_
 
-- [ ] **1.5 `CHK-tool-call-emitted` still green**
+- [x] **1.5 `CHK-tool-call-emitted` still green**
   - Re-run eval check fixtures for FM-001. Adjust the check only if payload
     field names changed; do not weaken the predicate.
   - **Definition of done:** existing FM-001 fail/pass/na fixtures pass.
@@ -127,7 +127,7 @@
 
 ## Phase 2 — Draft-commit and irreversible gates
 
-- [ ] **2.1 Draft area and `commit_write`**
+- [x] **2.1 Draft area and `commit_write`**
   - Implement `tools/draft.py`: write to
     `workspace/.harness/drafts/<draft_id>`; `commit_write` validates path
     and content then `os.replace` into the live workspace.
@@ -142,7 +142,7 @@
     raises/returns `validation_failed`.
   - _Requirements: R5.2, R5.3_
 
-- [ ] **2.2 Irreversible policy**
+- [x] **2.2 Irreversible policy**
   - Catalog: `delete_file`, lockfile/`requirements.txt` overwrite, shell,
     compose volume wipes, git push if present.
   - Default profiles deny; require `profile.metadata.allow_irreversible`
@@ -153,14 +153,14 @@
     policy; `confirm=true` alone still `gated`.
   - _Requirements: R5.4, R5.5, R5.6_
 
-- [ ] **2.3 `CHK-draft-commit` (FM-012)**
+- [x] **2.3 `CHK-draft-commit` (FM-012)**
   - Implement the check; three fixtures; register; taxonomy
     `implemented_by` complete; mutation test.
   - **Definition of done:** `validate_registry_against_taxonomy()` includes
     FM-012; fail/pass/na tests green.
   - _Requirements: R5.7, R2.4_
 
-- [ ] **2.4 Adversarial bus tests**
+- [x] **2.4 Adversarial bus tests**
   - Path traversal, `.env` write, injection-shaped shell args,
     `confirm=true` delete without policy.
   - **Definition of done:** `tests/unit/tools/test_bus_adversarial.py` passes.
@@ -170,7 +170,7 @@
 
 ## Phase 3 — Cutover: no backend bypasses the bus
 
-- [ ] **3.1 Public wrappers call `ToolBus.invoke` only**
+- [x] **3.1 Public wrappers call `ToolBus.invoke` only**
   - CrewAI `@tool` functions, raw functions used by tests (keep a
     `testing=True` impl hook if needed), and any `get_*_tools()` lists
     go through the bus.
@@ -182,14 +182,14 @@
     salvage paths (if any) call the bus with `agent_role="_harness"`.
   - _Requirements: R1.2, R4.5, R7.2, R20.5_
 
-- [ ] **3.2 LangChain adapter**
+- [x] **3.2 LangChain adapter**
   - `crewai_tool_to_langchain` / role tool getters invoke the bus, not a
     second copy of the handler.
   - **Definition of done:** LangGraph tool unit tests pass; one test
     asserts a write is `drafted` not live.
   - _Requirements: R4.5_
 
-- [ ] **3.3 Claude SDK MCP + PreToolUse**
+- [x] **3.3 Claude SDK MCP + PreToolUse**
   - MCP handlers call `ToolBus.invoke`.
   - PreToolUse: native `Write`/`Bash` mapped or denied. Test the deny
     path with the existing hook fixture style
@@ -197,7 +197,7 @@
   - **Definition of done:** bypass attempt denied; MCP write is drafted.
   - _Requirements: R4.6, R20.3_
 
-- [ ] **3.4 FM-001 bus invariant hook**
+- [x] **3.4 FM-001 bus invariant hook**
   - Shared phase-end helper: fenced code + zero write observations →
     error span `fm_id=FM-001`. Wire into the common post-phase path if
     one exists; otherwise LangGraph + SDK first and CrewAI in Phase 4.
@@ -209,7 +209,7 @@
 
 ## Phase 4 — Verification on every backend
 
-- [ ] **4.1 Cheap vs strong split**
+- [x] **4.1 Cheap vs strong split**
   - Document and implement a `VerifierKind` or reuse task types: cheap
     path calls ruff/pytest/smoke without the architect model.
   - QA tools that already run pytest stay cheap. Architecture guardrail
@@ -218,7 +218,7 @@
     does not instantiate the planning model.
   - _Requirements: R8_
 
-- [ ] **4.2 CrewAI smoke node**
+- [x] **4.2 CrewAI smoke node**
   - After testing in `AITeamFlow`, call `run_app_smoke`; on failure route
     to retry development with traceback payload; bound by existing retry
     cap. **Listener names must not match their trigger** (`on_smoke` /
@@ -230,14 +230,14 @@
     green.
   - _Requirements: R1.4, R9_
 
-- [ ] **4.3 `cost_per_accepted_change` on run metadata**
+- [x] **4.3 `cost_per_accepted_change` on run metadata**
   - Compute per design / R10; attach to `RunMetadata.extra` or the
     receipt stub until Phase 7 lands.
   - **Definition of done:** unit test for zero accepts (denominator 1),
     one accept, and rejected-smoke run not counting as accepted.
   - _Requirements: R10_
 
-- [ ] **4.4 `CHK-runtime-smoke-present` vs CrewAI**
+- [x] **4.4 `CHK-runtime-smoke-present` vs CrewAI**
   - Fixture: complete CrewAI-shaped trace without `smoke_probe` → fail.
   - **Definition of done:** check fails that fixture; LangGraph pass
     fixture still passes.
@@ -247,7 +247,7 @@
 
 ## Phase 5 — Pinned constraints and compaction policy
 
-- [ ] **5.1 Three-file contract I/O**
+- [x] **5.1 Three-file contract I/O**
   - Implement `harness/context.py`: load/append `CONSTRAINTS.md`, write
     `STATE.md` (last N phase facts, no LLM), generate `LESSONS.md` from
     store (may be empty until Phase 9).
@@ -257,7 +257,7 @@
     STATE.md retains only last N phases.
   - _Requirements: R11_
 
-- [ ] **5.2 Inject constraints before first tool call**
+- [x] **5.2 Inject constraints before first tool call**
   - Wire ConstraintLoader into CrewAI crew prompts, LangGraph
     `build_system_prompt`, and Claude SDK orchestrator / `CLAUDE.md`
     equivalent so the full file is present at every phase start.
@@ -267,13 +267,13 @@
     assert canary text in the bundle; trace payload lists the id.
   - _Requirements: R11.2, R12.4_
 
-- [ ] **5.3 `CHK-constraint-survival` (FM-011)**
+- [x] **5.3 `CHK-constraint-survival` (FM-011)**
   - Implement check; three fixtures; mutation: drop id at testing
     phase_start → fail.
   - **Definition of done:** registry complete for FM-011; tests green.
   - _Requirements: R12, R2.4_
 
-- [ ] **5.4 Compaction policy documented and enforced in code**
+- [x] **5.4 Compaction policy documented and enforced in code**
   - If a summarizer exists, it must take pinned constraint ids as
     untouchable. If none exists, write the policy in `docs/HARNESS.md`
     and a unit test that `ConstraintLoader.pinned_text()` is unchanged
@@ -286,7 +286,7 @@
 
 ## Phase 6 — Risk-class guardrails and evidence
 
-- [ ] **6.1 `risk_class` on profiles and tools**
+- [x] **6.1 `risk_class` on profiles and tools**
   - Extend `TeamProfile` (optional field, default `write`).
   - Set `smoke`/`prototype` default `write`; document
     `customer-visible` for production-like profiles.
@@ -294,7 +294,7 @@
     (default) and explicit values; YAML for `smoke` updated if needed.
   - _Requirements: R13.1, R13.3_
 
-- [ ] **6.2 Guardrail dispatch by class**
+- [x] **6.2 Guardrail dispatch by class**
   - Map existing guardrails per design §4.5. Operational spend ceiling
     remains global.
   - **Definition of done:** unit test: `low` does not invoke scope
@@ -302,7 +302,7 @@
     `$0` (do not regress eval-harness R6).
   - _Requirements: R13.2, R13.4_
 
-- [ ] **6.3 Evidence bundle structure**
+- [x] **6.3 Evidence bundle structure**
   - Pydantic model for policy version, checks fired, overrides,
     outcomes. Fill from `TeamMonitor` + bus denials even if receipt
     writer is still Phase 7.
@@ -314,7 +314,7 @@
 
 ## Phase 7 — Change receipt and drift
 
-- [ ] **7.1 `ChangeReceipt` writer**
+- [x] **7.1 `ChangeReceipt` writer**
   - Implement `harness/receipt.py` and write
     `output/runs/<id>/receipt.json` + `receipt.md` from the existing
     results writer path. Include fields in R15.1.
@@ -324,7 +324,7 @@
     still emits a receipt.
   - _Requirements: R15_
 
-- [ ] **7.2 Dashboard / API reads the file**
+- [x] **7.2 Dashboard / API reads the file**
   - `GET /api/runs/<id>/receipt` returns the JSON file. UI: a Receipt
     panel or compare-tab link. Live stream is not the source of truth
     for cost/files/smoke.
@@ -334,13 +334,13 @@
     frontend type + render for the main fields.
   - _Requirements: R15.4_
 
-- [ ] **7.3 `CHK-metric-source-agreement` vs receipt**
+- [x] **7.3 `CHK-metric-source-agreement` vs receipt**
   - Extend or companion-assert receipt file count / cost vs artifacts.
   - **Definition of done:** fixture where events lie and receipt
     matches artifacts → check uses receipt (or documents the field).
   - _Requirements: R15.5, FM-008_
 
-- [ ] **7.4 Drift CLI**
+- [x] **7.4 Drift CLI**
   - `python -m evals.cli drift` (or `evals/drift.py` wired to CLI):
     FM hits, smoke pass, files, cost, cost_per_accepted_change over
     two windows. Warn-only. `$0`.
@@ -351,7 +351,7 @@
 
 ## Phase 8 — Task-typed routing
 
-- [ ] **8.1 `task_routes.yaml` + resolver**
+- [x] **8.1 `task_routes.yaml` + resolver**
   - Implement `harness/router.py::resolve`. Sentinel `deterministic`
     for `mechanical_check`.
   - Same-model profiles override and set `same_model` on receipt
@@ -360,7 +360,7 @@
     fallback + warning, same_model override.
   - _Requirements: R17.1–R17.3_
 
-- [ ] **8.2 Wire mechanical_check, plan, generate**
+- [x] **8.2 Wire mechanical_check, plan, generate**
   - Cheap verifiers use `mechanical_check`. Planning/architect uses
     `plan`. Generation keeps role models via `generate` default.
   - Log `task_type` + model id onto the receipt (per phase acceptable
@@ -373,7 +373,7 @@
 
 ## Phase 9 — Closed lessons loop
 
-- [ ] **9.1 Structured lesson on smoke/check fail**
+- [x] **9.1 Structured lesson on smoke/check fail**
   - Deterministic template `{fm_id, constraint, evidence_span}` into
     the lessons store + `LESSONS.md`. Dedup by `fm_id` + normalized
     text.
@@ -381,14 +381,14 @@
     store fails (log only).
   - _Requirements: R18.1, R18.2_
 
-- [ ] **9.2 Inject into `CONSTRAINTS.md` and next run**
+- [x] **9.2 Inject into `CONSTRAINTS.md` and next run**
   - Active lessons appended as pinned `CST-lesson-*`. Next run loader
     includes them before first tool call (reuse Phase 5 injector).
   - **Definition of done:** two-run unit test (temp workspace): fail →
     file contains lesson → second load sees it.
   - _Requirements: R18.3, R18.7_
 
-- [ ] **9.3 Effectiveness tracking + `CHK-lesson-effectiveness`**
+- [x] **9.3 Effectiveness tracking + `CHK-lesson-effectiveness`**
   - Recurrence window; `effective` / `ineffective` / `escalated`.
   - Implement FM-013 check; three fixtures; registry complete.
   - **Definition of done:** ineffective without escalate fails the
@@ -400,7 +400,7 @@
 
 ## Phase 10 — Docs close-out and instrumentation bar
 
-- [ ] **10.1 Finish `docs/HARNESS.md`**
+- [x] **10.1 Finish `docs/HARNESS.md`**
   - Every layer: module path, FMs, checks, status
     (`instrumented` / `enforced` / `closed-loop`) matching what
     actually shipped.
@@ -412,14 +412,14 @@
     exists; R19.3 table filled.
   - _Requirements: R3, R19_
 
-- [ ] **10.2 Taxonomy coverage regen**
+- [x] **10.2 Taxonomy coverage regen**
   - `python -m evals.cli taxonomy coverage` (or existing command)
     shows FM-011…013 covered. Cross-links in the taxonomy essay.
   - **Definition of done:** `COVERAGE.md` committed with harness
     layer column and new FMs.
   - _Requirements: R2.6_
 
-- [ ] **10.3 Quality gate sweep**
+- [x] **10.3 Quality gate sweep**
   - `uv run ruff check . && uv run mypy src/ evals/ && uv run pytest tests/unit/tools tests/unit/harness tests/unit/memory tests/unit/evals tests/unit/flows -q`
   - **Definition of done:** all green; no `print()` in new modules.
   - _Requirements: R20_

@@ -65,6 +65,19 @@ export function getRuns() {
   return fetchJson<{ runs: import("../types").RunInfo[] }>("/runs");
 }
 
+export function getRunReceipt(runId: string) {
+  return fetchJson<{
+    run_id: string;
+    backend: string;
+    accepted: boolean;
+    cost_usd: number | null;
+    cost_per_accepted_change: number | null;
+    smoke: Record<string, unknown>;
+    failure_ids: string[];
+    output_hash: string | null;
+  }>(`/runs/${runId}/receipt`);
+}
+
 export function getRun(runId: string) {
   return fetchJson<
     import("../types").RunInfo & {

@@ -31,3 +31,33 @@ def test_check_fixture_outcome(check_id: str, outcome: str, expected: str) -> No
     )
     assert result.check_id == check_id
     assert result.trace_id == trace.trace_id
+
+
+def test_metric_agreement_prefers_receipt() -> None:
+    from evals.checks.registry import get_check
+    from tests.unit.evals.trace_fixtures import load_fixture
+
+    chk = get_check("CHK-metric-source-agreement")
+    assert chk is not None
+    trace = load_fixture("CHK-metric-source-agreement", "pass").model_copy(deep=True)
+    # Events lie; receipt matches artifacts.
+    n_files = len(trace.files())
+    trace.raw_result = {
+        **trace.raw_result,
+        "event_metrics": {"file_count": 999, "cost_usd": trace.cost.usd},
+        "receipt": {"file_count": 999, "cost_usd": trace.cost.usd},
+    }
+    _ = n_files
+    result = chk.run(trace)
+    assert result.outcome == "pass", result.evidence_text
+
+
+def test_crewai_complete_without_smoke_fails() -> None:
+    from evals.checks.registry import get_check
+    from tests.unit.evals.trace_fixtures import load_fixture
+
+    chk = get_check("CHK-runtime-smoke-present")
+    assert chk is not None
+    trace = load_fixture("CHK-runtime-smoke-present", "fail")
+    assert trace.backend == "crewai"
+    assert chk.run(trace).outcome == "fail"

@@ -168,12 +168,24 @@ def build_agent_definitions(profile: TeamProfile) -> dict[str, AgentDefinition]:
 
 def orchestrator_system_prompt(profile: TeamProfile, *, max_retries: int = 3) -> str:
     """System prompt for the top-level orchestrator ``query()`` call."""
-    return prompts.orchestrator_prompt(
+    base = prompts.orchestrator_prompt(
         profile_name=profile.name,
         agent_list=", ".join(profile.agents),
         phase_list=", ".join(profile.phases),
         max_retries=max_retries,
     )
+    try:
+        from pathlib import Path
+
+        from ai_team.config.settings import get_workspace_dir
+        from ai_team.harness.context import ConstraintLoader
+
+        pinned = ConstraintLoader(Path(get_workspace_dir())).inject_block()
+        if pinned.strip():
+            return pinned + "\n" + base
+    except (OSError, RuntimeError):
+        pass
+    return base
 
 
 def orchestrator_user_prompt(description: str) -> str:

@@ -132,6 +132,12 @@ class ResultsBundle:
         self._base_workspace.mkdir(parents=True, exist_ok=True)
         (self._base_workspace / "src").mkdir(parents=True, exist_ok=True)
         (self._base_workspace / "tests").mkdir(parents=True, exist_ok=True)
+        try:
+            from ai_team.harness.context import ConstraintLoader
+
+            ConstraintLoader(self._base_workspace).ensure()
+        except Exception:  # noqa: BLE001
+            logger.debug("harness_context_init_skipped")
 
     # ---- canonical files -------------------------------------------------
 
@@ -194,6 +200,34 @@ class ResultsBundle:
             with costs_path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row, default=str) + "\n")
         self._update_registry()
+        try:
+            from ai_team.harness.receipt import ReceiptWriter
+
+            cost_usd = None
+            if spend and isinstance(spend.get("usd"), int | float):
+                cost_usd = float(spend["usd"])
+            smoke: dict[str, Any] = {}
+            state_path = self._base_output / "state.json"
+            if state_path.is_file():
+                try:
+                    st = json.loads(state_path.read_text(encoding="utf-8"))
+                    meta = st.get("metadata") if isinstance(st, dict) else {}
+                    if isinstance(meta, dict) and isinstance(meta.get("smoke_results"), dict):
+                        smoke = meta["smoke_results"]
+                except (OSError, json.JSONDecodeError):
+                    smoke = {}
+            ReceiptWriter().write_from_run(
+                output_dir=self._base_output,
+                workspace=self._base_workspace,
+                run_id=self.project_id,
+                backend=str(data.get("backend") or "unknown"),
+                team_profile=str(data.get("team_profile") or "full"),
+                cost_usd=cost_usd,
+                smoke=smoke,
+                required_ok=True,
+            )
+        except Exception as exc:  # noqa: BLE001 — receipt must not fail the run
+            logger.warning("receipt_write_skipped", error=str(exc))
         return path
 
     def write_scorecard(self, scorecard: Scorecard) -> Path:

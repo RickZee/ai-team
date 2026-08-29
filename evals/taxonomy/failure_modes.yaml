@@ -4,7 +4,7 @@
 # positive_examples / negative_examples point at synthetic check fixtures
 # (evals/fixtures/traces/, copied from tests/fixtures/traces/). These are
 # fail/pass wiring pairs — NOT production open-coding labels (task 5.2 is human).
-version: "1.0.0"
+version: "1.1.0"
 failure_modes:
   - id: FM-001
     slug: tool_call_omission
@@ -16,6 +16,7 @@ failure_modes:
       without the corresponding file. Asking the user for permission to save counts
       as this failure; there is no user.
     layer: model
+    harness_layer: tools
     severity: blocker
     detection: check
     implemented_by: [CHK-tool-call-emitted]
@@ -60,6 +61,7 @@ failure_modes:
       it to the operator exceeds max_interrupt_latency_s (default 60s). This flags
       runtime coupling where a spinning co-hosted thread delayed interrupt handling.
     layer: harness
+    harness_layer: observability
     severity: major
     detection: check
     implemented_by: [CHK-interrupt-latency]
@@ -80,6 +82,7 @@ failure_modes:
       workspace_dir, indicating a TOCTOU race on run-id allocation where
       concurrent backends overwrite each other's state.
     layer: harness
+    harness_layer: observability
     severity: blocker
     detection: check
     implemented_by: [CHK-workspace-isolation]
@@ -100,6 +103,7 @@ failure_modes:
       met all acceptance criteria (status complete with required artifacts and
       tests). A failing guardrail on a successful run is counted as a false positive.
     layer: harness
+    harness_layer: guardrails
     severity: major
     detection: check
     implemented_by: [CHK-guardrail-fp-budget]
@@ -120,6 +124,7 @@ failure_modes:
       with a smoke_probe whose payload indicates failure (success false / ran false
       with unsuccessful probes). Unit-test green alone is not sufficient verification.
     layer: harness
+    harness_layer: verification
     severity: major
     detection: check
     implemented_by: [CHK-runtime-smoke-present]
@@ -140,6 +145,7 @@ failure_modes:
       shows cumulative spend past the ceiling without a non-retryable abort. Retry
       loops that are also billing loops count as this failure.
     layer: harness
+    harness_layer: guardrails
     severity: blocker
     detection: check
     implemented_by: [CHK-spend-ceiling]
@@ -160,6 +166,7 @@ failure_modes:
       tolerance (exact for files, 5% relative for cost by default). Dashboards that
       report null cost or zero files while real artifacts exist fail this check.
     layer: harness
+    harness_layer: observability
     severity: major
     detection: check
     implemented_by: [CHK-metric-source-agreement]
@@ -200,6 +207,7 @@ failure_modes:
       listed in the generated requirements.txt artifact. The verification gate ran
       in an environment that does not match the app's declared dependencies.
     layer: harness
+    harness_layer: verification
     severity: major
     detection: check
     implemented_by: [CHK-gate-env-fidelity]
@@ -210,4 +218,71 @@ failure_modes:
     references:
       - docs/posts/failure-taxonomy.md#10
     introduced_in: "1.0.0"
+    status: active
+
+  - id: FM-011
+    slug: constraint_drop
+    title: Pinned intake constraint missing from a later phase prompt bundle
+    definition: >
+      A distinctive constraint id present on intake phase_start (payload.constraint_ids
+      or equivalent context_inject span) is absent from the testing or deployment
+      phase_start payload. Compaction or prompt assembly dropped a pinned constraint
+      the summarizer is not allowed to remove.
+    layer: harness
+    harness_layer: context
+    severity: major
+    detection: check
+    implemented_by: [CHK-constraint-survival]
+    positive_examples:
+      - {trace_id: CHK-constraint-survival__fail__fixture, span_id: span_0002}
+    negative_examples:
+      - {trace_id: CHK-constraint-survival__pass__fixture, span_id: span_0002}
+    references:
+      - docs/HARNESS.md
+    introduced_in: "1.1.0"
+    status: active
+
+  - id: FM-012
+    slug: uncommitted_write
+    title: Live workspace write bypassed draft-then-commit
+    definition: >
+      A development or QA phase has a successful live write (tool_result kind=write
+      code=ok targeting src/ or tests/) that did not pass through draft-then-commit,
+      except harness-owned files (STATE.md, receipts, logs) and commit_write
+      promotions. First-suggestion writes must not land on disk.
+    layer: harness
+    harness_layer: tools
+    severity: major
+    detection: check
+    implemented_by: [CHK-draft-commit]
+    positive_examples:
+      - {trace_id: CHK-draft-commit__fail__fixture, span_id: span_0001}
+    negative_examples:
+      - {trace_id: CHK-draft-commit__pass__fixture, span_id: span_0002}
+    references:
+      - docs/HARNESS.md
+    introduced_in: "1.1.0"
+    status: active
+
+  - id: FM-013
+    slug: lesson_ineffective
+    title: Recurring failure mode with an un-escalated ineffective lesson
+    definition: >
+      A lesson record in the workspace or trace payload is status=ineffective and
+      has not been escalated, meaning the same fm_id recurred across the
+      configured window and the feedback layer did not strengthen or re-target
+      the constraint.
+    layer: harness
+    harness_layer: feedback
+    severity: minor
+    detection: check
+    implemented_by: [CHK-lesson-effectiveness]
+    positive_examples:
+      - {trace_id: CHK-lesson-effectiveness__fail__fixture, span_id: run}
+    negative_examples:
+      - {trace_id: CHK-lesson-effectiveness__pass__fixture, span_id: run}
+    references:
+      - docs/HARNESS.md
+      - docs/SELF_IMPROVEMENT.md
+    introduced_in: "1.1.0"
     status: active

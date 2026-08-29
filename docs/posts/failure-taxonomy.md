@@ -36,7 +36,9 @@ Each section below maps to an FM id in
 | 9 | FM-009 | provider_dialect_mismatch |
 | 10 | FM-010 | gate_environment_mismatch |
 
-Coverage table: [`evals/taxonomy/COVERAGE.md`](../../evals/taxonomy/COVERAGE.md).
+Harness layers (tools, verification, context, guardrails, observability, routing,
+feedback) and FM-011…013: [HARNESS.md](../HARNESS.md). Machine coverage including
+`harness_layer`: [`evals/taxonomy/COVERAGE.md`](../../evals/taxonomy/COVERAGE.md).
 Methodology: [`docs/EVAL_METHODOLOGY.md`](../EVAL_METHODOLOGY.md).
 
 ---

@@ -1,0 +1,25 @@
+# Task-type × environment → model id (or the `deterministic` sentinel).
+# Agents must not choose models by naming them in prompts.
+version: "1"
+routes:
+  dev:
+    classify: openrouter/openai/gpt-4.1-mini
+    format: openrouter/openai/gpt-4.1-mini
+    mechanical_check: deterministic
+    plan: openrouter/anthropic/claude-sonnet-4.6
+    judge: openrouter/anthropic/claude-sonnet-4.6
+    generate: openrouter/anthropic/claude-sonnet-4.6
+  test:
+    classify: openrouter/openai/gpt-4.1-mini
+    format: openrouter/openai/gpt-4.1-mini
+    mechanical_check: deterministic
+    plan: openrouter/anthropic/claude-sonnet-4.6
+    judge: openrouter/anthropic/claude-sonnet-4.6
+    generate: openrouter/anthropic/claude-sonnet-4.6
+  prod:
+    classify: openrouter/openai/gpt-4.1-mini
+    format: openrouter/openai/gpt-4.1-mini
+    mechanical_check: deterministic
+    plan: openrouter/anthropic/claude-sonnet-4.6
+    judge: openrouter/anthropic/claude-sonnet-4.6
+    generate: openrouter/anthropic/claude-sonnet-4.6

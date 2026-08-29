@@ -232,6 +232,7 @@ markers = [
     "browser_e2e: Playwright browser E2E (requires built frontend).",
     "eval_unit: unit tests for the eval harness (deterministic, no network).",
     "eval_tier_a: Tier A offline replay eval suite ($0 spend).",
+    "bus_draft: ToolBus draft-then-commit enabled (default tests use live I/O).",
 ]
 
 [tool.uv]

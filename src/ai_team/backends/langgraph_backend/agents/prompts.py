@@ -84,10 +84,19 @@ def build_system_prompt(role_key: str) -> str:
     """
     bundle = load_agent_prompt(role_key)
     try:
+        from ai_team.config.settings import get_workspace_dir
+        from ai_team.harness.context import ConstraintLoader
         from ai_team.memory.lessons import load_role_lessons
 
         role_lessons = load_role_lessons(agent_role=role_key)
-        return bundle.system_message(lessons=[lsn.text for lsn in role_lessons])
+        base = bundle.system_message(lessons=[lsn.text for lsn in role_lessons])
+        try:
+            pinned = ConstraintLoader(Path(get_workspace_dir())).inject_block()
+            if pinned.strip():
+                return pinned + "\n" + base
+        except (OSError, RuntimeError):
+            pass
+        return base
     except Exception:
         return bundle.system_message()
 

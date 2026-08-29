@@ -143,11 +143,36 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             }
         return {"content": [{"type": "text", "text": json.dumps(body, default=str)}]}
 
+    @tool(
+        "write_workspace_file",
+        "Write a file through the shared ToolBus (draft-then-commit). Path relative to workspace.",
+        {"path": str, "content": str},
+    )
+    async def write_workspace_file(args: dict[str, Any]) -> dict[str, Any]:
+        from ai_team.tools.bus import get_bus, observation_to_agent_text
+        from ai_team.tools.kinds import ToolRequest
+
+        obs = get_bus().invoke(
+            ToolRequest(
+                tool="write_file",
+                args={
+                    "path": str(args.get("path") or ""),
+                    "content": str(args.get("content") or ""),
+                },
+                backend="claude-agent-sdk",
+            )
+        )
+        return {
+            "content": [{"type": "text", "text": observation_to_agent_text(obs)}],
+            "is_error": not obs.ok,
+        }
+
     return [
         run_guardrails,
         run_project_tests,
         run_app_smoke,
         validate_code_safety,
+        write_workspace_file,
     ]
 
 

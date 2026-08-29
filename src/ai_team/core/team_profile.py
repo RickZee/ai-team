@@ -34,6 +34,10 @@ class TeamProfile(BaseModel):
         default_factory=dict,
         description="Optional per-role tool configuration overrides.",
     )
+    risk_class: str = Field(
+        default="write",
+        description="Blast-radius class: low | write | irreversible | customer-visible.",
+    )
     metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Extra profile data (e.g. RAG/MCP sections when wired).",
@@ -74,10 +78,18 @@ def load_team_profiles() -> dict[str, TeamProfile]:
             phases=phases,
             model_overrides=dict(spec.get("model_overrides") or {}),
             tool_overrides=dict(spec.get("tool_overrides") or {}),
+            risk_class=str(spec.get("risk_class") or "write"),
             metadata={
                 k: v
                 for k, v in spec.items()
-                if k not in {"agents", "phases", "model_overrides", "tool_overrides"}
+                if k
+                not in {
+                    "agents",
+                    "phases",
+                    "model_overrides",
+                    "tool_overrides",
+                    "risk_class",
+                }
             },
         )
     if not out:

@@ -41,6 +41,16 @@ class TestNoSelfTriggeringListeners:
                 "and the retry cap is dead code."
             )
 
+    def test_smoke_listener_has_router(self) -> None:
+        tmap = flow_trigger_map(AITeamFlow)
+        assert "on_run_smoke" in tmap
+        routed_sources: set[str] = set()
+        for _name, (triggers, is_router) in tmap.items():
+            if is_router:
+                routed_sources.update(triggers)
+        assert "on_run_smoke" in routed_sources
+        assert "run_smoke" in tmap["on_run_smoke"][0]
+
 
 class TestDevRetryCap:
     def _make_flow_with_state(self) -> AITeamFlow:

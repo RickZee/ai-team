@@ -229,18 +229,18 @@ def route_after_testing(test_result: dict[str, Any], state: ProjectState) -> str
         if skip_deployment:
             logger.info(
                 "routing_after_testing",
-                decision="finalize_project",
-                reason="deployment_skipped_by_profile",
+                decision="run_smoke",
+                reason="tests_pass_smoke_next_then_maybe_skip_deploy",
                 team_profile=team_profile_name,
             )
-            return "finalize_project"
+            return "run_smoke"
 
         logger.info(
             "routing_after_testing",
-            decision="run_deployment",
+            decision="run_smoke",
             reason="all_tests_pass_coverage_ok",
         )
-        return "run_deployment"
+        return "run_smoke"
 
     if status == "error":
         reason = "testing_crew_execution_error"
@@ -285,6 +285,45 @@ def route_after_testing(test_result: dict[str, Any], state: ProjectState) -> str
         retry_count=state.retry_counts.get(ProjectPhase.TESTING.value, 0),
         max_retries=state.max_retries,
     )
+    return "retry_development"
+
+
+def route_after_smoke(smoke_result: dict[str, Any], state: ProjectState) -> str:
+    """Route after CrewAI runtime smoke: deployment, retry, escalate, or finalize.
+
+    Listener names must not match this function's trigger (``on_run_smoke``).
+    """
+    status = smoke_result.get("status", "unknown")
+    success = bool(smoke_result.get("success"))
+    ran = smoke_result.get("ran")
+    skip_reason = smoke_result.get("skip_reason") or smoke_result.get("message")
+
+    team_profile_name = state.metadata.get("team_profile", "full")
+    skip_deployment = False
+    try:
+        from ai_team.core.team_profile import load_team_profile
+
+        profile = load_team_profile(team_profile_name)
+        skip_deployment = "deployment" not in profile.phases
+    except Exception as exc:
+        logger.warning("routing_profile_load_failed", profile=team_profile_name, error=str(exc))
+
+    passed_or_skipped = status == "success" and (success or ran is False or bool(skip_reason))
+    if status == "success" and (success or ran is False):
+        passed_or_skipped = True
+
+    if passed_or_skipped:
+        nxt = "finalize_project" if skip_deployment else "run_deployment"
+        logger.info("routing_after_smoke", decision=nxt, success=success, ran=ran)
+        return nxt
+
+    if not state.can_retry(ProjectPhase.TESTING):
+        _set_escalation_metadata(state, smoke_result, "smoke_retries_exhausted")
+        logger.warning("routing_after_smoke", decision="escalate_to_human")
+        return "escalate_to_human"
+
+    state.increment_retry(ProjectPhase.TESTING)
+    logger.info("routing_after_smoke", decision="retry_development")
     return "retry_development"
 
 

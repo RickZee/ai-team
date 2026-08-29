@@ -696,7 +696,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     jvalidate.set_defaults(func=_cmd_judge_validate)
 
+    drift = sub.add_parser("drift", help="week-over-week receipt drift (warn-only, $0)")
+    drift.add_argument("--current", required=True, help="directory of current receipts")
+    drift.add_argument("--previous", required=True, help="directory of previous receipts")
+    drift.set_defaults(func=_cmd_drift)
+
     return parser
+
+
+def _cmd_drift(args: argparse.Namespace) -> int:
+    from evals.drift import drift_from_dirs
+
+    report = drift_from_dirs(Path(args.current), Path(args.previous))
+    print(report.model_dump_json(indent=2))
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
