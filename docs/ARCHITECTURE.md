@@ -286,7 +286,7 @@ Agents are defined in [`config/agents.yaml`](../src/ai_team/config/agents.yaml) 
 | **Git** | status, commit, branch, diff | Scoped to workspace; no force-push to protected branches by policy. |
 | **Test** | run_tests, coverage_report | Timeout and resource limits. |
 
-Tools are wrapped with guardrail checks where applicable (e.g. SecurityGuardrails.validate_file_path, validate_code_safety).
+Tools are wrapped with guardrail checks where applicable (e.g. SecurityGuardrails.validate_file_path, validate_code_safety). Shared execution is the **ToolBus** (`src/ai_team/tools/bus.py`) — see [HARNESS.md](HARNESS.md).
 
 ### 2.5 Guardrail Layer
 
@@ -296,7 +296,7 @@ Tools are wrapped with guardrail checks where applicable (e.g. SecurityGuardrail
 | **Security** | Code safety (no unsafe exec/subprocess/eval), no secrets in output, PII redaction, prompt-injection detection, file-path validation. |
 | **Quality** | Word count bounds, JSON validity, Python syntax, no TODO/FIXME/NotImplementedError placeholders; optional LLM guardrails (hallucination, code review). |
 
-Configured via `GuardrailConfig` in settings; full chain built by `create_full_guardrail_chain()`.
+Configured via `GuardrailConfig` in settings; full chain built by `create_full_guardrail_chain()`. Dispatch by `risk_class` is in `src/ai_team/harness/guardrail_risk.py` — see [HARNESS.md](HARNESS.md).
 
 ### 2.6 Memory Layer
 
@@ -308,7 +308,7 @@ Configured via `GuardrailConfig` in settings; full chain built by `create_full_g
 
 ChromaDB short-term memory, entity memory, and the RAG subsystem were removed. CrewAI may still use its own internal Chroma storage when that backend runs.
 
-See [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md) and [GUARDRAILS.md](GUARDRAILS.md) (runtime smoke gate).
+See [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md), [HARNESS.md](HARNESS.md) (pinned constraints + closed lessons loop), and [GUARDRAILS.md](GUARDRAILS.md) (runtime smoke gate).
 
 ---
 

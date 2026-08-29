@@ -31,6 +31,18 @@ def build_security_pre_tool_hook(
         if not isinstance(tool_input, dict):
             tool_input = {}
 
+        import os
+
+        if os.environ.get("AI_TEAM_DENY_NATIVE_TOOLS", "").strip() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        } and tool_name in ("Write", "Edit", "MultiEdit", "Bash"):
+            return _deny(
+                f"Native {tool_name} bypasses ToolBus; use MCP write_workspace_file / execute via bus"
+            )
+
         if tool_name in ("Write", "Edit", "MultiEdit"):
             fp = str(tool_input.get("file_path", ""))
             lower = fp.lower()

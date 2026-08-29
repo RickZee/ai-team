@@ -51,3 +51,12 @@ def git_repo(tmp_path: Path) -> Path:
         env=env,
     )
     return repo_dir
+
+
+@pytest.fixture(autouse=True)
+def _file_tool_bus_policy(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+    """Existing file-tool tests expect live I/O. Opt into draft with ``bus_draft``."""
+    if request.node.get_closest_marker("bus_draft"):
+        return
+    monkeypatch.setenv("AI_TEAM_DRAFT_WRITES", "0")
+    monkeypatch.setenv("AI_TEAM_ALLOW_IRREVERSIBLE", "1")

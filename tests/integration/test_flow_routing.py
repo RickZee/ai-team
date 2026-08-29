@@ -15,6 +15,7 @@ from ai_team.flows.routing import (
     route_after_deployment,
     route_after_development,
     route_after_planning,
+    route_after_smoke,
     route_after_testing,
 )
 from ai_team.flows.state import ProjectPhase
@@ -80,12 +81,21 @@ class TestFlowStateTransitions:
         self,
         mock_crew_outputs: dict,
     ) -> None:
-        """Testing success routes to run_deployment."""
+        """Testing success routes to run_smoke (then deployment)."""
         flow = AITeamFlow()
         flow.state.add_phase_transition(ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "ok")
 
         test_result = {"status": "success", "results": mock_crew_outputs["test_result_passed"]}
         step = route_after_testing(test_result, flow.state)
+        assert step == "run_smoke"
+
+    def test_smoke_success_transitions_to_deployment(self) -> None:
+        """Smoke success routes to run_deployment."""
+        flow = AITeamFlow()
+        step = route_after_smoke(
+            {"status": "success", "success": True, "ran": True},
+            flow.state,
+        )
         assert step == "run_deployment"
 
     def test_deployment_success_transitions_to_finalize(

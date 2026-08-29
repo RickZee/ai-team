@@ -339,7 +339,9 @@ def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str
                     continue
                 dest = root / safe
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_text(code + "\n", encoding="utf-8")
+                from ai_team.harness.fm001 import salvage_write
+
+                salvage_write(str(safe), code + "\n", phase="development")
                 seen.add(fname)
                 written.append({"path": fname, "source": "extracted_from_message"})
                 logger.info("code_block_extracted_to_workspace", path=fname)

@@ -475,22 +475,33 @@ def create_full_guardrail_chain(
     min_words: int = 20,
     max_words: int = 10000,
     check_syntax: bool = True,
+    risk_class: str = "customer-visible",
 ) -> Callable[[str], tuple[bool, str]]:
-    """Create a comprehensive guardrail chain combining all categories."""
+    """Create a comprehensive guardrail chain combining all categories.
+
+    ``risk_class`` selects a subset: ``low`` skips scope; ``write`` includes
+    scope and code quality; ``customer-visible`` / ``irreversible`` run all.
+    """
+    from ai_team.harness.guardrail_risk import should_run
 
     def combined_guardrail(content: str) -> tuple[bool, str]:
         # Security checks first
-        valid, result = SecurityGuardrails.validate_code_safety(content)
-        if not valid:
-            return (False, result)
+        if should_run("code_quality", risk_class) or should_run("secrets", risk_class):
+            valid, result = SecurityGuardrails.validate_code_safety(content)
+            if not valid:
+                return (False, result)
 
-        valid, result = SecurityGuardrails.validate_no_secrets(content)
-        if not valid:
-            return (False, result)
+        if should_run("secrets", risk_class):
+            valid, result = SecurityGuardrails.validate_no_secrets(content)
+            if not valid:
+                return (False, result)
 
         # PII redaction
         if include_pii_redaction:
             valid, content = SecurityGuardrails.redact_pii(content)
+
+        if not should_run("code_quality", risk_class) and risk_class == "low":
+            return (True, content)
 
         # Quality checks
         valid, result = QualityGuardrails.validate_word_count(content, min_words, max_words)
@@ -512,7 +523,7 @@ def create_full_guardrail_chain(
             if not valid:
                 return (False, result)
 
-        if task_description:
+        if task_description and should_run("scope", risk_class):
             valid, result = BehavioralGuardrails.validate_scope_control(content, task_description)
             if not valid:
                 return (False, result)

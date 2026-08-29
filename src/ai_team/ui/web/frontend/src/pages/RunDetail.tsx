@@ -15,7 +15,7 @@ import { RunArtifactsPanel } from "../components/RunArtifactsPanel";
 import { RunStatStrip } from "../components/RunStatStrip";
 import { RunSummaryCard } from "../components/RunSummaryCard";
 import { TestResultsPanel } from "../components/TestResultsPanel";
-import { ApiError, getHealth, getProjectTests, getRun, getRuns, postCancel } from "../hooks/useApi";
+import { ApiError, getHealth, getProjectTests, getRun, getRunReceipt, getRuns, postCancel } from "../hooks/useApi";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useMonitorWebSocket } from "../hooks/useWebSocket";
 import type { MonitorState, RunInfo, TestsPanelData } from "../types";
@@ -80,6 +80,7 @@ export function RunDetail() {
   const [showAgentTable, setShowAgentTable] = useState(false);
   const [tests, setTests] = useState<TestsPanelData | null>(null);
   const [testsLoading, setTestsLoading] = useState(false);
+  const [receipt, setReceipt] = useState<Awaited<ReturnType<typeof getRunReceipt>> | null>(null);
 
   const activeRun = runs.find((r) => r.run_id === runId);
   const effectiveRun = activeRun ?? runDetail;
@@ -158,6 +159,16 @@ export function RunDetail() {
       .catch(() => setTests(null))
       .finally(() => setTestsLoading(false));
   }, [runId, isTerminal, effectiveRun?.backend]);
+
+  useEffect(() => {
+    if (!runId || !isTerminal) {
+      setReceipt(null);
+      return;
+    }
+    getRunReceipt(runId)
+      .then(setReceipt)
+      .catch(() => setReceipt(null));
+  }, [runId, isTerminal]);
 
   const handleCancel = async () => {
     if (!runId) return;
@@ -313,6 +324,18 @@ export function RunDetail() {
               artifactProjectId={effectiveRun.run_id}
               estimateUsd={effectiveRun.estimate_usd ?? null}
             />
+          )}
+          {receipt && (
+            <div className="panel" data-testid="change-receipt">
+              <h3>Change receipt</h3>
+              <p>
+                {receipt.accepted ? "Accepted" : "Not accepted"}
+                {receipt.cost_per_accepted_change != null
+                  ? ` · $${receipt.cost_per_accepted_change.toFixed(4)} per accepted change`
+                  : ""}
+              </p>
+              {receipt.output_hash ? <p className="muted">Hash {receipt.output_hash.slice(0, 12)}</p> : null}
+            </div>
           )}
           {!isTerminal && (
             <div className="dashboard-run-meta panel">

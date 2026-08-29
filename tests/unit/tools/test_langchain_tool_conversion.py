@@ -89,3 +89,20 @@ def test_file_tools_convert_and_invoke(tmp_path, monkeypatch) -> None:
     write.invoke({"path": "hello.txt", "content": "test content"})
     content = read.invoke({"path": "hello.txt"})
     assert "test content" in content
+
+
+@pytest.mark.bus_draft
+def test_langchain_write_is_drafted(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(tmp_path / "out"))
+    (tmp_path / "out").mkdir(exist_ok=True)
+    from ai_team.config.settings import reload_settings
+    from ai_team.tools.bus import reset_bus
+
+    reload_settings()
+    reset_bus()
+    crew_file_tools = get_file_tools()
+    write = next(t for t in to_langchain_tools(crew_file_tools) if "write" in t.name.lower())
+    out = write.invoke({"path": "src/hello.txt", "content": "test content"})
+    assert "Drafted" in out or "draft" in out.lower()
+    assert not (tmp_path / "src" / "hello.txt").exists()

@@ -67,6 +67,21 @@ def _load_agents_config() -> dict[str, Any]:
                 )
     except Exception as exc:
         logger.debug("agent_lessons_injection_skipped", error=str(exc))
+    try:
+        from ai_team.config.settings import get_workspace_dir
+        from ai_team.harness.context import ConstraintLoader
+
+        pinned = ConstraintLoader(Path(get_workspace_dir())).inject_block()
+        if pinned.strip():
+            for _role_key, block in list(data.items()):
+                if not isinstance(block, dict):
+                    continue
+                backstory = str(block.get("backstory") or "")
+                if "PINNED CONSTRAINTS" in backstory:
+                    continue
+                block["backstory"] = pinned.strip() + "\n\n" + backstory
+    except Exception as exc:
+        logger.debug("agent_constraints_injection_skipped", error=str(exc))
     return data
 
 

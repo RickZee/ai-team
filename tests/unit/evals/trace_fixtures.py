@@ -111,6 +111,9 @@ def build_for_check(check_id: str, outcome: OutcomeWanted) -> Trace:
         "CHK-gate-env-fidelity": _gate_env,
         "CHK-required-artifacts": _required,
         "CHK-hallucination-density": _hallucination,
+        "CHK-constraint-survival": _constraint_survival,
+        "CHK-draft-commit": _draft_commit,
+        "CHK-lesson-effectiveness": _lesson_eff,
     }
     return builders[check_id](outcome)
 
@@ -477,6 +480,117 @@ def _hallucination(outcome: OutcomeWanted) -> Trace:
     )
 
 
+def _constraint_survival(outcome: OutcomeWanted) -> Trace:
+    if outcome == "na":
+        return base_trace(
+            check_id="CHK-constraint-survival",
+            outcome=outcome,
+            spans=[_span(0, "phase_start", phase="planning", payload={})],
+        )
+    if outcome == "fail":
+        return base_trace(
+            check_id="CHK-constraint-survival",
+            outcome=outcome,
+            spans=[
+                _span(0, "phase_start", phase="intake", payload={"constraint_ids": ["CST-canary"]}),
+                _span(
+                    1,
+                    "phase_start",
+                    phase="development",
+                    payload={"constraint_ids": ["CST-canary"]},
+                ),
+                _span(2, "phase_start", phase="testing", payload={"constraint_ids": []}),
+            ],
+        )
+    return base_trace(
+        check_id="CHK-constraint-survival",
+        outcome=outcome,
+        spans=[
+            _span(0, "phase_start", phase="intake", payload={"constraint_ids": ["CST-canary"]}),
+            _span(1, "phase_start", phase="testing", payload={"constraint_ids": ["CST-canary"]}),
+            _span(2, "phase_start", phase="deployment", payload={"constraint_ids": ["CST-canary"]}),
+        ],
+    )
+
+
+def _draft_commit(outcome: OutcomeWanted) -> Trace:
+    if outcome == "na":
+        return base_trace(
+            check_id="CHK-draft-commit",
+            outcome=outcome,
+            spans=[_span(0, "phase_start", phase="planning")],
+            warnings=["no audit log for backend=crewai; tool-level checks skipped"],
+        )
+    if outcome == "fail":
+        return base_trace(
+            check_id="CHK-draft-commit",
+            outcome=outcome,
+            spans=[
+                _span(0, "phase_start", phase="development"),
+                _span(
+                    1,
+                    "tool_result",
+                    phase="development",
+                    payload={
+                        "kind": "write",
+                        "code": "ok",
+                        "tool": "write_file",
+                        "artifact_refs": ["src/app.py"],
+                    },
+                ),
+            ],
+        )
+    return base_trace(
+        check_id="CHK-draft-commit",
+        outcome=outcome,
+        spans=[
+            _span(0, "phase_start", phase="development"),
+            _span(
+                1,
+                "tool_result",
+                phase="development",
+                payload={
+                    "kind": "write",
+                    "code": "drafted",
+                    "tool": "write_file",
+                    "artifact_refs": [".harness/drafts/abc"],
+                },
+            ),
+            _span(
+                2,
+                "tool_result",
+                phase="development",
+                payload={
+                    "kind": "write",
+                    "code": "ok",
+                    "tool": "commit_write",
+                    "artifact_refs": ["src/app.py"],
+                },
+            ),
+        ],
+    )
+
+
+def _lesson_eff(outcome: OutcomeWanted) -> Trace:
+    if outcome == "na":
+        return base_trace(check_id="CHK-lesson-effectiveness", outcome=outcome, raw_result={})
+    if outcome == "fail":
+        return base_trace(
+            check_id="CHK-lesson-effectiveness",
+            outcome=outcome,
+            raw_result={
+                "lessons": [{"lesson_id": "L-FM-001-x", "fm_id": "FM-001", "status": "ineffective"}]
+            },
+        )
+    return base_trace(
+        check_id="CHK-lesson-effectiveness",
+        outcome=outcome,
+        raw_result={
+            "lessons": [{"lesson_id": "L-FM-001-x", "fm_id": "FM-001", "status": "escalated"}]
+        },
+    )
+
+
 ALL_CHECK_IDS = [
     "CHK-tool-call-emitted",
     "CHK-phase-repeat-bounded",
@@ -491,6 +605,9 @@ ALL_CHECK_IDS = [
     "CHK-gate-env-fidelity",
     "CHK-required-artifacts",
     "CHK-hallucination-density",
+    "CHK-constraint-survival",
+    "CHK-draft-commit",
+    "CHK-lesson-effectiveness",
 ]
 
 

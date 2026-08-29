@@ -116,6 +116,38 @@ def _mutate(check_id: str):
         }
         return trace
 
+    if check_id == "CHK-constraint-survival":
+        for s in trace.spans:
+            if s.phase in {"testing", "deployment"}:
+                s.payload["constraint_ids"] = []
+        return trace
+
+    if check_id == "CHK-draft-commit":
+        from evals.trace.models import Span as _Span
+
+        extra = _Span(
+            span_id="span_mut",
+            type="tool_result",
+            t_start=trace.started_at,
+            t_end=trace.started_at,
+            phase="development",
+            payload={
+                "kind": "write",
+                "code": "ok",
+                "tool": "write_file",
+                "artifact_refs": ["src/leaked.py"],
+            },
+        )
+        trace.spans = list(trace.spans) + [extra]
+        return trace
+
+    if check_id == "CHK-lesson-effectiveness":
+        trace.raw_result = {
+            **trace.raw_result,
+            "lessons": [{"lesson_id": "L-x", "status": "ineffective"}],
+        }
+        return trace
+
     raise AssertionError(f"no mutation defined for {check_id}")
 
 

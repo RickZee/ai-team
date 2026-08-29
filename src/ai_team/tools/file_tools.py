@@ -142,7 +142,7 @@ def _check_file_size(path: Path, max_kb: int) -> None:
 # -----------------------------------------------------------------------------
 
 
-def read_file(path: str) -> str:
+def _read_file_impl(path: str) -> str:
     """
     Read file with path traversal prevention and size limit.
 
@@ -182,7 +182,7 @@ def normalize_pytest_path(path: str) -> str:
     return path
 
 
-def write_file(path: str, content: str) -> bool:
+def _write_file_impl(path: str, content: str) -> bool:
     """
     Write file with directory whitelist and dangerous-pattern scanning.
 
@@ -232,7 +232,7 @@ def write_file(path: str, content: str) -> bool:
     return True
 
 
-def list_directory(path: str) -> list[str]:
+def _list_directory_impl(path: str) -> list[str]:
     """
     List directory contents with restricted scope (under workspace/output only).
 
@@ -258,7 +258,7 @@ def list_directory(path: str) -> list[str]:
     return names
 
 
-def create_directory(path: str) -> bool:
+def _create_directory_impl(path: str) -> bool:
     """
     Create directory with nesting limits.
 
@@ -288,7 +288,7 @@ def create_directory(path: str) -> bool:
     return True
 
 
-def delete_file(path: str, confirm: bool = False) -> bool:
+def _delete_file_impl(path: str, confirm: bool = False) -> bool:
     """
     Delete a file with confirmation and audit log.
 
@@ -317,9 +317,74 @@ def delete_file(path: str, confirm: bool = False) -> bool:
     return True
 
 
+def _invoke(tool: str, args: dict[str, object]) -> object:
+    from ai_team.tools.bus import get_bus
+    from ai_team.tools.kinds import ToolRequest
+
+    return get_bus().invoke(ToolRequest(tool=tool, args=args))
+
+
+def read_file(path: str) -> str:
+    """Read a file via the ToolBus. Returns full content (not truncated summary)."""
+    from ai_team.tools.kinds import ToolObservation
+
+    obs = _invoke("read_file", {"path": path})
+    assert isinstance(obs, ToolObservation)
+    if not obs.ok:
+        raise ValueError(obs.summary)
+    content = obs.detail.get("content")
+    return str(content) if content is not None else obs.summary
+
+
+def write_file(path: str, content: str) -> bool:
+    """Write a file via the ToolBus (draft-then-commit unless disabled)."""
+    from ai_team.tools.kinds import ToolObservation
+
+    obs = _invoke("write_file", {"path": path, "content": content})
+    assert isinstance(obs, ToolObservation)
+    if not obs.ok:
+        raise ValueError(obs.summary)
+    return True
+
+
+def list_directory(path: str) -> list[str]:
+    """List a directory via the ToolBus."""
+    from ai_team.tools.kinds import ToolObservation
+
+    obs = _invoke("list_directory", {"path": path})
+    assert isinstance(obs, ToolObservation)
+    if not obs.ok:
+        raise ValueError(obs.summary)
+    names = [line for line in obs.summary.split("\n") if line and line != "(empty)"]
+    return names
+
+
+def create_directory(path: str) -> bool:
+    """Create a directory via the ToolBus."""
+    from ai_team.tools.kinds import ToolObservation
+
+    obs = _invoke("create_directory", {"path": path})
+    assert isinstance(obs, ToolObservation)
+    if not obs.ok:
+        raise ValueError(obs.summary)
+    return True
+
+
+def delete_file(path: str, confirm: bool = False) -> bool:
+    """Delete a file via the ToolBus. Irreversible: gated without policy."""
+    from ai_team.tools.kinds import ToolObservation
+
+    obs = _invoke("delete_file", {"path": path, "confirm": confirm})
+    assert isinstance(obs, ToolObservation)
+    if not obs.ok:
+        raise ValueError(obs.summary)
+    return True
+
+
 # -----------------------------------------------------------------------------
 # CrewAI @tool-decorated versions (for agent use)
 # -----------------------------------------------------------------------------
+
 
 try:
     from crewai.tools import tool
@@ -327,31 +392,52 @@ try:
     @tool("Read file contents")
     def read_file_tool(path: str) -> str:
         """Read a file and return its contents. Use a path relative to the workspace or output directory. Path traversal (e.g. ..) is not allowed."""
-        return read_file(path)
+        from ai_team.tools.bus import observation_to_agent_text
+        from ai_team.tools.kinds import ToolObservation
+
+        obs = _invoke("read_file", {"path": path})
+        assert isinstance(obs, ToolObservation)
+        return observation_to_agent_text(obs)
 
     @tool("Write content to file")
     def write_file_tool(path: str, content: str) -> str:
         """Write content to a file. Path must be under workspace or output directory. Content is scanned for dangerous patterns (eval, exec, subprocess, etc.). Returns 'OK' on success."""
-        write_file(path, content)
-        return "OK"
+        from ai_team.tools.bus import observation_to_agent_text
+        from ai_team.tools.kinds import ToolObservation
+
+        obs = _invoke("write_file", {"path": path, "content": content})
+        assert isinstance(obs, ToolObservation)
+        return observation_to_agent_text(obs)
 
     @tool("List directory contents")
     def list_directory_tool(path: str) -> str:
         """List files and directories in the given path. Path must be under workspace or output. Returns a newline-separated list of entry names."""
-        names = list_directory(path)
-        return "\n".join(names) if names else "(empty)"
+        from ai_team.tools.bus import observation_to_agent_text
+        from ai_team.tools.kinds import ToolObservation
+
+        obs = _invoke("list_directory", {"path": path})
+        assert isinstance(obs, ToolObservation)
+        return observation_to_agent_text(obs)
 
     @tool("Create directory")
     def create_directory_tool(path: str) -> str:
         """Create a directory (and parent directories if needed). Path must be under workspace or output. Nesting depth is limited."""
-        create_directory(path)
-        return "OK"
+        from ai_team.tools.bus import observation_to_agent_text
+        from ai_team.tools.kinds import ToolObservation
+
+        obs = _invoke("create_directory", {"path": path})
+        assert isinstance(obs, ToolObservation)
+        return observation_to_agent_text(obs)
 
     @tool("Delete file")
     def delete_file_tool(path: str, confirm: bool = True) -> str:
-        """Delete a file. Only files can be deleted (not directories). Set confirm=True to perform the deletion. Path must be under workspace or output."""
-        delete_file(path, confirm=confirm)
-        return "OK"
+        """Delete a file. Only files can be deleted (not directories). Irreversible: gated unless policy allows. Path must be under workspace or output."""
+        from ai_team.tools.bus import observation_to_agent_text
+        from ai_team.tools.kinds import ToolObservation
+
+        obs = _invoke("delete_file", {"path": path, "confirm": confirm})
+        assert isinstance(obs, ToolObservation)
+        return observation_to_agent_text(obs)
 
     def get_file_tools():
         """Return list of CrewAI file tools for use with agents."""

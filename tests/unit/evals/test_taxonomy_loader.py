@@ -27,12 +27,19 @@ def _write_tax(tmp_path: Path, data: dict) -> Path:
 class TestLoadTaxonomy:
     def test_valid_taxonomy_loads(self) -> None:
         tax = load_taxonomy(require_examples=True)
-        assert tax.version == "1.0.0"
+        assert tax.version == "1.1.0"
         ids = [fm.id for fm in tax.failure_modes]
-        assert ids == [f"FM-{i:03d}" for i in range(1, 11)]
+        assert ids == [f"FM-{i:03d}" for i in range(1, 14)]
         assert all(fm.status == "active" for fm in tax.failure_modes)
         assert all(fm.positive_examples for fm in tax.failure_modes)
         assert all(fm.negative_examples for fm in tax.failure_modes)
+        by_id = {fm.id: fm for fm in tax.failure_modes}
+        assert by_id["FM-001"].harness_layer == "tools"
+        assert by_id["FM-002"].harness_layer is None
+        assert by_id["FM-009"].harness_layer is None
+        assert by_id["FM-011"].harness_layer == "context"
+        assert by_id["FM-012"].harness_layer == "tools"
+        assert by_id["FM-013"].harness_layer == "feedback"
 
     def test_trace_refs_resolve_against_fixtures(self) -> None:
         # Auto-enabled because examples are non-empty.
@@ -95,4 +102,11 @@ class TestLoadTaxonomy:
         data["failure_modes"] = [retired, active] + data["failure_modes"][1:]
         path = _write_tax(tmp_path, data)
         with pytest.raises(TaxonomyValidationError, match="retired id reused: FM-001"):
+            load_taxonomy(path)
+
+    def test_bad_harness_layer_raises(self, tmp_path: Path) -> None:
+        data = _load_raw()
+        data["failure_modes"][0]["harness_layer"] = "not-a-layer"
+        path = _write_tax(tmp_path, data)
+        with pytest.raises(TaxonomyValidationError, match="bad harness_layer"):
             load_taxonomy(path)

@@ -477,6 +477,19 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
     return out
 
 
+@app.get("/api/runs/{run_id}/receipt")
+async def get_run_receipt(run_id: str):
+    """Return the on-disk change receipt. Source of truth; not the live event stream."""
+    from ai_team.harness.receipt import load_receipt
+    from ai_team.ui.artifacts.service import resolve_project_paths
+
+    _ws, bundle = resolve_project_paths(run_id)
+    receipt = load_receipt(bundle)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    return receipt.model_dump(mode="json")
+
+
 @app.get("/api/runs/{run_id}")
 async def get_run(run_id: str):
     """Get run details including monitor state, spend, and artifact metrics."""

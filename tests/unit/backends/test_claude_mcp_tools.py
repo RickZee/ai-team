@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from ai_team.backends.claude_agent_sdk_backend.tools.mcp_server import (
     build_ai_team_mcp_server,
     build_ai_team_mcp_tools,
@@ -55,3 +56,26 @@ def test_build_ai_team_mcp_server_sdk_config(tmp_path: Path) -> None:
     assert server.get("type") == "sdk"
     assert server.get("name") == MCP_SERVER_KEY
     assert server.get("instance") is not None
+
+
+def test_write_workspace_file_registered(tmp_path: Path) -> None:
+    names = {getattr(t, "name", None) for t in build_ai_team_mcp_tools(tmp_path)}
+    assert "write_workspace_file" in names
+
+
+@pytest.mark.bus_draft
+async def test_write_workspace_file_drafts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(tmp_path / "out"))
+    (tmp_path / "out").mkdir()
+    from ai_team.config.settings import reload_settings
+    from ai_team.tools.bus import reset_bus
+
+    reload_settings()
+    reset_bus()
+    tools = build_ai_team_mcp_tools(tmp_path)
+    write = next(t for t in tools if getattr(t, "name", None) == "write_workspace_file")
+    out = await write.handler({"path": "src/a.py", "content": "x = 1\n"})
+    text = out["content"][0]["text"]
+    assert "draft" in text.lower() or "Drafted" in text
+    assert not (tmp_path / "src" / "a.py").exists()

@@ -14,6 +14,7 @@ profiles:
       - cloud_engineer
       - qa_engineer
     phases: [intake, planning, development, testing, deployment]
+    risk_class: customer-visible
     # Phase 6: optional RAG scoping (metadata; LangGraph/CrewAI read via profile.metadata["rag"])
     rag:
       knowledge_topics: [python, security, testing, api, devops]
@@ -80,6 +81,7 @@ profiles:
       - fullstack_developer
       - qa_engineer
     phases: [intake, planning, development, testing]
+    risk_class: write
 
   smoke:
     # Minimal smoke test: plan → code → test. No deployment.
@@ -89,6 +91,7 @@ profiles:
       - backend_developer
       - qa_engineer
     phases: [planning, development, testing]
+    risk_class: write
     min_coverage_pct: 0          # no coverage gate for smoke
     max_complexity: simple
     phase_timeouts_seconds:

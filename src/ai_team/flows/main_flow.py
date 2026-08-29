@@ -49,6 +49,7 @@ from ai_team.flows.routing import (
     route_after_deployment,
     route_after_development,
     route_after_planning,
+    route_after_smoke,
     route_after_testing,
 )
 from ai_team.flows.state import ProjectPhase, ProjectState
@@ -839,6 +840,35 @@ class AITeamFlow(Flow[ProjectState]):
     def route_after_testing(self, test_result: dict[str, Any]) -> str:
         """Route based on testing outcome. Delegates to flows.routing.route_after_testing."""
         return route_after_testing(test_result, self.state)
+
+    @listen("run_smoke")
+    def on_run_smoke(self) -> dict[str, Any]:
+        """Boot the generated app and probe HTTP. Inner loop, not post-run-only."""
+        from ai_team.config.settings import get_workspace_dir
+        from ai_team.tools.smoke_tools import run_app_smoke
+
+        workspace = Path(get_workspace_dir())
+        try:
+            result = run_app_smoke(workspace)
+            payload = result.model_dump() if hasattr(result, "model_dump") else dict(result)
+        except Exception as exc:  # noqa: BLE001 — smoke must not crash the flow
+            self.logger.warning("crewai_smoke_failed", error=str(exc))
+            payload = {
+                "ran": True,
+                "success": False,
+                "message": str(exc),
+                "probes": [],
+            }
+        self.state.metadata["smoke_results"] = payload
+        success = bool(payload.get("success"))
+        ran = payload.get("ran")
+        status = "success" if (success or ran is False) else "failed"
+        return {"status": status, **payload}
+
+    @router(on_run_smoke)
+    def route_after_smoke(self, smoke_result: dict[str, Any]) -> str:
+        """Route after smoke. Must be a @router — listener returns are discarded."""
+        return route_after_smoke(smoke_result, self.state)
 
     @listen("run_deployment")
     def run_deployment_crew(self) -> dict[str, Any]:

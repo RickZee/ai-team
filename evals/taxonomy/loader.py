@@ -13,11 +13,23 @@ _TAXONOMY_DIR = Path(__file__).resolve().parent
 _DEFAULT_PATH = _TAXONOMY_DIR / "failure_modes.yaml"
 
 Layer = Literal["model", "framework", "harness", "provider"]
+HarnessLayer = Literal[
+    "tools",
+    "verification",
+    "context",
+    "guardrails",
+    "observability",
+    "routing",
+    "feedback",
+]
 Severity = Literal["blocker", "major", "minor"]
 Detection = Literal["check", "judge", "manual"]
 Status = Literal["active", "retired"]
 
 VALID_LAYERS = frozenset({"model", "framework", "harness", "provider"})
+VALID_HARNESS_LAYERS = frozenset(
+    {"tools", "verification", "context", "guardrails", "observability", "routing", "feedback"}
+)
 VALID_SEVERITIES = frozenset({"blocker", "major", "minor"})
 VALID_DETECTIONS = frozenset({"check", "judge", "manual"})
 VALID_STATUSES = frozenset({"active", "retired"})
@@ -38,6 +50,7 @@ class FailureMode(BaseModel):
     title: str
     definition: str
     layer: Layer
+    harness_layer: HarnessLayer | None = None
     severity: Severity
     detection: Detection
     implemented_by: list[str] = Field(default_factory=list)
@@ -101,6 +114,19 @@ def _parse_failure_mode(entry: dict[str, Any]) -> FailureMode:
         raise TaxonomyValidationError(
             f"bad layer: {layer!r} for {fm_id} (expected one of {sorted(VALID_LAYERS)})"
         )
+    harness_layer_raw = entry.get("harness_layer")
+    harness_layer: str | None
+    if harness_layer_raw is None or harness_layer_raw == "":
+        harness_layer = None
+    else:
+        if not isinstance(harness_layer_raw, str):
+            raise TaxonomyValidationError(f"bad harness_layer: {harness_layer_raw!r} for {fm_id}")
+        harness_layer = harness_layer_raw.strip()
+        if harness_layer not in VALID_HARNESS_LAYERS:
+            raise TaxonomyValidationError(
+                f"bad harness_layer: {harness_layer!r} for {fm_id} "
+                f"(expected one of {sorted(VALID_HARNESS_LAYERS)})"
+            )
     severity = _require_str(entry, "severity", fm_id)
     if severity not in VALID_SEVERITIES:
         raise TaxonomyValidationError(
@@ -141,6 +167,7 @@ def _parse_failure_mode(entry: dict[str, Any]) -> FailureMode:
         title=_require_str(entry, "title", fm_id),
         definition=_require_str(entry, "definition", fm_id),
         layer=layer,  # type: ignore[arg-type]
+        harness_layer=harness_layer,  # type: ignore[arg-type]
         severity=severity,  # type: ignore[arg-type]
         detection=detection,  # type: ignore[arg-type]
         implemented_by=implemented_by,
@@ -304,8 +331,8 @@ def write_coverage_md(
         "",
         f"Taxonomy version: `{taxonomy.version}`",
         "",
-        "| ID | Slug | Layer | Detection | Checks | Judges | Labels | Rate | Status |",
-        "| --- | --- | --- | --- | --- | --- | ---: | --- | --- |",
+        "| ID | Slug | Layer | Harness layer | Detection | Checks | Judges | Labels | Rate | Status |",
+        "| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- |",
     ]
     uncovered: list[str] = []
     for fm in taxonomy.failure_modes:
@@ -315,8 +342,9 @@ def write_coverage_md(
             uncovered.append(fm.id)
         rate = measured.get(fm.id)
         rate_s = "—" if rate is None else f"{rate:.3f}"
+        hl = fm.harness_layer or "—"
         lines.append(
-            f"| {fm.id} | `{fm.slug}` | {fm.layer} | {fm.detection} | "
+            f"| {fm.id} | `{fm.slug}` | {fm.layer} | {hl} | {fm.detection} | "
             f"{', '.join(checks) or '—'} | {', '.join(jlist) or '—'} | "
             f"{labels.get(fm.id, 0)} | {rate_s} | {fm.status} |"
         )

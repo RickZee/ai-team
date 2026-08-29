@@ -9,10 +9,12 @@
 > - **Lessons loop (capture → cluster → inject): experimental, half-built.** The
 >   capture/extract/inject chain works, but the [Apr 1 audit](journal/journey.md)
 >   found five gaps blocking production use, of which **two are closed and three are
->   open** (lesson-effectiveness tracking, dedup/TTL hardening, richer per-backend
->   comparison snapshots). Do not treat "agents learn from failures" as a finished
->   feature. It is a promising subsystem under active development, and where it is
->   incomplete the docs say so.
+>   open** (richer per-backend comparison snapshots still lag). Structured lessons
+>   now write through `src/ai_team/harness/lessons_loop.py`, pin as `CST-lesson-*`
+>   in `CONSTRAINTS.md`, and are scored by `CHK-lesson-effectiveness`. That is a
+>   **closed loop on paper**, not magic: effectiveness is a recurrence window, not
+>   proof the model "learned." See [HARNESS.md](HARNESS.md). Do not treat "agents
+>   learn from failures" as a finished product feature.
 
 ## Problem
 

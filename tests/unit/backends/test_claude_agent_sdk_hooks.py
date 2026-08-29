@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
 from ai_team.backends.claude_agent_sdk_backend.hooks.audit import build_subagent_audit_hook
 from ai_team.backends.claude_agent_sdk_backend.hooks.quality import build_quality_post_tool_hook
 from ai_team.backends.claude_agent_sdk_backend.hooks.security import build_security_pre_tool_hook
@@ -74,3 +75,28 @@ def test_subagent_audit_hook_writes_jsonl(tmp_path: Path) -> None:
     data = log_path.read_text(encoding="utf-8").strip()
     assert "SubagentStart" in data
     assert "a1" in data
+
+
+def test_security_hook_denies_native_write_when_env_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AI_TEAM_DENY_NATIVE_TOOLS", "1")
+    hook = build_security_pre_tool_hook(Path("/tmp/ws"))
+    inp = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "src/ok.py"},
+        "tool_use_id": "1",
+        "session_id": "s",
+        "transcript_path": "/t",
+        "cwd": "/tmp",
+    }
+    ctx: HookContext = {"signal": None}
+
+    async def _run() -> None:
+        out = await hook(inp, "1", ctx)
+        hso = out.get("hookSpecificOutput") or {}
+        assert hso.get("permissionDecision") == "deny"
+        assert "ToolBus" in str(hso.get("permissionDecisionReason") or "")
+
+    asyncio.run(_run())

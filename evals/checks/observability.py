@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from evals.checks._helpers import scenario_config
 from evals.checks.base import CheckResult, failed, na, passed
 from evals.checks.registry import check
@@ -35,6 +37,18 @@ def metric_source_agreement(trace: Trace) -> CheckResult:
     event_files = events.get("file_count")
     artifact_cost = trace.cost.usd
     event_cost = events.get("cost_usd")
+
+    # Disk receipt is the source of truth when present (FM-008 / R15.5).
+    receipt = trace.raw_result.get("receipt")
+    if isinstance(receipt, dict):
+        rec_files = receipt.get("file_count")
+        rec_cost = receipt.get("cost_usd")
+        if rec_files is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                artifact_files = int(rec_files)
+        if rec_cost is not None:
+            with contextlib.suppress(TypeError, ValueError):
+                artifact_cost = float(rec_cost)
 
     disagreements: list[str] = []
     detail: dict[str, object] = {

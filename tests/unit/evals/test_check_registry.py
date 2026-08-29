@@ -38,7 +38,8 @@ class TestCheckRegistry:
                 by_fm.setdefault(chk.failure_mode_id, []).append(chk.id)
         out = write_coverage_md(tax, check_ids_by_fm=by_fm, out_path=tmp_path / "COVERAGE.md")
         text = out.read_text(encoding="utf-8")
-        for i in range(1, 11):
+        for i in range(1, 14):
             assert f"FM-{i:03d}" in text
+        assert "Harness layer" in text
         assert "Uncovered" in text
         assert "None" in text or "every check-detected" in text

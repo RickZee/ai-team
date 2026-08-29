@@ -93,3 +93,14 @@ def sample_project_description() -> str:
 
 # Export for use in test modules that need the same patch pattern
 identity_llm = _identity_llm
+
+
+@pytest.fixture(autouse=True)
+def _legacy_tool_io(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+    """Keep existing tool tests on live I/O. Opt into draft with ``bus_draft``."""
+    if request.node.get_closest_marker("bus_draft"):
+        monkeypatch.setenv("AI_TEAM_DRAFT_WRITES", "1")
+        monkeypatch.setenv("AI_TEAM_ALLOW_IRREVERSIBLE", "0")
+        return
+    monkeypatch.setenv("AI_TEAM_DRAFT_WRITES", "0")
+    monkeypatch.setenv("AI_TEAM_ALLOW_IRREVERSIBLE", "1")

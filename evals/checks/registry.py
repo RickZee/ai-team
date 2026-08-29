@@ -145,11 +145,14 @@ def ensure_checks_loaded() -> None:
     if _LOADED:
         return
     import evals.checks.artifacts  # noqa: F401
+    import evals.checks.context  # noqa: F401
+    import evals.checks.feedback  # noqa: F401
     import evals.checks.guardrails  # noqa: F401
     import evals.checks.isolation  # noqa: F401
     import evals.checks.observability  # noqa: F401
     import evals.checks.provider  # noqa: F401
     import evals.checks.spend  # noqa: F401
+    import evals.checks.tools_bus  # noqa: F401
     import evals.checks.trajectory  # noqa: F401
     import evals.checks.verification  # noqa: F401
 

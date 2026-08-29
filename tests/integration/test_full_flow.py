@@ -24,6 +24,7 @@ from ai_team.flows.routing import (
     route_after_deployment,
     route_after_development,
     route_after_planning,
+    route_after_smoke,
     route_after_testing,
 )
 from ai_team.flows.state import ProjectPhase
@@ -89,6 +90,11 @@ def _run_flow_manually(
                 )
                 reset_circuit(flow.state, ProjectPhase.TESTING)
             step = route_after_testing(tr, flow.state)
+        elif step == "run_smoke":
+            step = route_after_smoke(
+                {"status": "success", "success": True, "ran": True},
+                flow.state,
+            )
         elif step == "run_deployment":
             flow.state.add_phase_transition(
                 ProjectPhase.DEPLOYMENT, ProjectPhase.COMPLETE, "Deployment configured"

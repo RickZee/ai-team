@@ -1,19 +1,22 @@
 # Failure-mode coverage
 
-Taxonomy version: `1.0.0`
+Taxonomy version: `1.1.0`
 
-| ID | Slug | Layer | Detection | Checks | Judges | Labels | Rate | Status |
-| --- | --- | --- | --- | --- | --- | ---: | --- | --- |
-| FM-001 | `tool_call_omission` | model | check | CHK-tool-call-emitted | — | 0 | — | active |
-| FM-002 | `self_triggering_retry_loop` | framework | check | CHK-phase-repeat-bounded, CHK-listener-self-trigger | — | 0 | — | active |
-| FM-003 | `runtime_coupling_starvation` | harness | check | CHK-interrupt-latency | — | 0 | — | active |
-| FM-004 | `run_id_collision` | harness | check | CHK-workspace-isolation | — | 0 | — | active |
-| FM-005 | `guardrail_false_positive` | harness | check | CHK-guardrail-fp-budget | — | 0 | — | active |
-| FM-006 | `runtime_verification_gap` | harness | check | CHK-runtime-smoke-present | — | 0 | — | active |
-| FM-007 | `unbounded_spend` | harness | check | CHK-spend-ceiling | — | 0 | — | active |
-| FM-008 | `metric_source_drift` | harness | check | CHK-metric-source-agreement | — | 0 | — | active |
-| FM-009 | `provider_dialect_mismatch` | provider | check | CHK-provider-error-rate | — | 0 | — | active |
-| FM-010 | `gate_environment_mismatch` | harness | check | CHK-gate-env-fidelity | — | 0 | — | active |
+| ID | Slug | Layer | Harness layer | Detection | Checks | Judges | Labels | Rate | Status |
+| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- |
+| FM-001 | `tool_call_omission` | model | tools | check | CHK-tool-call-emitted | — | 0 | — | active |
+| FM-002 | `self_triggering_retry_loop` | framework | — | check | CHK-phase-repeat-bounded, CHK-listener-self-trigger | — | 0 | — | active |
+| FM-003 | `runtime_coupling_starvation` | harness | observability | check | CHK-interrupt-latency | — | 0 | — | active |
+| FM-004 | `run_id_collision` | harness | observability | check | CHK-workspace-isolation | — | 0 | — | active |
+| FM-005 | `guardrail_false_positive` | harness | guardrails | check | CHK-guardrail-fp-budget | — | 0 | — | active |
+| FM-006 | `runtime_verification_gap` | harness | verification | check | CHK-runtime-smoke-present | — | 0 | — | active |
+| FM-007 | `unbounded_spend` | harness | guardrails | check | CHK-spend-ceiling | — | 0 | — | active |
+| FM-008 | `metric_source_drift` | harness | observability | check | CHK-metric-source-agreement | — | 0 | — | active |
+| FM-009 | `provider_dialect_mismatch` | provider | — | check | CHK-provider-error-rate | — | 0 | — | active |
+| FM-010 | `gate_environment_mismatch` | harness | verification | check | CHK-gate-env-fidelity | — | 0 | — | active |
+| FM-011 | `constraint_drop` | harness | context | check | CHK-constraint-survival | — | 0 | — | active |
+| FM-012 | `uncommitted_write` | harness | tools | check | CHK-draft-commit | — | 0 | — | active |
+| FM-013 | `lesson_ineffective` | harness | feedback | check | CHK-lesson-effectiveness | — | 0 | — | active |
 
 ## Uncovered (detection: check, no implementation)
 
