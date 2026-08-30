@@ -156,7 +156,9 @@ def _parse_structured_planning(text: str) -> tuple[dict[str, Any], dict[str, Any
 
 
 def _workspace_root() -> Path:
-    root = Path(get_settings().project.workspace_dir).resolve()
+    from ai_team.config.settings import get_workspace_dir
+
+    root = Path(get_workspace_dir()).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -341,7 +343,14 @@ def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 from ai_team.harness.fm001 import salvage_write
 
-                salvage_write(str(safe), code + "\n", phase="development")
+                obs = salvage_write(str(safe), code + "\n", phase="development", workspace=root)
+                if not getattr(obs, "ok", False):
+                    logger.warning(
+                        "code_block_salvage_failed",
+                        path=fname,
+                        summary=getattr(obs, "summary", None),
+                    )
+                    continue
                 seen.add(fname)
                 written.append({"path": fname, "source": "extracted_from_message"})
                 logger.info("code_block_extracted_to_workspace", path=fname)

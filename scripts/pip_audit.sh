@@ -2,6 +2,7 @@
 # Run pip-audit with the same ignore list as .github/workflows/ci.yml security job.
 # Transitive / pinned advisories are documented inline; bump direct deps in pyproject.toml first.
 # GHSA-xf7x-x43h-rpqh: crewai pins json-repair~=0.25.2; fix is 0.60.1+ (DoS via circular $ref).
+# CVE-2026-45830/31/33: chromadb Python server IDOR; no PyPI fix (affected through latest).
 # PYSEC-2026-347{6,7,8,9}: litellm pinned at 1.74.9 for CrewAI/Pydantic (see pyproject.toml);
 #   fixes need 1.82.0–1.84.0 which conflict with that pin.
 set -euo pipefail
@@ -31,6 +32,9 @@ exec uv run pip-audit \
   --ignore-vuln CVE-2026-48775 \
   --ignore-vuln CVE-2026-48776 \
   --ignore-vuln GHSA-xf7x-x43h-rpqh \
+  --ignore-vuln CVE-2026-45830 \
+  --ignore-vuln CVE-2026-45831 \
+  --ignore-vuln CVE-2026-45833 \
   --ignore-vuln PYSEC-2026-3476 \
   --ignore-vuln PYSEC-2026-3477 \
   --ignore-vuln PYSEC-2026-3478 \

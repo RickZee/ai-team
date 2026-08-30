@@ -216,7 +216,7 @@ jobs:
       # litellm pinned at 1.74.9 (CrewAI/Pydantic); PYSEC-2026-347{6-9} ignored in pip_audit.sh.
       # uv/pyjwt/langchain-community advisories are transitive via crewai until upstream resolves.
       # starlette 1.0.1+ requires fastapi to lift starlette<1.0.0 (see fastapi pin).
-      # chromadb/msgpack advisories: transitive; no fix on current chromadb pin (<1.2).
+      # chromadb CVE-2026-45830/31/33: Python server IDOR; no PyPI fix (see pip_audit.sh).
       - name: Pip-audit dependency vulnerabilities
         run: ./scripts/pip_audit.sh
 
