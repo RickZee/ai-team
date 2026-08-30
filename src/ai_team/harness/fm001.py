@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 from ai_team.tools.bus import ToolBus
@@ -47,17 +48,33 @@ def fm001_violation(
     }
 
 
-def salvage_write(path: str, content: str, *, phase: str | None = None) -> Any:
-    """Harness-originated write through the bus (auto-commit)."""
+def salvage_write(
+    path: str,
+    content: str,
+    *,
+    phase: str | None = None,
+    workspace: Path | str | None = None,
+) -> Any:
+    """Harness-originated write through the bus (auto-commit).
+
+    ``workspace`` scopes :func:`~ai_team.config.settings.get_workspace_dir` so
+    LangGraph salvage lands in the same tree as ``_workspace_root()``.
+    """
+    from ai_team.config.settings import get_workspace_dir, scoped_workspace_dir
     from ai_team.tools.bus import get_bus
     from ai_team.tools.kinds import ToolRequest
 
-    return get_bus().invoke(
-        ToolRequest(
-            tool="write_file",
-            args={"path": path, "content": content},
-            agent_role="_harness",
-            phase=phase,
-            auto_commit=True,
+    def _invoke() -> Any:
+        return get_bus().invoke(
+            ToolRequest(
+                tool="write_file",
+                args={"path": path, "content": content},
+                agent_role="_harness",
+                phase=phase,
+                auto_commit=True,
+            )
         )
-    )
+
+    target = Path(workspace) if workspace is not None else Path(get_workspace_dir())
+    with scoped_workspace_dir(str(target.resolve())):
+        return _invoke()

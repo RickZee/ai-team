@@ -70,7 +70,12 @@ class TestCodeBlockExtraction:
         written = sr._extract_and_write_code_blocks([AIMessage(content=QA_PROSE)])
         names = {w["path"] for w in written}
         assert names == {"calc.py", "test_calc.py"}
-        assert (workspace / "test_calc.py").read_text().startswith("from calc import add")
+        # write_file relocates root-level test_*.py into tests/ so pytest does
+        # not collect salvage scratch at the workspace root.
+        test_path = workspace / "test_calc.py"
+        if not test_path.is_file():
+            test_path = workspace / "tests" / "test_calc.py"
+        assert test_path.read_text().startswith("from calc import add")
 
     def test_extracts_numbered_and_suffixed_dev_headers(self, workspace: Path) -> None:
         """'### 1. `main.py` (Flask App)' and 'Updated `tests/test_api.py`' shapes."""
