@@ -419,13 +419,23 @@ async def run_history(limit: int = Query(200, ge=1, le=1000)):
     return {"runs": state.store.list_runs(limit=limit), "persisted": True}
 
 
-def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
-    """Real per-run numbers derived from on-disk artifacts (workspace + smoke).
+def _load_run_receipt(run_id: str):
+    """Load on-disk change receipt for *run_id*, or None."""
+    try:
+        from ai_team.harness.receipt import load_receipt
+        from ai_team.ui.artifacts.service import resolve_project_paths
 
-    The live TeamMonitor counters are backend-event-driven and historically
-    under-populated (a dashboard showing zeros during real runs). The workspace
-    and smoke files are the ground truth every backend already writes — count
-    those instead of trusting event plumbing.
+        _ws, bundle = resolve_project_paths(run_id)
+        return load_receipt(bundle)
+    except (OSError, ValueError, RuntimeError):
+        return None
+
+
+def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
+    """Per-run numbers: prefer ``receipt.json`` (FM-008), else workspace scan.
+
+    The live TeamMonitor / WebSocket buffer is never the authority for cost,
+    smoke, or file counts once a receipt exists.
     """
     from ai_team.ui.artifacts.service import resolve_run_workspace_dir
 
@@ -433,7 +443,63 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
         "files_generated": None,
         "test_files": None,
         "smoke": None,
+        "source": "none",
     }
+    receipt = _load_run_receipt(run_id)
+    if receipt is not None:
+        out["source"] = "receipt"
+        tests = receipt.tests if isinstance(receipt.tests, dict) else {}
+        if isinstance(tests.get("files_generated"), int):
+            out["files_generated"] = int(tests["files_generated"])
+        if isinstance(tests.get("test_files"), int):
+            out["test_files"] = int(tests["test_files"])
+        smoke = receipt.smoke if isinstance(receipt.smoke, dict) else {}
+        if smoke:
+            eps = smoke.get("endpoints") or smoke.get("probes") or []
+            if isinstance(eps, list) and eps:
+                passed = sum(
+                    1
+                    for e in eps
+                    if isinstance(e, dict)
+                    and (
+                        e.get("ok")
+                        or str(e.get("result") or e.get("outcome") or "").upper()
+                        in ("PASS", "PASSED")
+                    )
+                )
+                overall = (
+                    smoke.get("overall")
+                    or smoke.get("overall_outcome")
+                    or smoke.get("overall_result")
+                    or smoke.get("status")
+                )
+                if overall is None and smoke.get("success") is True:
+                    overall = "pass"
+                elif overall is None and smoke.get("success") is False:
+                    overall = "fail"
+                out["smoke"] = {
+                    "overall": str(overall).lower() if overall is not None else None,
+                    "passed": passed,
+                    "total": len(eps),
+                    "success": smoke.get("success"),
+                }
+            else:
+                out["smoke"] = {
+                    "overall": (
+                        "pass"
+                        if smoke.get("success") is True
+                        else ("fail" if smoke.get("success") is False else None)
+                    ),
+                    "passed": None,
+                    "total": None,
+                    "success": smoke.get("success"),
+                    "ran": smoke.get("ran"),
+                    "skip_reason": smoke.get("skip_reason"),
+                }
+        # File counts may be absent from older receipts — fall through to scan.
+        if out["files_generated"] is not None and out["test_files"] is not None:
+            return out
+
     try:
         ws = resolve_run_workspace_dir(run_id)
         if not ws.is_dir():
@@ -445,33 +511,38 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
             if p.is_file()
             and not any(part in skip or part.startswith(".") for part in p.relative_to(ws).parts)
         ]
-        out["files_generated"] = len(files)
-        out["test_files"] = sum(1 for p in files if p.name.startswith(("test_", "conftest")))
-        smoke_path = ws / "docs" / "smoke_results.json"
-        if smoke_path.is_file():
-            try:
-                smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
-                # Smoke schemas vary slightly per producing agent; normalize.
-                eps = smoke.get("endpoints") or smoke.get("probes") or []
-                passed = sum(
-                    1
-                    for e in eps
-                    if e.get("ok")
-                    or str(e.get("result") or e.get("outcome") or "").upper() in ("PASS", "PASSED")
-                )
-                overall = (
-                    smoke.get("overall")
-                    or smoke.get("overall_outcome")
-                    or smoke.get("overall_result")
-                    or smoke.get("status")
-                )
-                out["smoke"] = {
-                    "overall": str(overall).lower() if overall is not None else None,
-                    "passed": passed,
-                    "total": len(eps),
-                }
-            except (json.JSONDecodeError, OSError):
-                pass
+        if out["files_generated"] is None:
+            out["files_generated"] = len(files)
+        if out["test_files"] is None:
+            out["test_files"] = sum(1 for p in files if p.name.startswith(("test_", "conftest")))
+        if out["smoke"] is None:
+            smoke_path = ws / "docs" / "smoke_results.json"
+            if smoke_path.is_file():
+                try:
+                    smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
+                    eps = smoke.get("endpoints") or smoke.get("probes") or []
+                    passed = sum(
+                        1
+                        for e in eps
+                        if e.get("ok")
+                        or str(e.get("result") or e.get("outcome") or "").upper()
+                        in ("PASS", "PASSED")
+                    )
+                    overall = (
+                        smoke.get("overall")
+                        or smoke.get("overall_outcome")
+                        or smoke.get("overall_result")
+                        or smoke.get("status")
+                    )
+                    out["smoke"] = {
+                        "overall": str(overall).lower() if overall is not None else None,
+                        "passed": passed,
+                        "total": len(eps),
+                    }
+                except (json.JSONDecodeError, OSError):
+                    pass
+        if out["source"] != "receipt":
+            out["source"] = "workspace"
     except Exception:  # metrics are best-effort; never break the endpoint
         logger.debug("run_artifact_metrics_failed", run_id=run_id)
     return out
@@ -1614,13 +1685,15 @@ def _apply_crewai_result_to_monitor(monitor: Any, raw: dict[str, Any], success: 
 
 
 def _resolve_cost_usd(monitor, run_id: str | None) -> float | None:
-    """Real dollars for the dashboard: SDK's own metric, else the spend registry.
+    """Real dollars for the dashboard: receipt first (FM-008), then live sources.
 
-    ``claude_cost_usd`` is only fed by the Claude SDK's result messages; the
-    OpenRouter backends record real per-call cost into the spend guard instead.
-    Without this fallback the Compare tab showed ``cost_usd: null`` for every
-    LangGraph run while the money was being tracked all along.
+    ``receipt.json`` is the source of truth after finalize. Live monitor and
+    spend-guard values are fallbacks while a run is still in progress.
     """
+    if run_id:
+        receipt = _load_run_receipt(run_id)
+        if receipt is not None and receipt.cost_usd is not None:
+            return float(receipt.cost_usd)
     if monitor.metrics.claude_cost_usd is not None:
         return float(monitor.metrics.claude_cost_usd)
     if run_id:

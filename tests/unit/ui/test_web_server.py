@@ -123,6 +123,47 @@ class TestWebServerArtifacts:
         assert "accepted" in body
         assert body["cost_usd"] == 0.25
 
+    def test_artifact_metrics_prefer_receipt(
+        self, web_client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ws = tmp_path / "workspace"
+        out = tmp_path / "output"
+        ws.mkdir()
+        out.mkdir()
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws))
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out))
+        from ai_team.config.settings import reload_settings
+        from ai_team.harness.receipt import ReceiptWriter
+        from ai_team.ui.web import server as web_server
+
+        reload_settings()
+        rid = "metrics-receipt-1"
+        run_ws = ws / rid
+        run_ws.mkdir()
+        (run_ws / "src").mkdir()
+        (run_ws / "src" / "app.py").write_text("x=1", encoding="utf-8")
+        bundle = out / "runs" / rid
+        ReceiptWriter().write_from_run(
+            output_dir=bundle,
+            workspace=run_ws,
+            run_id=rid,
+            backend="langgraph",
+            cost_usd=1.23,
+            smoke={"ran": True, "success": True},
+            tests={"files_generated": 7, "test_files": 3},
+        )
+        metrics = web_server._run_artifact_metrics(rid)
+        assert metrics["source"] == "receipt"
+        assert metrics["files_generated"] == 7
+        assert metrics["test_files"] == 3
+        assert metrics["smoke"]["success"] is True
+
+        from ai_team.monitor import TeamMonitor
+
+        monitor = TeamMonitor(project_name="metrics")
+        monitor.metrics.claude_cost_usd = 9.99
+        assert web_server._resolve_cost_usd(monitor, rid) == pytest.approx(1.23)
+
     def test_project_tests_architecture_empty(
         self, web_client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
