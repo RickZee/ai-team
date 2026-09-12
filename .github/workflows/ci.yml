@@ -213,7 +213,9 @@ jobs:
         run: uv run bandit -r src/ -f json -o bandit-report.json || true
         continue-on-error: true
 
-      # litellm pinned at 1.74.9 (CrewAI/Pydantic); PYSEC-2026-347{6-9} ignored in pip_audit.sh.
+      # litellm pinned at 1.74.9 (CrewAI/Pydantic); PYSEC-2026-347{6-9}, PYSEC-2026-3861,
+      # CVE-2026-1277{1,2,3,5} ignored in pip_audit.sh (fixes need 1.83+).
+      # PYSEC-2026-3819: crewai-tools SSRF; fix 1.15.1+ — stay on 1.6.1 until CrewAI bump.
       # uv/pyjwt/langchain-community advisories are transitive via crewai until upstream resolves.
       # starlette 1.0.1+ requires fastapi to lift starlette<1.0.0 (see fastapi pin).
       # chromadb CVE-2026-45830/31/33: Python server IDOR; no PyPI fix (see pip_audit.sh).
