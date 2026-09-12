@@ -1,7 +1,7 @@
 [project]
 name = "ai-team"
 version = "0.1.0"
-description = "Autonomous Multi-Agent Software Development Team using CrewAI"
+description = "A field study of multi-agent failure modes: shared harness over CrewAI, LangGraph, and Claude Agent SDK"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11,<=3.13"
@@ -72,7 +72,7 @@ dev = [
 [tool.poetry]
 name = "ai-team"
 version = "0.1.0"
-description = "Autonomous Multi-Agent Software Development Team using CrewAI"
+description = "A field study of multi-agent failure modes: shared harness over CrewAI, LangGraph, and Claude Agent SDK"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
 license = "MIT"

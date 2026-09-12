@@ -31,6 +31,11 @@ recorded with commit references in the [engineering journal](docs/journal/README
 
 ## Quick start
 
+> **Arrived from the essay?** Open the web Compare tab (`/compare`) after the commands
+> below, then read [evals/README.md](evals/README.md) for the $0 Tier A replay. The
+> [failure taxonomy](docs/posts/failure-taxonomy.md) is the narrative; the receipt and
+> eval checks are the proof.
+
 ```bash
 git clone https://github.com/RickZee/ai-team.git && cd ai-team
 cp .env.example .env        # add OPENROUTER_API_KEY (+ ANTHROPIC_API_KEY for the SDK backend)

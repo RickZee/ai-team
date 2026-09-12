@@ -8,14 +8,17 @@ or crews.
 from __future__ import annotations
 
 from ai_team.harness.context import ConstraintLoader, StateWriter
+from ai_team.harness.journal import JournalEvent, append_journal_event
 from ai_team.harness.receipt import ChangeReceipt, ReceiptWriter
 from ai_team.harness.router import TaskType, resolve_route
 
 __all__ = [
     "ChangeReceipt",
     "ConstraintLoader",
+    "JournalEvent",
     "ReceiptWriter",
     "StateWriter",
     "TaskType",
+    "append_journal_event",
     "resolve_route",
 ]

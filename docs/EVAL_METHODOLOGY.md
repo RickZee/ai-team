@@ -91,4 +91,6 @@ then `taxonomy propose --from-annotations`.
 - **Tier C live validation** (≤$5) and **judge align** (≤$1) are human-triggered spend
   and were not executed in the scaffolding PR; see `docs/eval-runs/`.
 - **Gate soak:** CI runs Tier A with `--warn-only` until a week of green nightlies
-  (task 9.4).
+  (task 9.4). **Campaign status:** still warn-only as of 2026-09-09 — see
+  [campaign/EVAL_GATE_STATUS.md](campaign/EVAL_GATE_STATUS.md). Do not claim a hard
+  gate in posts until that file says otherwise.

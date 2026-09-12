@@ -216,6 +216,24 @@ class ResultsBundle:
                         smoke = meta["smoke_results"]
                 except (OSError, json.JSONDecodeError):
                     smoke = {}
+            tests: dict[str, Any] = {}
+            try:
+                skip = {"logs", "docs", "__pycache__", ".github", ".harness"}
+                files = [
+                    p
+                    for p in self._base_workspace.rglob("*")
+                    if p.is_file()
+                    and not any(
+                        part in skip or part.startswith(".")
+                        for part in p.relative_to(self._base_workspace).parts
+                    )
+                ]
+                tests["files_generated"] = len(files)
+                tests["test_files"] = sum(
+                    1 for p in files if p.name.startswith(("test_", "conftest"))
+                )
+            except OSError:
+                tests = {}
             ReceiptWriter().write_from_run(
                 output_dir=self._base_output,
                 workspace=self._base_workspace,
@@ -224,6 +242,7 @@ class ResultsBundle:
                 team_profile=str(data.get("team_profile") or "full"),
                 cost_usd=cost_usd,
                 smoke=smoke,
+                tests=tests,
                 required_ok=True,
             )
         except Exception as exc:  # noqa: BLE001 — receipt must not fail the run

@@ -248,6 +248,7 @@ class ToolBus:
         self._spans.append(row)
         logger.info("toolbus_span", **{k: v for k, v in row.items() if k != "summary"})
         _append_audit_jsonl(row)
+        _append_journal_event(row, observation)
 
 
 _bus_var: contextvars.ContextVar[ToolBus | None] = contextvars.ContextVar(
@@ -410,3 +411,46 @@ def _append_audit_jsonl(row: dict[str, Any]) -> None:
             fh.write(json.dumps(row, default=str) + "\n")
     except (OSError, RuntimeError):
         logger.debug("toolbus_audit_jsonl_skipped")
+
+
+def _append_journal_event(row: dict[str, Any], observation: ToolObservation | None) -> None:
+    """Mirror tool spans into reconstructable ``logs/journal.jsonl`` (FM-008)."""
+    try:
+        from ai_team.config.settings import get_workspace_dir
+        from ai_team.harness.journal import (
+            JournalEvent,
+            append_journal_event,
+            constraint_pin_hash_for,
+        )
+
+        workspace = Path(get_workspace_dir())
+        code = (observation.code if observation else row.get("code")) or ""
+        if observation is not None and observation.ok:
+            decision: str = "allow"
+        elif code in {"permission_denied", "irreversible_blocked"}:
+            decision = "deny"
+        elif observation is not None and not observation.ok:
+            decision = "error"
+        else:
+            decision = "info"
+        spend_delta = None
+        detail = observation.detail if observation else {}
+        if isinstance(detail, dict) and isinstance(detail.get("spend_delta_usd"), int | float):
+            spend_delta = float(detail["spend_delta_usd"])
+        append_journal_event(
+            workspace,
+            JournalEvent(
+                event=str(row.get("type") or "tool"),
+                backend=row.get("backend"),
+                phase=row.get("phase"),
+                tool=row.get("tool"),
+                decision=decision,  # type: ignore[arg-type]
+                spend_delta_usd=spend_delta,
+                constraint_pin_hash=constraint_pin_hash_for(workspace),
+                run_id=row.get("run_id"),
+                agent_role=row.get("agent_role"),
+                detail={"code": code} if code else {},
+            ),
+        )
+    except (OSError, RuntimeError, ValueError):
+        logger.debug("toolbus_journal_jsonl_skipped")

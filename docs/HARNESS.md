@@ -16,7 +16,7 @@ See [evals/taxonomy/COVERAGE.md](../evals/taxonomy/COVERAGE.md) for FM coverage.
 | Verification | Cheap (pytest/ruff/smoke) vs strong (judge); smoke on every backend | `src/ai_team/harness/verifiers.py`, `tools/smoke_tools.py`, CrewAI `on_run_smoke` | FM-006, FM-010 | CHK-runtime-smoke-present, CHK-gate-env-fidelity | **enforced** |
 | Context | Pinned `docs/CONSTRAINTS.md`; `STATE.md` last-N facts; no summarizer rewrite | `src/ai_team/harness/context.py` | FM-011 | CHK-constraint-survival | **enforced** |
 | Guardrails | `risk_class` subsets; spend ceiling stays global | `src/ai_team/harness/guardrail_risk.py`, `guardrails/` | FM-005, FM-007 | CHK-guardrail-fp-budget, CHK-spend-ceiling | **enforced** |
-| Observability | Disk change receipt is source of truth; dashboard reads the file | `src/ai_team/harness/receipt.py`, `GET /api/runs/{id}/receipt` | FM-003, FM-004, FM-008 | CHK-interrupt-latency, CHK-workspace-isolation, CHK-metric-source-agreement | **instrumented** |
+| Observability | Disk change receipt is source of truth; dashboard reads the file | `src/ai_team/harness/receipt.py`, `GET /api/runs/{id}/receipt` | FM-003, FM-004, FM-008 | CHK-interrupt-latency, CHK-workspace-isolation, CHK-metric-source-agreement | **enforced** (dashboard cost/smoke/files prefer `receipt.json`; live WS is projection-only) |
 | Routing | `task_routes.yaml`; `mechanical_check` → `deterministic` | `src/ai_team/harness/router.py`, `config/task_routes.yaml` | — | cheap path unit tests | **instrumented** |
 | Feedback | Structured lessons → pin `CST-lesson-*`; effectiveness window | `src/ai_team/harness/lessons_loop.py` | FM-013 | CHK-lesson-effectiveness | **closed-loop** |
 
@@ -61,6 +61,21 @@ summarizer in `harness/context.py` drops other context and keeps the pin.
 event stream is not the source of truth for cost, files, or smoke.
 `cost_per_accepted_change = total_usd / max(accepted_changes, 1)`.
 Week-over-week: `python -m evals.cli drift --current DIR --previous DIR` (warn-only, $0).
+
+The web dashboard (`GET /api/runs/{id}`, Compare monitor serialization) prefers
+receipt fields for cost and smoke once the file exists. WebSocket events remain
+a live projection for progress UX only.
+
+## Run journal (reconstruct, not rewind)
+
+`workspace/<id>/logs/journal.jsonl` is an append-only stream of ToolBus
+allow/deny events with `backend`, `phase`, `tool`, `decision`, optional
+`spend_delta_usd`, and `constraint_pin_hash`. It supports post-hoc inspection
+alongside `audit.jsonl` / `phases.jsonl`.
+
+**Not a session DOM:** rewind, fork, and interactive resume from the journal are
+out of scope. Durable replay for CI is eval fixture traces + the change receipt
+(see [EVALS.md](EVALS.md)), not journal replay.
 
 ## Env flags
 
