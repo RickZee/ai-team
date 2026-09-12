@@ -433,10 +433,11 @@ def _append_journal_event(row: dict[str, Any], observation: ToolObservation | No
             decision = "error"
         else:
             decision = "info"
-        spend_delta = None
+        spend_delta: float | None = None
         detail = observation.detail if observation else {}
-        if isinstance(detail, dict) and isinstance(detail.get("spend_delta_usd"), int | float):
-            spend_delta = float(detail["spend_delta_usd"])
+        raw_spend = detail.get("spend_delta_usd") if isinstance(detail, dict) else None
+        if isinstance(raw_spend, int | float):
+            spend_delta = float(raw_spend)
         append_journal_event(
             workspace,
             JournalEvent(

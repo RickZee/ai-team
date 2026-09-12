@@ -3,8 +3,11 @@
 # Transitive / pinned advisories are documented inline; bump direct deps in pyproject.toml first.
 # GHSA-xf7x-x43h-rpqh: crewai pins json-repair~=0.25.2; fix is 0.60.1+ (DoS via circular $ref).
 # CVE-2026-45830/31/33: chromadb Python server IDOR; no PyPI fix (affected through latest).
-# PYSEC-2026-347{6,7,8,9}: litellm pinned at 1.74.9 for CrewAI/Pydantic (see pyproject.toml);
-#   fixes need 1.82.0–1.84.0 which conflict with that pin.
+# litellm pinned at 1.74.9 for CrewAI/Pydantic (see pyproject.toml); proxy-admin / SSTI /
+#   auth fixes need 1.83.0–1.84.0 which conflict with that pin (PYSEC-2026-347{6-9},
+#   PYSEC-2026-3861, CVE-2026-1277{1,2,3,5}).
+# PYSEC-2026-3819: crewai/crewai-tools SSRF in validate_url; fix is 1.15.1+ — stack stays on
+#   1.6.1 until a deliberate CrewAI major bump.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -38,4 +41,10 @@ exec uv run pip-audit \
   --ignore-vuln PYSEC-2026-3476 \
   --ignore-vuln PYSEC-2026-3477 \
   --ignore-vuln PYSEC-2026-3478 \
-  --ignore-vuln PYSEC-2026-3479
+  --ignore-vuln PYSEC-2026-3479 \
+  --ignore-vuln PYSEC-2026-3819 \
+  --ignore-vuln PYSEC-2026-3861 \
+  --ignore-vuln CVE-2026-12771 \
+  --ignore-vuln CVE-2026-12772 \
+  --ignore-vuln CVE-2026-12773 \
+  --ignore-vuln CVE-2026-12795
