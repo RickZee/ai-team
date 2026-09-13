@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="660" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">SEVEN MONTHS · 277 COMMITS · FOUR SELF-AUDITS</text>
+  <text x="70" y="122" font-size="44" font-weight="700" fill="#1a1a2e">What auditing your own system actually catches</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">One multi-agent testbed, reviewed adversarially against itself on a cadence. Each pass found what the last could not.</text>
+
+  <!-- month context strip -->
+  <line x1="70" y1="268" x2="1130" y2="268" stroke="#d8d5c9" stroke-width="1.5"/>
+  <g>
+    <rect x="92"  y="244" width="86" height="24" rx="2" fill="#e2e0d6"/>
+    <rect x="225" y="258" width="86" height="10" rx="2" fill="#e2e0d6"/>
+    <rect x="358" y="259" width="86" height="9"  rx="2" fill="#e2e0d6"/>
+    <rect x="491" y="263" width="86" height="5"  rx="2" fill="#e2e0d6"/>
+    <rect x="624" y="209" width="86" height="59" rx="2" fill="#cfe9df"/>
+    <rect x="757" y="205" width="86" height="63" rx="2" fill="#cfe9df"/>
+    <rect x="890" y="260" width="86" height="8"  rx="2" fill="#e2e0d6"/>
+    <rect x="1023" y="262" width="86" height="6" rx="2" fill="#e2e0d6"/>
+    <g font-size="14" fill="#96938a" text-anchor="middle">
+      <text x="268" y="290">Mar</text><text x="401" y="290">Apr</text><text x="534" y="290">May</text><text x="667" y="290">Jun</text>
+    </g>
+    <text x="70" y="192" font-size="12" fill="#96938a" letter-spacing="1">COMMITS PER MONTH</text>
+  </g>
+
+  <!-- audit markers -->
+  <circle cx="135"  cy="268" r="7" fill="#1d9e75"/>
+  <circle cx="800"  cy="268" r="7" fill="#1d9e75"/>
+  <circle cx="933"  cy="268" r="7" fill="#1d9e75"/>
+  <circle cx="1066" cy="268" r="7" fill="#1d9e75"/>
+  <line x1="135"  y1="275" x2="135"  y2="322" stroke="#1d9e75" stroke-width="1.5"/>
+  <line x1="800"  y1="275" x2="800"  y2="322" stroke="#1d9e75" stroke-width="1.5"/>
+  <line x1="933"  y1="275" x2="933"  y2="322" stroke="#1d9e75" stroke-width="1.5"/>
+  <line x1="1066" y1="275" x2="1066" y2="322" stroke="#1d9e75" stroke-width="1.5"/>
+
+  <!-- cards -->
+  <g>
+    <rect x="70" y="322" width="245" height="228" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="322" width="5" height="228" rx="2.5" fill="#1d9e75"/>
+    <text x="96" y="352" font-size="14" font-weight="700" fill="#0f6e56" letter-spacing="1">FEB 15 · DAY ONE</text>
+    <text x="96" y="384" font-size="17" font-weight="700" fill="#1a1a2e">Plan vs. what landed</text>
+    <text x="96" y="414" font-size="14.5" fill="#5f5e5a">A generated build plan, run</text>
+    <text x="96" y="434" font-size="14.5" fill="#5f5e5a">through an agent, with whole</text>
+    <text x="96" y="454" font-size="14.5" fill="#5f5e5a">prompts silently dropped.</text>
+    <text x="96" y="488" font-size="14.5" font-weight="600" fill="#186b51">Caught: never trust a</text>
+    <text x="96" y="508" font-size="14.5" font-weight="600" fill="#186b51">generated plan without</text>
+    <text x="96" y="528" font-size="14.5" font-weight="600" fill="#186b51">checking that it lands.</text>
+  </g>
+
+  <g>
+    <rect x="336" y="322" width="245" height="228" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="336" y="322" width="5" height="228" rx="2.5" fill="#1d9e75"/>
+    <text x="362" y="352" font-size="14" font-weight="700" fill="#0f6e56" letter-spacing="1">JUL 21&#8211;24 · METHOD</text>
+    <text x="362" y="384" font-size="17" font-weight="700" fill="#1a1a2e">Adversarial self-review</text>
+    <text x="362" y="414" font-size="14.5" fill="#5f5e5a">Reviewed my own comparison</text>
+    <text x="362" y="434" font-size="14.5" fill="#5f5e5a">the way a hostile reader would.</text>
+    <text x="362" y="468" font-size="14.5" font-weight="600" fill="#186b51">Caught: the judge shared a</text>
+    <text x="362" y="488" font-size="14.5" font-weight="600" fill="#186b51">vendor with a contestant, and</text>
+    <text x="362" y="508" font-size="14.5" font-weight="600" fill="#186b51">n=5 rankings didn&#8217;t survive</text>
+    <text x="362" y="528" font-size="14.5" font-weight="600" fill="#186b51">their own intervals.</text>
+  </g>
+
+  <g>
+    <rect x="602" y="322" width="245" height="228" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="602" y="322" width="5" height="228" rx="2.5" fill="#1d9e75"/>
+    <text x="628" y="352" font-size="14" font-weight="700" fill="#0f6e56" letter-spacing="1">AUG 16 · CLAIMS</text>
+    <text x="628" y="384" font-size="17" font-weight="700" fill="#1a1a2e">Taxonomy made executable</text>
+    <text x="628" y="414" font-size="14.5" fill="#5f5e5a">Seventeen failure modes bound</text>
+    <text x="628" y="434" font-size="14.5" fill="#5f5e5a">to deterministic checks and a</text>
+    <text x="628" y="454" font-size="14.5" fill="#5f5e5a">$0 replay gate in CI.</text>
+    <text x="628" y="488" font-size="14.5" font-weight="600" fill="#186b51">Caught: four things not yet</text>
+    <text x="628" y="508" font-size="14.5" font-weight="600" fill="#186b51">true &#8212; written into the docs</text>
+    <text x="628" y="528" font-size="14.5" font-weight="600" fill="#186b51">rather than left to discover.</text>
+  </g>
+
+  <g>
+    <rect x="868" y="322" width="262" height="228" rx="10" fill="#f2faf7" stroke="#a8d8c6" stroke-width="1.5"/>
+    <rect x="868" y="322" width="5" height="228" rx="2.5" fill="#1d9e75"/>
+    <text x="894" y="352" font-size="14" font-weight="700" fill="#0f6e56" letter-spacing="1">SEP 13 · THE INSTRUMENT</text>
+    <text x="894" y="384" font-size="17" font-weight="700" fill="#1a1a2e">Audit of the eval harness</text>
+    <text x="894" y="414" font-size="14.5" fill="#5f5e5a">Pointed the same scrutiny at</text>
+    <text x="894" y="434" font-size="14.5" fill="#5f5e5a">the thing doing the measuring.</text>
+    <text x="894" y="468" font-size="14.5" font-weight="600" fill="#186b51">Caught: the corpus builder and</text>
+    <text x="894" y="488" font-size="14.5" font-weight="600" fill="#186b51">the harness disagreed about</text>
+    <text x="894" y="508" font-size="14.5" font-weight="600" fill="#186b51">where traces live. 210 run</text>
+    <text x="894" y="528" font-size="14.5" font-weight="600" fill="#186b51">records, unread since July.</text>
+  </g>
+
+  <text x="70" y="600" font-size="21" font-weight="600" fill="#1a1a2e">The instrument is the last thing anyone audits, and the only one whose failure hides every other.</text>
+  <text x="70" y="630" font-size="16" fill="#6e6c66">Every finding above is reproducible from the repository: a query, a file count, or a commit.</text>
+</svg>

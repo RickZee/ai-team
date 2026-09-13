@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="630" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">THE PATTERN</text>
+  <text x="70" y="122" font-size="42" font-weight="700" fill="#1a1a2e">Seven stages get built. One makes them count.</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">Infrastructure is buildable in a fortnight. Evidence is an afternoon nobody schedules.</text>
+
+  <!-- left: what gets built -->
+  <rect x="70" y="200" width="560" height="322" rx="12" fill="#ffffff" stroke="#d3d1c7"/>
+  <rect x="70" y="200" width="6" height="322" rx="3" fill="#1d9e75"/>
+  <text x="102" y="238" font-size="21" font-weight="700" fill="#1a1a2e">What teams build</text>
+  <text x="102" y="262" font-size="15" fill="#6e6c66">All of it ships. All of it is testable.</text>
+  <g font-size="17" fill="#3c3a36">
+    <text x="102" y="300">Trace store and schema</text>       <text x="600" y="300" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+    <text x="102" y="332">Sampling strategies</text>          <text x="600" y="332" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+    <text x="102" y="364">Annotation tooling</text>           <text x="600" y="364" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+    <text x="102" y="396">Failure taxonomy</text>             <text x="600" y="396" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+    <text x="102" y="428">LLM judges and alignment stats</text><text x="600" y="428" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+    <text x="102" y="460">Confidence intervals, bias correction</text><text x="600" y="460" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+    <text x="102" y="492">A gate in CI</text>                 <text x="600" y="492" fill="#1d9e75" text-anchor="end" font-weight="700">&#10003;</text>
+  </g>
+
+  <!-- right: what makes it mean something -->
+  <rect x="670" y="200" width="460" height="322" rx="12" fill="#f2faf7" stroke="#a8d8c6" stroke-width="1.5"/>
+  <rect x="670" y="200" width="6" height="322" rx="3" fill="#1d9e75"/>
+  <text x="702" y="238" font-size="21" font-weight="700" fill="#1a1a2e">What makes it mean something</text>
+  <text x="702" y="262" font-size="15" fill="#4d8a76">One input, and it is not buildable.</text>
+
+  <rect x="702" y="286" width="396" height="126" rx="10" fill="#ffffff" stroke="#c4e6d9"/>
+  <text x="726" y="322" font-size="19" font-weight="700" fill="#186b51">Traces a person has read,</text>
+  <text x="726" y="348" font-size="19" font-weight="700" fill="#186b51">with notes, unaided.</text>
+  <text x="726" y="380" font-size="16" fill="#4d8a76">Every category above has to trace back</text>
+  <text x="726" y="400" font-size="16" fill="#4d8a76">to one of them, or it is a guess.</text>
+
+  <text x="702" y="446" font-size="16" fill="#5f5e5a">It cannot be delegated to a model without</text>
+  <text x="702" y="468" font-size="16" fill="#5f5e5a">destroying what it produces, which is why</text>
+  <text x="702" y="490" font-size="16" fill="#5f5e5a">it is the step that quietly gets skipped.</text>
+
+  <text x="70" y="566" font-size="21" font-weight="600" fill="#1a1a2e">Build the seven and skip the one, and a green run proves exactly this much:</text>
+  <text x="70" y="596" font-size="21" font-weight="600" fill="#1a1a2e">your check code behaves as written. Nothing about whether the system works.</text>
+</svg>

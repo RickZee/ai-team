@@ -1,40 +1,50 @@
 # The Starved Harness
 
-*I built the eval system correctly and fed it nothing for two months.*
+*The instrument is the last thing anyone audits, and the only one whose failure hides
+every other.*
 
 ---
 
-I have been building a multi-agent software development system for about three
-months. Nine agent roles, three orchestration frameworks behind one backend
-protocol, a harness that owns the parts the frameworks get wrong. Somewhere in
-August I decided the most valuable thing I could add was not another feature but
-a way to know whether any of it works.
+The first entry in this project's journal is dated 15 February. A rainy Sunday, a
+generated build plan that looked excellent, and an afternoon of running it through
+Cursor before I noticed that whole prompts had been silently dropped. I reset, restarted
+from a known-good state, and wrote the lesson down that night:
 
-So I built an eval harness. About thirteen thousand lines. A trace store with a SQLite
-index. Five sampling strategies. An annotation TUI for open coding. An axial
-clusterer. Golden label sets with deterministic dev/test splits assigned by hash.
-Judge alignment with Cohen's κ, bootstrap confidence intervals, and prevalence
-bias correction. Wilson intervals on every rate. A budget ledger. A `$0` gate
-that runs on every pull request.
+> Never trust a generated plan end-to-end without checking it lands.
 
-The methodology came from the people who teach it: Hamel Husain and Shreya
-Shankar. Traces before scores. Binary verdicts, never Likert. TPR *and* TNR,
-never accuracy on its own. One domain expert as the annotator rather than a
-committee. Open coding that shows the annotator no model output at all, because
-anchoring a human on a model's guess corrupts the ground truth the whole thing
-rests on. There is a docstring in my annotation module instructing future agents
-not to "helpfully" add AI assistance to it, and I still think it is the best
-paragraph in the codebase.
+Seven months and 277 commits later, I have applied that lesson to almost everything.
+Three orchestration frameworks behind one backend protocol, compared on the same task so
+I can tell whose failure a failure actually is. A runtime smoke gate that boots the app
+and probes real HTTP, because agents will tell you the tests pass. A spend guard. An
+adversarial review I ran on my own comparison in July, which found that my judge shared a
+vendor with one of the contestants and that my n=5 rankings did not survive their own
+confidence intervals.
 
-Last week they did [an episode of Lenny's Podcast][ep]. I sat down to do an
-alignment pass — read the source, compare it to my methodology doc, note the
-deltas.
+![Four self-audits across seven months and what each one caught, ending with the audit of the eval harness itself](../images/eval-self-review-cadence.svg)
+
+Somewhere in August I decided the most valuable thing I could add was not another feature
+but a way to know whether any of it works. So I built an eval harness. About thirteen
+thousand lines. A trace store with a SQLite index. Five sampling strategies. An
+annotation TUI for open coding. An axial clusterer. Golden label sets with deterministic
+dev/test splits assigned by hash. Judge alignment with Cohen's κ, bootstrap confidence
+intervals, and prevalence bias correction. Wilson intervals on every rate. A budget
+ledger. A `$0` gate that runs on every pull request.
+
+The methodology came from the people who teach it: Hamel Husain and Shreya Shankar.
+Traces before scores. Binary verdicts, never Likert. TPR *and* TNR, never accuracy on its
+own. One domain expert as the annotator rather than a committee. Open coding that shows
+the annotator no model output at all, because anchoring a human on a model's guess
+corrupts the ground truth the whole thing rests on. There is a docstring in my annotation
+module instructing future agents not to "helpfully" add AI assistance to it, and I still
+think it is the best paragraph in the codebase.
+
+Last week they did [an episode of Lenny's Podcast][ep]. I sat down to do an alignment
+pass — read the source, compare it to my methodology doc, note the deltas.
 
 There were no deltas. The methodology was right.
 
-Then I opened the corpus.
-
-![Seven months of commits, with the day-one lesson and the September audit as bookends](../images/eval-seven-months.svg)
+Then I opened the corpus, and found the one place I had never applied the lesson from
+February: I had never checked that the thing doing the checking had landed.
 
 ## Fifty traces, zero spans
 
@@ -159,7 +169,7 @@ The true version is worse:
 > **I pointed the measurement at the wrong directory, and then wrote two more
 > specs on top of the empty result without noticing.**
 
-![Seven loop stages: every one implemented in code, every one with zero real traces through it](../images/eval-built-vs-fed.svg)
+![Seven eval stages all ship and are testable; the one input that makes them mean anything is traces a person has read](../images/eval-infra-vs-evidence.svg)
 
 Thirteen thousand lines of sampling, annotation, clustering, split discipline,
 alignment statistics, bias correction — all real, all typed, all unit-tested, and
@@ -275,7 +285,10 @@ commands and takes ten minutes:
 4. **What does a green run actually assert?** Say it out loud in one sentence. If
    the sentence is "my check code behaves as written," that is a real and useful
    thing, and it is not a quality claim, and you should stop letting it travel as
-   one.
+   one. I now label every rate I publish with its corpus kind — **FIXTURE-ONLY**,
+   **CORPUS**, or **LIVE** — rendered by the reporting code rather than remembered
+   by me. Most eval suites I have looked at are FIXTURE-ONLY and their owners do
+   not know it.
 
 The smallest useful version of the fix, for me, is one free command and one
 unavoidable afternoon: re-index the right directory, then read thirty traces
@@ -296,3 +309,9 @@ Current gate status and what may be claimed from it:
 [`campaign/EVAL_GATE_STATUS.md`](../campaign/EVAL_GATE_STATUS.md).*
 
 [ep]: https://www.lennysnewsletter.com/p/why-ai-evals-are-the-hottest-new-skill
+
+---
+
+*I write up one measurement from a real multi-agent system every week, with the query that
+produced it. No benchmarks, no leaderboards — just what the instrument actually said, and
+what kind of corpus it said it about.*
