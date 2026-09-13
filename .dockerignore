@@ -27,6 +27,8 @@ env
 # Frontend (built in the Node stage)
 **/node_modules
 **/dist
+src/ai_team/ui/web/frontend/node_modules
+src/ai_team/ui/web/frontend/dist
 
 # IDE and editor
 .idea

@@ -2223,7 +2223,7 @@ Deploy ai-team to production on Amazon Bedrock AgentCore using AWS CDK (Python).
 LLM switches from local Ollama to Bedrock (Claude Sonnet 4 / Haiku 4.5); ARM64
 container; AgentCore Runtime, Memory, Gateway, Observability, and Identity.
 Full phase spec (architecture, WBS, cursor rules):
-[`.archive/phase-7-agentcore-deployment.md`](../../.archive/phase-7-agentcore-deployment.md).
+[`.archive/docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md`](../../.archive/docs/claude-agent-sdk/CLAUDE_AGENT_SDK_PLAN.md).
 Current work is specified under `.kiro/specs/`.
 
 ### Prompt 7.1: Initialize CDK Project
