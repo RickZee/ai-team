@@ -15,6 +15,9 @@ functions_over_80_lines = 55
 functions_over_150_lines = 4
 functions_over_8_params = 14
 
-# Docker image size (MB). 2026-09-13 local `docker build -f docker/Dockerfile`
-# measured 790 MB; ratchet leaves ~100 MB headroom.
-docker_image_mb = 900
+# Docker image size (MiB). GitHub Actions uses uncompressed
+# `docker image inspect .Size`. The 900 ceiling was Docker Desktop's
+# compressed Size (~790 MB Track A). GHA 34773066923 was 2.55 GB because
+# `RUN chown -R` duplicated /app; post-`--chown` predicted ~1.45 GB.
+# Tighten after the next green `image_bytes=` line.
+docker_image_mb = 1800

@@ -35,7 +35,7 @@ Commands vs the pre-Track-A parent `946f6d9`:
 | Unit tests collected | `uv run pytest tests/unit --collect-only -q` | **1534** |
 | Complexity (≤2-branch exempt) | AST walk / `ratchets.toml` | **55 / 4 / 14** |
 | `ignore_errors` LOC | `test_type_budget.py` | **12,726** / 70 files (ratchet 13,000) |
-| Docker image size | `docker build -f docker/Dockerfile -t ai-team:ci` | **790 MB** (ratchet **900 MB**) |
+| Docker image size | `docker image inspect --format '{{.Size}}'` after `docker build -f docker/Dockerfile` | Track A **790 MB** was Docker Desktop compressed Size (ratchet 900). GHA run 34773066923: **2.55 GB** uncompressed with `RUN chown -R` doubling. Post-`--chown` predicted **~1.45 GB**; ratchet **1800 MiB** until the next green `image_bytes=` |
 | Web E2E | `pytest tests/e2e/web -m web_e2e` | **27 passed, 1 skipped** |
 | `.archive/` tracked files | `git ls-files .archive/` | **21** (kept; see `.archive/README.md`) |
 

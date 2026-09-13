@@ -322,8 +322,10 @@ jobs:
           fi
           size="$(docker image inspect ai-team:ci --format '{{.Size}}')"
           echo "image_bytes=$size"
-          # 900 MiB ratchet (tests/unit/repo/ratchets.toml docker_image_mb; measured 790)
-          test "$size" -lt $((900 * 1024 * 1024))
+          mb="$(awk -F' *= *' '/^docker_image_mb/{print $2; exit}' tests/unit/repo/ratchets.toml)"
+          echo "ratchet_mib=$mb"
+          test -n "$mb"
+          test "$size" -lt $((mb * 1024 * 1024))
           cid="$(docker run -d --name aiteam-ci ai-team:ci)"
           trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
           for i in $(seq 1 30); do

@@ -17,9 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
+ENV UV_NO_CACHE=1
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN uv sync --frozen --no-dev
+# Host trees may contain frontend node_modules; the Node stage owns dist/.
+RUN rm -rf src/ai_team/ui/web/frontend/node_modules src/ai_team/ui/web/frontend/dist
+RUN uv sync --frozen --no-dev \
+    && find /app/.venv -type d -name '__pycache__' -prune -exec rm -rf {} +
 
 # Stage 3: runtime — no compiler toolchain
 FROM python:3.11-slim AS runtime
@@ -30,12 +34,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --shell /bin/bash aiteam
 WORKDIR /app
-COPY --from=builder /app/.venv .venv
-COPY --from=builder /app/src ./src
-COPY --from=frontend /frontend/dist ./src/ai_team/ui/web/frontend/dist
-COPY pyproject.toml uv.lock README.md ./
+# --chown on COPY: a later `RUN chown -R` duplicates every file into a new
+# layer (CI measured 2.55 GB vs the 900 MB ratchet).
+COPY --from=builder --chown=aiteam:aiteam /app/.venv .venv
+COPY --from=builder --chown=aiteam:aiteam /app/src ./src
+COPY --from=frontend --chown=aiteam:aiteam /frontend/dist ./src/ai_team/ui/web/frontend/dist
+COPY --chown=aiteam:aiteam pyproject.toml uv.lock README.md ./
 ENV PATH="/app/.venv/bin:${PATH}"
-RUN chown -R aiteam:aiteam /app
 USER aiteam
 EXPOSE 8421
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
