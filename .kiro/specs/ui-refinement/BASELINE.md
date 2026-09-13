@@ -17,7 +17,25 @@ Captured 2026-09-13 from `src/ai_team/ui/web/frontend`.
 
 ## Screenshots
 
-Home, Run, Compare (three live columns), RunDetail (all four tabs), and Artifacts are **human-triggered** (task 0.1: “manually, checked into nothing”). Not attached here.
+**Before-state (task 0.1):** not captured before Phases 1–9 landed; cannot be reconstructed.
+
+**After-state (2026-09-13):** `.kiro/specs/ui-refinement/screenshots/`
+
+| File | What it shows |
+| --- | --- |
+| `after-home.png` | Home with run cards; cyan `New run` |
+| `after-run.png` | `/run` pipeline form |
+| `after-compare-idle.png` | Compare after clicking Play sample runs |
+| `after-compare-1280.png` | Three live demo columns side by side |
+| `after-compare-800.png` | Narrow layout: Comparison Summary first |
+| `after-rundetail-overview.png` | RunDetail Overview |
+| `after-rundetail-activity.png` | RunDetail Activity |
+| `after-rundetail-artifacts.png` | RunDetail Artifacts (demo empty) |
+| `after-rundetail-tests.png` | RunDetail Tests (demo empty) |
+| `after-stop-confirm.png` | Stop run? + red `.btn-danger` |
+| `keyboard-command-palette.png` | Command palette |
+
+`/artifacts` redirects to `/runs/:id#artifacts` (IA-1); the Artifacts tab shot covers that surface.
 
 ## Orphan classes (task 1.4)
 
