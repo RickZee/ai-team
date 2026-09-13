@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, File, Folder } from "lucide-react";
 import type { ArtifactTreeNode } from "../types";
 import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 
 function fileIcon(name: string) {
   const ext = name.includes(".") ? name.split(".").pop()?.toLowerCase() : "";
@@ -87,12 +88,12 @@ export function FileTreeViewer({
 }: FileTreeViewerProps) {
   if (loading) {
     return (
-      <EmptyState title="Loading file tree" testId="file-tree-loading" className="empty-state" />
+      <LoadingState label="Loading file tree" testId="file-tree-loading" />
     );
   }
   if (!tree.length) {
     return (
-      <EmptyState title="No files in this root" testId="file-tree-empty" className="empty-state" />
+      <EmptyState title="No files in this root" testId="file-tree-empty" />
     );
   }
   return (

@@ -5,6 +5,8 @@ interface AutoGrowTextareaProps {
   onChange: (value: string) => void;
   placeholder?: string;
   maxRows?: number;
+  id?: string;
+  "aria-describedby"?: string;
   "data-testid"?: string;
 }
 
@@ -14,6 +16,8 @@ export function AutoGrowTextarea({
   onChange,
   placeholder,
   maxRows = 12,
+  id,
+  "aria-describedby": describedBy,
   "data-testid": testId,
 }: AutoGrowTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -30,6 +34,8 @@ export function AutoGrowTextarea({
   return (
     <textarea
       ref={ref}
+      id={id}
+      aria-describedby={describedBy}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}

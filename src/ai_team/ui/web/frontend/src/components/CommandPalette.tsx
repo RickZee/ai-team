@@ -6,42 +6,43 @@ import type { UnifiedRun } from "../hooks/useUnifiedRuns";
 
 interface CommandPaletteProps {
   runs: UnifiedRun[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 interface Command {
   id: string;
   label: string;
   group: string;
-  action: () => void;
+  action: () => void | Promise<void>;
 }
 
 const SAMPLE_RUN_LABEL = "Play sample run (free · no files)";
 
-export function CommandPalette({ runs }: CommandPaletteProps) {
+export function CommandPalette({ runs, open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => {
-    setOpen(false);
+    onOpenChange(false);
     setQuery("");
     setSelectedIndex(0);
-  }, []);
+  }, [onOpenChange]);
 
-  useFocusTrap(open, panelRef);
+  useFocusTrap(open, panelRef, close);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setOpen((v) => !v);
+        onOpenChange(!open);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [onOpenChange, open]);
 
   const commands: Command[] = useMemo(() => {
     const base: Command[] = [
@@ -70,9 +71,10 @@ export function CommandPalette({ runs }: CommandPaletteProps) {
       },
     ];
     for (const r of runs.slice(0, 12)) {
+      const desc = r.description || r.backend;
       base.push({
         id: `run-${r.run_id}`,
-        label: `Open run ${r.run_id.slice(0, 8)}… — ${r.description.slice(0, 40) || r.backend}`,
+        label: `Open run ${r.run_id} — ${desc}`,
         group: "Recent runs",
         action: () => navigate(`/runs/${r.run_id}`),
       });
@@ -110,11 +112,6 @@ export function CommandPalette({ runs }: CommandPaletteProps) {
   );
 
   const onPaletteKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-      return;
-    }
     if (flatFiltered.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -135,10 +132,10 @@ export function CommandPalette({ runs }: CommandPaletteProps) {
   return (
     <div
       className="modal-overlay command-palette-overlay"
+      data-overlay
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
-      onClick={close}
     >
       <div
         ref={panelRef}
@@ -158,7 +155,7 @@ export function CommandPalette({ runs }: CommandPaletteProps) {
         />
         <ul className="command-palette-list">
           {flatFiltered.length === 0 ? (
-            <li className="dim">No matches</li>
+            <li className="text-muted">No matches</li>
           ) : (
             grouped.map(([group, items]) => (
               <li key={group} className="command-palette-group">
@@ -185,7 +182,7 @@ export function CommandPalette({ runs }: CommandPaletteProps) {
             ))
           )}
         </ul>
-        <p className="dim command-palette-hint">↑↓ navigate · Enter run · ⌘K · Esc close</p>
+        <p className="text-muted command-palette-hint">↑↓ navigate · Enter run · Esc close</p>
       </div>
     </div>
   );

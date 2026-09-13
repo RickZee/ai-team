@@ -3,6 +3,8 @@ import { Copy, Search, X } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { ArtifactFileContent, ArtifactRoot, OpenFileTab } from "../types";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 
 interface CodeViewerProps {
   tabs: OpenFileTab[];
@@ -30,6 +32,8 @@ function MarkdownPreview({ text }: { text: string }) {
   return (
     <div
       className="markdown-preview"
+      tabIndex={0}
+      aria-label="Markdown preview"
       dangerouslySetInnerHTML={{
         __html: text
           .replace(/^### (.*)$/gm, "<h3>$1</h3>")
@@ -85,34 +89,29 @@ export function CodeViewer({
             className={`code-tab ${
               activeTab?.path === tab.path && activeTab?.root === tab.root ? "active" : ""
             }`}
+            aria-pressed={activeTab?.path === tab.path && activeTab?.root === tab.root}
             onClick={() => onSelectTab(tab)}
           >
             {tab.label}
-            <span
+            <button
+              type="button"
               className="code-tab-close"
-              role="button"
-              tabIndex={0}
+              aria-label={`Close ${tab.label}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onCloseTab(tab.path, tab.root);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.stopPropagation();
-                  onCloseTab(tab.path, tab.root);
-                }
-              }}
             >
-              <X size={12} />
-            </span>
+              <X className="icon-sm" aria-hidden="true" />
+            </button>
           </button>
         ))}
       </div>
       <div className="code-toolbar">
         <div className="code-search">
-          <Search size={14} />
+          <Search className="icon-sm" aria-hidden="true" />
           <input
-            type="text"
+            type="search"
             placeholder="Highlight in file…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -124,6 +123,7 @@ export function CodeViewer({
             <button
               type="button"
               className={`btn-secondary btn-sm ${viewMode === "code" ? "active" : ""}`}
+              aria-pressed={viewMode === "code"}
               onClick={() => setViewMode("code")}
             >
               Source
@@ -131,6 +131,7 @@ export function CodeViewer({
             <button
               type="button"
               className={`btn-secondary btn-sm ${viewMode === "markdown" ? "active" : ""}`}
+              aria-pressed={viewMode === "markdown"}
               onClick={() => setViewMode("markdown")}
             >
               Preview
@@ -143,13 +144,13 @@ export function CodeViewer({
           onClick={handleCopy}
           disabled={!content?.content}
         >
-          <Copy size={14} />
+          <Copy className="icon-sm" aria-hidden="true" />
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <div className="code-body">
-        {!activeTab && <div className="empty-state">Select a file from the tree.</div>}
-        {loading && <div className="empty-state">Loading…</div>}
+      <div className="code-body" tabIndex={0} aria-label="File contents">
+        {!activeTab && <EmptyState title="Select a file from the tree." />}
+        {loading && <LoadingState label="Loading…" />}
         {error && <div className="code-error">{error}</div>}
         {content && !loading && !error && (
           <>
@@ -161,6 +162,8 @@ export function CodeViewer({
             ) : highlightedHtml && search.trim() ? (
               <pre
                 className="code-highlight-pre"
+                tabIndex={0}
+                aria-label="Highlighted file"
                 dangerouslySetInnerHTML={{ __html: highlightedHtml }}
               />
             ) : (
@@ -168,7 +171,7 @@ export function CodeViewer({
                 language={lang}
                 style={oneDark}
                 showLineNumbers
-                customStyle={{ margin: 0, borderRadius: 6, fontSize: "0.8rem" }}
+                customStyle={{ margin: 0, borderRadius: "var(--radius-md)", fontSize: "var(--text-sm)" }}
               >
                 {displayContent || "(empty)"}
               </SyntaxHighlighter>

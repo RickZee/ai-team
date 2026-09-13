@@ -1,4 +1,6 @@
 import type { ArchitecturePanelData } from "../types";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 
 interface ArchitecturePanelProps {
   data: ArchitecturePanelData | null;
@@ -6,9 +8,9 @@ interface ArchitecturePanelProps {
 }
 
 export function ArchitecturePanel({ data, loading }: ArchitecturePanelProps) {
-  if (loading) return <div className="empty-state">Loading architecture…</div>;
+  if (loading) return <LoadingState label="Loading architecture…" />;
   if (!data || (data.source === "empty" && !data.markdown_fallback)) {
-    return <div className="empty-state">No architecture artifact found for this run.</div>;
+    return <EmptyState title="No architecture artifact found for this run." />;
   }
 
   if (data.markdown_fallback) {
@@ -25,19 +27,19 @@ export function ArchitecturePanel({ data, loading }: ArchitecturePanelProps) {
       {data.source && <p className="artifact-source">Source: {data.source}</p>}
       {data.system_overview && (
         <section>
-          <h4>Overview</h4>
+          <h3>Overview</h3>
           <p>{data.system_overview}</p>
         </section>
       )}
       {data.ascii_diagram && (
         <section>
-          <h4>Diagram</h4>
+          <h3>Diagram</h3>
           <pre className="arch-diagram">{data.ascii_diagram}</pre>
         </section>
       )}
       {data.components.length > 0 && (
         <section>
-          <h4>Components</h4>
+          <h3>Components</h3>
           <ul className="arch-list">
             {data.components.map((c) => (
               <li key={c.name}>
@@ -49,7 +51,7 @@ export function ArchitecturePanel({ data, loading }: ArchitecturePanelProps) {
       )}
       {data.technology_stack.length > 0 && (
         <section>
-          <h4>Technology stack</h4>
+          <h3>Technology stack</h3>
           <table className="arch-table">
             <thead>
               <tr>
@@ -72,13 +74,13 @@ export function ArchitecturePanel({ data, loading }: ArchitecturePanelProps) {
       )}
       {data.deployment_topology && (
         <section>
-          <h4>Deployment</h4>
+          <h3>Deployment</h3>
           <p>{data.deployment_topology}</p>
         </section>
       )}
       {data.adrs.length > 0 && (
         <section>
-          <h4>ADRs</h4>
+          <h3>ADRs</h3>
           {data.adrs.map((adr, i) => (
             <details key={i} className="adr-block">
               <summary>{String((adr as { title?: string }).title || `ADR ${i + 1}`)}</summary>

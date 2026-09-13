@@ -155,7 +155,7 @@ describe("RunSummaryCard — T3: retry and edit-and-rerun", () => {
       </MemoryRouter>,
     );
     const outcome = screen.getByText("cancelled");
-    expect(outcome).toHaveClass("yellow");
+    expect(outcome).toHaveClass("text-warning");
   });
 
   it("Edit & rerun navigates to /run with prefilled config", async () => {

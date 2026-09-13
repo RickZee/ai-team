@@ -32,7 +32,7 @@ describe("AgentTable", () => {
         }}
       />,
     );
-    expect(screen.getByText("● DONE")).toBeInTheDocument();
-    expect(screen.queryByText("● ACTIVE")).not.toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Done" })).toBeInTheDocument();
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
   });
 });

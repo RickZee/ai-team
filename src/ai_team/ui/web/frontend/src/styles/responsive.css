@@ -1,0 +1,99 @@
+/* Split from App.css — tokens only. See styles/tokens.css. */
+
+@media (max-width: 1024px) {
+  .compare-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .compare-summary {
+    order: -1;
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-col-fold {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    padding: var(--space-3);
+  }
+
+  .compare-col-fold > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+  }
+
+  .compare-col-fold > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .artifacts-files-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .form-actions,
+  .home-header {
+    flex-wrap: wrap;
+  }
+
+  .run-stat-strip,
+  .run-list-home .run-list {
+    grid-template-columns: 1fr;
+  }
+
+  .content {
+    padding-inline: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::-webkit-scrollbar {
+width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+background: var(--bg-canvas);
+}
+
+::-webkit-scrollbar-thumb {
+background: var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: var(--fg-muted);
+}

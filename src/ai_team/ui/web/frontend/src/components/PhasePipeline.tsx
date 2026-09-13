@@ -1,3 +1,15 @@
+import {
+  ArrowDown,
+  CircleCheck,
+  CircleX,
+  ClipboardList,
+  FlaskConical,
+  Laptop,
+  Rocket,
+  User,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 const PHASES = [
   "intake",
   "planning",
@@ -7,15 +19,15 @@ const PHASES = [
   "complete",
 ] as const;
 
-const ICONS: Record<string, string> = {
-  intake: "\u2b07",
-  planning: "\ud83d\udccb",
-  development: "\ud83d\udcbb",
-  testing: "\ud83e\uddea",
-  deployment: "\ud83d\ude80",
-  complete: "\u2705",
-  awaiting_human: "\ud83d\udc64",
-  error: "\u274c",
+const ICONS: Record<string, LucideIcon> = {
+  intake: ArrowDown,
+  planning: ClipboardList,
+  development: Laptop,
+  testing: FlaskConical,
+  deployment: Rocket,
+  complete: CircleCheck,
+  awaiting_human: User,
+  error: CircleX,
 };
 
 export function PhasePipeline({
@@ -27,6 +39,15 @@ export function PhasePipeline({
 }) {
   const idx = PHASES.indexOf(phase as (typeof PHASES)[number]);
   const showHuman = phase === "awaiting_human";
+
+  const renderPhase = (p: string, cls: string, label: string) => {
+    const Icon = ICONS[p] ?? ClipboardList;
+    return (
+      <span className={cls}>
+        <Icon className="icon-sm" aria-hidden="true" /> {label}
+      </span>
+    );
+  };
 
   return (
     <div className="phase-pipeline" data-testid="phase-pipeline">
@@ -40,9 +61,7 @@ export function PhasePipeline({
 
         return (
           <span key={p}>
-            <span className={cls}>
-              {ICONS[p]} {p.toUpperCase()}
-            </span>
+            {renderPhase(p, cls, p.toUpperCase())}
             {i < PHASES.length - 1 && <span className="phase-arrow"> → </span>}
           </span>
         );
@@ -50,20 +69,18 @@ export function PhasePipeline({
       {showHuman && (
         <>
           <span className="phase-arrow"> → </span>
-          <span className="phase-step phase-active">
-            {ICONS.awaiting_human} AWAITING HUMAN
-          </span>
+          {renderPhase("awaiting_human", "phase-step phase-active", "AWAITING HUMAN")}
         </>
       )}
       {phase === "error" && (
         <>
           <span className="phase-arrow"> → </span>
-          <span className="phase-step phase-error">{ICONS.error} ERROR</span>
+          {renderPhase("error", "phase-step phase-error", "ERROR")}
         </>
       )}
       {retries > 0 && phase !== "complete" && phase !== "error" && (
         <span className="phase-retry self-correct-badge" data-testid="phase-retry-badge">
-          ✓ Self-corrected ×{retries}
+          Self-corrected ×{retries}
         </span>
       )}
     </div>

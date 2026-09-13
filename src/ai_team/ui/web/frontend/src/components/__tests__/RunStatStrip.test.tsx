@@ -29,7 +29,7 @@ describe("RunStatStrip", () => {
     expect(screen.getByText("testing")).toBeInTheDocument();
     expect(screen.getByTestId("stat-elapsed")).toHaveTextContent("4m 10s");
     expect(screen.getByTestId("stat-cost")).toHaveTextContent("$0.1234");
-    expect(screen.getByTestId("stat-tests")).toHaveTextContent("5✓ / 2✗");
+    expect(screen.getByTestId("stat-tests")).toHaveTextContent("5 passed · 2 failed");
   });
 
   it("omits cost and tests when not available", () => {

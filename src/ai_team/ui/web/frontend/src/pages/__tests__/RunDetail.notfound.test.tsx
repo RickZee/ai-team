@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { RunDetail } from "../RunDetail";
-import { ApiError, getRun, getRuns } from "../../hooks/useApi";
+import { ApiError, getRun } from "../../hooks/useApi";
 
 vi.mock("../../hooks/useApi", () => ({
   ApiError: class ApiError extends Error {
@@ -18,6 +18,7 @@ vi.mock("../../hooks/useApi", () => ({
   getRun: vi.fn(),
   getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0, source: "empty" }),
   postCancel: vi.fn(),
+  getRunReceipt: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("../../hooks/useWebSocket", () => ({

@@ -97,8 +97,8 @@ export function Home() {
 
       <header className="page-header home-header">
         <div>
-          <h2>Runs</h2>
-          <p className="dim">Browse past and active runs. Select a run to monitor or review.</p>
+          <h1>Runs</h1>
+          <p className="text-muted">Browse past and active runs. Select a run to monitor or review.</p>
         </div>
         <div className="home-actions btn-row">
           <Link to="/run" className="btn-primary" data-testid="home-new-run">
@@ -124,7 +124,7 @@ export function Home() {
           <HowItWorks />
         </div>
       ) : (
-        <div className="home-run-list panel">
+        <div className="home-run-list">
           <RunList
             runs={runs}
             selectedRunId={null}
@@ -143,6 +143,7 @@ export function Home() {
         cancelLabel="Cancel"
         onConfirm={handleDeleteRun}
         onCancel={() => setDeleteConfirmId(null)}
+        tone="danger"
       />
     </div>
   );

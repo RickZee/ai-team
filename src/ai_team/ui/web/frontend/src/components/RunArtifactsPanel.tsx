@@ -154,13 +154,16 @@ export function RunArtifactsPanel({
 
   if (isDemo) {
     return (
-      <div className="empty-state" data-testid="artifacts-demo-empty">
-        <h3>Demo runs have no files on disk</h3>
-        <p className="dim">Start a real run to generate workspace and bundle artifacts.</p>
-        <Link to="/run" className="btn-primary">
-          Start a real run
-        </Link>
-      </div>
+      <EmptyState
+        title="Demo runs have no files on disk"
+        hint="Start a real run to generate workspace and bundle artifacts."
+        testId="artifacts-demo-empty"
+        action={
+          <Link to="/run" className="btn-primary">
+            Start a real run
+          </Link>
+        }
+      />
     );
   }
 
@@ -172,6 +175,7 @@ export function RunArtifactsPanel({
             key={id}
             type="button"
             className={`artifacts-tab ${tab === id ? "active" : ""}`}
+            aria-pressed={tab === id}
             onClick={() => setTab(id)}
             data-testid={`tab-${id}`}
           >
@@ -185,15 +189,14 @@ export function RunArtifactsPanel({
           title="No files found for this run"
           hint="This run may still be in progress or completed without writing output."
           testId="artifacts-no-files"
-          className="empty-state"
         />
       ) : (
         <div className="artifacts-content">
           {tab === "files" && (
             <div className="artifacts-files-layout">
-              <div className="panel artifacts-tree-panel">
+              <div className="panel artifacts-tree-panel" tabIndex={0} aria-label="Artifact file tree">
                 <div className="panel-header-row">
-                  <h3 className="panel-header">Files ({fileRoot})</h3>
+                  <h2 className="panel-header">Files ({fileRoot})</h2>
                   <select
                     value={fileRoot}
                     onChange={(e) => setFileRoot(e.target.value as ArtifactRoot)}
@@ -211,7 +214,7 @@ export function RunArtifactsPanel({
                 />
               </div>
               <div className="panel artifacts-viewer-panel">
-                <h3 className="panel-header">Preview</h3>
+                <h2 className="panel-header">Preview</h2>
                 <CodeViewer
                   tabs={tabs}
                   activeTab={activeTab}

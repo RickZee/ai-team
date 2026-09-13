@@ -1,0 +1,41 @@
+---
+description: How to execute and update Kiro-style specs under .kiro/specs/
+alwaysApply: true
+---
+
+# Kiro-style specs
+
+Specs live at `.kiro/specs/<id>/` as four files. Read **in order**: `README.md` →
+`requirements.md` → `design.md` → `tasks.md`. Do not implement from memory of an
+older spec.
+
+## `tasks.md` is a living checklist
+
+It is not a read-only brief. After each task whose **Definition of done** is
+literally true:
+
+1. Flip `- [ ]` to `- [x]` in that file in the same sitting (same commit if you
+   are already committing).
+2. Leave **human-triggered / live-spend / budget-capped** tasks unchecked.
+3. If you batched work, still update every completed box before you stop. An
+   all-empty checklist after a landed implementation is a process bug.
+
+Do **not** check a box because the code exists. Check it because each DoD
+bullet is true (tests, fixtures, journal note, flag default, etc.).
+
+## How to execute
+
+- Prefer **one task at a time**, in order. The spec's Cursor prompt shape is the
+  default: implement N.M, run the listed quality commands, stop.
+- When the user says "implement this spec", do every in-repo task; skip only
+  tasks marked human-triggered spend unless they explicitly approve spend.
+- New behavior on a normal run ships **off by default** until the spec says it
+  earned its place.
+- Record suite/CI failures in a journal entry (what failed, why, the fix). Do
+  not bury that trail only in chat.
+
+## Do not
+
+- Invent a fifth spec document or rewrite requirements/design unless asked.
+- Treat "I built it" as "the checklist can stay empty".
+- Enable a billed eval, live arm, or `--execute` sweep from an agent session.

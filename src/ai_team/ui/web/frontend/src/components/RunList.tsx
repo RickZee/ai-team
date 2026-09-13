@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { ChevronDown, ChevronRight, Scale, X } from "lucide-react";
 import type { RunInfo } from "../types";
 import { formatRunTimeOfDay, groupRunsByDay } from "../utils/formatRun";
+import { statusChipClass } from "../utils/statusIntent";
 import { EmptyState } from "./EmptyState";
 
 const INITIAL_CAP = 20;
@@ -66,10 +68,10 @@ export function RunList({
         >
           <div className="run-list-row1">
             <span className="run-list-time">{formatRunTimeOfDay(r.started_at)}</span>
-            <span className={`chip chip-sm status-chip status-${r.status}`}>{r.status}</span>
+            <span className={statusChipClass(r.status)}>{r.status}</span>
             {r.comparison_id && comparisonIds.has(r.comparison_id) && (
-              <span className="chip chip-sm run-list-comparison-chip" data-testid={`comparison-chip-${r.run_id}`}>
-                ⚖ comparison
+              <span className="chip chip-sm chip-special run-list-comparison-chip" data-testid={`comparison-chip-${r.run_id}`}>
+                <Scale className="icon-sm" aria-hidden="true" /> comparison
               </span>
             )}
             {r.is_sample && (
@@ -91,7 +93,7 @@ export function RunList({
             aria-label={`Delete run ${r.run_id}`}
             data-testid={`delete-run-${r.run_id}`}
           >
-            ✕
+            <X className="icon-sm" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -132,7 +134,12 @@ export function RunList({
             }
             data-testid={`comparison-group-${cid}`}
           >
-            ⚖ Comparison · {members.length} backends {expanded ? "▾" : "▸"}
+            <Scale className="icon-sm" aria-hidden="true" /> Comparison · {members.length} backends{" "}
+            {expanded ? (
+              <ChevronDown className="icon-sm" aria-hidden="true" />
+            ) : (
+              <ChevronRight className="icon-sm" aria-hidden="true" />
+            )}
           </button>
           <ul className="run-list run-list-comparison-members">
             {preview.map((r) => renderCard(r, true))}
@@ -151,7 +158,7 @@ export function RunList({
   };
 
   return (
-    <div className={`run-list-panel ${variant === "home" ? "run-list-home" : ""}`} data-testid="run-list">
+    <div className={`run-list-panel ${variant === "home" ? "run-list-home panel" : ""}`} data-testid="run-list">
       <div className="run-list-controls">
         <select
           value={statusFilter}
@@ -176,12 +183,11 @@ export function RunList({
         />
       </div>
       {runs.length === 0 ? (
-        <EmptyState title="No runs yet" testId="run-list-empty" className="empty-state" />
+        <EmptyState title="No runs yet" testId="run-list-empty" />
       ) : filtered.length === 0 ? (
         <EmptyState
           title="No runs match"
           testId="run-list-empty-filtered"
-          className="empty-state"
           action={
             <button
               type="button"

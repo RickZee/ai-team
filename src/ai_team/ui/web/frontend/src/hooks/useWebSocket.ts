@@ -168,13 +168,7 @@ export function useMonitorWebSocket(runId: string | null) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!runId) {
-      setMonitor(null);
-      setRunStatus(null);
-      setHitlPayload(null);
-      setErrorMessage(null);
-      return;
-    }
+    if (!runId) return;
 
     const ws = new WebSocket(`${getWsBase()}/ws/monitor/${runId}`);
 
@@ -202,7 +196,13 @@ export function useMonitorWebSocket(runId: string | null) {
       }
     };
 
-    return () => ws.close();
+    return () => {
+      ws.close();
+      setMonitor(null);
+      setRunStatus(null);
+      setHitlPayload(null);
+      setErrorMessage(null);
+    };
   }, [runId]);
 
   return { monitor, runStatus, hitlPayload, errorMessage, clearHitl: () => setHitlPayload(null) };

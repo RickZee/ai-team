@@ -11,31 +11,25 @@ interface ArtifactPreviewProps {
 export function ArtifactPreview({ projectId, isDemo }: ArtifactPreviewProps) {
   const [tests, setTests] = useState<TestsPanelData | null>(null);
   const [arch, setArch] = useState<ArchitecturePanelData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [fetchedFor, setFetchedFor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!projectId || isDemo) {
-      setTests(null);
-      setArch(null);
-      return;
-    }
+    if (!projectId || isDemo) return;
     let cancelled = false;
-    setLoading(true);
     Promise.all([getProjectTests(projectId), getProjectArchitecture(projectId)])
       .then(([t, a]) => {
         if (!cancelled) {
           setTests(t);
           setArch(a);
+          setFetchedFor(projectId);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setTests(null);
           setArch(null);
+          setFetchedFor(projectId);
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -44,18 +38,20 @@ export function ArtifactPreview({ projectId, isDemo }: ArtifactPreviewProps) {
 
   if (isDemo) return null;
 
+  const loading = fetchedFor !== projectId;
+
   return (
     <div className="panel artifact-preview" data-testid="artifact-preview">
-      <h3>Artifacts preview</h3>
-      {loading && <p className="dim">Loading artifact summary…</p>}
+      <h3 className="panel-header">Artifacts preview</h3>
+      {loading && <p className="text-muted">Loading artifact summary…</p>}
       {!loading && !tests && !arch?.system_overview && (
-        <p className="dim">No artifact bundle found on disk for this run yet.</p>
+        <p className="text-muted">No artifact bundle found on disk for this run yet.</p>
       )}
       {tests && (
         <p>
-          Tests: <span className="green">{tests.passed} passed</span>
-          {tests.failed > 0 && <span className="red"> · {tests.failed} failed</span>}
-          {tests.skipped > 0 && <span className="dim"> · {tests.skipped} skipped</span>}
+          Tests: <span className="text-success">{tests.passed} passed</span>
+          {tests.failed > 0 && <span className="text-danger"> · {tests.failed} failed</span>}
+          {tests.skipped > 0 && <span className="text-muted"> · {tests.skipped} skipped</span>}
         </p>
       )}
       {arch?.system_overview && (

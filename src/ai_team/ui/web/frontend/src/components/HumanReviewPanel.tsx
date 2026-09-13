@@ -70,7 +70,7 @@ export function HumanReviewPanel({ runId, payload, backend, onResumed }: HumanRe
       aria-label="Human review"
     >
       <h3>Human review required</h3>
-      <p className="dim">{pauseCopy}</p>
+      <p className="text-muted">{pauseCopy}</p>
 
       <div className="hitl-context">
         {phase && (
@@ -84,7 +84,7 @@ export function HumanReviewPanel({ runId, payload, backend, onResumed }: HumanRe
           </p>
         )}
         {threadId && (
-          <p className="dim">
+          <p className="text-muted">
             <span className="run-meta-label">Thread</span> {threadId}
           </p>
         )}
@@ -147,7 +147,11 @@ export function HumanReviewPanel({ runId, payload, backend, onResumed }: HumanRe
           >
             {showRaw ? "Hide" : "Show"} JSON
           </button>
-          {showRaw && <pre className="hitl-payload">{JSON.stringify(payload, null, 2)}</pre>}
+          {showRaw && (
+            <pre className="hitl-payload" tabIndex={0} aria-label="HITL payload">
+              {JSON.stringify(payload, null, 2)}
+            </pre>
+          )}
         </details>
       )}
     </div>

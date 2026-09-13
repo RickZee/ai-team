@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArchitecturePanel } from "../components/ArchitecturePanel";
 import { CodeViewer } from "../components/CodeViewer";
@@ -53,6 +53,9 @@ export function Artifacts() {
   const [testsLoading, setTestsLoading] = useState(false);
   const [arch, setArch] = useState<ArchitecturePanelData | null>(null);
   const [archLoading, setArchLoading] = useState(false);
+  const uid = useId();
+  const runSelectId = `${uid}-run`;
+  const rootSelectId = `${uid}-root`;
 
   const selectedRun = useMemo(
     () => runs.find((r) => r.run_id === projectId),
@@ -173,11 +176,12 @@ export function Artifacts() {
   return (
     <div className="artifacts-page page-shell" data-testid="artifacts-page">
       <header className="page-header artifacts-header">
-        <h2>Artifact Browser</h2>
+        <h1>Artifacts</h1>
         <div className="artifacts-controls">
-          <label>
+          <label htmlFor={runSelectId}>
             Run
             <select
+              id={runSelectId}
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
               data-testid="artifact-run-select"
@@ -192,9 +196,10 @@ export function Artifacts() {
             </select>
           </label>
           {tab === "files" && projectId && !isDemo && (
-            <label>
+            <label htmlFor={rootSelectId}>
               Root
               <select
+                id={rootSelectId}
                 value={fileRoot}
                 onChange={(e) => setFileRoot(e.target.value as ArtifactRoot)}
               >
@@ -212,6 +217,7 @@ export function Artifacts() {
             key={id}
             type="button"
             className={`artifacts-tab ${tab === id ? "active" : ""}`}
+            aria-pressed={tab === id}
             onClick={() => setTab(id)}
             data-testid={`tab-${id}`}
           >
@@ -225,19 +231,20 @@ export function Artifacts() {
           title="Select a run"
           hint="Choose a run above to browse generated files and reports."
           testId="artifacts-select-run"
-          className="empty-state panel"
+          className="panel"
         />
       ) : isDemo ? (
-        <div className="empty-state panel" data-testid="artifacts-demo-empty">
-          <h3>Demo runs have no files on disk</h3>
-          <p className="dim">
-            The demo simulates the pipeline in memory only. Start a real run to generate
-            workspace and bundle artifacts.
-          </p>
-          <Link to="/run" className="btn-primary">
-            Start a real run
-          </Link>
-        </div>
+        <EmptyState
+          title="Demo runs have no files on disk"
+          hint="The demo simulates the pipeline in memory only. Start a real run to generate workspace and bundle artifacts."
+          testId="artifacts-demo-empty"
+          className="panel"
+          action={
+            <Link to="/run" className="btn-primary">
+              Start a real run
+            </Link>
+          }
+        />
       ) : treesLoaded && !hasFiles ? (
         <EmptyState
           title={
@@ -251,7 +258,7 @@ export function Artifacts() {
               : "The run may still be in progress or failed before writing output."
           }
           testId="artifacts-no-files"
-          className="empty-state panel"
+          className="panel"
           action={
             <Link to={`/runs/${projectId}`} className="btn-secondary">
               Open dashboard
@@ -263,7 +270,7 @@ export function Artifacts() {
           {tab === "files" && (
             <div className="artifacts-files-layout">
               <div className="panel artifacts-tree-panel">
-                <h3>Files ({fileRoot})</h3>
+                <h2 className="panel-header">Files ({fileRoot})</h2>
                 <FileTreeViewer
                   tree={activeTree}
                   selectedPath={selectedPath}
@@ -272,7 +279,7 @@ export function Artifacts() {
                 />
               </div>
               <div className="panel artifacts-viewer-panel">
-                <h3>Preview</h3>
+                <h2 className="panel-header">Preview</h2>
                 <CodeViewer
                   tabs={tabs}
                   activeTab={activeTab}

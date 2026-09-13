@@ -1,15 +1,28 @@
+import {
+  Bot,
+  Building2,
+  ClipboardList,
+  Cloud,
+  FlaskConical,
+  Palette,
+  Rocket,
+  Settings,
+  Target,
+  Wrench,
+} from "lucide-react";
 import type { AgentState, MonitorState } from "../types";
+import { statusChipClass } from "../utils/statusIntent";
 
-const AGENT_ICONS: Record<string, string> = {
-  manager: "🎯",
-  product_owner: "📋",
-  architect: "🏗",
-  backend_developer: "⚙",
-  frontend_developer: "🎨",
-  fullstack_developer: "🔧",
-  qa_engineer: "🧪",
-  devops: "🚀",
-  cloud_engineer: "☁",
+const AGENT_ICONS: Record<string, typeof Bot> = {
+  manager: Target,
+  product_owner: ClipboardList,
+  architect: Building2,
+  backend_developer: Settings,
+  frontend_developer: Palette,
+  fullstack_developer: Wrench,
+  qa_engineer: FlaskConical,
+  devops: Rocket,
+  cloud_engineer: Cloud,
 };
 
 function statusLabel(status: AgentState["status"]): string {
@@ -32,7 +45,7 @@ interface AgentTimelineProps {
   terminal?: boolean;
 }
 
-/** Agent activity lanes — phase pipeline lives in the sticky header (IA-2). */
+/** Agent activity lanes — phase pipeline lives in the sticky header. */
 export function AgentTimeline({
   monitor,
   showTable,
@@ -58,7 +71,7 @@ export function AgentTimeline({
       </div>
       {monitor.metrics.retries > 0 && (
         <p className="self-correct-badge" data-testid="self-correct-badge">
-          ✓ Self-corrected ×{monitor.metrics.retries}
+          Self-corrected ×{monitor.metrics.retries}
         </p>
       )}
       {activeAgent && (
@@ -67,31 +80,34 @@ export function AgentTimeline({
         </p>
       )}
       <ul className="agent-timeline-rows">
-        {agents.map((agent) => (
-          <li
-            key={agent.role}
-            className={`agent-timeline-row status-${agent.status}`}
-            data-testid={`timeline-agent-${agent.role}`}
-          >
-            <span className="agent-timeline-icon">{AGENT_ICONS[agent.role] ?? "🤖"}</span>
-            <span className="agent-timeline-role">{agent.role.replace(/_/g, " ")}</span>
-            <span className={`chip chip-sm status-chip status-${agent.status}`}>
-              {statusLabel(agent.status)}
-            </span>
-            {agent.current_task && (
-              <span className="agent-timeline-task dim">{agent.current_task}</span>
-            )}
-          </li>
-        ))}
+        {agents.map((agent) => {
+          const Icon = AGENT_ICONS[agent.role] ?? Bot;
+          return (
+            <li
+              key={agent.role}
+              className={`agent-timeline-row status-${agent.status}`}
+              data-testid={`timeline-agent-${agent.role}`}
+            >
+              <span className="agent-timeline-icon">
+                <Icon className="icon-sm" aria-hidden="true" />
+              </span>
+              <span className="agent-timeline-role">{agent.role.replace(/_/g, " ")}</span>
+              <span className={statusChipClass(agent.status)}>{statusLabel(agent.status)}</span>
+              {agent.current_task && (
+                <span className="agent-timeline-task text-muted">{agent.current_task}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
-/** One-line note when no agents are reported (V-3). */
+/** One-line note when no agents are reported. */
 export function AgentTimelineNote({ terminal }: { terminal?: boolean }) {
   return (
-    <p className="agent-timeline-note dim" data-testid="agent-timeline-note">
+    <p className="agent-timeline-note text-muted" data-testid="agent-timeline-note">
       {terminal
         ? "No agent activity recorded for this run"
         : "No agent activity reported by this backend"}

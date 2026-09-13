@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Scale } from "lucide-react";
 import { AlertBanner } from "../components/AlertBanner";
 import { CompareColumn } from "../components/CompareColumn";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -11,6 +12,7 @@ import { useMonitorWebSocket, useRunWebSocket } from "../hooks/useWebSocket";
 import type { RunWsStatus } from "../hooks/useWebSocket";
 import type { CostEstimate, MonitorState } from "../types";
 import { bestColumnKey, buildCompareVerdict, directionHint, parseElapsedSeconds } from "../utils/compareSummary";
+import { statusChipClassMd } from "../utils/statusIntent";
 
 const BACKENDS = [
   { key: "crewai", title: "CrewAI", titleClass: "crewai-title", testId: "compare-crewai" },
@@ -97,6 +99,30 @@ export function Compare() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [activeComparisonId, setActiveComparisonId] = useState<string | null>(null);
   const [formCollapsed, setFormCollapsed] = useState(false);
+  const [narrow, setNarrow] = useState(false);
+  const [allMetricsOpen, setAllMetricsOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem("ai-team-compare-all-metrics") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1024px)");
+    const onChange = () => setNarrow(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ai-team-compare-all-metrics", allMetricsOpen ? "1" : "0");
+    } catch {
+      /* ignore quota */
+    }
+  }, [allMetricsOpen]);
 
   const crewai = useRunWebSocket();
   const langgraph = useRunWebSocket();
@@ -387,74 +413,84 @@ export function Compare() {
     () =>
       [
         {
+          label: "Cost (USD)",
+          tier: "primary" as const,
+          fn: (m: MonitorState) => (m.cost_usd != null ? `$${m.cost_usd.toFixed(4)}` : "—"),
+          prefer: "min" as const,
+          numeric: (m: MonitorState) => m.cost_usd ?? 999999,
+        },
+        {
           label: "Elapsed",
+          tier: "primary" as const,
           fn: (m: MonitorState) => m.elapsed,
           prefer: "min" as const,
           numeric: (m: MonitorState) => parseElapsedSeconds(m.elapsed),
         },
         {
-          label: "Phase",
-          fn: (m: MonitorState) => m.phase,
-          prefer: null,
-        },
-        {
-          label: "Cost (USD)",
-          fn: (m: MonitorState) =>
-            m.cost_usd != null ? `$${m.cost_usd.toFixed(4)}` : "—",
-          prefer: "min" as const,
-          numeric: (m: MonitorState) => m.cost_usd ?? 999999,
-        },
-        {
-          label: "Tokens (est.)",
-          fn: (m: MonitorState) =>
-            m.token_estimate ? m.token_estimate.toLocaleString() : "—",
-          prefer: "max" as const,
-          numeric: (m: MonitorState) => m.token_estimate ?? 0,
-        },
-        {
-          label: "Tasks completed",
-          fn: (m: MonitorState) => m.metrics.tasks_completed,
-          prefer: "max" as const,
-          numeric: (m: MonitorState) => m.metrics.tasks_completed,
-        },
-        {
-          label: "Tasks failed",
-          fn: (m: MonitorState) => m.metrics.tasks_failed,
-          prefer: "min" as const,
-          numeric: (m: MonitorState) => m.metrics.tasks_failed,
-        },
-        {
-          label: "Files generated",
-          fn: (m: MonitorState) => m.metrics.files_generated,
-          prefer: "max" as const,
-          numeric: (m: MonitorState) => m.metrics.files_generated,
-        },
-        {
-          label: "Guardrails passed",
-          fn: (m: MonitorState) => m.metrics.guardrails_passed,
-          prefer: "max" as const,
-          numeric: (m: MonitorState) => m.metrics.guardrails_passed,
-        },
-        {
-          label: "Guardrails failed",
-          fn: (m: MonitorState) => m.metrics.guardrails_failed,
-          prefer: "min" as const,
-          numeric: (m: MonitorState) => m.metrics.guardrails_failed,
-        },
-        {
           label: "Tests passed",
+          tier: "primary" as const,
           fn: (m: MonitorState) => m.metrics.tests_passed,
           prefer: "max" as const,
           numeric: (m: MonitorState) => m.metrics.tests_passed,
         },
         {
           label: "Tests failed",
+          tier: "primary" as const,
           fn: (m: MonitorState) => m.metrics.tests_failed,
           prefer: "min" as const,
           numeric: (m: MonitorState) => m.metrics.tests_failed,
         },
         {
+          label: "Files generated",
+          tier: "primary" as const,
+          fn: (m: MonitorState) => m.metrics.files_generated,
+          prefer: "max" as const,
+          numeric: (m: MonitorState) => m.metrics.files_generated,
+        },
+        {
+          label: "Phase",
+          tier: "secondary" as const,
+          fn: (m: MonitorState) => m.phase,
+          prefer: null,
+        },
+        {
+          label: "Tokens (est.)",
+          tier: "secondary" as const,
+          fn: (m: MonitorState) => (m.token_estimate ? m.token_estimate.toLocaleString() : "—"),
+          prefer: "max" as const,
+          numeric: (m: MonitorState) => m.token_estimate ?? 0,
+        },
+        {
+          label: "Tasks completed",
+          tier: "secondary" as const,
+          fn: (m: MonitorState) => m.metrics.tasks_completed,
+          prefer: "max" as const,
+          numeric: (m: MonitorState) => m.metrics.tasks_completed,
+        },
+        {
+          label: "Tasks failed",
+          tier: "secondary" as const,
+          fn: (m: MonitorState) => m.metrics.tasks_failed,
+          prefer: "min" as const,
+          numeric: (m: MonitorState) => m.metrics.tasks_failed,
+        },
+        {
+          label: "Guardrails passed",
+          tier: "secondary" as const,
+          fn: (m: MonitorState) => m.metrics.guardrails_passed,
+          prefer: "max" as const,
+          numeric: (m: MonitorState) => m.metrics.guardrails_passed,
+        },
+        {
+          label: "Guardrails failed",
+          tier: "secondary" as const,
+          fn: (m: MonitorState) => m.metrics.guardrails_failed,
+          prefer: "min" as const,
+          numeric: (m: MonitorState) => m.metrics.guardrails_failed,
+        },
+        {
           label: "Retries",
+          tier: "secondary" as const,
           fn: (m: MonitorState) => m.metrics.retries,
           prefer: "min" as const,
           numeric: (m: MonitorState) => m.metrics.retries,
@@ -558,8 +594,8 @@ export function Compare() {
       )}
 
       <header className="page-header">
-        <h2>Compare Backends</h2>
-        <p className="dim">Benchmark CrewAI, LangGraph, and Claude Agent SDK on the same assignment.</p>
+        <h1>Compare backends</h1>
+        <p className="text-muted">Benchmark CrewAI, LangGraph, and Claude Agent SDK on the same assignment.</p>
       </header>
 
       <div
@@ -573,8 +609,8 @@ export function Compare() {
             onClick={() => setFormCollapsed(false)}
             data-testid="compare-form-expand"
           >
-            ⚖ {profile} · {complexity} · &apos;{(description || "…").slice(0, 48)}
-            {(description?.length ?? 0) > 48 ? "…" : ""}&apos; — Edit &amp; rerun
+            <Scale className="icon-sm" aria-hidden="true" /> {profile} · {complexity} · &apos;
+            {description || "…"}&apos; — Edit &amp; rerun
           </button>
         ) : (
           <RunConfigForm
@@ -623,7 +659,7 @@ export function Compare() {
 
       {estimate && (
         <div className="panel estimate-panel">
-          <h3>Cost Estimate ({estimate.complexity}) — per backend</h3>
+          <h2>Cost Estimate ({estimate.complexity}) — per backend</h2>
           <EstimateTable estimate={estimate} runMultiplier={3} />
         </div>
       )}
@@ -637,90 +673,159 @@ export function Compare() {
         onCancel={() => setShowPreflight(false)}
       />
 
-      <div className="compare-grid compare-grid-3">
-        {BACKENDS.map((b) => {
-          const col = getColumnState(b.key);
-          return (
-            <CompareColumn
-              key={b.key}
-              title={b.title}
-              titleClass={b.titleClass}
-              monitor={col.monitor}
-              status={col.status}
-              runId={col.runId}
-              projectId={col.projectId}
-              errorMessage={col.errorMessage}
-              hitlPayload={col.hitlPayload}
-              testIdPrefix={b.testId}
-            />
-          );
-        })}
-      </div>
-
-      {summaryRows.length > 0 && (
-        <div className="compare-summary panel" data-testid="compare-summary">
-          <h3>Comparison Summary</h3>
-          {verdictLine && (
-            <p className="compare-verdict" data-testid="compare-verdict">
-              {verdictLine}
-            </p>
-          )}
-          <table className="summary-table">
-            <thead>
-              <tr>
-                <th>Metric</th>
-                {summaryRows.map((r) => (
-                  <th key={r.key}>{r.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {metricRows.map((row) => {
-                const bestKey = bestForRow(row);
-                return (
-                  <tr key={row.label}>
-                    <td>
-                      {row.label}
-                      {row.prefer != null && (
-                        <span className="summary-direction dim" data-testid={`direction-${row.label}`}>
-                          {" "}
-                          {directionHint(row.prefer)}
-                        </span>
-                      )}
-                    </td>
-                    {summaryRows.map((r) => {
-                      if (r.failed) {
-                        return (
-                          <td key={r.key} className="summary-failed">
-                            —
-                          </td>
-                        );
-                      }
-                      const val = String(row.fn(r.m));
-                      const isBest = bestKey === r.key && row.prefer != null;
-                      return (
-                        <td key={r.key} className={isBest ? "summary-best" : undefined}>
-                          {val}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-              {summaryRows.some((r) => r.failed) && (
-                <tr className="summary-failure-reason-row">
-                  <td>Failure reason</td>
+      <div className="compare-body">
+        {summaryRows.length > 0 && (
+          <div className="compare-summary panel" data-testid="compare-summary">
+            <h2>Comparison Summary</h2>
+            {verdictLine && (
+              <p className="compare-verdict" data-testid="compare-verdict">
+                {verdictLine}
+              </p>
+            )}
+            <table className="summary-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
                   {summaryRows.map((r) => (
-                    <td key={r.key} className={r.failed ? "summary-failed summary-failed-reason" : undefined} data-testid={r.failed ? `summary-reason-${r.key}` : undefined}>
-                      {r.failed ? r.failReason : "—"}
-                    </td>
+                    <th key={r.key}>{r.label}</th>
                   ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {metricRows
+                  .filter((row) => row.tier === "primary")
+                  .map((row) => {
+                    const bestKey = bestForRow(row);
+                    return (
+                      <tr key={row.label}>
+                        <td>
+                          {row.label}
+                          {row.prefer != null && (
+                            <span className="summary-direction text-muted" data-testid={`direction-${row.label}`}>
+                              {" "}
+                              {directionHint(row.prefer)}
+                            </span>
+                          )}
+                        </td>
+                        {summaryRows.map((r) => {
+                          if (r.failed) {
+                            return (
+                              <td key={r.key} className="summary-failed">
+                                —
+                              </td>
+                            );
+                          }
+                          const val = String(row.fn(r.m));
+                          const isBest = bestKey === r.key && row.prefer != null;
+                          const marker = row.prefer === "min" ? "▼" : "▲";
+                          return (
+                            <td key={r.key} className={isBest ? "summary-best" : undefined}>
+                              {val}
+                              {isBest && (
+                                <span className="summary-best-marker" aria-label="best">
+                                  {marker}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                <tr>
+                  <td colSpan={summaryRows.length + 1}>
+                    <details
+                      open={allMetricsOpen}
+                      onToggle={(e) => setAllMetricsOpen((e.target as HTMLDetailsElement).open)}
+                    >
+                      <summary>All metrics</summary>
+                    </details>
+                  </td>
+                </tr>
+                {metricRows
+                  .filter((row) => row.tier === "secondary")
+                  .map((row) => {
+                    const bestKey = bestForRow(row);
+                    return (
+                      <tr key={row.label} hidden={!allMetricsOpen} className="compare-secondary-metrics">
+                        <td>
+                          {row.label}
+                          {row.prefer != null && (
+                            <span className="summary-direction text-muted" data-testid={`direction-${row.label}`}>
+                              {" "}
+                              {directionHint(row.prefer)}
+                            </span>
+                          )}
+                        </td>
+                        {summaryRows.map((r) => {
+                          if (r.failed) {
+                            return (
+                              <td key={r.key} className="summary-failed">
+                                —
+                              </td>
+                            );
+                          }
+                          const val = String(row.fn(r.m));
+                          const isBest = bestKey === r.key && row.prefer != null;
+                          const marker = row.prefer === "min" ? "▼" : "▲";
+                          return (
+                            <td key={r.key} className={isBest ? "summary-best" : undefined}>
+                              {val}
+                              {isBest && (
+                                <span className="summary-best-marker" aria-label="best">
+                                  {marker}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                {summaryRows.some((r) => r.failed) && (
+                  <tr className="summary-failure-reason-row">
+                    <td>Failure reason</td>
+                    {summaryRows.map((r) => (
+                      <td
+                        key={r.key}
+                        className={r.failed ? "summary-failed summary-failed-reason" : undefined}
+                        data-testid={r.failed ? `summary-reason-${r.key}` : undefined}
+                      >
+                        {r.failed ? r.failReason : "—"}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="compare-grid compare-grid-3">
+          {BACKENDS.map((b) => {
+            const col = getColumnState(b.key);
+            return (
+              <details key={b.key} className="compare-col-fold" {...(narrow ? {} : { open: true })}>
+                <summary>
+                  {b.title}{" "}
+                  <span className={statusChipClassMd(col.status)}>{col.status}</span>
+                </summary>
+                <CompareColumn
+                  title={b.title}
+                  titleClass={b.titleClass}
+                  monitor={col.monitor}
+                  status={col.status}
+                  runId={col.runId}
+                  projectId={col.projectId}
+                  errorMessage={col.errorMessage}
+                  hitlPayload={col.hitlPayload}
+                  testIdPrefix={b.testId}
+                />
+              </details>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }

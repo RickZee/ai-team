@@ -50,13 +50,13 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
 
   return (
     <div className="panel run-summary-card" data-testid="run-summary-card">
-      <h3>Run summary</h3>
+      <h3 className="panel-header">Run summary</h3>
       <div className="run-summary-grid">
         <div>
           <span className="run-meta-label">Outcome</span>
           <p
             className={
-              isApproved ? "yellow" : run.status === "complete" ? "green" : isCancelled ? "yellow" : "red"
+              isApproved ? "text-warning" : run.status === "complete" ? "text-success" : isCancelled ? "text-warning" : "text-danger"
             }
           >
             {run.status}
@@ -83,9 +83,9 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
                 <span>Actual ${actualCost.toFixed(4)}</span>
                 {hasEstimate && (
                   <>
-                    <span className="dim"> · Est ${estimateUsd!.toFixed(4)}</span>
+                    <span className="text-muted"> · Est ${estimateUsd!.toFixed(4)}</span>
                     {costDelta != null && (
-                      <span className={costDelta >= 0 ? "red" : "green"}>
+                      <span className={costDelta >= 0 ? "text-danger" : "text-success"}>
                         {" "}({costDelta >= 0 ? "+" : ""}{costDelta.toFixed(4)})
                       </span>
                     )}
@@ -95,9 +95,9 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
             ) : (
               <p>
                 {hasEstimate ? (
-                  <span>Est ${estimateUsd!.toFixed(4)} <span className="dim">(actual not recorded)</span></span>
+                  <span>Est ${estimateUsd!.toFixed(4)} <span className="text-muted">(actual not recorded)</span></span>
                 ) : (
-                  <span className="dim">estimate not run</span>
+                  <span className="text-muted">estimate not run</span>
                 )}
               </p>
             )}
@@ -119,9 +119,9 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
           <div>
             <span className="run-meta-label">Tests</span>
             <p>
-              <span className="green">{monitor.metrics.tests_passed} passed</span>
+              <span className="text-success">{monitor.metrics.tests_passed} passed</span>
               {monitor.metrics.tests_failed > 0 && (
-                <span className="red"> · {monitor.metrics.tests_failed} failed</span>
+                <span className="text-danger"> · {monitor.metrics.tests_failed} failed</span>
               )}
             </p>
           </div>
@@ -139,7 +139,7 @@ export function RunSummaryCard({ run, monitor, artifactProjectId, estimateUsd }:
           </Link>
         )}
         {isDemo && (
-          <p className="dim run-summary-demo-note" data-testid="demo-artifacts-note">
+          <p className="text-muted run-summary-demo-note" data-testid="demo-artifacts-note">
             Demo runs do not write files to disk. Start a real run to browse artifacts.
           </p>
         )}

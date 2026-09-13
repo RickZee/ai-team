@@ -1,4 +1,5 @@
 import type { GuardrailEvent, MonitorState } from "../types";
+import { statusChipClassMd } from "../utils/statusIntent";
 
 interface RunStatStripProps {
   status: string;
@@ -11,37 +12,35 @@ function guardrailsSummary(events: GuardrailEvent[]): string {
   const failed = events.filter((e) => e.status === "fail").length;
   const warned = events.filter((e) => e.status === "warn").length;
   const parts: string[] = [];
-  if (passed) parts.push(`✓ ${passed}`);
-  if (failed) parts.push(`✗ ${failed}`);
-  if (warned) parts.push(`⚠ ${warned}`);
+  if (passed) parts.push(`${passed} passed`);
+  if (failed) parts.push(`${failed} failed`);
+  if (warned) parts.push(`${warned} warned`);
   return parts.join(" · ") || "none yet";
 }
 
-/** Compact stats — sole source for status/phase/elapsed/cost/tests (IA-2, V-3). */
+/** Compact stats — sole source for status/phase/elapsed/cost/tests. */
 export function RunStatStrip({ status, monitor }: RunStatStripProps) {
   const m = monitor.metrics;
   const testsTotal = m.tests_passed + m.tests_failed;
   const testsLabel =
     testsTotal > 0
-      ? `${m.tests_passed}✓${m.tests_failed > 0 ? ` / ${m.tests_failed}✗` : ""}`
+      ? `${m.tests_passed} passed${m.tests_failed > 0 ? ` · ${m.tests_failed} failed` : ""}`
       : null;
   const grLabel = guardrailsSummary(monitor.guardrail_events);
 
   return (
     <div className="run-stat-strip" data-testid="run-stat-strip">
-      <span className={`chip chip-md status-chip status-${status}`}>
+      <span className={statusChipClassMd(status)}>
         {status === "cancelling" ? "Cancelling…" : status}
       </span>
       <span className="run-stat-sep" aria-hidden>
         ·
       </span>
-      <span className="run-stat-item" title="Phase">
-        {monitor.phase}
-      </span>
+      <span className="run-stat-item">{monitor.phase}</span>
       <span className="run-stat-sep" aria-hidden>
         ·
       </span>
-      <span className="run-stat-item" title="Elapsed" data-testid="stat-elapsed">
+      <span className="run-stat-item" data-testid="stat-elapsed">
         {monitor.elapsed}
       </span>
       {monitor.cost_usd != null && (
@@ -49,7 +48,7 @@ export function RunStatStrip({ status, monitor }: RunStatStripProps) {
           <span className="run-stat-sep" aria-hidden>
             ·
           </span>
-          <span className="run-stat-item" title="Cost" data-testid="stat-cost">
+          <span className="run-stat-item" data-testid="stat-cost">
             ${monitor.cost_usd.toFixed(4)}
           </span>
         </>
@@ -59,7 +58,7 @@ export function RunStatStrip({ status, monitor }: RunStatStripProps) {
           <span className="run-stat-sep" aria-hidden>
             ·
           </span>
-          <span className="run-stat-item" title="Tests" data-testid="stat-tests">
+          <span className="run-stat-item" data-testid="stat-tests">
             {testsLabel}
           </span>
         </>
@@ -67,7 +66,7 @@ export function RunStatStrip({ status, monitor }: RunStatStripProps) {
       <span className="run-stat-sep" aria-hidden>
         ·
       </span>
-      <span className="run-stat-item run-stat-guardrails" title="Guardrails" data-testid="stat-guardrails">
+      <span className="run-stat-item run-stat-guardrails" data-testid="stat-guardrails">
         Guardrails: {grLabel}
       </span>
     </div>

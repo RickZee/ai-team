@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Scale } from "lucide-react";
 import { ActivityLog } from "../components/ActivityLog";
 import { AgentTable } from "../components/AgentTable";
 import { AgentTimeline, AgentTimelineNote } from "../components/AgentTimeline";
@@ -22,6 +23,13 @@ import type { MonitorState, RunInfo, TestsPanelData } from "../types";
 import { formatRunDate, sortRunsByDate } from "../utils/formatRun";
 
 type RunTab = "overview" | "activity" | "artifacts" | "tests";
+
+const TABS = [
+  ["overview", "Overview"],
+  ["activity", "Activity"],
+  ["artifacts", "Artifacts"],
+  ["tests", "Tests"],
+] as const;
 
 const LOG_PREVIEW_LINES = 5;
 const TERMINAL_STATUSES = new Set(["complete", "complete_approved", "error", "cancelled"]);
@@ -112,6 +120,21 @@ export function RunDetail() {
     setTab(t);
     const hash = t === "overview" ? "" : `#${t}`;
     window.history.replaceState(null, "", `${window.location.pathname}${hash}`);
+  };
+
+  const onTabKeyDown = (e: React.KeyboardEvent) => {
+    const ids = TABS.map(([id]) => id);
+    const i = ids.indexOf(tab);
+    let next = i;
+    if (e.key === "ArrowRight") next = (i + 1) % ids.length;
+    else if (e.key === "ArrowLeft") next = (i - 1 + ids.length) % ids.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = ids.length - 1;
+    else return;
+    e.preventDefault();
+    const id = ids[next];
+    selectTab(id);
+    document.getElementById(`tab-${id}`)?.focus();
   };
 
   useEffect(() => {
@@ -237,23 +260,27 @@ export function RunDetail() {
       {isAwaitingHuman && (
         <AlertBanner
           variant="warning"
+          roleOverride="alert"
           message="This run is paused for human review — respond below to continue."
           testId="hitl-banner"
         />
       )}
 
+      <p className="visually-hidden" role="status">
+        {`${effectiveRun.status}. Phase ${displayMonitor.phase}.`}
+      </p>
+
       <header className="run-detail-header page-header">
         <div>
-          <h2 className="run-detail-title" title={effectiveRun.description}>
-            {effectiveRun.description?.slice(0, 80) || runId}
-          </h2>
-          <p className="dim run-detail-meta">
+          <h1>Run</h1>
+          <h2 className="run-detail-title">{effectiveRun.description || runId}</h2>
+          <p className="text-muted run-detail-meta">
             {effectiveRun.backend} · {formatRunDate(effectiveRun.started_at)}
             {effectiveRun.comparison_id && (
               <>
                 {" · "}
-                <Link to="/compare" className="chip chip-sm run-list-comparison-chip">
-                  ⚖ part of comparison
+                <Link to="/compare" className="chip chip-sm chip-special run-list-comparison-chip">
+                  <Scale className="icon-sm" aria-hidden="true" /> part of comparison
                 </Link>
               </>
             )}
@@ -264,20 +291,16 @@ export function RunDetail() {
         </Link>
       </header>
 
-      <div className="run-detail-tabs" role="tablist">
-        {(
-          [
-            ["overview", "Overview"],
-            ["activity", "Activity"],
-            ["artifacts", "Artifacts"],
-            ["tests", "Tests"],
-          ] as const
-        ).map(([id, label]) => (
+      <div className="run-detail-tabs" role="tablist" aria-label="Run sections" onKeyDown={onTabKeyDown}>
+        {TABS.map(([id, label]) => (
           <button
             key={id}
             type="button"
             role="tab"
+            id={`tab-${id}`}
+            aria-controls={`panel-${id}`}
             aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
             className={`run-detail-tab ${tab === id ? "active" : ""}`}
             onClick={() => selectTab(id)}
             data-testid={`run-tab-${id}`}
@@ -313,10 +336,30 @@ export function RunDetail() {
         cancelLabel="Keep running"
         onConfirm={handleCancel}
         onCancel={() => setShowCancelConfirm(false)}
+        tone="danger"
       />
 
+      {TABS.map(([id]) =>
+        id === tab ? null : (
+          <div
+            key={id}
+            role="tabpanel"
+            id={`panel-${id}`}
+            aria-labelledby={`tab-${id}`}
+            hidden
+          />
+        ),
+      )}
+
       {tab === "overview" && (
-        <div className="run-tab-overview" data-testid="run-tab-panel-overview">
+        <div
+          className="run-tab-overview"
+          role="tabpanel"
+          id="panel-overview"
+          aria-labelledby="tab-overview"
+          tabIndex={0}
+          data-testid="run-tab-panel-overview"
+        >
           {isTerminal && (
             <RunSummaryCard
               run={effectiveRun}
@@ -327,14 +370,14 @@ export function RunDetail() {
           )}
           {receipt && (
             <div className="panel" data-testid="change-receipt">
-              <h3>Change receipt</h3>
+              <h3 className="panel-header">Change receipt</h3>
               <p>
                 {receipt.accepted ? "Accepted" : "Not accepted"}
                 {receipt.cost_per_accepted_change != null
                   ? ` · $${receipt.cost_per_accepted_change.toFixed(4)} per accepted change`
                   : ""}
               </p>
-              {receipt.output_hash ? <p className="muted">Hash {receipt.output_hash.slice(0, 12)}</p> : null}
+              {receipt.output_hash ? <p className="text-muted">Hash {receipt.output_hash.slice(0, 12)}</p> : null}
             </div>
           )}
           {!isTerminal && (
@@ -385,7 +428,14 @@ export function RunDetail() {
       )}
 
       {tab === "activity" && (
-        <div className="run-tab-activity dashboard-grid grid-adaptive" data-testid="run-tab-panel-activity">
+        <div
+          className="run-tab-activity dashboard-grid grid-adaptive"
+          role="tabpanel"
+          id="panel-activity"
+          aria-labelledby="tab-activity"
+          tabIndex={0}
+          data-testid="run-tab-panel-activity"
+        >
           {!hasAgents && <AgentTimelineNote terminal={isTerminal} />}
           {hasAgents && (
             <AgentTimeline
@@ -417,14 +467,14 @@ export function RunDetail() {
             {isLive && !showFullLog ? (
               <>
                 {logEntries.length > LOG_PREVIEW_LINES && (
-                  <p className="dim log-preview-hint">
+                  <p className="text-muted log-preview-hint">
                     Showing last {LOG_PREVIEW_LINES} of {logEntries.length} lines
                   </p>
                 )}
-                <ActivityLog entries={logPreview} compact ariaLive="polite" />
+                <ActivityLog entries={logPreview} compact />
               </>
             ) : (
-              <ActivityLog key={runId} entries={logEntries} ariaLive="polite" />
+              <ActivityLog key={runId} entries={logEntries} />
             )}
           </div>
           {hasGuardrailEvents && (
@@ -437,13 +487,25 @@ export function RunDetail() {
       )}
 
       {tab === "artifacts" && (
-        <div data-testid="run-tab-panel-artifacts">
+        <div
+          role="tabpanel"
+          id="panel-artifacts"
+          aria-labelledby="tab-artifacts"
+          tabIndex={0}
+          data-testid="run-tab-panel-artifacts"
+        >
           <RunArtifactsPanel projectId={runId} isDemo={effectiveRun.backend === "demo"} />
         </div>
       )}
 
       {tab === "tests" && (
-        <div className="panel" data-testid="run-tab-panel-tests">
+        <div
+          role="tabpanel"
+          id="panel-tests"
+          aria-labelledby="tab-tests"
+          tabIndex={0}
+          data-testid="run-tab-panel-tests"
+        >
           <TestResultsPanel data={tests} loading={testsLoading} />
         </div>
       )}

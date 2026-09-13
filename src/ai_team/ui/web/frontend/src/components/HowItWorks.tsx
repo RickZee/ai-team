@@ -1,8 +1,8 @@
 /** Onboarding explainer for the empty Home state. */
 export function HowItWorks() {
   return (
-    <div className="how-it-works" data-testid="how-it-works">
-      <h3>How it works</h3>
+    <div className="how-it-works measure" data-testid="how-it-works">
+      <h2>How it works</h2>
       <ol className="how-it-works-steps">
         <li>
           <strong>Describe</strong> — write a project brief and pick a backend.
@@ -16,7 +16,7 @@ export function HowItWorks() {
           the run completes.
         </li>
       </ol>
-      <p className="dim how-it-works-cost">
+      <p className="text-muted how-it-works-cost">
         Real runs may incur LLM cost. CrewAI and LangGraph need <code>OPENROUTER_API_KEY</code>;
         Claude Agent SDK needs <code>ANTHROPIC_API_KEY</code>.
       </p>
