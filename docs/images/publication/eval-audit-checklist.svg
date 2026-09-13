@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" width="1200" height="690" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="690" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">A TEN-MINUTE AUDIT FOR ANY EVAL SETUP</text>
+  <text x="70" y="122" font-size="44" font-weight="700" fill="#1a1a2e">Five questions before you trust a green check</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">Each one has a cheap answer and an expensive one. The cheap answer is usually wrong.</text>
+
+  <g font-size="17">
+    <!-- row 0 -->
+    <rect x="70" y="196" width="1060" height="84" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="196" width="5" height="84" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="230" font-size="15" font-family="monospace" font-weight="700" fill="#1d9e75">00</text>
+    <text x="146" y="230" font-size="19" font-weight="700" fill="#1a1a2e">Does the thing that writes your traces agree with the thing that reads them?</text>
+    <text x="146" y="262" font-size="16" fill="#5f5e5a">Two directories, one writer, one reader, no test between them. Nothing fails loudly when they diverge.</text>
+
+    <!-- row 1 -->
+    <rect x="70" y="292" width="1060" height="84" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="292" width="5" height="84" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="326" font-size="15" font-family="monospace" font-weight="700" fill="#1d9e75">01</text>
+    <text x="146" y="326" font-size="19" font-weight="700" fill="#1a1a2e">How many real traces, and how diverse?</text>
+    <text x="146" y="358" font-size="16" fill="#5f5e5a">Group by every dimension you have. If one value dominates a column, your n is a fiction.</text>
+
+    <!-- row 2 -->
+    <rect x="70" y="388" width="1060" height="84" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="388" width="5" height="84" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="422" font-size="15" font-family="monospace" font-weight="700" fill="#1d9e75">02</text>
+    <text x="146" y="422" font-size="19" font-weight="700" fill="#1a1a2e">How many has a human actually read?</text>
+    <text x="146" y="454" font-size="16" fill="#5f5e5a">Not scored. Read, with notes. This is the number no dashboard reports and no survey asks for.</text>
+
+    <!-- row 3 -->
+    <rect x="70" y="484" width="1060" height="84" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="484" width="5" height="84" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="518" font-size="15" font-family="monospace" font-weight="700" fill="#1d9e75">03</text>
+    <text x="146" y="518" font-size="19" font-weight="700" fill="#1a1a2e">Where did your failure categories come from?</text>
+    <text x="146" y="550" font-size="16" fill="#5f5e5a">If you cannot point from a category to the traces that produced it, you are testing your imagination.</text>
+
+    <!-- row 4 -->
+    <rect x="70" y="580" width="1060" height="84" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="580" width="5" height="84" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="614" font-size="15" font-family="monospace" font-weight="700" fill="#1d9e75">04</text>
+    <text x="146" y="614" font-size="19" font-weight="700" fill="#1a1a2e">What does a green run actually assert? Say it in one sentence.</text>
+    <text x="146" y="646" font-size="16" fill="#5f5e5a">&#8220;My check code behaves as written&#8221; is real and useful. It is not a quality claim. Stop letting it travel as one.</text>
+  </g>
+</svg>

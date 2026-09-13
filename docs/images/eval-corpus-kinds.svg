@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="660" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">VOCABULARY FOR A PASS RATE</text>
+  <text x="70" y="122" font-size="44" font-weight="700" fill="#1a1a2e">Your eval suite is green. Against what?</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">Three kinds of pass rate. Only two of them are claims about your system.</text>
+
+  <!-- FIXTURE-ONLY -->
+  <rect x="70" y="200" width="336" height="330" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+  <rect x="70" y="200" width="6" height="330" rx="3" fill="#b9b6ab"/>
+  <text x="100" y="243" font-size="23" font-weight="700" font-family="monospace" fill="#6e6c66">FIXTURE-ONLY</text>
+  <line x1="100" y1="262" x2="376" y2="262" stroke="#eae7dd"/>
+  <text x="100" y="292" font-size="13" fill="#96938a" letter-spacing="1">MEASURED AGAINST</text>
+  <text x="100" y="318" font-size="17" fill="#3c3a36">Synthetic test cases you</text>
+  <text x="100" y="340" font-size="17" fill="#3c3a36">wrote yourself.</text>
+  <text x="100" y="378" font-size="13" fill="#96938a" letter-spacing="1">A GREEN RUN MEANS</text>
+  <text x="100" y="404" font-size="17" fill="#3c3a36">Your check code behaves</text>
+  <text x="100" y="426" font-size="17" fill="#3c3a36">the way you wrote it.</text>
+  <rect x="100" y="446" width="276" height="64" rx="8" fill="#f6f4ec" stroke="#e4e0d2"/>
+  <text x="118" y="472" font-size="15" font-weight="600" fill="#8a7a52">It says nothing about</text>
+  <text x="118" y="494" font-size="15" font-weight="600" fill="#8a7a52">whether your system works.</text>
+
+  <!-- CORPUS -->
+  <rect x="432" y="200" width="336" height="330" rx="12" fill="#ffffff" stroke="#c4e6d9" stroke-width="1.5"/>
+  <rect x="432" y="200" width="6" height="330" rx="3" fill="#1d9e75"/>
+  <text x="462" y="243" font-size="23" font-weight="700" font-family="monospace" fill="#186b51">CORPUS</text>
+  <line x1="462" y1="262" x2="738" y2="262" stroke="#e3f2ec"/>
+  <text x="462" y="292" font-size="13" fill="#96938a" letter-spacing="1">MEASURED AGAINST</text>
+  <text x="462" y="318" font-size="17" fill="#3c3a36">Real traces from real runs,</text>
+  <text x="462" y="340" font-size="17" fill="#3c3a36">indexed and sampled.</text>
+  <text x="462" y="378" font-size="13" fill="#96938a" letter-spacing="1">A GREEN RUN MEANS</text>
+  <text x="462" y="404" font-size="17" fill="#3c3a36">Your system behaved this</text>
+  <text x="462" y="426" font-size="17" fill="#3c3a36">way, on that sample.</text>
+  <rect x="462" y="446" width="276" height="64" rx="8" fill="#f2faf7" stroke="#c4e6d9"/>
+  <text x="480" y="472" font-size="15" font-weight="600" fill="#186b51">A claim. Carries its n and</text>
+  <text x="480" y="494" font-size="15" font-weight="600" fill="#186b51">a confidence interval.</text>
+
+  <!-- LIVE -->
+  <rect x="794" y="200" width="336" height="330" rx="12" fill="#ffffff" stroke="#a8d8c6" stroke-width="1.5"/>
+  <rect x="794" y="200" width="6" height="330" rx="3" fill="#0f6e56"/>
+  <text x="824" y="243" font-size="23" font-weight="700" font-family="monospace" fill="#0f6e56">LIVE</text>
+  <line x1="824" y1="262" x2="1100" y2="262" stroke="#e3f2ec"/>
+  <text x="824" y="292" font-size="13" fill="#96938a" letter-spacing="1">MEASURED AGAINST</text>
+  <text x="824" y="318" font-size="17" fill="#3c3a36">A run you just executed,</text>
+  <text x="824" y="340" font-size="17" fill="#3c3a36">on the current build.</text>
+  <text x="824" y="378" font-size="13" fill="#96938a" letter-spacing="1">A GREEN RUN MEANS</text>
+  <text x="824" y="404" font-size="17" fill="#3c3a36">Your system behaves this</text>
+  <text x="824" y="426" font-size="17" fill="#3c3a36">way now.</text>
+  <rect x="824" y="446" width="276" height="64" rx="8" fill="#eefaf5" stroke="#a8d8c6"/>
+  <text x="842" y="472" font-size="15" font-weight="600" fill="#0f6e56">The strongest claim, and</text>
+  <text x="842" y="494" font-size="15" font-weight="600" fill="#0f6e56">the one that costs money.</text>
+
+  <text x="70" y="578" font-size="21" font-weight="600" fill="#1a1a2e">Most eval suites are FIXTURE-ONLY and their owners do not know it.</text>
+  <text x="70" y="612" font-size="17" fill="#5f5e5a">The fix is structural, not cultural: every rate renders its kind and its n, emitted by the reporting code</text>
+  <text x="70" y="636" font-size="17" fill="#5f5e5a">rather than remembered by a person. Prose cannot opt out of it.</text>
+</svg>

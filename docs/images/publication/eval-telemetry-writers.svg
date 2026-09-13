@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="628" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">ONE SIGNAL, LEFT TO AN INSTRUCTION</text>
+  <text x="70" y="122" font-size="42" font-weight="700" fill="#1a1a2e">Telemetry the model was asked to write</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">Everything else in this system is logged by code. This one file was requested in a prompt.</text>
+
+  <rect x="70" y="200" width="1060" height="112" rx="10" fill="#1a1a2e"/>
+  <text x="98" y="234" font-size="14" font-family="monospace" fill="#7fd4ae">src/ai_team/backends/claude_agent_sdk_backend/agents/prompts.py:23</text>
+  <text x="98" y="268" font-size="18" font-family="monospace" fill="#f4f2ec">7. Write phase transition entries to workspace/logs/phases.jsonl</text>
+  <text x="98" y="294" font-size="18" font-family="monospace" fill="#b8b5ab">   (JSON lines: phase, status, timestamp).</text>
+
+  <g font-size="18">
+    <text x="70" y="366" font-size="13" fill="#96938a" letter-spacing="1">WHO ACTUALLY WRITES EACH SIGNAL</text>
+
+    <rect x="70" y="384" width="1060" height="52" rx="8" fill="#ffffff" stroke="#c4e6d9"/>
+    <rect x="70" y="384" width="5" height="52" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="416" font-family="monospace" fill="#3c3a36">audit.jsonl</text>
+    <text x="430" y="416" fill="#186b51" font-weight="600">written by code</text>
+    <text x="1100" y="416" font-family="monospace" font-weight="700" fill="#186b51" text-anchor="end">tools/bus.py</text>
+
+    <rect x="70" y="446" width="1060" height="52" rx="8" fill="#ffffff" stroke="#c4e6d9"/>
+    <rect x="70" y="446" width="5" height="52" rx="2.5" fill="#1d9e75"/>
+    <text x="100" y="478" font-family="monospace" fill="#3c3a36">costs.jsonl</text>
+    <text x="430" y="478" fill="#186b51" font-weight="600">written by code</text>
+    <text x="1100" y="478" font-family="monospace" font-weight="700" fill="#186b51" text-anchor="end">60 files exist</text>
+
+    <rect x="70" y="508" width="1060" height="52" rx="8" fill="#fdf4f1" stroke="#e0b4a8" stroke-width="1.5"/>
+    <rect x="70" y="508" width="5" height="52" rx="2.5" fill="#b4462f"/>
+    <text x="100" y="540" font-family="monospace" fill="#8a4636" font-weight="700">phases.jsonl</text>
+    <text x="430" y="540" fill="#b4462f" font-weight="600">asked for in a prompt</text>
+    <text x="1100" y="540" font-family="monospace" font-weight="700" fill="#b4462f" text-anchor="end">0 files, in 440 runs</text>
+  </g>
+
+  <text x="70" y="602" font-size="20" font-weight="600" fill="#1a1a2e">It was also the one every trajectory check depends on.</text>
+</svg>

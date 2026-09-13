@@ -14,9 +14,9 @@
   <rect width="1200" height="680" fill="#faf9f5"/>
   <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
 
-  <text x="70" y="66" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">EVAL HARNESS AUDIT · 2026-09-13</text>
+  <text x="70" y="66" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">A FAILURE MODE WORTH CHECKING FOR</text>
   <text x="70" y="120" font-size="44" font-weight="700" fill="#1a1a2e">Two trees, one reader</text>
-  <text x="70" y="156" font-size="20" fill="#5f5e5a">The harness had been logging for two months. The corpus builder was reading the other directory.</text>
+  <text x="70" y="156" font-size="20" fill="#5f5e5a">When the writer and the reader disagree about where traces live, nothing fails loudly. The corpus just comes back empty.</text>
 
   <!-- LEFT: workspace -->
   <rect x="70" y="196" width="490" height="288" rx="12" fill="#ffffff" stroke="#e0b4a8" stroke-width="1.5"/>
