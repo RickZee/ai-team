@@ -33,6 +33,10 @@ bullet is true (tests, fixtures, journal note, flag default, etc.).
   earned its place.
 - Record suite/CI failures in a journal entry (what failed, why, the fix). Do
   not bury that trail only in chat.
+- Watch GitHub Actions on the **public** repo pages/API (see
+  `.cursor/rules/github-ci.mdc`). Do not hang on `gh auth` or GitHub MCP
+  `mcp_auth`. Feature-branch pushes do not run CI until a PR targets
+  `main`/`develop`.
 
 ## Do not
 

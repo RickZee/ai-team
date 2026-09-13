@@ -46,4 +46,5 @@ Feature work specified under `.kiro/specs/<id>/` is executed from `tasks.md`.
 That file is a **living checklist**: check a box only when its Definition of
 done is literally true; leave human-triggered spend tasks open. Read
 `requirements.md` then `design.md` before implementing. Full steering:
-`.cursor/rules/kiro-specs.mdc`.
+`.cursor/rules/kiro-specs.mdc`. CI: public Actions pages, not `gh auth`
+(`.cursor/rules/github-ci.mdc`).
