@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -97,3 +98,43 @@ def test_trace_json_schema_emits() -> None:
     assert "properties" in schema
     assert "spans" in schema["properties"]
     assert schema["properties"]["schema_version"]["default"] == SCHEMA_VERSION
+    assert "arm_id" in schema["properties"]
+
+
+def test_trace_round_trip_with_arm_id_and_context_pressure() -> None:
+    """SCHEMA_VERSION 2 fields round-trip when present (harness-alignment 0.3)."""
+    original = _sample_trace()
+    original = original.model_copy(update={"arm_id": "solo"})
+    original.spans[0] = original.spans[0].model_copy(
+        update={"type": "phase_end", "payload": {"context_pressure": 0.42}}
+    )
+    restored = Trace.model_validate_json(original.model_dump_json())
+    assert restored.arm_id == "solo"
+    assert restored.spans[0].payload["context_pressure"] == 0.42
+
+
+def test_trace_round_trip_without_new_fields() -> None:
+    """Existing traces without arm_id remain valid; field defaults to None."""
+    original = _sample_trace()
+    dumped = original.model_dump(mode="json")
+    dumped.pop("arm_id", None)
+    restored = Trace.model_validate(dumped)
+    assert restored.arm_id is None
+
+
+def test_existing_fixture_traces_still_load() -> None:
+    """Every committed fixture under evals/fixtures/traces/ still validates."""
+    from pathlib import Path
+
+    from evals.trace.schema import migrate_trace_dict
+
+    fixture_dir = Path(__file__).resolve().parents[3] / "evals" / "fixtures" / "traces"
+    loaded = 0
+    for path in sorted(fixture_dir.glob("*.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        migrated = migrate_trace_dict(raw)
+        trace = Trace.model_validate(migrated)
+        assert trace.trace_id
+        assert trace.arm_id is None or isinstance(trace.arm_id, str)
+        loaded += 1
+    assert loaded > 0

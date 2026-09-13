@@ -450,6 +450,24 @@ def get_recovery_action(
 # -----------------------------------------------------------------------------
 
 
+def escalate_contract_negotiation(
+    state: ProjectState,
+    item_id: str,
+    reasons: list[str],
+    persist_fn: Any | None = None,
+) -> dict[str, Any]:
+    """Escalate after the contract round ceiling (R11.3). Never opens a fourth round."""
+    error = {
+        "message": (
+            f"contract negotiation exhausted {item_id}: " f"{'; '.join(reasons) or 'rejected'}"
+        ),
+        "item_id": item_id,
+        "reasons": reasons,
+    }
+    logger.error("contract_negotiation_escalated", item_id=item_id, reasons=reasons)
+    return handle_development_error(state, error, persist_fn)
+
+
 def handle_planning_error(
     state: ProjectState,
     error: dict[str, Any],

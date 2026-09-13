@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from evals.provenance import Provenance
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SpanType = Literal[
     "phase_start",
@@ -25,6 +25,10 @@ SpanType = Literal[
     "smoke_probe",
     "subagent_start",
     "subagent_stop",
+    "session_start",
+    "session_end",
+    "regression_check",
+    "qa_verdict",
 ]
 
 BackendName = Literal["crewai", "langgraph", "claude-agent-sdk"]
@@ -85,6 +89,7 @@ class Trace(BaseModel):
     trace_id: str
     scenario_id: str
     backend: BackendName
+    arm_id: str | None = None
     status: TraceStatus
     started_at: datetime
     ended_at: datetime | None

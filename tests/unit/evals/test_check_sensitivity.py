@@ -141,6 +141,54 @@ def _mutate(check_id: str):
         trace.spans = list(trace.spans) + [extra]
         return trace
 
+    if check_id == "CHK-acceptance-monotonic":
+        snaps = list(trace.raw_result.get("acceptance_snapshots") or [])
+        if snaps:
+            last = dict(snaps[-1])
+            last["snapshot"] = []
+            snaps[-1] = last
+            trace.raw_result = {**trace.raw_result, "acceptance_snapshots": snaps}
+        return trace
+
+    if check_id == "CHK-premature-termination":
+        for s in reversed(trace.spans):
+            if s.type in {"phase_end", "session_end"}:
+                s.payload["context_pressure"] = 0.95
+                s.payload["status"] = "ok"
+                break
+        trace.status = "complete"
+        trace.raw_result = {**trace.raw_result, "acceptance_unsatisfied": 1}
+        return trace
+
+    if check_id == "CHK-verifier-independence":
+        ident = {"agent_role": "backend_developer", "session_id": "s", "subagent_id": "w1"}
+        trace.raw_result = {
+            **trace.raw_result,
+            "acceptance_passes": [
+                {
+                    "item_id": "abc",
+                    "verified_by": "qa_agent",
+                    "writer_identity": ident,
+                    "verifier_identity": ident,
+                }
+            ],
+        }
+        return trace
+
+    if check_id == "CHK-evaluator-capitulation":
+        trace.raw_result = {
+            **trace.raw_result,
+            "qa_verdicts": [
+                {
+                    "item_id": "abc",
+                    "verdict": "accept",
+                    "issues": [{"description": "broken", "severity": "blocker"}],
+                }
+            ],
+            "remediation_spans": [],
+        }
+        return trace
+
     if check_id == "CHK-lesson-effectiveness":
         trace.raw_result = {
             **trace.raw_result,

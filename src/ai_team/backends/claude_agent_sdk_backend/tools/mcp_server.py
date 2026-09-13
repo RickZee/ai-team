@@ -167,12 +167,130 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             "is_error": not obs.ok,
         }
 
+    @tool(
+        "acceptance_status",
+        "Read-only acceptance list status: counts and the next unsatisfied item.",
+        {},
+    )
+    async def acceptance_status(_args: dict[str, Any]) -> dict[str, Any]:
+        from ai_team.harness.acceptance import AcceptanceError
+        from ai_team.harness.acceptance import status as acc_status
+
+        try:
+            st = acc_status(workspace)
+        except AcceptanceError as e:
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
+                "is_error": True,
+            }
+        payload = {
+            "total": st.total,
+            "passing": st.passing,
+            "unsatisfied": st.unsatisfied,
+            "next_item": st.next_item.model_dump(mode="json") if st.next_item else None,
+        }
+        return {"content": [{"type": "text", "text": json.dumps(payload, default=str)}]}
+
+    @tool(
+        "acceptance_mark_passing",
+        "Mark one acceptance item passing with evidence paths (QA only).",
+        {
+            "item_id": str,
+            "evidence": list,
+            "verified_by": str,
+            "agent_role": str,
+            "session_id": str,
+            "subagent_id": str,
+        },
+    )
+    async def acceptance_mark_passing(args: dict[str, Any]) -> dict[str, Any]:
+        from ai_team.harness.acceptance import (
+            AcceptanceError,
+            VerifierIdentity,
+            mark_passing,
+        )
+
+        item_id = str(args.get("item_id") or "").strip()
+        evidence = [str(p) for p in (args.get("evidence") or [])]
+        verified_by = str(args.get("verified_by") or "qa_agent")
+        identity = VerifierIdentity(
+            agent_role=str(args.get("agent_role") or "qa_engineer"),
+            session_id=str(args.get("session_id") or ""),
+            subagent_id=str(args.get("subagent_id") or "") or None,
+        )
+        if verified_by not in {"smoke", "ui_smoke", "test", "qa_agent"}:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps({"error": f"invalid verified_by: {verified_by}"}),
+                    }
+                ],
+                "is_error": True,
+            }
+        try:
+            doc = mark_passing(
+                workspace,
+                item_id,
+                evidence=evidence,
+                verified_by=verified_by,  # type: ignore[arg-type]
+                identity=identity,
+            )
+        except AcceptanceError as e:
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
+                "is_error": True,
+            }
+        item = next((i for i in doc.items if i.id == item_id), None)
+        payload = {
+            "ok": True,
+            "item": item.model_dump(mode="json") if item else None,
+            "identity": identity.model_dump(mode="json"),
+        }
+        return {"content": [{"type": "text", "text": json.dumps(payload, default=str)}]}
+
+    @tool(
+        "run_ui_smoke",
+        (
+            "Playwright UI smoke against the local app declared in scenario.ui. "
+            "Never probes a foreign host. Writes docs/ui_smoke_results.json. QA only."
+        ),
+        {"item_id": str},
+    )
+    async def run_ui_smoke(args: dict[str, Any]) -> dict[str, Any]:
+        from ai_team.tools.ui_smoke_tools import run_ui_smoke as _run_ui
+
+        item_id = str(args.get("item_id") or "ui")
+        scenario: dict[str, Any] = {}
+        scenario_path = workspace / "docs" / "scenario.json"
+        if scenario_path.is_file():
+            try:
+                loaded = json.loads(scenario_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    scenario = loaded
+            except (OSError, ValueError):
+                scenario = {}
+        try:
+            result = _run_ui(workspace, scenario=scenario, item_id=item_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("mcp_run_ui_smoke_failed", error=str(e))
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
+                "is_error": True,
+            }
+        payload = json.dumps(result.model_dump(mode="json"), default=str)
+        is_error = result.status == "fail"
+        return {"content": [{"type": "text", "text": payload}], "is_error": is_error}
+
     return [
         run_guardrails,
         run_project_tests,
         run_app_smoke,
         validate_code_safety,
         write_workspace_file,
+        acceptance_status,
+        acceptance_mark_passing,
+        run_ui_smoke,
     ]
 
 

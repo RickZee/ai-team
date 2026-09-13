@@ -144,6 +144,7 @@ def ensure_checks_loaded() -> None:
     global _LOADED
     if _LOADED:
         return
+    import evals.checks.acceptance  # noqa: F401
     import evals.checks.artifacts  # noqa: F401
     import evals.checks.context  # noqa: F401
     import evals.checks.feedback  # noqa: F401

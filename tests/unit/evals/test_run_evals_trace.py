@@ -92,6 +92,54 @@ def test_find_workspace_from_log(tmp_path: Path) -> None:
     assert found == ws
 
 
+def test_workspace_path_re_has_no_root_allowlist() -> None:
+    """R17.4: paths outside /Users|/home|/tmp|/var|/private must still match."""
+    from evals.run_evals import _WORKSPACE_PATH_RE
+
+    match = _WORKSPACE_PATH_RE.search("cwd=/opt/hostedtoolcache/workspace/run-x")
+    assert match is not None
+    assert match.group(1).startswith("/opt/")
+
+
+def test_find_workspace_outside_legacy_root_allowlist(tmp_path: Path) -> None:
+    """R17.4: a path that is not under /Users|/home|/tmp|/var|/private still resolves."""
+    ws = tmp_path / "opt" / "eval-root" / "workspace" / "run-x"
+    (ws / "logs").mkdir(parents=True)
+    log_path = tmp_path / "eval.log"
+    log_path.write_text(f"cwd={ws}\n", encoding="utf-8")
+    found = _find_workspace("langgraph", log_path)
+    assert found == ws
+
+
+def test_find_workspace_returns_none_when_log_has_no_path(tmp_path: Path) -> None:
+    """R17.4: no match → None, never the newest sibling under ./workspace/."""
+    decoy = tmp_path / "workspace" / "someone-elses-run"
+    (decoy / "logs").mkdir(parents=True)
+    log_path = tmp_path / "eval.log"
+    log_path.write_text("run finished with no workspace path\n", encoding="utf-8")
+    assert _find_workspace("crewai", log_path) is None
+
+
+def test_ladder_cli_dry_run_spends_nothing() -> None:
+    from evals.cli import main
+
+    assert (
+        main(
+            [
+                "ladder",
+                "run",
+                "--scenario",
+                "todo-api-beginner",
+                "--arms",
+                "solo,ai_team",
+                "-n",
+                "1",
+            ]
+        )
+        == 0
+    )
+
+
 def test_cli_flags_parsed() -> None:
     from evals.run_evals import main
 

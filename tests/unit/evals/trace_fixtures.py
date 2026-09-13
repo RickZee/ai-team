@@ -114,6 +114,10 @@ def build_for_check(check_id: str, outcome: OutcomeWanted) -> Trace:
         "CHK-constraint-survival": _constraint_survival,
         "CHK-draft-commit": _draft_commit,
         "CHK-lesson-effectiveness": _lesson_eff,
+        "CHK-acceptance-monotonic": _acceptance_monotonic,
+        "CHK-premature-termination": _premature,
+        "CHK-verifier-independence": _verifier_ind,
+        "CHK-evaluator-capitulation": _capitulation,
     }
     return builders[check_id](outcome)
 
@@ -591,6 +595,155 @@ def _lesson_eff(outcome: OutcomeWanted) -> Trace:
     )
 
 
+def _item(iid: str, passes: bool, **kwargs: Any) -> dict[str, Any]:
+    row: dict[str, Any] = {
+        "id": iid,
+        "description": "GET /todos returns 200",
+        "steps": ["curl /todos"],
+        "passes": passes,
+        "evidence": [],
+        "demotions": [],
+    }
+    row.update(kwargs)
+    return row
+
+
+def _acceptance_monotonic(outcome: OutcomeWanted) -> Trace:
+    if outcome == "na":
+        return base_trace(check_id="CHK-acceptance-monotonic", outcome=outcome)
+    first = {"snapshot": [_item("abc123abc123", False)]}
+    if outcome == "fail":
+        last = {"snapshot": [_item("abc123abc123", True, description="GET /todos returns 204")]}
+        return base_trace(
+            check_id="CHK-acceptance-monotonic",
+            outcome=outcome,
+            raw_result={"acceptance_snapshots": [first, last]},
+            artifacts=[
+                Artifact(path="ACCEPTANCE.json", size_bytes=10, sha256="a" * 64, kind="doc")
+            ],
+        )
+    last = {
+        "snapshot": [
+            _item("abc123abc123", True, evidence=["docs/smoke_results.json"]),
+        ]
+    }
+    return base_trace(
+        check_id="CHK-acceptance-monotonic",
+        outcome=outcome,
+        raw_result={"acceptance_snapshots": [first, last]},
+        artifacts=[
+            Artifact(path="ACCEPTANCE.json", size_bytes=10, sha256="a" * 64, kind="doc"),
+            Artifact(path="docs/smoke_results.json", size_bytes=2, sha256="b" * 64, kind="doc"),
+        ],
+    )
+
+
+def _premature(outcome: OutcomeWanted) -> Trace:
+    if outcome == "na":
+        return base_trace(
+            check_id="CHK-premature-termination",
+            outcome=outcome,
+            spans=[_span(0, "phase_end", phase="development", payload={"status": "ok"})],
+        )
+    if outcome == "fail":
+        return base_trace(
+            check_id="CHK-premature-termination",
+            outcome=outcome,
+            status="complete",
+            spans=[
+                _span(
+                    0,
+                    "phase_end",
+                    phase="development",
+                    payload={"status": "ok", "context_pressure": 0.91},
+                )
+            ],
+            raw_result={"acceptance_unsatisfied": 2},
+        )
+    return base_trace(
+        check_id="CHK-premature-termination",
+        outcome=outcome,
+        status="complete",
+        spans=[
+            _span(
+                0,
+                "phase_end",
+                phase="development",
+                payload={"status": "ok", "context_pressure": 0.2},
+            )
+        ],
+        raw_result={"acceptance_unsatisfied": 2},
+    )
+
+
+def _verifier_ind(outcome: OutcomeWanted) -> Trace:
+    ident = {"agent_role": "fullstack_developer", "session_id": "s1", "subagent_id": "dev-1"}
+    if outcome == "na":
+        return base_trace(check_id="CHK-verifier-independence", outcome=outcome)
+    if outcome == "fail":
+        return base_trace(
+            check_id="CHK-verifier-independence",
+            outcome=outcome,
+            raw_result={
+                "acceptance_passes": [
+                    {
+                        "item_id": "abc",
+                        "verified_by": "qa_agent",
+                        "writer_identity": ident,
+                        "verifier_identity": ident,
+                    }
+                ]
+            },
+        )
+    return base_trace(
+        check_id="CHK-verifier-independence",
+        outcome=outcome,
+        raw_result={
+            "acceptance_passes": [
+                {
+                    "item_id": "abc",
+                    "verified_by": "smoke",
+                    "writer_identity": ident,
+                    "verifier_identity": ident,
+                }
+            ]
+        },
+    )
+
+
+def _capitulation(outcome: OutcomeWanted) -> Trace:
+    if outcome == "na":
+        return base_trace(check_id="CHK-evaluator-capitulation", outcome=outcome)
+    if outcome == "fail":
+        return base_trace(
+            check_id="CHK-evaluator-capitulation",
+            outcome=outcome,
+            raw_result={
+                "qa_verdicts": [
+                    {
+                        "item_id": "abc",
+                        "verdict": "accept",
+                        "issues": [{"description": "auth broken", "severity": "blocker"}],
+                    }
+                ]
+            },
+        )
+    return base_trace(
+        check_id="CHK-evaluator-capitulation",
+        outcome=outcome,
+        raw_result={
+            "qa_verdicts": [
+                {
+                    "item_id": "abc",
+                    "verdict": "accept",
+                    "issues": [{"description": "auth broken", "severity": "blocker"}],
+                }
+            ],
+            "remediation_spans": [{"item_id": "abc"}],
+        },
+    )
+
+
 ALL_CHECK_IDS = [
     "CHK-tool-call-emitted",
     "CHK-phase-repeat-bounded",
@@ -608,6 +761,10 @@ ALL_CHECK_IDS = [
     "CHK-constraint-survival",
     "CHK-draft-commit",
     "CHK-lesson-effectiveness",
+    "CHK-acceptance-monotonic",
+    "CHK-premature-termination",
+    "CHK-verifier-independence",
+    "CHK-evaluator-capitulation",
 ]
 
 

@@ -38,7 +38,6 @@ from evals.fixtures import load_scenario
 from evals.reliability import cell_summary
 from evals.store import TraceExistsError, TraceStore
 from evals.trace.builder import TraceBuilder
-from evals.trace.workspace import resolve_workspace
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _FILE_MAP = {
@@ -53,9 +52,10 @@ _COMPLETE_DRAIN_TIMEOUT = 90  # kill N seconds after project_complete
 _LOG_FREEZE_TIMEOUT = 120  # kill N seconds after log stops growing (deadlock)
 
 _DEFAULT_BUDGET_USD = 5.00
-_WORKSPACE_PATH_RE = re.compile(
-    r"(/(?:Users|home|tmp|var|private)[^\s\"']+?/?(?:workspace|pytest-\d+)[^\s\"']*)"
-)
+# Any absolute path containing a workspace or pytest temp dir — no root allowlist
+# (R17.4). A host whose temp root is outside /Users|/home|/tmp|/var|/private
+# must still resolve the path written in the log.
+_WORKSPACE_PATH_RE = re.compile(r"(/(?:[^\s\"']+/)*(?:workspace|pytest-\d+)(?:/[^\s\"']+)*)")
 
 
 @dataclass
@@ -144,6 +144,7 @@ def _log_path_for(backend: str) -> Path:
 
 def _find_workspace(backend: str, log_path: Path | None) -> Path | None:
     """Best-effort workspace discovery after a subprocess finishes."""
+    del backend  # discovery is log-driven; do not guess via backend (R17.4)
     candidates: list[Path] = []
     if log_path is not None and log_path.is_file():
         try:
@@ -162,11 +163,11 @@ def _find_workspace(backend: str, log_path: Path | None) -> Path | None:
             for child in sorted(p.iterdir(), key=lambda d: d.stat().st_mtime, reverse=True):
                 if child.is_dir() and (child / "logs").is_dir():
                     return child
-
-    resolved = resolve_workspace(backend, {})
-    if resolved is not None and resolved.is_dir():
-        return resolved
-    return candidates[0] if candidates else None
+        return candidates[0] if candidates else None
+    # Do not guess the newest ./workspace/ directory (R17.4). A missing match
+    # is an error; a wrong workspace silently assembled from someone else's run
+    # is metric_source_drift (FM-008).
+    return None
 
 
 def _emit_trace(

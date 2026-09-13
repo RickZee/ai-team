@@ -16,5 +16,11 @@
     ]
   },
   "budget_usd_max": 0.30,
-  "timeout_seconds": 300
+  "timeout_seconds": 300,
+  "ui": {
+    "base_url": "http://127.0.0.1:5000",
+    "boot_cmd": ["python", "-m", "flask", "--app", "src.app", "run", "--port", "5000"],
+    "ready_path": "/",
+    "viewport": {"width": 1280, "height": 720}
+  }
 }

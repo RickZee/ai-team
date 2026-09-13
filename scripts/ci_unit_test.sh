@@ -55,7 +55,7 @@ else
 fi
 
 if [[ "$WITH_COV" == true ]]; then
-  PYTEST_ARGS+=(--cov=src/ai_team --cov-report=xml --cov-report=term)
+  PYTEST_ARGS+=(--cov=src/ai_team --cov=evals --cov-report=xml --cov-report=term)
 fi
 
 if [[ -n "$PYTHON_VERSION" ]]; then

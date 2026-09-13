@@ -109,6 +109,11 @@ def test_judge_validate_refuses_retest_without_flag(
 ) -> None:
     log_path = tmp_path / "validation_log.jsonl"
     monkeypatch.setattr("evals.alignment.VALIDATION_LOG", log_path)
+    # `judge validate --allow-retest` calls write_advisory_alignment(), which defaults to
+    # the committed evals/golden/alignment/ directory. Without this redirect the test
+    # rewrites a tracked golden record's validated_at on every local run, leaving the
+    # working tree dirty and making that record's provenance meaningless.
+    monkeypatch.setattr("evals.alignment.ALIGNMENT_DIR", tmp_path / "alignment")
 
     spec = load_judge_spec(Path("evals/judges/prompts/fm-001-tool-call-omission.v1.md"))
     append_validation_log(spec.judge_id, spec.prompt_hash, log_path=log_path)

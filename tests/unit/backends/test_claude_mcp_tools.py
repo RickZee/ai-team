@@ -11,8 +11,13 @@ from ai_team.backends.claude_agent_sdk_backend.tools.mcp_server import (
     build_ai_team_mcp_tools,
 )
 from ai_team.backends.claude_agent_sdk_backend.tools.permissions import (
+    MCP_ACCEPTANCE_MARK_PASSING,
+    MCP_ACCEPTANCE_STATUS,
     MCP_RUN_APP_SMOKE,
+    MCP_RUN_UI_SMOKE,
     MCP_SERVER_KEY,
+    architect_allowed_tools,
+    developer_allowed_tools,
     devops_allowed_tools,
     get_disallowed_tools_for_yaml_role,
     qa_allowed_tools,
@@ -29,6 +34,13 @@ def test_run_app_smoke_tool_registered(tmp_path: Path) -> None:
     tools = build_ai_team_mcp_tools(tmp_path)
     names = {getattr(t, "name", None) for t in tools}
     assert "run_app_smoke" in names
+
+
+def test_run_ui_smoke_registered_and_qa_only(tmp_path: Path) -> None:
+    names = {getattr(t, "name", None) for t in build_ai_team_mcp_tools(tmp_path)}
+    assert "run_ui_smoke" in names
+    assert MCP_RUN_UI_SMOKE in qa_allowed_tools()
+    assert MCP_RUN_UI_SMOKE not in developer_allowed_tools()
 
 
 def test_run_app_smoke_in_qa_and_devops_allowlists() -> None:
@@ -79,3 +91,94 @@ async def test_write_workspace_file_drafts(tmp_path: Path, monkeypatch: pytest.M
     text = out["content"][0]["text"]
     assert "draft" in text.lower() or "Drafted" in text
     assert not (tmp_path / "src" / "a.py").exists()
+
+
+async def test_validate_code_safety_and_guardrails_error_paths(tmp_path: Path) -> None:
+    tools = {getattr(t, "name", None): t for t in build_ai_team_mcp_tools(tmp_path)}
+    safe = await tools["validate_code_safety"].handler({"code": "x = 1"})
+    assert safe.get("is_error") is not True
+    bad = await tools["validate_code_safety"].handler({"code": "eval('1')"})
+    assert bad.get("is_error") is True
+    escaped = await tools["run_guardrails"].handler({"file_path": "../etc/passwd"})
+    assert escaped.get("is_error") is True
+    target = tmp_path / "src" / "ok.py"
+    target.parent.mkdir()
+    target.write_text("x = 1\n", encoding="utf-8")
+    checked = await tools["run_guardrails"].handler(
+        {"file_path": "src/ok.py", "check_types": ["path"]}
+    )
+    assert "path_security" in checked["content"][0]["text"]
+    missing = await tools["run_guardrails"].handler(
+        {"file_path": "src/missing.py", "check_types": ["code_safety"]}
+    )
+    assert missing.get("is_error") is True
+
+
+async def test_acceptance_mcp_tools_persist_identity(tmp_path: Path) -> None:
+    from ai_team.harness.acceptance import write_initial
+    from ai_team.models.requirements import (
+        AcceptanceCriterion,
+        MoSCoW,
+        RequirementsDocument,
+        UserStory,
+    )
+
+    req = RequirementsDocument(
+        project_name="todo",
+        user_stories=[
+            UserStory(
+                as_a="user",
+                i_want="list",
+                so_that="see",
+                acceptance_criteria=[AcceptanceCriterion(description="GET /todos 200")],
+                priority=MoSCoW.MUST,
+            )
+        ],
+    )
+    doc = write_initial(tmp_path, req, "run-mcp")
+    ev = tmp_path / "docs" / "smoke_results.json"
+    ev.parent.mkdir()
+    ev.write_text("{}", encoding="utf-8")
+    tools = {getattr(t, "name", None): t for t in build_ai_team_mcp_tools(tmp_path)}
+    assert MCP_ACCEPTANCE_STATUS in architect_allowed_tools()
+    assert MCP_ACCEPTANCE_STATUS in developer_allowed_tools()
+    assert MCP_ACCEPTANCE_STATUS in qa_allowed_tools()
+    assert MCP_ACCEPTANCE_MARK_PASSING in qa_allowed_tools()
+    assert MCP_ACCEPTANCE_MARK_PASSING not in developer_allowed_tools()
+
+    missing = await tools["acceptance_status"].handler({})
+    st = json.loads(missing["content"][0]["text"])
+    assert st["total"] >= 1
+    marked = await tools["acceptance_mark_passing"].handler(
+        {
+            "item_id": doc.items[0].id,
+            "evidence": ["docs/smoke_results.json"],
+            "verified_by": "qa_agent",
+            "agent_role": "qa_engineer",
+            "session_id": "sess-9",
+            "subagent_id": "qa-sub",
+        }
+    )
+    body = json.loads(marked["content"][0]["text"])
+    assert body["ok"] is True
+    assert body["identity"]["session_id"] == "sess-9"
+    assert body["identity"]["subagent_id"] == "qa-sub"
+    reject = await tools["acceptance_mark_passing"].handler(
+        {"item_id": "nope", "evidence": [], "verified_by": "qa_agent"}
+    )
+    assert reject.get("is_error") is True
+    bad_v = await tools["acceptance_mark_passing"].handler(
+        {"item_id": "x", "evidence": ["a"], "verified_by": "friend"}
+    )
+    assert bad_v.get("is_error") is True
+
+
+def test_acceptance_status_errors_when_missing(tmp_path: Path) -> None:
+    async def _run() -> None:
+        tools = {getattr(t, "name", None): t for t in build_ai_team_mcp_tools(tmp_path)}
+        out = await tools["acceptance_status"].handler({})
+        assert out.get("is_error") is True
+
+    import asyncio
+
+    asyncio.run(_run())

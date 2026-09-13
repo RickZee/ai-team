@@ -40,16 +40,6 @@ def resolve_workspace(backend_name: str, raw_result: dict[str, Any]) -> Path | N
         if path.exists():
             return path.resolve()
 
-    try:
-        if ws_base.exists():
-            subdirs = sorted(
-                (d for d in ws_base.iterdir() if d.is_dir()),
-                key=lambda d: d.stat().st_mtime,
-                reverse=True,
-            )
-            if subdirs:
-                return subdirs[0]
-    except OSError:
-        pass
-
+    # No newest-directory fallback (R17.4). Guessing a sibling run assembles
+    # a trace from the wrong workspace rather than reporting an error.
     return None

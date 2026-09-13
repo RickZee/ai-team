@@ -630,3 +630,118 @@ def parse_smoke_report(path: Path) -> tuple[list[Span], list[str]]:
                 )
             )
     return spans, warnings
+
+
+def parse_qa_verdicts_jsonl(path: Path) -> tuple[list[Span], list[str]]:
+    """Parse ``docs/qa_verdicts.jsonl`` into ``qa_verdict`` spans.
+
+    A missing file is not a warning — QA verdicts are optional until a QA pass
+    runs (harness-alignment R16.2).
+    """
+    if not path.is_file():
+        return [], []
+    rows, warnings = _read_jsonl_rows(path)
+    spans: list[Span] = []
+    for row in rows:
+        ts = _parse_ts(row.get("emitted_at") or row.get("timestamp"), warnings)
+        identity = row.get("identity")
+        agent = None
+        if isinstance(identity, dict):
+            raw_agent = identity.get("agent_role")
+            agent = str(raw_agent) if raw_agent is not None else None
+        spans.append(
+            Span(
+                span_id=_provisional_id("qa", len(spans)),
+                type="qa_verdict",
+                t_start=ts,
+                t_end=ts,
+                phase="testing",
+                agent_role=agent,
+                payload=dict(row),
+            )
+        )
+    return spans, warnings
+
+
+def parse_ui_smoke_report(path: Path) -> tuple[list[Span], list[str]]:
+    """Parse ``docs/ui_smoke_results.json`` into ``smoke_probe`` spans with ``kind=ui``.
+
+    A missing file is not a warning — UI smoke is optional unless the scenario
+    declares a ``ui`` block.
+    """
+    if not path.is_file():
+        return [], []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [], [f"unreadable ui_smoke_results: {exc}"]
+    if not isinstance(data, dict):
+        return [], [f"non-object JSON in {path.name}"]
+    raw_ts = data.get("started_at") or data.get("timestamp")
+    ts = _parse_ts(raw_ts, []) if raw_ts else datetime.now(UTC)
+    payload = dict(data)
+    payload.setdefault("kind", "ui")
+    return (
+        [
+            Span(
+                span_id=_provisional_id("uismoke", 0),
+                type="smoke_probe",
+                t_start=ts,
+                t_end=ts,
+                phase="testing",
+                payload=payload,
+            )
+        ],
+        [],
+    )
+
+
+def parse_sessions_jsonl(path: Path) -> tuple[list[Span], list[str]]:
+    """Parse ``logs/sessions.jsonl`` into session_start / session_end / regression_check.
+
+    Absence is silent — the session loop is off by default.
+    """
+    if not path.is_file():
+        return [], []
+    rows, warnings = _read_jsonl_rows(path)
+    spans: list[Span] = []
+    for row in rows:
+        started = _parse_ts(row.get("started_at"), warnings)
+        ended = _parse_ts(row.get("ended_at"), warnings) if row.get("ended_at") else started
+        spans.append(
+            Span(
+                span_id=_provisional_id("sess_start", len(spans)),
+                type="session_start",
+                t_start=started,
+                t_end=started,
+                payload={"session_id": row.get("session_id"), "index": row.get("index")},
+            )
+        )
+        spans.append(
+            Span(
+                span_id=_provisional_id("sess_end", len(spans)),
+                type="session_end",
+                t_start=ended,
+                t_end=ended,
+                payload={
+                    "session_id": row.get("session_id"),
+                    "status": row.get("status"),
+                    "termination_reason": row.get("termination_reason"),
+                    "context_pressure": row.get("context_pressure_at_end"),
+                },
+            )
+        )
+        if row.get("items_demoted"):
+            spans.append(
+                Span(
+                    span_id=_provisional_id("regress", len(spans)),
+                    type="regression_check",
+                    t_start=ended,
+                    t_end=ended,
+                    payload={
+                        "demoted": row.get("items_demoted"),
+                        "passed": row.get("items_passed"),
+                    },
+                )
+            )
+    return spans, warnings
