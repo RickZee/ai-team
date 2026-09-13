@@ -77,8 +77,8 @@ logged in).
 
 Task 3.6: SHA-pinned `uses:`, PR/issue templates, CODEOWNERS, CHANGELOG, git
 tag `v0.2.0`, GitHub Release at https://github.com/RickZee/ai-team/releases/tag/v0.2.0.
-Security job uploaded `pip-audit-report`. Phase gates 1.7 / 3.7 wait on a green
-CI run after the image-size and reference fixes.
+Security job uploaded `pip-audit-report`. Phase gates 1.7 / 3.6 / 3.7 closed on
+green CI run 34774054947.
 
 Task 9.1 left open (human-triggered spend).
 
