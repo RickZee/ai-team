@@ -17,7 +17,7 @@ Aspirational / not-yet-implemented material (role-eval backlog, older sketches) 
 | Tier | Trigger | Spend | What runs |
 | --- | --- | --- | --- |
 | **A** | Every PR (`eval-tier-a` CI job, `--warn-only` during soak) | $0.00 | Replay `evals/fixtures/traces/` → checks + guardrail corpus + cached judges + report + gate |
-| **B** | Nightly / on demand (`eval-nightly.yml`) | ≤ $2.00 | Live smoke scenarios, k≈3, budget ledger |
+| **B** | Manual only (`eval-nightly.yml`; cron disabled until API secrets exist) | ≤ $2.00 | Live smoke scenarios, k≈3, budget ledger |
 | **C** | Manual pre-release | ≤ $5.00 hard ceiling | Full matrix; human-triggered |
 
 ```bash

@@ -5,13 +5,18 @@
 # mirrors without keys stay green.
 #
 # On gate failure, opens or updates a tracking issue with the summary.
+#
+# Schedule disabled 2026-09-13: Actions has neither ANTHROPIC_API_KEY nor
+# OPENROUTER_API_KEY, so the cron only produced empty green skips. Restore the
+# cron below when a key is configured:
+#   on:
+#     schedule:
+#       - cron: "15 6 * * *"   # 06:15 UTC daily
+#     workflow_dispatch:
 
 name: Eval Nightly
 
 on:
-  schedule:
-    # 06:15 UTC daily
-    - cron: "15 6 * * *"
   workflow_dispatch:
 
 concurrency:
