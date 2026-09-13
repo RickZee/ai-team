@@ -782,6 +782,42 @@ def build_parser() -> argparse.ArgumentParser:
     astatus.add_argument("--results-dir", default=None)
     astatus.set_defaults(func=_cmd_ablation_status)
 
+    coverage = sub.add_parser(
+        "coverage", help="check liveness and signal-chain coverage ($0, offline)"
+    )
+    coverage_sub = coverage.add_subparsers(dest="coverage_command", required=True)
+
+    cov_live = coverage_sub.add_parser(
+        "liveness", help="which checks ever decided anything over a corpus"
+    )
+    cov_live.add_argument("--traces-root", default=None, help="default: evals/traces")
+    cov_live.add_argument(
+        "--fixtures", default=None, help="fixture corpus root; default: evals/fixtures/traces"
+    )
+    cov_live.add_argument(
+        "--no-fixtures", action="store_true", help="corpus column only, no comparison"
+    )
+    cov_live.add_argument(
+        "--from-report",
+        default=None,
+        help="fold an existing SuiteReport JSON instead of re-running checks",
+    )
+    cov_live.add_argument("--json", action="store_true")
+    cov_live.add_argument("--out", default=None)
+    cov_live.set_defaults(func=_cmd_coverage_liveness)
+
+    cov_sig = coverage_sub.add_parser(
+        "signals", help="span type -> harness writer -> parser -> check inventory"
+    )
+    cov_sig.add_argument("--json", action="store_true")
+    cov_sig.add_argument("--out", default=None)
+    cov_sig.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit 1 when a check reads a span type no parser produces (R4.6)",
+    )
+    cov_sig.set_defaults(func=_cmd_coverage_signals)
+
     return parser
 
 
@@ -791,6 +827,89 @@ def _cmd_drift(args: argparse.Namespace) -> int:
     report = drift_from_dirs(Path(args.current), Path(args.previous))
     print(report.model_dump_json(indent=2))
     return 0
+
+
+def _cmd_coverage_liveness(args: argparse.Namespace) -> int:
+    """Report which checks ever decided anything (eval-coverage R2.7, R2.8)."""
+    from evals.coverage import (
+        liveness_from_report,
+        liveness_over_corpus,
+        load_traces,
+        render_markdown,
+        render_side_by_side,
+    )
+
+    if args.from_report:
+        report = liveness_from_report(Path(args.from_report))
+        text = report.model_dump_json(indent=2) if args.json else render_markdown(report)
+        _emit_coverage(text, args.out)
+        return 0
+
+    corpus_root = Path(args.traces_root) if args.traces_root else Path("evals/traces")
+    traces, unloadable = load_traces(corpus_root)
+    corpus = liveness_over_corpus(
+        traces,
+        corpus_label=str(corpus_root),
+        corpus_kind="CORPUS",
+        n_unloadable=unloadable,
+    )
+
+    fixtures_root = Path(args.fixtures) if args.fixtures else Path("evals/fixtures/traces")
+    fixtures = None
+    if fixtures_root.is_dir() and not args.no_fixtures:
+        fixture_traces, fixture_unloadable = load_traces(fixtures_root)
+        fixtures = liveness_over_corpus(
+            fixture_traces,
+            corpus_label=str(fixtures_root),
+            corpus_kind="FIXTURE-ONLY",
+            n_unloadable=fixture_unloadable,
+        )
+
+    if args.json:
+        payload: dict[str, Any] = {"corpus": corpus.model_dump(mode="json")}
+        if fixtures is not None:
+            payload["fixtures"] = fixtures.model_dump(mode="json")
+        _emit_coverage(json.dumps(payload, indent=2), args.out)
+        return 0
+
+    if fixtures is not None:
+        text = render_side_by_side(fixtures, corpus) + "\n" + render_markdown(corpus)
+    else:
+        text = render_markdown(corpus)
+    _emit_coverage(text, args.out)
+    return 0
+
+
+def _cmd_coverage_signals(args: argparse.Namespace) -> int:
+    """Report the signal chain statically — correct on an empty repo (R4.5, R4.6)."""
+    from evals.coverage import render_signals_markdown, signal_chain
+
+    rows = signal_chain()
+    if args.json:
+        _emit_coverage(json.dumps([r.model_dump(mode="json") for r in rows], indent=2), args.out)
+    else:
+        _emit_coverage(render_signals_markdown(rows), args.out)
+
+    if args.strict:
+        broken = [r.span_type for r in rows if "unreachable_signal" in r.flags]
+        if broken:
+            print(
+                f"unreachable signals (a check reads them, no parser produces them): {broken}",
+                file=sys.stderr,
+            )
+            return 1
+    return 0
+
+
+def _emit_coverage(text: str, out: str | None) -> None:
+    """Write *text* to *out* or stdout."""
+    if out:
+        path = Path(out)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(f"wrote {path}")
+    else:
+        print(text)
 
 
 def main(argv: list[str] | None = None) -> int:
