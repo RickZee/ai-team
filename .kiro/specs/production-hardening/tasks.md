@@ -150,10 +150,12 @@ Nothing in this phase changes behaviour. Every deletion is preceded by a repo-wi
     both succeed; CI proves both; no placeholder metadata remains anywhere in the file.
   - _Requirements: R14.1, R14.2, R14.3, R14.4, R14.5_
 
-- [ ] **1.7 Phase gate**
+- [x] **1.7 Phase gate**
   - **Definition of done:** full CI green; `BASELINE.md` updated with the LOC delta
     (expect roughly −1,500 to −2,000) and the repository size delta (expect roughly −7 MB
     from images).
+  - _2026-09-13: CI run 34774054947 success. LOC −655 (not −1,500; Track B added shims).
+    Tracked `docs/images/` −4.0 MB (not −7; publication assets kept). See `BASELINE.md`._
   - _Requirements: R20.3_
 
 ---
@@ -276,15 +278,19 @@ The cheapest phase and the one a reviewer reads first.
     both green; every skip names a precondition, not a failure.
   - _Requirements: R6.4, R6.5_
 
-- [ ] **3.6 Repository surface and supply chain**
+- [x] **3.6 Repository surface and supply chain**
   - Pin all 27 `uses:` lines in both workflows to commit SHAs (keep the version as a trailing
     comment); add a PR template and one issue template; add `CODEOWNERS`; add `CHANGELOG.md`
     and cut a tagged release; publish the `pip-audit` output as a CI artifact.
   - **Definition of done:** no floating action tag remains; `gh release list` shows a tag;
     the security job's audit output is downloadable from the run.
+  - _2026-09-13: Release https://github.com/RickZee/ai-team/releases/tag/v0.2.0 ;
+    `pip-audit-report` on green Security job of run 34774054947._
   - _Requirements: R23.1, R23.2, R23.3, R23.4, R23.5, R23.6_
 
-- [ ] **3.7 Phase gate**
+- [x] **3.7 Phase gate**
+  - _2026-09-13: Phase 3 complete. Full CI green on run 34774054947
+    (https://github.com/RickZee/ai-team/actions/runs/34774054947)._
 
 ---
 
