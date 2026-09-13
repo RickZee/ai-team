@@ -293,19 +293,19 @@ ai-team/
 │   ├── harness/             # The product: acceptance, context, receipts, routing, lessons
 │   ├── backends/
 │   │   ├── registry.py
-│   │   ├── crewai_backend/  # CrewAI: subprocess-isolated, hard-killed on timeout
+│   │   ├── comparison.py     # Demo 2-way backend comparison helper
+│   │   ├── crewai_backend/  # agents/, crews/, tasks/, flows/, callbacks
 │   │   ├── langgraph_backend/
 │   │   └── claude_agent_sdk_backend/
-│   ├── agents/              # CrewAI personas (backend-private; Track B will nest these)
-│   ├── crews/               # CrewAI crews
-│   ├── tasks/               # CrewAI task factories
-│   ├── flows/               # CrewAI flow (`AITeamFlow`)
+│   ├── agents/              # Deprecated import shim → crewai_backend (removed 2026-12-31)
+│   ├── crews/               # Deprecated import shim
+│   ├── tasks/               # Deprecated import shim
+│   ├── flows/               # Deprecated import shim
 │   ├── tools/               # File, code, git, test tools, runtime smoke gate
-│   ├── guardrails/          # Behavioral, security, quality
+│   ├── guardrails/          # Behavioral, security, quality (facade __init__)
 │   ├── memory/              # Long-term memory (SQLite) + lessons loop
-│   ├── models/              # Shared document models
+│   ├── models/              # Shared domain models (requirements, architecture, QA)
 │   ├── reports/             # Manager self-improvement reports
-│   ├── utils/               # Cross-cutting helpers (to be dissolved — see ARCHITECTURE.md)
 │   ├── knowledge/           # Authored snippets injected into agent context
 │   ├── monitor.py           # TeamMonitor — thread-safe event collector
 │   └── ui/web/              # FastAPI server + React/TypeScript/Vite dashboard

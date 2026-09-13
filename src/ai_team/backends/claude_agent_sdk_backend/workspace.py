@@ -8,6 +8,7 @@ from typing import Any
 
 import structlog
 from ai_team.core.team_profile import TeamProfile
+from ai_team.core.workspace_layout import ensure_workspace_layout as ensure_workspace_layout
 
 logger = structlog.get_logger(__name__)
 
@@ -56,29 +57,6 @@ def write_profile_claude_context(workspace: Path, profile: TeamProfile) -> None:
     path = workspace / "docs" / "CLAUDE_PROFILE.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
-
-
-def ensure_workspace_layout(workspace: Path, description: str) -> None:
-    """Create standard directories and seed a short project brief."""
-    for sub in (
-        "docs",
-        "docs/contracts",
-        "src",
-        "tests",
-        "infrastructure",
-        "logs",
-        ".github/workflows",
-    ):
-        (workspace / sub).mkdir(parents=True, exist_ok=True)
-    contracts_keep = workspace / "docs" / "contracts" / ".gitkeep"
-    if not contracts_keep.exists():
-        contracts_keep.write_text("", encoding="utf-8")
-    brief = workspace / "docs" / "project_brief.md"
-    if not brief.exists():
-        brief.write_text(
-            "# Project brief\n\n" + (description.strip() or "(no description provided)"),
-            encoding="utf-8",
-        )
 
 
 def read_text_if_exists(path: Path) -> str | None:

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_team.config.settings import get_workspace_dir
-from ai_team.utils.coverage_paths import coverage_subprocess_env
+from ai_team.tools.coverage_paths import coverage_subprocess_env
 from crewai.tools import tool
 
 # Default minimum coverage for guardrail (generated code >80%)

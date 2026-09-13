@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ai_team.utils.coverage_paths import (
+from ai_team.tools.coverage_paths import (
     coverage_data_dir,
     coverage_subprocess_env,
     ensure_coverage_data_dir,

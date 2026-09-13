@@ -12,10 +12,10 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from ai_team.crews import development_crew as development_crew_mod
-from ai_team.crews import planning_crew as planning_crew_mod
-from ai_team.crews import testing_crew as testing_crew_mod
-from ai_team.flows.main_flow import _parse_planning_output
+from ai_team.backends.crewai_backend.crews import development_crew as development_crew_mod
+from ai_team.backends.crewai_backend.crews import planning_crew as planning_crew_mod
+from ai_team.backends.crewai_backend.crews import testing_crew as testing_crew_mod
+from ai_team.backends.crewai_backend.flows.main_flow import _parse_planning_output
 from ai_team.models.architecture import (
     ArchitectureDocument,
 )
@@ -66,7 +66,7 @@ class TestPlanningCrewProducesValidDocuments:
             sample_architecture_document,
         )
         with patch(
-            "ai_team.crews.planning_crew.create_planning_crew",
+            "ai_team.backends.crewai_backend.crews.planning_crew.create_planning_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             mock_crew.kickoff.return_value = mock_result
@@ -98,7 +98,7 @@ class TestPlanningCrewProducesValidDocuments:
             sample_architecture_document,
         )
         with patch(
-            "ai_team.crews.planning_crew.create_planning_crew",
+            "ai_team.backends.crewai_backend.crews.planning_crew.create_planning_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             mock_crew.kickoff.return_value = mock_result
@@ -183,7 +183,7 @@ class TestTestingCrewProducesValidTestResult:
         sample_test_run_result_passed: TestRunResult,
     ) -> None:
         """Mock LLM: Testing crew returns valid TestRunResult."""
-        from ai_team.crews.testing_crew import TestingCrewOutput
+        from ai_team.backends.crewai_backend.crews.testing_crew import TestingCrewOutput
 
         task_outs = [
             MagicMock(raw="test gen output"),
@@ -195,14 +195,14 @@ class TestTestingCrewProducesValidTestResult:
         mock_crew_result = MagicMock(tasks_output=task_outs)
 
         with patch(
-            "ai_team.crews.testing_crew.create_testing_crew",
+            "ai_team.backends.crewai_backend.crews.testing_crew.create_testing_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             mock_crew.kickoff.return_value = mock_crew_result
             mock_create.return_value = mock_crew
 
             with patch(
-                "ai_team.crews.testing_crew._run_orchestrated_pytest",
+                "ai_team.backends.crewai_backend.crews.testing_crew._run_orchestrated_pytest",
                 return_value=sample_test_run_result_passed,
             ):
                 output = testing_crew_mod.kickoff(sample_code_files)
@@ -231,11 +231,11 @@ class TestDeploymentCrewProducesValidDeploymentConfig:
     ) -> None:
         """Deployment crew receives code files, architecture, test results from prior crews."""
         with patch(
-            "ai_team.crews.deployment_crew.DeploymentCrew",
+            "ai_team.backends.crewai_backend.crews.deployment_crew.DeploymentCrew",
         ) as mock_deployment_crew:
             mock_crew_instance = MagicMock()
             mock_deployment_crew.return_value = mock_crew_instance
-            from ai_team.crews import deployment_crew as deployment_crew_mod
+            from ai_team.backends.crewai_backend.crews import deployment_crew as deployment_crew_mod
 
             crew = deployment_crew_mod.DeploymentCrew(verbose=False)
             crew.kickoff(
@@ -290,7 +290,7 @@ class TestCrewToCrewHandoffs:
     ) -> None:
         """Development CodeFile list is consumable by testing crew."""
         with patch(
-            "ai_team.crews.testing_crew.create_testing_crew",
+            "ai_team.backends.crewai_backend.crews.testing_crew.create_testing_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             # Return value must have tasks_output with .raw as strings for TestingCrewOutput
@@ -306,7 +306,7 @@ class TestCrewToCrewHandoffs:
             mock_create.return_value = mock_crew
 
             with patch(
-                "ai_team.crews.testing_crew._run_orchestrated_pytest",
+                "ai_team.backends.crewai_backend.crews.testing_crew._run_orchestrated_pytest",
                 return_value=sample_test_run_result_passed,
             ):
                 output = testing_crew_mod.kickoff(sample_code_files)

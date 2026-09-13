@@ -56,7 +56,7 @@ Key file: `src/ai_team/guardrails/quality.py`.
 
 ## Flow error-loop guardrails
 
-These guards live in `src/ai_team/flows/error_handling.py` and prevent infinite retry
+These guards live in `src/ai_team/backends/crewai_backend/flows/error_handling.py` and prevent infinite retry
 loops when a phase fails repeatedly — a distinct failure mode from agent output quality.
 
 ### Problem

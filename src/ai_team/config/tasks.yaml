@@ -1,5 +1,5 @@
 # AI Team Task Definitions
-# Tasks are loaded by task factory functions in src/ai_team/tasks/.
+# Tasks are loaded by task factory functions in src/ai_team/backends/crewai_backend/tasks/.
 # Agent names refer to config/agents.yaml; output_pydantic to models in ai_team.models.
 
 planning:

@@ -6,7 +6,7 @@ alwaysApply: true
 # When creating a new agent
 
 1. Add YAML config to `config/agents.yaml` (role, goal, backstory, verbose, memory, allow_delegation, max_iter)
-2. Create Python class in `agents/` extending `BaseAgent`
+2. Create Python class in `src/ai_team/backends/crewai_backend/agents/` extending `BaseAgent`
 3. Define tools as `@tool` in `tools/`
 4. Add model in `config/settings.py` `OllamaModelConfig`
 5. Register in the appropriate crew's agent list
@@ -32,8 +32,8 @@ alwaysApply: true
 
 # When creating a new crew
 
-1. Create in `src/ai_team/crews/` with `kickoff()` method
-2. Define tasks in tasks/ (YAML + Python)
+1. Create in `src/ai_team/backends/crewai_backend/crews/` with `kickoff()` method
+2. Define tasks in `src/ai_team/config/tasks.yaml` and `src/ai_team/backends/crewai_backend/tasks/`
 3. Set process (hierarchical or sequential)
 4. Configure memory, planning, verbose
 5. Add context dependencies between tasks
@@ -42,7 +42,7 @@ alwaysApply: true
 
 # When adding to the flow
 
-1. Add `@listen` to `AITeamFlow` in `flows/main_flow.py`
+1. Add `@listen` to `AITeamFlow` in `src/ai_team/backends/crewai_backend/flows/main_flow.py`
 2. Add `@router` for branching if needed
 3. Update `ProjectState` if needed
 4. Add phase to `ProjectPhase` enum if new

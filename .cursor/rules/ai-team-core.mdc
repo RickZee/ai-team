@@ -23,7 +23,7 @@ This is a portfolio-grade capstone project. All code must be production-quality,
 
 ## Project Structure (abbreviated)
 
-- `src/ai_team/` — config (settings, agents.yaml, tasks.yaml), agents/, crews/, flows/, tools/, guardrails/, memory/, models/, utils/
+- `src/ai_team/` — config, harness, tools, guardrails, memory, models, backends (`crewai_backend` holds agents/crews/tasks/flows)
 - `tests/` — unit/, integration/, e2e/, performance/, fixtures/
 - `src/ai_team/ui/` — FastAPI + Vite web dashboard (`ai-team-web`), Textual TUI (`ai-team-tui`), shared API client
 - `docs/`, `scripts/`, `demos/`, `docker/`, `.github/`

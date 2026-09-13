@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from ai_team.tasks.testing_tasks import _make_test_execution_guardrail
+from ai_team.backends.crewai_backend.tasks.testing_tasks import _make_test_execution_guardrail
 from ai_team.tools import test_tools as tt
 
 

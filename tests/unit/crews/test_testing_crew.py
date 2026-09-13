@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ai_team.crews import testing_crew as tc
+from ai_team.backends.crewai_backend.crews import testing_crew as tc
 from ai_team.models.development import CodeFile
 from ai_team.tools import test_tools as tt
 

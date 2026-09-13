@@ -1,32 +1,9 @@
-"""
-Cloud Infrastructure Engineer agent.
+"""Deprecated import path. Removal: 2026-12-31 (v0.3.0)."""
 
-Designs cloud infrastructure using IaC, optimizes cost/performance/security.
-Uses tools: terraform_generator, cloudformation_generator, iam_policy_generator,
-cost_estimator, network_designer.
-Generated IaC is validated for security best practices (state management,
-module reuse, security groups, tagging, least privilege).
-"""
+from __future__ import annotations
 
-from ai_team.agents.base import BaseAgent, create_agent
-from ai_team.tools.infrastructure import (
-    CLOUD_TOOLS,
-)
+from ai_team._compat import warn_moved
 
-__all__ = ["CloudEngineer", "create_cloud_engineer"]
+warn_moved("ai_team.agents.cloud_engineer", "ai_team.backends.crewai_backend.agents.cloud_engineer")
 
-
-def create_cloud_engineer(**kwargs) -> BaseAgent:
-    """
-    Create the Cloud Engineer agent from config with infrastructure tools.
-
-    Uses agents.yaml key 'cloud_engineer' (Role "Cloud Infrastructure Engineer",
-    allow_delegation: false, max_iter: 10). Tools generate Terraform modules,
-    CloudFormation templates, IAM policies, cost estimates, and network design;
-    all outputs are validated for security best practices.
-    """
-    return create_agent("cloud_engineer", tools=CLOUD_TOOLS, **kwargs)
-
-
-# Alias for direct use
-CloudEngineer = create_cloud_engineer
+from ai_team.backends.crewai_backend.agents.cloud_engineer import *  # noqa: E402, F403

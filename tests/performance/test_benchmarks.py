@@ -67,8 +67,10 @@ class TestCrewBenchmarks:
         token_out = 0
         try:
             if run_real_benchmarks:
-                from ai_team.crews.planning_crew import kickoff as planning_kickoff
-                from ai_team.flows.main_flow import _parse_planning_output
+                from ai_team.backends.crewai_backend.crews.planning_crew import (
+                    kickoff as planning_kickoff,
+                )
+                from ai_team.backends.crewai_backend.flows.main_flow import _parse_planning_output
 
                 result = planning_kickoff(DEMO1_SPEC, verbose=False)
                 req, arch, _ = _parse_planning_output(result)
@@ -130,7 +132,9 @@ class TestCrewBenchmarks:
         token_out = 0
         try:
             if run_real_benchmarks:
-                from ai_team.crews.development_crew import kickoff as dev_kickoff
+                from ai_team.backends.crewai_backend.crews.development_crew import (
+                    kickoff as dev_kickoff,
+                )
 
                 code_files, _ = dev_kickoff(req, arch, verbose=False, memory=False)
                 for cf in code_files or []:
@@ -183,7 +187,9 @@ class TestCrewBenchmarks:
         token_out = 0
         try:
             if run_real_benchmarks:
-                from ai_team.crews.testing_crew import kickoff as testing_kickoff
+                from ai_team.backends.crewai_backend.crews.testing_crew import (
+                    kickoff as testing_kickoff,
+                )
 
                 out = testing_kickoff(code_files, verbose=False, memory=False)
                 if out.raw_outputs:
@@ -238,7 +244,7 @@ class TestCrewBenchmarks:
         token_out = 0
         try:
             if run_real_benchmarks:
-                from ai_team.crews.deployment_crew import DeploymentCrew
+                from ai_team.backends.crewai_backend.crews.deployment_crew import DeploymentCrew
 
                 crew = DeploymentCrew(verbose=False)
                 result = crew.kickoff(code_files, arch, test_results)
@@ -272,8 +278,10 @@ class TestFullFlowBenchmark:
         total_start = time.perf_counter()
         try:
             if run_real_benchmarks:
-                from ai_team.flows.human_feedback import MockHumanFeedbackHandler
-                from ai_team.flows.main_flow import AITeamFlow
+                from ai_team.backends.crewai_backend.flows.human_feedback import (
+                    MockHumanFeedbackHandler,
+                )
+                from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
 
                 flow = AITeamFlow(
                     feedback_handler=MockHumanFeedbackHandler(default_response="Proceed as-is")
@@ -343,7 +351,7 @@ class TestBottlenecks:
         prof = cProfile.Profile()
         prof.enable()
         try:
-            from ai_team.crews.planning_crew import create_planning_crew
+            from ai_team.backends.crewai_backend.crews.planning_crew import create_planning_crew
 
             crew = create_planning_crew(verbose=False, memory=False)
             _ = crew.agents

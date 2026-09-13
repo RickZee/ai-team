@@ -73,7 +73,7 @@ def main() -> int:
         return 1
 
     try:
-        from ai_team.utils.backend_comparison import compare_backends_for_demo_dir
+        from ai_team.backends.comparison import compare_backends_for_demo_dir
 
         report = compare_backends_for_demo_dir(
             demo_dir,

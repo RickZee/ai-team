@@ -66,8 +66,8 @@ tests/integration/evals/test_claude_sdk_eval.py: from ai_team.backends.registry 
 tests/integration/evals/test_crewai_eval.py: from ai_team.backends.registry import get_backend
 tests/integration/evals/test_langgraph_eval.py: from ai_team.backends.registry import get_backend
 tests/integration/evals/test_backend_comparison.py: from ai_team.backends.registry import get_backend
-evals/checks/trajectory.py: from ai_team.flows.listener_introspection import self_triggering_listeners
-evals/checks/trajectory.py: from ai_team.flows.main_flow import AITeamFlow
+evals/checks/trajectory.py: from ai_team.core.flow_wiring import get_registered_flow_class, self_triggering_listeners
+evals/arms/solo.py: from ai_team.core.workspace_layout import ensure_workspace_layout
 evals/guardrail_eval.py: from ai_team.guardrails.behavioral import (...)
 evals/guardrail_eval.py: from ai_team.guardrails.corpus_metrics import ConfusionCounts, format_report, score
 evals/guardrail_eval.py: from ai_team.guardrails.security import code_safety_guardrail
@@ -77,7 +77,7 @@ evals/trace/workspace.py: from ai_team.config.settings import get_settings
 Documented coupling categories:
 
 1. **Guardrail metrics / invoke** — `corpus_metrics`, behavioral + security guardrails (R6)
-2. **Flow introspection** — shared `listener_introspection` + `AITeamFlow` for CHK-listener-self-trigger
+2. **Flow introspection** — `ai_team.core.flow_wiring` (CrewAI flow registers at import) for CHK-listener-self-trigger
 3. **Settings** — workspace root resolution
 4. **Backend registry / team profiles** — Tier B/C live execution clients under `evals/backends/`
 

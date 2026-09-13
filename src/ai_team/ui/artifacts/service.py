@@ -16,7 +16,6 @@ import structlog
 from ai_team.config.settings import get_settings
 from ai_team.core.results.writer import RUNS_SUBDIR
 from ai_team.models.architecture import ArchitectureDocument
-from ai_team.models.outputs import TestResult
 from ai_team.tools.file_tools import read_file
 from ai_team.ui.artifacts.models import (
     ArchitecturePanelData,
@@ -457,11 +456,7 @@ def load_tests_panel(project_id: str) -> TestsPanelData:
                 return _normalize_tests_from_dict(tr, source)
             continue
         if isinstance(raw, dict):
-            try:
-                model = TestResult.model_validate(raw)
-                return _normalize_tests_from_dict(model.model_dump(), source)
-            except Exception:
-                return _normalize_tests_from_dict(raw, source)
+            return _normalize_tests_from_dict(raw, source)
 
     pytest_txt = bundle / "artifacts" / "testing" / "pytest.txt"
     raw_pytest = None

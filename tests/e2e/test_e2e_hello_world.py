@@ -25,9 +25,9 @@ from typing import Any
 
 import pytest
 import requests
+from ai_team.backends.crewai_backend.flows.human_feedback import MockHumanFeedbackHandler
+from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
 from ai_team.config.settings import get_settings, reload_settings
-from ai_team.flows.human_feedback import MockHumanFeedbackHandler
-from ai_team.flows.main_flow import AITeamFlow
 
 
 def _patch_crewai_llm_for_ollama() -> None:

@@ -1,6 +1,6 @@
 ---
 description: CrewAI agent, crew, and flow patterns
-globs: ["src/ai_team/agents/**/*.py", "src/ai_team/crews/**/*.py", "src/ai_team/flows/**/*.py"]
+globs: ["src/ai_team/backends/crewai_backend/agents/**/*.py", "src/ai_team/backends/crewai_backend/crews/**/*.py", "src/ai_team/backends/crewai_backend/flows/**/*.py"]
 alwaysApply: false
 ---
 
@@ -9,7 +9,7 @@ alwaysApply: false
 Agents: YAML config (agents.yaml) + Python class extending BaseAgent. Use `role_name` (maps to YAML key), `create()` → `load_yaml_config()`, `get_ollama_llm()`, return `Agent(...)`.
 
 ```python
-from ai_team.agents.base import BaseAgent
+from ai_team.backends.crewai_backend.agents.base import BaseAgent
 
 class ArchitectAgent(BaseAgent):
     """Solutions Architect agent for system design."""

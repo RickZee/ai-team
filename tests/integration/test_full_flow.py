@@ -14,20 +14,20 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ai_team.config.settings import get_settings
-from ai_team.crews.planning_crew import kickoff as planning_crew_kickoff
-from ai_team.crews.testing_crew import kickoff as run_testing_crew
-from ai_team.flows.error_handling import reset_circuit
-from ai_team.flows.human_feedback import MockHumanFeedbackHandler
-from ai_team.flows.main_flow import AITeamFlow, _parse_planning_output
-from ai_team.flows.routing import (
+from ai_team.backends.crewai_backend.crews.planning_crew import kickoff as planning_crew_kickoff
+from ai_team.backends.crewai_backend.crews.testing_crew import kickoff as run_testing_crew
+from ai_team.backends.crewai_backend.flows.error_handling import reset_circuit
+from ai_team.backends.crewai_backend.flows.human_feedback import MockHumanFeedbackHandler
+from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow, _parse_planning_output
+from ai_team.backends.crewai_backend.flows.routing import (
     route_after_deployment,
     route_after_development,
     route_after_planning,
     route_after_smoke,
     route_after_testing,
 )
-from ai_team.flows.state import ProjectPhase
+from ai_team.backends.crewai_backend.flows.state import ProjectPhase
+from ai_team.config.settings import get_settings
 from crewai.utilities.converter import ConverterError
 from pydantic import ValidationError
 
@@ -148,7 +148,7 @@ class TestPlanningCrewIntegration:
 
         mock_output = mock_crew_outputs["planning"]
         with patch(
-            "ai_team.crews.planning_crew.create_planning_crew",
+            "ai_team.backends.crewai_backend.crews.planning_crew.create_planning_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             mock_crew.kickoff.return_value = mock_output
@@ -196,7 +196,7 @@ class TestPlanningCrewIntegration:
 
         mock_output = mock_crew_outputs["planning"]
         with patch(
-            "ai_team.crews.planning_crew.create_planning_crew",
+            "ai_team.backends.crewai_backend.crews.planning_crew.create_planning_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             mock_crew.kickoff.return_value = mock_output
@@ -233,7 +233,9 @@ class TestDevelopmentCrewIntegration:
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
                 pytest.skip("Ollama unreachable; run with mock or start Ollama")
-            from ai_team.crews.development_crew import kickoff as _dev_kickoff
+            from ai_team.backends.crewai_backend.crews.development_crew import (
+                kickoff as _dev_kickoff,
+            )
 
             try:
                 code_files, deployment_config = _dev_kickoff(requirements, architecture)
@@ -252,10 +254,12 @@ class TestDevelopmentCrewIntegration:
             return
 
         with patch(
-            "ai_team.crews.development_crew.kickoff",
+            "ai_team.backends.crewai_backend.crews.development_crew.kickoff",
             return_value=(expected_files, None),
         ) as mock_kickoff:
-            from ai_team.crews.development_crew import kickoff as _dev_kickoff
+            from ai_team.backends.crewai_backend.crews.development_crew import (
+                kickoff as _dev_kickoff,
+            )
 
             code_files, deployment_config = _dev_kickoff(
                 requirements,
@@ -283,7 +287,9 @@ class TestDevelopmentCrewIntegration:
                 pytest.skip("Ollama unreachable; run with mock or start Ollama")
             requirements = mock_crew_outputs["requirements"]
             architecture = mock_crew_outputs["architecture"]
-            from ai_team.crews.development_crew import kickoff as _dev_kickoff
+            from ai_team.backends.crewai_backend.crews.development_crew import (
+                kickoff as _dev_kickoff,
+            )
 
             try:
                 code_files, _ = _dev_kickoff(requirements, architecture)
@@ -338,7 +344,7 @@ class TestTestingCrewIntegration:
             return
 
         with patch(
-            "ai_team.crews.testing_crew.create_testing_crew",
+            "ai_team.backends.crewai_backend.crews.testing_crew.create_testing_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             task_outs = [
@@ -352,7 +358,7 @@ class TestTestingCrewIntegration:
             mock_create.return_value = mock_crew
 
             with patch(
-                "ai_team.crews.testing_crew._run_orchestrated_pytest",
+                "ai_team.backends.crewai_backend.crews.testing_crew._run_orchestrated_pytest",
                 return_value=passed_result,
             ):
                 output = run_testing_crew(code_files)

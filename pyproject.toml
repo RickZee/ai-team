@@ -140,12 +140,12 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
-  "ai_team.agents.*",  # exit: after crewai_backend move (Track B) or a typing pass
-  "ai_team.crews.*",
-  "ai_team.flows.main_flow",
+  "ai_team.backends.crewai_backend.agents.*",  # exit: after crewai_backend move (Track B) or a typing pass
+  "ai_team.backends.crewai_backend.crews.*",
+  "ai_team.backends.crewai_backend.flows.main_flow",
   "ai_team.memory.memory_config",  # exit: annotate Chroma/SQLite helpers
   "ai_team.tools.git_tools",  # exit: GitPython types
-  "ai_team.utils.callbacks",  # exit: when utils/ is dissolved (R11.4)
+  "ai_team.backends.crewai_backend.callbacks",  # exit: when utils/ is dissolved (R11.4)
 ]
 ignore_errors = true
 

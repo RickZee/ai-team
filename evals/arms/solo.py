@@ -41,7 +41,7 @@ class SoloArm:
 
     def run(self, scenario: ScenarioContract, workspace: Path, budget_usd: float) -> ArmRun:
         """Create the standard layout and run one mocked or real session."""
-        from ai_team.backends.claude_agent_sdk_backend.workspace import ensure_workspace_layout
+        from ai_team.core.workspace_layout import ensure_workspace_layout
 
         started = datetime.now(UTC)
         workspace.mkdir(parents=True, exist_ok=True)

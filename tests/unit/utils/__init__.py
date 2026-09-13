@@ -1,1 +1,1 @@
-"""Unit tests for ai_team.utils."""
+"""Unit tests for modules formerly under ``ai_team.utils``."""

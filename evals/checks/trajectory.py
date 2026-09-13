@@ -112,10 +112,10 @@ def phase_repeat_bounded(trace: Trace) -> CheckResult:
 def listener_self_trigger(trace: Trace) -> CheckResult:
     """Fail when a CrewAI Flow method ``@listen``s to its own name.
 
-    Introspects live flow wiring via
-    :mod:`ai_team.flows.listener_introspection`. Fixture traces may inject
-    ``raw_result.listener_self_triggers`` for fail cases without mutating
-    production wiring. Non-crewai backends return ``not_applicable``.
+    Introspects live flow wiring via :mod:`ai_team.core.flow_wiring`. Fixture
+    traces may inject ``raw_result.listener_self_triggers`` for fail cases
+    without mutating production wiring. Non-crewai backends return
+    ``not_applicable``.
     """
     cid = "CHK-listener-self-trigger"
     fm = "FM-002"
@@ -153,10 +153,15 @@ def _cached_self_triggering_listeners() -> list[str]:
     """Memoize flow introspection — class wiring is process-static (R5.5)."""
     global _SELF_TRIGGER_CACHE
     if _SELF_TRIGGER_CACHE is None:
-        from ai_team.flows.listener_introspection import self_triggering_listeners
-        from ai_team.flows.main_flow import AITeamFlow
+        from ai_team.core.flow_wiring import (
+            get_registered_flow_class,
+            self_triggering_listeners,
+        )
 
-        _SELF_TRIGGER_CACHE = list(self_triggering_listeners(AITeamFlow))
+        cls = get_registered_flow_class()
+        if cls is None:
+            return []
+        _SELF_TRIGGER_CACHE = list(self_triggering_listeners(cls))
     return _SELF_TRIGGER_CACHE
 
 
