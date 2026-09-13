@@ -4,6 +4,10 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+**Read first:** the shared [harness](docs/HARNESS.md), the [taxonomy](evals/taxonomy/failure_modes.yaml) (FM-001…017), and the [$0 Tier A gate](evals/README.md).
+
+**Envelope:** one operator, one machine. Run state is in-process and lost on restart; see [PERFORMANCE.md](docs/PERFORMANCE.md).
+
 The same nine-agent software team (Manager, Product Owner, Architect,
 Backend/Frontend/Fullstack Developers, DevOps, Cloud Engineer, QA) runs over three
 orchestration frameworks — CrewAI, LangGraph, and the Claude Agent SDK — behind one
@@ -11,9 +15,9 @@ orchestration frameworks — CrewAI, LangGraph, and the Claude Agent SDK — beh
 **which failures are the framework's, which are the model's, and which are mine?**
 
 The most useful output isn't a leaderboard — it's the **[failure taxonomy](docs/posts/failure-taxonomy.md)**:
-ten distinct ways a multi-agent build breaks, each with a trace and a fix, spread
-across the model, framework, harness, and provider layers. Those ten classes are now
-also a **machine-readable taxonomy** (`evals/taxonomy/failure_modes.yaml`, FM-001…010)
+seventeen distinct ways a multi-agent build breaks (FM-001…017), each with a trace and a fix, spread
+across the model, framework, harness, and provider layers. Those classes are now
+also a **machine-readable taxonomy** (`evals/taxonomy/failure_modes.yaml`, FM-001…017)
 bound to deterministic checks and a **$0 Tier A** replay gate — see
 [evals/README.md](evals/README.md) and [EVAL_METHODOLOGY.md](docs/EVAL_METHODOLOGY.md).
 The shared harness that came out of chasing them — a runtime smoke gate that boots the
@@ -285,27 +289,36 @@ and [docs/MODELS.md](docs/MODELS.md). Agent→model mapping:
 ai-team/
 ├── src/ai_team/
 │   ├── core/                # Backend protocol, ProjectResult, TeamProfile loader, spend guard
-│   ├── config/               # Settings, agents.yaml, team_profiles.yaml, models.py
+│   ├── config/              # Settings, agents.yaml, team_profiles.yaml, models.py
+│   ├── harness/             # The product: acceptance, context, receipts, routing, lessons
 │   ├── backends/
-│   │   ├── registry.py       # Backend discovery and instantiation
-│   │   ├── crewai_backend/   # CrewAI: subprocess-isolated, hard-killed on timeout
-│   │   ├── langgraph_backend/  # LangGraph: graphs, nodes, routing, subgraphs
-│   │   └── claude_agent_sdk_backend/  # Claude Agent SDK: orchestrator, subagents, MCP
-│   ├── tools/                 # File, code, git, test tools, runtime smoke gate
-│   ├── guardrails/            # Behavioral, security, quality
-│   ├── memory/                 # Long-term memory (SQLite) + lessons loop
-│   ├── monitor.py              # TeamMonitor — thread-safe event collector
-│   └── ui/web/                 # FastAPI server + React/TypeScript/Vite dashboard
+│   │   ├── registry.py
+│   │   ├── crewai_backend/  # CrewAI: subprocess-isolated, hard-killed on timeout
+│   │   ├── langgraph_backend/
+│   │   └── claude_agent_sdk_backend/
+│   ├── agents/              # CrewAI personas (backend-private; Track B will nest these)
+│   ├── crews/               # CrewAI crews
+│   ├── tasks/               # CrewAI task factories
+│   ├── flows/               # CrewAI flow (`AITeamFlow`)
+│   ├── tools/               # File, code, git, test tools, runtime smoke gate
+│   ├── guardrails/          # Behavioral, security, quality
+│   ├── memory/              # Long-term memory (SQLite) + lessons loop
+│   ├── models/              # Shared document models
+│   ├── reports/             # Manager self-improvement reports
+│   ├── utils/               # Cross-cutting helpers (to be dissolved — see ARCHITECTURE.md)
+│   ├── knowledge/           # Authored snippets injected into agent context
+│   ├── monitor.py           # TeamMonitor — thread-safe event collector
+│   └── ui/web/              # FastAPI server + React/TypeScript/Vite dashboard
 ├── tests/
-│   ├── unit/evals/             # Harness unit tests (R16)
-│   └── integration/evals/      # Tier A / TraceBuilder / gate integration
-├── evals/                      # Eval harness: traces, taxonomy, checks, Tier A–C
-│   ├── cli.py                  # `python -m evals.cli` (backfill, sample, run, gate…)
-│   ├── taxonomy/               # FM-001…010 ↔ failure-taxonomy essay
-│   ├── checks/                 # Deterministic detectors bound to FM ids
-│   ├── fixtures/traces/        # Committed Tier A corpus ($0 replay)
-│   ├── scenarios/              # JSON scenario contracts
-│   └── backends/               # Live backend eval clients (pytest)
+│   ├── unit/evals/          # Harness unit tests
+│   ├── unit/repo/           # Repository invariant guards
+│   └── integration/evals/   # Live backend evals (real_llm) + Tier A integration
+├── evals/                   # Eval harness: traces, taxonomy, checks, Tier A–C
+│   ├── cli.py               # `python -m evals.cli` (backfill, sample, run, gate…)
+│   ├── taxonomy/            # FM-001…017 ↔ failure-taxonomy essay
+│   ├── checks/              # Deterministic detectors bound to FM ids
+│   ├── fixtures/traces/     # Committed Tier A corpus ($0 replay)
+│   └── scenarios/           # JSON scenario contracts
 ├── demos/                      # 00_smoke_test, 02_todo_app
 ├── docs/
 │   ├── journal/                 # Session-by-session engineering record
@@ -333,20 +346,25 @@ Details: [evals/README.md](evals/README.md) · methodology: [EVAL_METHODOLOGY.md
 |---|---|
 | [Engineering journal](docs/journal/README.md) | Session-by-session debugging record, including corrections |
 | [Comparison results](docs/COMPARISON_RESULTS.md) | Live 3-way comparison data and the same-model matrix |
-| [Failure taxonomy](docs/posts/failure-taxonomy.md) | Ten failure classes with receipts (↔ FM-001…010) |
+| [Failure taxonomy](docs/posts/failure-taxonomy.md) | Seventeen failure classes with receipts (↔ FM-001…017) |
 | [Troubleshooting](docs/troubleshooting/README.md) | Deep-dive post-mortems of non-obvious bugs |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
+| [HARNESS.md](docs/HARNESS.md) | Seven-layer status table (checked, not asserted) |
+| [SECURITY.md](SECURITY.md) | Threat model including the control plane |
+| [PERFORMANCE.md](docs/PERFORMANCE.md) | Envelope, retention, and how numbers are produced |
 | [GUARDRAILS.md](docs/GUARDRAILS.md) | Behavioral, security, quality guardrails |
 | [DEMOS.md](docs/DEMOS.md) | Demo projects, schema |
-| [evals/README.md](evals/README.md) | Eval harness quickstart (Tier A, backfill, tests) |
-| [EVALS.md](docs/EVALS.md) | What the eval system implements today |
+| [evals/README.md](evals/README.md) | Eval harness entry point (Tier A, backfill, tests) |
 | [EVAL_METHODOLOGY.md](docs/EVAL_METHODOLOGY.md) | Error-analysis-first method + limitations |
-| [EVALS_ROADMAP.md](docs/EVALS_ROADMAP.md) | Aspirational / role-eval backlog |
+| [EVALS_ROADMAP.md](docs/EVALS_ROADMAP.md) | Short backlog linking Kiro specs |
+| [RUN_ARTIFACTS.md](docs/RUN_ARTIFACTS.md) | Per-run bundle layout |
 | [AGENTS.md](docs/AGENTS.md) | Persona registry (goal, backstory, delegation per role) |
 | [MODELS.md](docs/MODELS.md) | dev/test/prod model matrix, provider comparison, failure modes |
 | [TEAM_PROFILES.md](docs/TEAM_PROFILES.md) | Profile catalog (`full`, `full-claude`, `smoke`, …) |
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Setup, configuration, troubleshooting |
 | [SELF_IMPROVEMENT.md](docs/SELF_IMPROVEMENT.md) | Runtime smoke gate and lessons loop |
+
+This table is a curated index. Dated records live under [docs/journal/](docs/journal/README.md) and [docs/posts/](docs/posts/).
 
 ## License and acknowledgments
 

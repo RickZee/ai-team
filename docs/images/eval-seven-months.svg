@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" width="1200" height="690" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="690" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">SEVEN MONTHS · 277 COMMITS</text>
+  <text x="70" y="122" font-size="44" font-weight="700" fill="#1a1a2e">The lesson I filed on day one</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">and then applied to everything except the thing doing the checking.</text>
+
+  <!-- chart -->
+  <line x1="70" y1="392" x2="1130" y2="392" stroke="#c9c6ba" stroke-width="1.5"/>
+  <text x="70" y="204" font-size="12" fill="#96938a" letter-spacing="1">COMMITS PER MONTH</text>
+
+  <!-- bars: baseline 392, scale 1.5625 px per commit -->
+  <g>
+    <rect x="92"  y="336" width="86" height="56"  rx="3" fill="#b9b6ab"/>
+    <text x="135" y="326" font-size="15" font-weight="700" fill="#6e6c66" text-anchor="middle">36</text>
+    <text x="135" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Feb</text>
+
+    <rect x="225" y="369" width="86" height="23"  rx="3" fill="#b9b6ab"/>
+    <text x="268" y="359" font-size="15" font-weight="700" fill="#6e6c66" text-anchor="middle">15</text>
+    <text x="268" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Mar</text>
+
+    <rect x="358" y="370" width="86" height="22"  rx="3" fill="#b9b6ab"/>
+    <text x="401" y="360" font-size="15" font-weight="700" fill="#6e6c66" text-anchor="middle">14</text>
+    <text x="401" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Apr</text>
+
+    <rect x="491" y="381" width="86" height="11"  rx="3" fill="#b9b6ab"/>
+    <text x="534" y="371" font-size="15" font-weight="700" fill="#6e6c66" text-anchor="middle">7</text>
+    <text x="534" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">May</text>
+
+    <rect x="624" y="253" width="86" height="139" rx="3" fill="#1d9e75"/>
+    <text x="667" y="243" font-size="15" font-weight="700" fill="#137a59" text-anchor="middle">89</text>
+    <text x="667" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Jun</text>
+
+    <rect x="757" y="242" width="86" height="150" rx="3" fill="#1d9e75"/>
+    <text x="800" y="232" font-size="15" font-weight="700" fill="#137a59" text-anchor="middle">96</text>
+    <text x="800" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Jul</text>
+
+    <rect x="890" y="373" width="86" height="19"  rx="3" fill="#b9b6ab"/>
+    <text x="933" y="363" font-size="15" font-weight="700" fill="#6e6c66" text-anchor="middle">12</text>
+    <text x="933" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Aug</text>
+
+    <rect x="1023" y="379" width="86" height="13" rx="3" fill="#b9b6ab"/>
+    <text x="1066" y="369" font-size="15" font-weight="700" fill="#6e6c66" text-anchor="middle">8</text>
+    <text x="1066" y="416" font-size="15" fill="#5f5e5a" text-anchor="middle">Sep</text>
+  </g>
+
+  <!-- connectors -->
+  <line x1="135"  y1="436" x2="135"  y2="462" stroke="#b4462f" stroke-width="1.5"/>
+  <line x1="534"  y1="436" x2="534"  y2="462" stroke="#c9c6ba" stroke-width="1.5"/>
+  <line x1="800"  y1="436" x2="800"  y2="462" stroke="#c9c6ba" stroke-width="1.5"/>
+  <line x1="1066" y1="436" x2="1066" y2="462" stroke="#b4462f" stroke-width="1.5"/>
+
+  <!-- callouts -->
+  <g>
+    <rect x="70" y="462" width="245" height="176" rx="10" fill="#ffffff" stroke="#e0b4a8" stroke-width="1.5"/>
+    <rect x="70" y="462" width="5" height="176" rx="2.5" fill="#b4462f"/>
+    <text x="96" y="492" font-size="14" font-weight="700" fill="#b4462f" letter-spacing="1">FEB 15</text>
+    <text x="96" y="522" font-size="16" font-weight="600" fill="#1a1a2e">Day one</text>
+    <text x="96" y="550" font-size="14.5" fill="#5f5e5a">A generated build plan,</text>
+    <text x="96" y="571" font-size="14.5" fill="#5f5e5a">and Cursor silently dropped</text>
+    <text x="96" y="592" font-size="14.5" fill="#5f5e5a">whole prompts. Lesson filed:</text>
+    <text x="96" y="618" font-size="14.5" font-style="italic" font-weight="600" fill="#8a4636">never trust a plan without</text>
+    <text x="96" y="636" font-size="14.5" font-style="italic" font-weight="600" fill="#8a4636">checking it lands.</text>
+  </g>
+
+  <g>
+    <rect x="336" y="462" width="245" height="176" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="336" y="462" width="5" height="176" rx="2.5" fill="#b9b6ab"/>
+    <text x="362" y="492" font-size="14" font-weight="700" fill="#6e6c66" letter-spacing="1">MAY 22</text>
+    <text x="362" y="522" font-size="16" font-weight="600" fill="#1a1a2e">First run that worked</text>
+    <text x="362" y="550" font-size="14.5" fill="#5f5e5a">Attempt 11, most of a day.</text>
+    <text x="362" y="571" font-size="14.5" fill="#5f5e5a">Root cause: the team profile</text>
+    <text x="362" y="592" font-size="14.5" fill="#5f5e5a">was never passed from the</text>
+    <text x="362" y="613" font-size="14.5" fill="#5f5e5a">backend to the flow. Ten runs</text>
+    <text x="362" y="634" font-size="14.5" fill="#5f5e5a">chased its symptoms.</text>
+  </g>
+
+  <g>
+    <rect x="602" y="462" width="245" height="176" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="602" y="462" width="5" height="176" rx="2.5" fill="#b9b6ab"/>
+    <text x="628" y="492" font-size="14" font-weight="700" fill="#6e6c66" letter-spacing="1">JUL 23</text>
+    <text x="628" y="522" font-size="16" font-weight="600" fill="#1a1a2e">n=1 in the defense layer</text>
+    <text x="628" y="550" font-size="14.5" fill="#5f5e5a">An adversarial review of my</text>
+    <text x="628" y="571" font-size="14.5" fill="#5f5e5a">own project. The judge shared</text>
+    <text x="628" y="592" font-size="14.5" fill="#5f5e5a">a vendor with a contestant.</text>
+    <text x="628" y="613" font-size="14.5" fill="#5f5e5a">Rankings didn&#8217;t survive their</text>
+    <text x="628" y="634" font-size="14.5" fill="#5f5e5a">own confidence intervals.</text>
+  </g>
+
+  <g>
+    <rect x="868" y="462" width="262" height="176" rx="10" fill="#ffffff" stroke="#e0b4a8" stroke-width="1.5"/>
+    <rect x="868" y="462" width="5" height="176" rx="2.5" fill="#b4462f"/>
+    <text x="894" y="492" font-size="14" font-weight="700" fill="#b4462f" letter-spacing="1">SEP 13</text>
+    <text x="894" y="522" font-size="16" font-weight="600" fill="#1a1a2e">n=1 in the measurement layer</text>
+    <text x="894" y="550" font-size="14.5" fill="#5f5e5a">50 traces, 0 spans, one backend,</text>
+    <text x="894" y="571" font-size="14.5" fill="#5f5e5a">a 1.97-second window. And 210</text>
+    <text x="894" y="592" font-size="14.5" fill="#5f5e5a">run records sitting unread in</text>
+    <text x="894" y="613" font-size="14.5" fill="#5f5e5a">the next directory over, because</text>
+    <text x="894" y="634" font-size="14.5" font-weight="600" fill="#8a4636">I never checked it landed.</text>
+  </g>
+</svg>

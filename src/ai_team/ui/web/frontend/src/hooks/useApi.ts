@@ -1,4 +1,4 @@
-import { getApiBase } from "../config";
+import { authHeaders, getApiBase, withTokenQuery } from "../config";
 
 const API_BASE = getApiBase();
 
@@ -14,7 +14,8 @@ export class ApiError extends Error {
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
+  const headers = authHeaders(init?.headers);
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new ApiError(text || `API error: ${res.status}`, res.status);
@@ -56,7 +57,7 @@ export function postEstimate(complexity: string) {
     within_budget: boolean;
   }>("/estimate", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ complexity }),
   });
 }
@@ -145,13 +146,13 @@ export function getProjectArchitecture(projectId: string) {
 }
 
 export function projectDownloadZipUrl(projectId: string) {
-  return `${API_BASE}/projects/${encodeURIComponent(projectId)}/download.zip`;
+  return withTokenQuery(`${API_BASE}/projects/${encodeURIComponent(projectId)}/download.zip`);
 }
 
 export function postResume(runId: string, feedback: string) {
   return fetchJson<{ run_id: string; status: string }>(`/runs/${runId}/resume`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ feedback }),
   });
 }

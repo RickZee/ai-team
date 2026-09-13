@@ -64,13 +64,13 @@ Five modules, ~800 LOC, imported only by their own tests. Each needs a recorded 
 before any of them is touched. The recommendation column is the audit's reading; the
 decision is the owner's.
 
-| Module | LOC | Evidence | Recommended | Why |
-| --- | --- | --- | --- | --- |
-| `harness/lessons_loop.py` | 161 | Only `tests/unit/harness/test_lessons.py`. Named `closed-loop` in `HARNESS.md`; `SELF_IMPROVEMENT.md` says lessons write through it. Its name appears as an ablation *string* in `evals/arms/base.py`. | **wire** | The closed-loop claim is the most valuable one in the harness table. Wiring it makes the claim true; deleting it makes two documents wrong. |
-| `harness/session_loop.py` | 315 | Only its own test. Phase 8 of `harness-alignment`, explicitly "off by default until its ablation shows it earns its place". | **dormant** | Deliberate. Needs `AI_TEAM_SESSION_LOOP=1`, an entry in the dormant allowlist, and a flag-driven test. |
-| `harness/qa_verdicts.py` | 75 | Only a test. The *reader* side exists and is wired (`evals/trace/parsers.py` → `parse_qa_verdicts_jsonl`, `evals/checks/verification.py`), but nothing writes `docs/qa_verdicts.jsonl`. | **wire** | A parser with no producer means `CHK-evaluator-capitulation` can only ever return `inconclusive` — which is exactly what the 2026-09-12 journal records it doing. |
-| `harness/verifiers.py` | 25 | Only `tests/unit/harness/test_router.py`. Cited in the `enforced` Verification row. | **wire or downgrade** | 25 lines. Either the router uses it on the default path, or the row cites `tools/smoke_tools.py` alone. |
-| `evals/ladder_report.py` | 228 | Only its own test. | **dormant** | It renders the arm ladder; it becomes reachable the first time a ladder sweep runs. Needs a CLI subcommand, not a flag. |
+| Module | LOC | Evidence | Recommended | **Decision (2026-09-13)** | Why |
+| --- | --- | --- | --- | --- | --- |
+| `harness/lessons_loop.py` | 161 | Only `tests/unit/harness/test_lessons.py`. Named `closed-loop` in `HARNESS.md`; `SELF_IMPROVEMENT.md` says lessons write through it. Its name appears as an ablation *string* in `evals/arms/base.py`. | **wire** | **wire** | Closed-loop is the most valuable harness-table claim; `ResultsBundle` is the default-path hook. |
+| `harness/session_loop.py` | 315 | Only its own test. Phase 8 of `harness-alignment`, explicitly "off by default until its ablation shows it earns its place". | **dormant** | **dormant** | Behind `AI_TEAM_SESSION_LOOP=1` until an ablation earns a default-on place. |
+| `harness/qa_verdicts.py` | 75 | Only a test. The *reader* side exists and is wired (`evals/trace/parsers.py` → `parse_qa_verdicts_jsonl`, `evals/checks/verification.py`), but nothing writes `docs/qa_verdicts.jsonl`. | **wire** | **wire** | Without a producer, `CHK-evaluator-capitulation` can only return `inconclusive`. |
+| `harness/verifiers.py` | 25 | Only `tests/unit/harness/test_router.py`. Cited in the `enforced` Verification row. | **wire or downgrade** | **wire** | Cheap-path routing is called from `run_app_smoke` on the default path; smoke itself remains the enforcement. |
+| `evals/ladder_report.py` | 228 | Only its own test. | **dormant** | **dormant** | Activated by `python -m evals.cli ladder report`; not on a default run. |
 
 The general rule that comes out of this table, and that R9.2 encodes: **a dormant module
 is one you can turn on in one documented step.** Anything else is an orphan wearing a
@@ -313,7 +313,20 @@ New package `tests/unit/repo/` — eleven assertions across eight test modules:
 | `test_import_direction.py` | §4 import rules | `evals/checks/trajectory.py imports ai_team.flows; evals may not import backends` |
 | `test_data_artifacts.py` | Fixture↔check mapping both ways; baseline covers every registered check; no unreferenced image outside the publication allowlist | `CHK-foo has no fixture`; `baseline covers 13 of 20 checks`; `docs/images/dashboard.png is referenced by nothing` |
 
-Total budget: < 30 s (R20.5). All read files and parse ASTs; none import the application.
+Plus, outside `tests/unit/repo/`, the behaviour tests for what this spec changes:
+`tests/unit/ui/test_auth.py` (route coverage + bind rules, R15) and
+`tests/unit/ui/test_artifacts_adversarial.py` (symlink containment, R16).
+
+Total budget: < 30 s (R20.5), measured once at task 8.6. All the repo guards read files and
+parse ASTs; none import the application.
+
+**The bar for all of them is R24**, and two of its clauses carry most of the weight:
+
+- *Fail on an empty match set (R24.4).* A glob that stops matching after a refactor reports
+  success. This is the default failure mode of repo-hygiene tests and the reason most such
+  suites quietly stop working.
+- *Ship a recorded way to watch it fail (R24.3).* Either a negative fixture or a one-line
+  mutation in the docstring. A guard nobody has seen fail is a guard nobody knows works.
 
 ---
 
@@ -376,18 +389,20 @@ routes are re-homed, the changes were structural only.
 
 ## 12. Open decisions
 
-| # | Decision | Default if unanswered |
-| --- | --- | --- |
-| 12.1 | `lessons_loop` — wire it, or downgrade the `closed-loop` claim? | **Wire** (§2). The claim is worth more than the week. |
-| 12.2 | `session_loop` — dormant behind a flag, or delete until its ablation runs? | **Dormant behind `AI_TEAM_SESSION_LOOP`** |
-| 12.3 | Container serves the UI, or is honestly API-only? | **Serves the UI** — add the Node stage; the dashboard is a large part of what the project demonstrates |
-| 12.4 | `.archive/` — delete from the tree, or keep with a stated retention rule? | **Delete**; git history is the archive |
-| 12.5 | `COMPARISON_RESULTS.md` — merge into the journal, or keep as a distinct diary? | **Keep, with a purpose line** (R3.2); merging 512 lines of dated records loses their order |
-| 12.6 | Build backend after dropping Poetry tables — `hatchling` or `uv_build`? | **hatchling** (boring, widely understood, reads PEP 621 directly) |
-| 12.7 | Move `agents/crews/tasks/flows` with shims, or hard-move and update imports? | **Shims for one release** with a removal date in the docstring |
-| 12.8 | Web auth — shared token, or skip auth and document loopback-only? | **Shared token**; "it's local-only" is the sentence every incident report starts with |
-| 12.9 | R22 benchmark — spend real money on one live multi-backend run, or publish mock-labelled numbers only? | **One live run, budget-capped.** A labelled mock benchmark is honest but answers nothing; this is the only place in the spec where spending is worth arguing for |
-| 12.10 | Track B (phases 6–7) — do it, or record the layout problem in `ARCHITECTURE.md` and move on? | **Record and defer** unless the repo keeps being developed |
+Recorded 2026-09-13. No unanswered row remains.
+
+| # | Decision | Default if unanswered | Status |
+| --- | --- | --- | --- |
+| 12.1 | `lessons_loop` — wire it, or downgrade the `closed-loop` claim? | **Wire** (§2). The claim is worth more than the week. | **Done** — wired through `ResultsBundle` |
+| 12.2 | `session_loop` — dormant behind a flag, or delete until its ablation runs? | **Dormant behind `AI_TEAM_SESSION_LOOP`** | **Done** — dormant |
+| 12.3 | Container serves the UI, or is honestly API-only? | **Serves the UI** — add the Node stage; the dashboard is a large part of what the project demonstrates | **Done** — Node stage in `docker/Dockerfile` |
+| 12.4 | `.archive/` — delete from the tree, or keep with a stated retention rule? | **Delete**; git history is the archive | **Keep** — owner override 2026-09-13; `.archive/README.md` states retention and why each tracked survivor stays |
+| 12.5 | `COMPARISON_RESULTS.md` — merge into the journal, or keep as a distinct diary? | **Keep, with a purpose line** (R3.2); merging 512 lines of dated records loses their order | **Done** — kept |
+| 12.6 | Build backend after dropping Poetry tables — `hatchling` or `uv_build`? | **hatchling** (boring, widely understood, reads PEP 621 directly) | **Done** — hatchling |
+| 12.7 | Move `agents/crews/tasks/flows` with shims, or hard-move and update imports? | **Shims for one release** with a removal date in the docstring | **Deferred** with 12.10 (Track B) |
+| 12.8 | Web auth — shared token, or skip auth and document loopback-only? | **Shared token**; "it's local-only" is the sentence every incident report starts with | **Done** — `AI_TEAM_WEB_TOKEN` |
+| 12.9 | R22 benchmark — spend real money on one live multi-backend run, or publish mock-labelled numbers only? | **One live run, budget-capped.** A labelled mock benchmark is honest but answers nothing; this is the only place in the spec where spending is worth arguing for | **Pending human spend** (task 9.1, $25). Envelope documented; mock numbers not published |
+| 12.10 | Track B (phases 6–7) — do it, or record the layout problem in `ARCHITECTURE.md` and move on? | **Record and defer** unless the repo keeps being developed | **Deferred** — recorded in `ARCHITECTURE.md` |
 
 Decisions already closed by the requirements, recorded so they are not reopened: no
 behaviour change to the harness or taxonomy (constraints); deletion beats archiving for

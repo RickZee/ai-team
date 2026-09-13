@@ -7,6 +7,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import zipfile
 from pathlib import Path
 from typing import Any, Literal
@@ -130,31 +131,54 @@ def _tree_root(project_id: str, root: ArtifactRoot) -> Path:
 
 
 def _is_sensitive(rel_path: str) -> bool:
+    """Substring denylist — defence in depth, not the containment boundary (R16.3)."""
     lower = rel_path.lower().replace("\\", "/")
     return any(s in lower for s in _SENSITIVE_SUBSTR)
 
 
+def _contained(base: Path, path: Path) -> bool:
+    """True when *path* resolves inside *base* (symlink-aware)."""
+    try:
+        return path.resolve().is_relative_to(base.resolve())
+    except (OSError, ValueError):
+        return False
+
+
 def _list_relative_files(base: Path, *, max_files: int = 500) -> list[tuple[str, int]]:
-    """Return sorted (relative_path, size_bytes) for files under base."""
+    """Return sorted (relative_path, size_bytes) for files under base.
+
+    Does not follow symlinks out of *base*.
+    """
     if not base.is_dir():
         return []
+    root = base.resolve()
     out: list[tuple[str, int]] = []
-    for p in base.rglob("*"):
-        if not p.is_file():
-            continue
-        rel_parts = p.relative_to(base).parts
-        if any(part in _SKIP_DIR_NAMES for part in rel_parts):
-            continue
-        rel = str(p.relative_to(base)).replace("\\", "/")
-        if _is_sensitive(rel):
-            continue
-        try:
-            size = p.stat().st_size
-        except OSError:
-            size = 0
-        out.append((rel, size))
-        if len(out) >= max_files:
-            break
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        keep: list[str] = []
+        for name in dirnames:
+            if name in _SKIP_DIR_NAMES:
+                continue
+            child = Path(dirpath) / name
+            if child.is_symlink() and not _contained(root, child):
+                continue
+            keep.append(name)
+        dirnames[:] = keep
+        for name in filenames:
+            path = Path(dirpath) / name
+            if path.is_symlink() and not _contained(root, path):
+                continue
+            if not path.is_file():
+                continue
+            rel = str(path.relative_to(root)).replace("\\", "/")
+            if _is_sensitive(rel):
+                continue
+            try:
+                size = path.stat().st_size
+            except OSError:
+                size = 0
+            out.append((rel, size))
+            if len(out) >= max_files:
+                return sorted(out, key=lambda x: x[0])
     return sorted(out, key=lambda x: x[0])
 
 
@@ -215,8 +239,11 @@ def _abs_path_for_rel(project_id: str, root: ArtifactRoot, rel_path: str) -> Pat
         raise ValueError("Invalid path")
     if _is_sensitive(rel_path):
         raise ValueError("Sensitive path not allowed")
-    base = _tree_root(project_id, root)
-    return (base / rel_path).resolve()
+    base = _tree_root(project_id, root).resolve()
+    resolved = (base / rel_path).resolve()
+    if not resolved.is_relative_to(base):
+        raise ValueError("Path escapes project root")
+    return resolved
 
 
 def _guess_language(path: str) -> str | None:
@@ -521,8 +548,12 @@ def workspace_zip_bytes(project_id: str) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for rel, _ in _list_relative_files(ws, max_files=2000):
-            abs_path = ws / rel
-            if abs_path.is_file():
-                zf.write(abs_path, arcname=f"{project_id}/{rel}")
+            try:
+                abs_path = _abs_path_for_rel(project_id, "workspace", rel)
+            except ValueError:
+                continue
+            if abs_path.is_symlink() or not abs_path.is_file():
+                continue
+            zf.write(abs_path, arcname=f"{project_id}/{rel}")
     logger.info("artifact_zip_created", project_id=project_id)
     return buf.getvalue()

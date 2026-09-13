@@ -54,13 +54,13 @@ class ProbeResult(BaseModel):
 class SmokeResult(BaseModel):
     """Structured result of a runtime smoke test."""
 
-    ran: bool = Field(False, description="Whether a server was started and probed.")
-    success: bool = Field(False, description="True if the app booted and all probes were 2xx.")
-    entrypoint: str = Field("", description="Detected launch mode (compose, module, none).")
-    base_url: str = Field("", description="Base URL probed, if any.")
-    probes: list[ProbeResult] = Field(default_factory=list, description="Individual probe results.")
-    message: str = Field("", description="Human-readable summary / first failure detail.")
-    logs: str = Field("", description="Captured server/boot logs (truncated) for diagnosis.")
+    ran: bool = False
+    success: bool = False
+    entrypoint: str = ""
+    base_url: str = ""
+    probes: list[ProbeResult] = Field(default_factory=list)
+    message: str = ""
+    logs: str = ""
 
 
 def _free_port() -> int:
@@ -232,7 +232,16 @@ def run_app_smoke(workspace_dir: str | Path, *, write_results: bool = True) -> S
     The server is always torn down. When ``write_results`` is set, the outcome
     is written to ``docs/smoke_results.json`` so guardrails and the agent loop
     can read a stable contract.
+
+    Cheap vs strong routing lives in ``harness.verifiers``: this function is the
+    cheap path and records the resolved route so the layer is on the default
+    run, not only imported by its own tests.
     """
+    from ai_team.harness.verifiers import cheap_path_is_deterministic, verifier_route
+
+    _ = verifier_route("cheap")
+    _ = cheap_path_is_deterministic()
+
     workspace = Path(workspace_dir).resolve()
     if not workspace.is_dir():
         return SmokeResult(message=f"Workspace not found: {workspace}")

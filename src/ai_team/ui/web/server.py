@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import json
@@ -22,13 +23,22 @@ from typing import Any, Literal
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from ai_team.ui.web.auth import (
+    accept_websocket,
+    assert_bind_allowed,
+    cors_allow_origins,
+    require_token,
+    warn_if_unauthenticated,
+)
+from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
+
+_AUTH = [Depends(require_token)]
 
 ComplexityOption = Literal["simple", "medium", "complex"]
 
@@ -50,14 +60,7 @@ app = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        o.strip()
-        for o in os.environ.get(
-            "AI_TEAM_CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8421",
-        ).split(",")
-        if o.strip()
-    ],
+    allow_origins=cors_allow_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -325,7 +328,7 @@ async def health():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 
-@app.get("/api/profiles")
+@app.get("/api/profiles", dependencies=_AUTH)
 async def list_profiles():
     """List available team profiles."""
     from ai_team.core.team_profile import load_team_profiles
@@ -363,7 +366,7 @@ _BACKEND_CATALOG = [
 ]
 
 
-@app.get("/api/backends")
+@app.get("/api/backends", dependencies=_AUTH)
 async def list_backends():
     """List available backends with API key configuration hints."""
     backends = []
@@ -374,7 +377,7 @@ async def list_backends():
     return {"backends": backends}
 
 
-@app.post("/api/estimate")
+@app.post("/api/estimate", dependencies=_AUTH)
 async def estimate_cost(req: EstimateRequest):
     """Return cost estimate for a run."""
     from ai_team.config.cost_estimator import estimate_run_cost
@@ -399,13 +402,13 @@ async def estimate_cost(req: EstimateRequest):
     }
 
 
-@app.get("/api/runs")
+@app.get("/api/runs", dependencies=_AUTH)
 async def list_runs():
     """List all runs."""
     return {"runs": list(state.runs.values())}
 
 
-@app.get("/api/runs/history")
+@app.get("/api/runs/history", dependencies=_AUTH)
 async def run_history(limit: int = Query(200, ge=1, le=1000)):
     """Persisted run history (SQLite, data/memory.db) — survives server restarts.
 
@@ -548,7 +551,7 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
     return out
 
 
-@app.get("/api/runs/{run_id}/receipt")
+@app.get("/api/runs/{run_id}/receipt", dependencies=_AUTH)
 async def get_run_receipt(run_id: str):
     """Return the on-disk change receipt. Source of truth; not the live event stream."""
     from ai_team.harness.receipt import load_receipt
@@ -561,7 +564,7 @@ async def get_run_receipt(run_id: str):
     return receipt.model_dump(mode="json")
 
 
-@app.get("/api/runs/{run_id}")
+@app.get("/api/runs/{run_id}", dependencies=_AUTH)
 async def get_run(run_id: str):
     """Get run details including monitor state, spend, and artifact metrics."""
     run = state.runs.get(run_id)
@@ -586,7 +589,7 @@ async def get_run(run_id: str):
     }
 
 
-@app.get("/api/comparisons")
+@app.get("/api/comparisons", dependencies=_AUTH)
 async def list_comparisons(limit: int = Query(50, ge=1, le=200)):
     """Recent Compare-tab sessions (grouped by comparison_id)."""
     if state.store is None:
@@ -594,7 +597,7 @@ async def list_comparisons(limit: int = Query(50, ge=1, le=200)):
     return {"comparisons": state.store.list_comparisons(limit=limit), "persisted": True}
 
 
-@app.get("/api/comparisons/{comparison_id}")
+@app.get("/api/comparisons/{comparison_id}", dependencies=_AUTH)
 async def get_comparison(comparison_id: str):
     """The 1-3 backend runs that belong to one Compare-tab session."""
     if state.store is None:
@@ -605,7 +608,7 @@ async def get_comparison(comparison_id: str):
     return {"comparison_id": comparison_id, "runs": runs}
 
 
-@app.get("/api/registry/runs")
+@app.get("/api/registry/runs", dependencies=_AUTH)
 async def registry_runs():
     """List runs from disk registry merged with in-memory web sessions."""
     from ai_team.ui.artifacts.service import load_registry
@@ -614,7 +617,7 @@ async def registry_runs():
     return {"runs": [r.model_dump() for r in rows]}
 
 
-@app.get("/api/projects/{project_id}/tree")
+@app.get("/api/projects/{project_id}/tree", dependencies=_AUTH)
 async def project_tree(
     project_id: str,
     root: Literal["workspace", "bundle"] = Query(default="workspace"),
@@ -629,7 +632,7 @@ async def project_tree(
     return {"project_id": project_id, "root": root, "tree": [n.model_dump() for n in nodes]}
 
 
-@app.get("/api/projects/{project_id}/file")
+@app.get("/api/projects/{project_id}/file", dependencies=_AUTH)
 async def project_file(
     project_id: str,
     path: str = Query(..., description="Relative file path"),
@@ -654,7 +657,7 @@ async def project_file(
     return content.model_dump()
 
 
-@app.get("/api/projects/{project_id}/tests")
+@app.get("/api/projects/{project_id}/tests", dependencies=_AUTH)
 async def project_tests(project_id: str):
     """Normalized test results for the Tests tab."""
     from ai_team.ui.artifacts.service import load_tests_panel
@@ -666,7 +669,7 @@ async def project_tests(project_id: str):
     return panel.model_dump()
 
 
-@app.get("/api/projects/{project_id}/architecture")
+@app.get("/api/projects/{project_id}/architecture", dependencies=_AUTH)
 async def project_architecture(project_id: str):
     """Architecture document for the Architecture tab."""
     from ai_team.ui.artifacts.service import load_architecture_panel
@@ -678,7 +681,7 @@ async def project_architecture(project_id: str):
     return panel.model_dump()
 
 
-@app.get("/api/projects/{project_id}/download.zip")
+@app.get("/api/projects/{project_id}/download.zip", dependencies=_AUTH)
 async def project_download_zip(project_id: str):
     """Download workspace as ZIP."""
     from ai_team.ui.artifacts.service import workspace_zip_bytes
@@ -694,7 +697,7 @@ async def project_download_zip(project_id: str):
     )
 
 
-@app.post("/api/runs/{run_id}/resume")
+@app.post("/api/runs/{run_id}/resume", dependencies=_AUTH)
 async def resume_run(run_id: str, req: ResumeRequest):
     """Resume a LangGraph run blocked on human review (HITL)."""
     run = state.runs.get(run_id)
@@ -754,7 +757,7 @@ async def resume_run(run_id: str, req: ResumeRequest):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/api/demo")
+@app.post("/api/demo", dependencies=_AUTH)
 async def start_demo():
     """Start a demo run and return run_id (poll via /api/runs/{id} or connect WebSocket)."""
     from ai_team.core.run_naming import resolve_run_id
@@ -770,7 +773,7 @@ async def start_demo():
     return {"run_id": run_id}
 
 
-@app.post("/api/runs/{run_id}/cancel")
+@app.post("/api/runs/{run_id}/cancel", dependencies=_AUTH)
 async def cancel_run(run_id: str):
     """Cancel a running run (cooperative cancel)."""
     run = state.runs.get(run_id)
@@ -783,7 +786,7 @@ async def cancel_run(run_id: str):
     return {"run_id": run_id, "status": "cancelling"}
 
 
-@app.delete("/api/runs/{run_id}")
+@app.delete("/api/runs/{run_id}", dependencies=_AUTH)
 async def delete_run_endpoint(run_id: str):
     """Delete a terminal run from disk and in-memory state."""
     from ai_team.core.results.cleanup import delete_run as delete_run_disk
@@ -821,7 +824,8 @@ async def ws_run(websocket: WebSocket):
     Client sends JSON: {backend, profile, description, complexity}
     Server streams JSON events: {type, data} until {type: "complete"}
     """
-    await websocket.accept()
+    if not await accept_websocket(websocket):
+        return
     try:
         msg = await websocket.receive_json()
         req = RunRequest(**msg)
@@ -888,7 +892,8 @@ async def ws_monitor(websocket: WebSocket, run_id: str):
 
     Pushes monitor state snapshots every 500ms while the run is active.
     """
-    await websocket.accept()
+    if not await accept_websocket(websocket):
+        return
     try:
         while True:
             monitor = state.monitors.get(run_id)
@@ -1744,6 +1749,11 @@ def register_frontend(app: FastAPI, frontend_dist: Path | None = None) -> None:
     dist = frontend_dist or (Path(__file__).parent / "frontend" / "dist")
     index = dist / "index.html"
     if not index.exists():
+        logger.warning(
+            "frontend_dist_missing",
+            path=str(index),
+            hint="Build the dashboard with npm run build in src/ai_team/ui/web/frontend",
+        )
         return
 
     assets_dir = dist / "assets"
@@ -1771,19 +1781,27 @@ def register_frontend(app: FastAPI, frontend_dist: Path | None = None) -> None:
 # ---------------------------------------------------------------------------
 
 
-def run_server(port: int = 8421, host: str = "0.0.0.0") -> None:
+def run_server(port: int = 8421, host: str = "127.0.0.1") -> None:
     """Run the FastAPI server."""
+    from ai_team.config.settings import get_settings
+
+    token = get_settings().web.token
+    assert_bind_allowed(host, token)
+    warn_if_unauthenticated(host, token)
     register_frontend(app)
     uvicorn.run(app, host=host, port=port)
 
 
-def main() -> None:
-    import argparse
-
+def build_web_parser() -> argparse.ArgumentParser:
+    """CLI parser for ``ai-team-web``. Extracted so tests can inspect defaults."""
     parser = argparse.ArgumentParser(description="AI-Team Web Dashboard")
     parser.add_argument("--port", type=int, default=8421)
-    parser.add_argument("--host", default="0.0.0.0")
-    args = parser.parse_args()
+    parser.add_argument("--host", default="127.0.0.1")
+    return parser
+
+
+def main() -> None:
+    args = build_web_parser().parse_args()
     run_server(port=args.port, host=args.host)
 
 

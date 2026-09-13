@@ -1,35 +1,38 @@
 services:
   app:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     ports:
       - "8421:8421"
+    environment:
+      # Bind guard still refuses 0.0.0.0 when this is empty. Required at `up`,
+      # optional at `build` so a clean checkout can compose-build without a GPU.
+      AI_TEAM_WEB_TOKEN: ${AI_TEAM_WEB_TOKEN:-}
+    command: ["--host", "0.0.0.0"]
     volumes:
-      - ./output:/app/output
-    env_file:
-      - .env
+      - ../output:/app/output
+      - ../workspace:/app/workspace
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
     networks:
       - aiteam
-    depends_on:
-      - ollama
 
+  # Optional local LLM. Default path is OpenRouter/Anthropic.
+  #   docker compose -f docker/docker-compose.yml --profile local-llm up
   ollama:
+    profiles: ["local-llm"]
     image: ollama/ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_models:/root/.ollama
-    env_file:
-      - .env
     networks:
       - aiteam
-    # GPU support (comment out deploy block if no NVIDIA GPU)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
 networks:
   aiteam:

@@ -1,5 +1,8 @@
 # AI-Team: Complete Cursor AI Prompts Reference
 
+Historical Cursor prompts from the project's first months. Not a runbook —
+current work lives in `.kiro/specs/`. See [PROMPT_TRACKING.md](PROMPT_TRACKING.md).
+
 ## Phase 0: Preparation & Research (Days 1-3)
 
 ### Prompt 0.1: Generate pyproject.toml
@@ -2216,7 +2219,12 @@ Social-media announcement prompts removed — not part of the engineering docume
 
 ## Phase 7: AWS Bedrock AgentCore Deployment (Days 43–52)
 
-Deploy ai-team to production on Amazon Bedrock AgentCore using AWS CDK (Python). LLM switches from local Ollama to Bedrock (Claude Sonnet 4 / Haiku 4.5); ARM64 container; AgentCore Runtime, Memory, Gateway, Observability, and Identity. Full phase spec (architecture, WBS, cursor rules): [.archive/phase-7-agentcore-deployment.md](../.archive/phase-7-agentcore-deployment.md).
+Deploy ai-team to production on Amazon Bedrock AgentCore using AWS CDK (Python).
+LLM switches from local Ollama to Bedrock (Claude Sonnet 4 / Haiku 4.5); ARM64
+container; AgentCore Runtime, Memory, Gateway, Observability, and Identity.
+Full phase spec (architecture, WBS, cursor rules):
+[`.archive/phase-7-agentcore-deployment.md`](../../.archive/phase-7-agentcore-deployment.md).
+Current work is specified under `.kiro/specs/`.
 
 ### Prompt 7.1: Initialize CDK Project
 ```

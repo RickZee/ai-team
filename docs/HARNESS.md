@@ -10,6 +10,8 @@ See [evals/taxonomy/COVERAGE.md](../evals/taxonomy/COVERAGE.md) for FM coverage.
 
 ## Status table (R19.3)
 
+Named tests: Tools `tests/unit/tools/`; Verification `tests/unit/tools/test_smoke_tools.py` + `harness.verifiers` via `run_app_smoke`; Context `tests/unit/harness/`; Guardrails `tests/unit/guardrails/`; Observability `tests/unit/harness/` receipt tests; Routing `tests/unit/harness/test_router.py`; Feedback `tests/unit/harness/test_lessons.py::test_lessons_closed_loop_through_bundle`.
+
 | Layer | Post requirement | Module | FM ids | Checks | Status |
 | --- | --- | --- | --- | --- | --- |
 | Tools | Structured observations; draft-then-commit; irreversible gated | `src/ai_team/tools/bus.py`, `kinds.py`, `draft.py`, `catalog.py` | FM-001, FM-012 | CHK-tool-call-emitted, CHK-draft-commit | **enforced** |
@@ -20,17 +22,21 @@ See [evals/taxonomy/COVERAGE.md](../evals/taxonomy/COVERAGE.md) for FM coverage.
 | Routing | `task_routes.yaml`; `mechanical_check` → `deterministic` | `src/ai_team/harness/router.py`, `config/task_routes.yaml` | — | cheap path unit tests | **instrumented** |
 | Feedback | Structured lessons → pin `CST-lesson-*`; effectiveness window | `src/ai_team/harness/lessons_loop.py` | FM-013 | CHK-lesson-effectiveness | **closed-loop** |
 
-**Status meanings**
+**Status meanings** (machine-checkable, design.md §3)
 
-- **instrumented** — spans, files, or metrics exist; a backend can still skip them.
-- **enforced** — the default path cannot complete a write/verify/pin without the layer.
-- **closed-loop** — a failure writes a lesson that is loaded on the next run and can be marked effective / ineffective / escalated.
+- **instrumented** — the named module is imported on a default run path.
+- **enforced** — bypassing the layer makes the default path fail or block (a named test demonstrates it).
+- **closed-loop** — output of run *n* changes input of run *n+1* (`test_lessons_closed_loop_through_bundle`).
 
 Honest gaps: CrewAI and Claude SDK inject `CONSTRAINTS.md` when the file has items;
 LangGraph always prepends via `build_system_prompt`. Native SDK `Write`/`Bash` are
 denied only when `AI_TEAM_DENY_NATIVE_TOOLS` is set. Cheap vs strong routing is
 wired for verifiers; role models still come from `config/models.py` until every
-call site uses `resolve_route`.
+call site uses `resolve_route`. Session continuation (`session_loop.py`) is
+dormant behind `AI_TEAM_SESSION_LOOP`. The published live performance benchmark
+is still a human-triggered spend (docs/PERFORMANCE.md). Package layout still
+shows CrewAI-private `agents/`/`crews/`/`tasks/`/`flows/` at the top level
+(Track B deferred — see ARCHITECTURE.md).
 
 ## ToolBus
 
@@ -48,9 +54,9 @@ Irreversible tools (`delete_file`, `execute_shell`, lockfile overwrite) require
 
 | File | Owner | Rule |
 | --- | --- | --- |
-| `docs/CONSTRAINTS.md` | harness | Never summarized. Injected as a pinned prompt block. |
-| `docs/STATE.md` | harness | Last N phase facts (JSON fence). No LLM. |
-| `docs/LESSONS.md` | harness | Rendered from the lesson store. |
+| `<workspace>/docs/CONSTRAINTS.md` | harness | Never summarized. Injected as a pinned prompt block. |
+| `<workspace>/docs/STATE.md` | harness | Last N phase facts (JSON fence). No LLM. |
+| `<workspace>/docs/LESSONS.md` | harness | Rendered from the lesson store. |
 
 Compaction policy: `ConstraintLoader.pinned_text()` is untouchable. The dummy
 summarizer in `harness/context.py` drops other context and keeps the pin.

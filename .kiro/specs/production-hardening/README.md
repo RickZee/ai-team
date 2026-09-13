@@ -4,7 +4,7 @@ Kiro-style three-document spec closing the gap between what this repository **cl
 what it **wires** — so the codebase reads the way a reviewer expects a production-grade
 enterprise system to read. Read in order:
 
-1. **[`requirements.md`](./requirements.md)** — 23 requirements with EARS acceptance
+1. **[`requirements.md`](./requirements.md)** — 24 requirements with EARS acceptance
    criteria, constraints, non-goals, and a file-level traceability table.
 2. **[`design.md`](./design.md)** — the wire-or-delete decision table, machine-checkable
    status definitions, the package contract, the documentation model, security design,
@@ -84,6 +84,34 @@ and that spec's drift test is red until its Phases 1–6 land. Land 3.1 first *o
 **The highest-value hour is task 2.1** — making the harness status table true. It is the
 table a reviewer reads to decide whether the project is serious, and it currently contains
 two claims the code does not support.
+
+## Tests this spec adds
+
+Twelve new test modules. Eight are repository invariants that make the spec self-enforcing;
+four cover behaviour it changes.
+
+| Test | Locks | Requirement |
+| --- | --- | --- |
+| `tests/unit/ui/test_auth.py` | 401 without a token, 200 with it; **route-coverage**: every route is authed or explicitly public; bind-default rules | R15 |
+| `tests/unit/ui/test_artifacts_adversarial.py` | Symlink to `/etc/passwd`, symlink to a sibling run, nested symlink dir, absolute `project_id`, sensitive-name bypass | R16 |
+| `tests/unit/repo/test_reachability.py` | No orphan modules; the dormant allowlist names each module's activation flag | R1, R9 |
+| `tests/unit/repo/test_references.py` | Relative links and source paths resolve (`<workspace>/` convention excepted) | R4 |
+| `tests/unit/repo/test_readme_structure.py` | README's structure tree ≡ real packages | R5 |
+| `tests/unit/repo/test_collection.py` | No `test_*.py` outside `testpaths` | R6 |
+| `tests/unit/repo/test_type_budget.py` | `ignore_errors` **LOC** budget, ratcheting down only | R8 |
+| `tests/unit/repo/test_complexity.py` | Branch/length/param ratchets | R12 |
+| `tests/unit/repo/test_import_direction.py` | `core`/`harness`/`evals` never import a backend | R10, R11 |
+| `tests/unit/repo/test_data_artifacts.py` | Fixture↔check mapping both ways; baseline covers every check; no unreferenced image | R21 |
+| Frontend vitest case | Token header attached when configured, absent when not | R15.6 |
+| Retention unit test | Prune command removes/keeps correctly and is idempotent | R22.6 |
+
+Plus a CI image job (non-root, no `gcc`, size ratchet, `/api/health` → 200) and a compose
+build check, and **R24**, which sets the bar for all of them: offline, deterministic,
+order-independent, no writes to tracked files, a recorded way to watch each guard fail, and a
+guard that raises rather than passes when its match set is empty.
+
+The 808 LOC of currently-uncollected eval tests are either moved under `tests/` and made to
+pass, or deleted (task 1.2) — not left where pytest cannot see them.
 
 ## Constraints baked in
 

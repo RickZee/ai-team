@@ -136,6 +136,9 @@ class ResultsBundle:
             from ai_team.harness.context import ConstraintLoader
 
             ConstraintLoader(self._base_workspace).ensure()
+            from ai_team.harness.lessons_loop import apply_lessons_at_start
+
+            apply_lessons_at_start(self._base_workspace)
         except Exception:  # noqa: BLE001
             logger.debug("harness_context_init_skipped")
 
@@ -245,6 +248,14 @@ class ResultsBundle:
                 tests=tests,
                 required_ok=True,
             )
+            failure_ids: list[str] = []
+            if smoke.get("ran") and not smoke.get("success"):
+                failure_ids.append("FM-006")
+            from ai_team.harness.lessons_loop import apply_lessons_at_finish
+            from ai_team.harness.qa_verdicts import emit_verdicts_from_acceptance
+
+            apply_lessons_at_finish(self._base_workspace, failure_ids)
+            emit_verdicts_from_acceptance(self._base_workspace, session_id=self.project_id)
         except Exception as exc:  # noqa: BLE001 — receipt must not fail the run
             logger.warning("receipt_write_skipped", error=str(exc))
         return path

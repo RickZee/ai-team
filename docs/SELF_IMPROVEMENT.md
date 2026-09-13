@@ -36,6 +36,8 @@ The **gate** is backend-agnostic and filesystem-based. The **loop wiring**
 differs per backend (each owns its orchestration), but every backend reports the
 same contract so the Compare tab stays apples-to-apples.
 
+![Self-improvement / smoke loop](images/self-trigger-loop.svg)
+
 ### Shared (all backends)
 
 - **`ai_team.tools.smoke_tools.run_app_smoke(workspace)`** — boots the generated

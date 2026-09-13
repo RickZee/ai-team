@@ -525,6 +525,17 @@ def main() -> int:
         help="Complexity tier (default: medium).",
     )
 
+    prune_p = subparsers.add_parser(
+        "prune",
+        help="Delete workspace/output run directories older than N days (default 14).",
+    )
+    prune_p.add_argument(
+        "--older-than-days",
+        type=int,
+        default=14,
+        help="Retention window in days (default: 14).",
+    )
+
     argv = _preprocess_argv_for_subcommand(sys.argv[1:])
     args = parser.parse_args(argv)
     command = args.command
@@ -537,6 +548,12 @@ def main() -> int:
         return _cmd_estimate(env=args.env, complexity=args.complexity)
     if command == "compare-costs":
         return _cmd_compare_costs(complexity=args.complexity)
+    if command == "prune":
+        from ai_team.core.results.cleanup import prune_runs
+
+        removed = prune_runs(older_than_days=int(args.older_than_days))
+        print(f"pruned {len(removed)} run(s)")
+        return 0
     if command == "run":
         description = (args.run_description or "").strip()
         resume_thr = (getattr(args, "resume", "") or "").strip()

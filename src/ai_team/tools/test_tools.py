@@ -34,11 +34,9 @@ class CoverageSummary(BaseModel):
 
     file_path: str = Field(..., description="Source file path.")
     line_coverage_pct: float = Field(..., description="Line coverage percentage.")
-    branch_coverage_pct: float | None = Field(
-        None, description="Branch coverage percentage if available."
-    )
-    lines_covered: int = Field(0, description="Lines covered.")
-    lines_missing: int = Field(0, description="Lines not covered.")
+    branch_coverage_pct: float | None = None
+    lines_covered: int = 0
+    lines_missing: int = 0
 
 
 class TestRunResult(BaseModel):
@@ -204,8 +202,8 @@ class UncoveredRegion(BaseModel):
 
     file_path: str = Field(..., description="Source file path.")
     line_start: int = Field(..., description="Start line number.")
-    line_end: int | None = Field(None, description="End line number (for ranges).")
-    branch_info: str | None = Field(None, description="Branch description if applicable.")
+    line_end: int | None = None
+    branch_info: str | None = None
 
 
 class CoverageReport(BaseModel):
@@ -231,9 +229,9 @@ class LintIssue(BaseModel):
     """Single lint finding."""
 
     file_path: str = Field(..., description="File path.")
-    line: int | None = Field(None, description="Line number.")
-    column: int | None = Field(None, description="Column number.")
-    code: str = Field("", description="Rule or error code.")
+    line: int | None = None
+    column: int | None = None
+    code: str = ""
     message: str = Field(..., description="Message.")
     severity: str = Field("error", description="One of: error, warning, info.")
     tool: str = Field("ruff", description="Tool that produced the issue: ruff or mypy.")

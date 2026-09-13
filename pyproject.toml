@@ -1,9 +1,10 @@
 [project]
 name = "ai-team"
-version = "0.1.0"
+version = "0.2.0"
 description = "A field study of multi-agent failure modes: shared harness over CrewAI, LangGraph, and Claude Agent SDK"
 readme = "README.md"
 license = { text = "MIT" }
+authors = [{ name = "Rick Zakharov", email = "rick.zakharov@gmail.com" }]
 requires-python = ">=3.11,<=3.13"
 dependencies = [
     "crewai>=1.0.0,<2.0.0",
@@ -21,6 +22,8 @@ dependencies = [
     "jinja2>=3.1.0,<4.0.0",
     "httpx>=0.27.0,<0.28.0",
     "tenacity>=8.2.0,<9.0.0",
+    # Pin below 1.80 to avoid Pydantic 2.12+ recursion issues (CrewAI ecosystem fix).
+    # Note: 1.167.1 is not on PyPI; 1.74.9 is the minimum CrewAI 1.6.1 accepts (litellm extra).
     "litellm==1.74.9",
     "setuptools>=83.0.0",
     "langgraph>=0.4.0",
@@ -37,6 +40,7 @@ dependencies = [
     "pygments>=2.20.0,<3.0.0",
     "pyjwt>=2.13.0",
     "requests>=2.33.0,<3.0.0",
+    # Transitive via several stacks; floor for CVE fixes (e.g. CVE-2026-34513 family).
     "aiohttp>=3.14.3",
     "claude-agent-sdk>=0.1.0",
     "urllib3>=2.7.0",
@@ -69,80 +73,26 @@ dev = [
     "anthropic>=0.111.0",
 ]
 
-[tool.poetry]
-name = "ai-team"
-version = "0.1.0"
-description = "A field study of multi-agent failure modes: shared harness over CrewAI, LangGraph, and Claude Agent SDK"
-authors = ["Your Name <your.email@example.com>"]
-readme = "README.md"
-license = "MIT"
-packages = [{include = "ai_team", from = "src"}]
-
-[tool.poetry.dependencies]
-python = ">=3.11,<=3.13"
-# OpenRouter: crewai (includes LiteLLM), pydantic-settings (OpenRouterSettings), rich (cost display)
-crewai = "^1.0.0"
-crewai-tools = "^1.0.0"
-langchain-community = ">=0.4.0"
-pydantic = "^2.7.0"
-pydantic-settings = ">=2.14.2"
-python-dotenv = ">=1.2.2"
-structlog = "^24.1.0"
-rich = ">=13.0.0"
-sqlalchemy = "^2.0.0"
-aiosqlite = "^0.20.0"
-gitpython = ">=3.1.58"
-pyyaml = "^6.0.0"
-jinja2 = "^3.1.0"
-httpx = "^0.27.0"
-tenacity = "^8.2.0"
-# Pin below 1.80 to avoid Pydantic 2.12+ recursion issues (CrewAI ecosystem fix).
-# Note: 1.167.1 is not on PyPI; 1.74.9 is the minimum CrewAI 1.6.1 accepts (litellm extra).
-litellm = "1.74.9"
-setuptools = ">=83.0.0"
-langgraph = ">=0.4.0"
-langchain-core = ">=1.2.28"
-langchain-openai = ">=1.1.14"
-langgraph-checkpoint-sqlite = ">=3.1.1"
-langgraph-checkpoint-postgres = ">=3.1.1"
-langgraph-supervisor = "^0.0.31"
-huggingface-hub = ">=0.20,<1"
-fastapi = ">=0.115.0"
-uvicorn = {version = ">=0.30.0", extras = ["standard"]}
-cryptography = ">=50.0.0"
-pillow = ">=12.3.0"
-pygments = "^2.20.0"
-pyjwt = ">=2.13.0"
-requests = "^2.33.0"
-# Transitive via several stacks; floor for CVE fixes (e.g. CVE-2026-34513 family).
-aiohttp = ">=3.14.3"
-claude-agent-sdk = ">=0.1.0"
-urllib3 = ">=2.7.0"
-idna = ">=3.15"
-python-multipart = ">=0.0.31"
-langsmith = ">=0.8.18"
-lxml = ">=6.1.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = ">=9.0.3"
-pytest-asyncio = ">=0.24.0"
-pytest-cov = "^4.1.0"
-pytest-timeout = "^2.3.0"
-pytest-mock = "^3.12.0"
-ruff = "^0.3.0"
-mypy = "^1.9.0"
-pre-commit = "^3.7.0"
-black = "^26.3.1"
-isort = "^5.13.0"
-flask = "^3.1.3"
-types-pyyaml = "^6.0.12.20250915"
-pip-audit = "^2.10.0"
-pytest-playwright = "^0.8.0"
-anthropic = ">=0.111.0"
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Frontend node_modules/dist are local/CI artifacts, not the Python package.
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/src/ai_team/ui/web/frontend/node_modules",
+  "/src/ai_team/ui/web/frontend/dist",
+  "/workspace",
+  "/output",
+  "/.coverage-data",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_team"]
+exclude = [
+  "/src/ai_team/ui/web/frontend/node_modules",
+  "/src/ai_team/ui/web/frontend/dist",
+]
 
 [tool.ruff]
 line-length = 100
@@ -167,41 +117,35 @@ ignore_missing_imports = true
 explicit_package_bases = true
 mypy_path = "src:."
 
+# Type-debt floor: counted by tests/unit/repo/test_type_budget.py (LOC, not module
+# count). Exit conditions are inline. Do not add a module without stating why the
+# floor moved the wrong way in the same commit message.
 [[tool.mypy.overrides]]
 module = [
-  "evals.fixtures",
+  "evals.fixtures",  # exit: type the fixture loaders after corpus schema freeze
   "evals.fixtures.*",
-  "evals.metrics",
-  "evals.run_evals",
-  "evals.backends.*",
-  "evals.test_backend_comparison",
-  "evals.arms.vendor",
+  "evals.metrics",  # exit: replace Any score dicts with Pydantic
+  "evals.run_evals",  # exit: retire the pre-cli runner or annotate it
+  "evals.arms.vendor",  # pinned third-party copy; never typed
   "evals.arms.vendor.*",
 ]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
-  "ai_team.backends.langgraph_backend.*",
+  "ai_team.backends.langgraph_backend.*",  # exit: after Track B or a dedicated typing pass
   "ai_team.backends.claude_agent_sdk_backend.*",
 ]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
-  "ai_team.tools.test_tools",
-  "ai_team.tools.smoke_tools",
-]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = [
-  "ai_team.agents.*",
+  "ai_team.agents.*",  # exit: after crewai_backend move (Track B) or a typing pass
   "ai_team.crews.*",
   "ai_team.flows.main_flow",
-  "ai_team.memory.memory_config",
-  "ai_team.tools.git_tools",
-  "ai_team.utils.callbacks",
+  "ai_team.memory.memory_config",  # exit: annotate Chroma/SQLite helpers
+  "ai_team.tools.git_tools",  # exit: GitPython types
+  "ai_team.utils.callbacks",  # exit: when utils/ is dissolved (R11.4)
 ]
 ignore_errors = true
 

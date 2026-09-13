@@ -2,7 +2,7 @@
 LangGraph eval: trajectory checks, phase completion, LLM judge.
 
 Run:
-    AI_TEAM_USE_REAL_LLM=1 uv run pytest evals/backends/test_langgraph_eval.py -v -s
+    AI_TEAM_USE_REAL_LLM=1 uv run pytest tests/integration/evals/test_langgraph_eval.py -v -s
 
 Requires OPENROUTER_API_KEY.
 """
@@ -23,10 +23,14 @@ from evals.fixtures import (
 )
 from evals.metrics import compute_metrics, format_scorecard
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("AI_TEAM_USE_REAL_LLM"),
-    reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.real_llm,
+    pytest.mark.skipif(
+        not os.environ.get("AI_TEAM_USE_REAL_LLM"),
+        reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
+    ),
+]
 
 SCENARIO = load_scenario("smoke-test")
 BACKEND = "langgraph"
