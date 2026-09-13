@@ -25,7 +25,7 @@ from ai_team.tools.smoke_tools import (
 )
 
 _HAS_FLASK = importlib.util.find_spec("flask") is not None
-_flask_required = pytest.mark.skipif(not _HAS_FLASK, reason="flask not installed")
+_flask_required = pytest.mark.skipif(not _HAS_FLASK, reason="precondition: flask not installed")
 
 
 def _make_app(workspace, body: str) -> None:

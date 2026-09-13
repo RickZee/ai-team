@@ -35,11 +35,11 @@ class TestPlanningCrewKickoff:
         """With mock: returns mock CrewOutput. With real LLM: returns valid result."""
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
-                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+                pytest.skip("precondition: Ollama unreachable")
             try:
                 result = kickoff("A simple CLI tool.", verbose=False)
             except (ConverterError, ValidationError) as e:
-                pytest.skip(f"Real LLM output could not be parsed (try a larger model): {e!s}")
+                pytest.fail(f"Real LLM output could not be parsed: {e!s}")
             assert result is not None
             assert hasattr(result, "raw")
             assert hasattr(result, "tasks_output")

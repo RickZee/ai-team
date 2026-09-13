@@ -17,7 +17,7 @@ _FIXTURES = Path("evals/fixtures/traces")
 
 @pytest.mark.skipif(
     not _FIXTURES.is_dir() or not any(_FIXTURES.glob("*.json")),
-    reason="no Tier A fixture traces",
+    reason="precondition: no Tier A fixture traces",
 )
 def test_tier_a_two_runs_deterministic(tmp_path: Path) -> None:
     out_a = tmp_path / "a"
@@ -35,7 +35,7 @@ def test_tier_a_two_runs_deterministic(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(
     not _FIXTURES.is_dir() or not any(_FIXTURES.glob("*.json")),
-    reason="no Tier A fixture traces",
+    reason="precondition: no Tier A fixture traces",
 )
 def test_tier_a_under_socket_monkeypatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Full Tier A run while socket.connect raises (R16.2 network isolation)."""

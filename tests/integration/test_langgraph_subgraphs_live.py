@@ -10,7 +10,7 @@ import pytest
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("OPENROUTER_API_KEY"),
-    reason="OPENROUTER_API_KEY required for supervisor LLM bind_tools",
+    reason="precondition: OPENROUTER_API_KEY required for supervisor LLM bind_tools",
 )
 def test_compile_planning_subgraph_live() -> None:
     """Supervisor + workers require a real chat model with ``bind_tools``."""
@@ -25,7 +25,7 @@ def test_compile_planning_subgraph_live() -> None:
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("OPENROUTER_API_KEY"),
-    reason="OPENROUTER_API_KEY required for supervisor LLM bind_tools",
+    reason="precondition: OPENROUTER_API_KEY required for supervisor LLM bind_tools",
 )
 def test_compile_development_subgraph_live() -> None:
     from ai_team.backends.langgraph_backend.graphs.development import (

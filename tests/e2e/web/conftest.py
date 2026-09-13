@@ -46,7 +46,7 @@ def ensure_frontend_built() -> Path:
     if _FRONTEND_DIST.exists() and (_FRONTEND_DIST / "index.html").exists():
         return _FRONTEND_DIST
     if os.environ.get("AI_TEAM_SKIP_FRONTEND_BUILD") == "1":
-        pytest.skip("Frontend dist missing and AI_TEAM_SKIP_FRONTEND_BUILD=1")
+        pytest.skip("precondition: frontend dist missing and AI_TEAM_SKIP_FRONTEND_BUILD=1")
     node_modules = _FRONTEND_DIR / "node_modules"
     if not node_modules.exists():
         subprocess.run(

@@ -88,12 +88,12 @@ class TestWebUiHomeRuns:
         """Empty home shows New run + Play sample run (when no runs in session)."""
         page.goto(browser_base_url)
         if page.get_by_test_id("run-detail").is_visible(timeout=2_000):
-            pytest.skip("Run detail visible (session-scoped server has an open run)")
+            pytest.skip("precondition: session-scoped server has an open run (run-detail visible)")
         if page.locator(".run-list-item").count() > 0:
-            pytest.skip("Home has prior runs in session-scoped server")
+            pytest.skip("precondition: session-scoped server already has listed runs")
         empty = page.get_by_test_id("home-empty")
         if not empty.is_visible(timeout=3_000):
-            pytest.skip("Home not empty (session-scoped server)")
+            pytest.skip("precondition: session-scoped server home is not empty")
         expect(page.get_by_test_id("home-new-run")).to_be_visible()
         expect(page.get_by_test_id("home-demo")).to_be_visible()
 

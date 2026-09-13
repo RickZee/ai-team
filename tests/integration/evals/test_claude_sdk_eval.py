@@ -28,7 +28,7 @@ pytestmark = [
     pytest.mark.real_llm,
     pytest.mark.skipif(
         not os.environ.get("AI_TEAM_USE_REAL_LLM"),
-        reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
+        reason="precondition: AI_TEAM_USE_REAL_LLM=1 is unset",
     ),
 ]
 
@@ -113,7 +113,7 @@ class TestSDKCostLatency:
     def test_within_budget(self, sdk_result):
         result, _ = sdk_result
         if result.cost_usd is None:
-            pytest.skip("Cost not reported by SDK backend")
+            pytest.fail("cost_usd not reported by SDK backend")
         assert (
             result.cost_usd <= SCENARIO["budget_usd_max"]
         ), f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
@@ -121,7 +121,7 @@ class TestSDKCostLatency:
     def test_completes_within_timeout(self, sdk_result):
         result, _ = sdk_result
         if result.wall_time_s is None:
-            pytest.skip("Wall time not recorded")
+            pytest.fail("wall_time_s not recorded for a live SDK eval")
         assert result.wall_time_s <= SCENARIO["timeout_seconds"]
 
 
@@ -135,14 +135,14 @@ class TestSDKQuality:
         result, _ = sdk_result
         score = result.metrics.get("goal_alignment")
         if score is None:
-            pytest.skip("LLM judge did not run")
+            pytest.fail("LLM judge did not run (compute_metrics requested run_judge=True)")
         assert score >= 0.5, f"Goal alignment {score:.2f} < 0.5"
 
     def test_acceptance_criteria_met(self, sdk_result):
         result, _ = sdk_result
         scores = result.judge_scores
         if not scores:
-            pytest.skip("LLM judge did not run")
+            pytest.fail("LLM judge did not run (compute_metrics requested run_judge=True)")
         for criterion, score in scores.items():
             assert score >= 0.5, f"Criterion failed ({score:.2f}): {criterion}"
 

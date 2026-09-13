@@ -34,9 +34,9 @@ denied only when `AI_TEAM_DENY_NATIVE_TOOLS` is set. Cheap vs strong routing is
 wired for verifiers; role models still come from `config/models.py` until every
 call site uses `resolve_route`. Session continuation (`session_loop.py`) is
 dormant behind `AI_TEAM_SESSION_LOOP`. The published live performance benchmark
-is still a human-triggered spend (docs/PERFORMANCE.md). Package layout still
-shows CrewAI-private `agents/`/`crews/`/`tasks/`/`flows/` at the top level
-(Track B deferred — see ARCHITECTURE.md).
+is still a human-triggered spend (docs/PERFORMANCE.md). CrewAI-private
+`agents/`/`crews/`/`tasks/`/`flows/` live under `backends/crewai_backend/`;
+top-level shims warn until 2026-12-31.
 
 ## ToolBus
 

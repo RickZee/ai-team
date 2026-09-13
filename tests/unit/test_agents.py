@@ -149,7 +149,9 @@ class TestGuardrailAttachment:
 
         real_tools = get_file_tools()
         if not real_tools:
-            pytest.skip("No file tools available")
+            pytest.fail(
+                "get_file_tools() returned empty — file tools are a default product surface"
+            )
         with (
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(

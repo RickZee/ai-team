@@ -22,21 +22,36 @@ requirement for this record); the ratchet is set when task 5.3 first builds.
 
 ## After-state
 
-Recorded 2026-09-13 after Track A (Phases 0–5, 8–9 except live 9.1; Track B deferred).
+Recorded 2026-09-13 after Track A (Phases 0–5, 8–9 except live 9.1).
+Refreshed the same day after Track B (Phases 6–7) and the Phase 3 hygiene sweep.
 
-| Claim | Value |
-| --- | --- |
-| Unit tests | **1518** passed (`uv run pytest tests/unit`) |
-| Frontend vitest | **127** passed |
-| `ignore_errors` LOC | **12,726** across 70 files (ratchet 13,000) |
-| Complexity (≤2-branch exempt) | **58 / 7 / 15** (80-line / 150-line / 8-param) |
-| `.archive/` tracked files | **21** (kept; see `.archive/README.md`) |
-| Docker image size | **790 MB** (`docker build -f docker/Dockerfile -t ai-team:ci`); ratchet **900 MB** |
-| Web E2E | **27 passed, 1 skipped** (`pytest tests/e2e/web -m web_e2e`) |
-| Guard suite (`tests/unit/repo`) | included in unit run; lint job also runs it |
+Commands vs the pre-Track-A parent `946f6d9`:
 
-LOC delta vs before: `.archive/` **kept** (21 tracked files + README); unreferenced compare screenshots deleted; Poetry tables removed; hatchling wheel builds `ai_team` (not `src.ai_team`).
+| Claim | Command | Value |
+| --- | --- | --- |
+| Python LOC `src/ai_team` + `evals` (excl. `node_modules`, `vendor`) | `git ls-tree -r --name-only <rev>` filtered `*.py`, `wc -l` | **46,704 → 46,049** (**−655**) |
+| Tracked `docs/images/` blob bytes | `git cat-file -s` per path | **9,329,198 → 5,289,340** (**−4.0 MB**) |
+| Tracked image files | `git ls-files docs/images/` | **34** (working-tree `du` includes untracked campaign files; ignore that) |
+| Unit tests collected | `uv run pytest tests/unit --collect-only -q` | **1534** |
+| Complexity (≤2-branch exempt) | AST walk / `ratchets.toml` | **55 / 4 / 14** |
+| `ignore_errors` LOC | `test_type_budget.py` | **12,726** / 70 files (ratchet 13,000) |
+| Docker image size | `docker build -f docker/Dockerfile -t ai-team:ci` | **790 MB** (ratchet **900 MB**) |
+| Web E2E | `pytest tests/e2e/web -m web_e2e` | **27 passed, 1 skipped** |
+| `.archive/` tracked files | `git ls-files .archive/` | **21** (kept; see `.archive/README.md`) |
+
+The Phase 1 guess was roughly −1,500 to −2,000 LOC and −7 MB of images. Net Python
+is smaller because Track B added shims and Phase 7 extracted modules rather than
+deleting them. Image bytes dropped ~4 MB, not 7: publication allowlisted assets
+were kept. `.archive/` stayed.
+
+Package LOC after the CrewAI move (shims at top level; logic under `backends/`):
+agents 129; backends 13923; config 1701; core 1653; crews 56; flows 54;
+guardrails 2336; harness 2242; memory 781; models 479; reports 389; tasks 49;
+tools 5926; ui 2754; root py 1098; **no `utils/`**.
 
 ## Guard suite CI time
 
-Local `pytest tests/unit/repo` is a few seconds inside the 68s unit run. Target < 30 s added (R20.5) holds locally; GitHub Actions wall-clock is recorded on the first green `lint` job after merge.
+Local `pytest tests/unit/repo` is a few seconds inside the unit run. Target < 30 s
+added (R20.5) holds locally; GitHub Actions wall-clock is recorded on the first
+green `lint` job after a PR into `main`/`develop`. Feature-branch pushes do not
+trigger `.github/workflows/ci.yml`.

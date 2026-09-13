@@ -8,8 +8,8 @@ live-spend 9.1). Offline only.
 Wire `lessons_loop`, `qa_verdicts`, `verifiers`. Dormant: `session_loop`
 (`AI_TEAM_SESSION_LOOP`), `ladder_report` (`evals.cli ladder report`). Keep
 `.archive/` with a retention README (owner override of design 12.4). Container
-serves the UI. Track B (package move, router split) deferred and recorded in
-`ARCHITECTURE.md`.
+serves the UI. Track B (package move, router split) landed in the same sitting
+as Phases 6–7.
 
 ## Failures found while making the gate green
 
@@ -59,4 +59,25 @@ prints `verdict=fail` on the fail/pass fixture corpus. Web routes live in
 `ui/web/routers/` with `create_app()` owning CORS and SPA registration. Dashboard
 tokens resolve monitor → receipt/disk → live spend. Complexity ratchet 58/7/15 →
 55/4/14. Web E2E 27 passed / 1 skipped.
+
+## Phase 3 leftovers (no live spend)
+
+Task 3.5: skip-on-parse / skip-on-empty-LLM / skip-on-missing-judge became
+`pytest.fail`. Remaining skips name a precondition. Isolation: golden writes
+already go to `tmp_path`; `tests/conftest.py` now also restores ToolBus and
+Settings after every test. Shuffled order (`pytest-randomly` seed 42) had been
+failing with `Unknown tool: read_file` because `reset_bus(empty=True)` leaked
+across tests via a ContextVar. Both `pytest tests/unit -p no:randomly` and
+`--randomly-seed=42` are 1534 passed.
+
+Task 1.7 BASELINE after-state refreshed: Python LOC 46,704 → 46,049 (−655);
+tracked `docs/images/` blobs 9.3 MB → 5.3 MB (−4.0 MB). Box left open: GitHub
+CI has not run (workflow is `main`/`develop` + PRs into those; `gh` is not
+logged in).
+
+Task 3.6: SHA-pinned `uses:`, PR/issue templates, CODEOWNERS, CHANGELOG, git
+tag `v0.2.0` on origin. Box left open: `gh release list` needs GitHub Release
+UI, which needs `gh auth login`.
+
+Task 9.1 left open (human-triggered spend).
 

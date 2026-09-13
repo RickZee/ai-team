@@ -51,9 +51,9 @@ class TestCrewMemoryWithEmbedder:
     ) -> None:
         """Run a minimal Crew with memory=True and get_embedder_config(); no exception."""
         if not (use_real_llm and test_memory_enabled):
-            pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1 to run")
+            pytest.skip("precondition: AI_TEAM_USE_REAL_LLM=1 and AI_TEAM_TEST_MEMORY=1")
         if not os.environ.get("OPENROUTER_API_KEY"):
-            pytest.skip("OPENROUTER_API_KEY not set")
+            pytest.skip("precondition: OPENROUTER_API_KEY not set")
 
         from ai_team.config.llm_factory import create_llm_for_role
         from ai_team.config.models import OpenRouterSettings
@@ -80,7 +80,7 @@ class TestCrewMemoryWithEmbedder:
             )
         except PydanticValidationError as e:
             if "embedder" in str(e).lower():
-                pytest.skip(f"Embedder init failed: {e!s}")
+                pytest.fail(f"Embedder init failed after OPENROUTER_API_KEY was present: {e!s}")
             raise
         result = crew.kickoff(inputs={})
         assert result is not None
