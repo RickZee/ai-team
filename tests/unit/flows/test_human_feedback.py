@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ai_team.flows.human_feedback import (
+from ai_team.backends.crewai_backend.flows.human_feedback import (
     FeedbackType,
     HumanFeedbackHandler,
     HumanFeedbackRequest,

@@ -23,7 +23,7 @@ import signal
 import sys
 from pathlib import Path
 
-from ai_team.utils.demo_input import load_demo_input, resolve_team_profile
+from ai_team.config.demo_input import load_demo_input, resolve_team_profile
 
 # Default wall-clock budget for a single demo run. The pipeline has no internal
 # watchdog, so a hung LLM/tool call can otherwise block indefinitely.
@@ -102,7 +102,7 @@ def _run_crewai(
     monitor: object | None,
     skip_estimate: bool,
 ) -> dict:
-    from ai_team.flows.main_flow import run_ai_team
+    from ai_team.backends.crewai_backend.flows.main_flow import run_ai_team
 
     return run_ai_team(
         description,

@@ -9,16 +9,16 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from ai_team.flows.human_feedback import MockHumanFeedbackHandler
-from ai_team.flows.main_flow import AITeamFlow
-from ai_team.flows.routing import (
+from ai_team.backends.crewai_backend.flows.human_feedback import MockHumanFeedbackHandler
+from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
+from ai_team.backends.crewai_backend.flows.routing import (
     route_after_deployment,
     route_after_development,
     route_after_planning,
     route_after_smoke,
     route_after_testing,
 )
-from ai_team.flows.state import ProjectPhase
+from ai_team.backends.crewai_backend.flows.state import ProjectPhase
 
 
 # Routing is on the flow instance; route_after_intake is a method. Check routing module.
@@ -285,7 +285,7 @@ class TestFlowWithMonitor:
         """intake_request calls monitor.on_phase_change('intake') and on_guardrail for security."""
         from unittest.mock import patch
 
-        from ai_team.flows.main_flow import AITeamFlow
+        from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
 
         mock_monitor = MagicMock()
         with patch(
@@ -311,13 +311,15 @@ class TestFlowCrewVerboseFromMonitor:
         """With monitor, planning crew kickoff is called with verbose=False."""
         from unittest.mock import patch
 
-        from ai_team.flows.main_flow import AITeamFlow
+        from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
 
         mock_monitor = MagicMock()
-        with patch("ai_team.crews.planning_crew.kickoff") as mock_planning_kickoff:
+        with patch(
+            "ai_team.backends.crewai_backend.crews.planning_crew.kickoff"
+        ) as mock_planning_kickoff:
             mock_planning_kickoff.return_value = "Requirements and architecture output"
             with patch(
-                "ai_team.flows.main_flow._parse_planning_output",
+                "ai_team.backends.crewai_backend.flows.main_flow._parse_planning_output",
                 return_value=(MagicMock(), MagicMock(), False),
             ):
                 flow = AITeamFlow(monitor=mock_monitor)
@@ -331,12 +333,14 @@ class TestFlowCrewVerboseFromMonitor:
         """Without monitor, planning crew kickoff is called with verbose=False (eval/subprocess safe)."""
         from unittest.mock import patch
 
-        from ai_team.flows.main_flow import AITeamFlow
+        from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
 
-        with patch("ai_team.crews.planning_crew.kickoff") as mock_planning_kickoff:
+        with patch(
+            "ai_team.backends.crewai_backend.crews.planning_crew.kickoff"
+        ) as mock_planning_kickoff:
             mock_planning_kickoff.return_value = "Requirements and architecture output"
             with patch(
-                "ai_team.flows.main_flow._parse_planning_output",
+                "ai_team.backends.crewai_backend.flows.main_flow._parse_planning_output",
                 return_value=(MagicMock(), MagicMock(), False),
             ):
                 flow = AITeamFlow(monitor=None)

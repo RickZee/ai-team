@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from ai_team.flows.error_handling import (
+from ai_team.backends.crewai_backend.flows.error_handling import (
     CIRCUIT_BREAKER_THRESHOLD,
     RETRY_BACKOFF_DELAYS,
     ErrorCategory,
@@ -29,7 +29,7 @@ from ai_team.flows.error_handling import (
     reset_circuit,
     rollback_last_phase,
 )
-from ai_team.flows.state import ProjectPhase, ProjectState
+from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 
 # -----------------------------------------------------------------------------
 # Error classification

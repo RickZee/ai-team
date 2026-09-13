@@ -397,14 +397,14 @@ The cheapest phase and the one a reviewer reads first.
 
 ## Phase 6 — Package boundaries *(largest diff)*
 
-- [ ] **6.1 Break the eval→backend coupling**
+- [x] **6.1 Break the eval→backend coupling**
   - Replace `evals/checks/trajectory.py`'s import of `ai_team.flows` with a
     backend-neutral phase-name source in `core/` or the taxonomy.
   - **Definition of done:** no module under `evals/` imports `ai_team.backends` or
     `ai_team.flows`; check behaviour unchanged (Tier A replay identical).
   - _Requirements: R10.2_
 
-- [ ] **6.2 Move the CrewAI-private packages**
+- [x] **6.2 Move the CrewAI-private packages**
   - `git mv` `agents/`, `crews/`, `tasks/`, `flows/` under
     `src/ai_team/backends/crewai_backend/`. Update imports. **No other change in this
     commit.**
@@ -415,33 +415,33 @@ The cheapest phase and the one a reviewer reads first.
     import, and agent-rule changes; `tests/e2e/web` green.
   - _Requirements: R10.1, R10.6, R21.10_
 
-- [ ] **6.3 Deprecation shims**
+- [x] **6.3 Deprecation shims**
   - Add `ai_team.agents`, `ai_team.crews`, `ai_team.tasks`, `ai_team.flows` shim modules
     that re-export and emit `DeprecationWarning` with a removal date.
   - **Definition of done:** old import paths work and warn; a test asserts the warning.
   - _Requirements: R10.3_
 
-- [ ] **6.4 Import-direction guard**
+- [x] **6.4 Import-direction guard**
   - `tests/unit/repo/test_import_direction.py` enforcing the design §4 table.
   - **Definition of done:** passes; adding `from ai_team.backends...` to a `core/` module
     fails it with a message naming the rule.
   - _Requirements: R10.4, R10.5, R11.2_
 
-- [ ] **6.5 Guardrails facade**
+- [x] **6.5 Guardrails facade**
   - Move the 572 lines of logic out of `guardrails/__init__.py` into named modules,
     leaving imports and `__all__`.
   - **Definition of done:** no behaviour change; every existing guardrail test green
     without import changes.
   - _Requirements: R11.3_
 
-- [ ] **6.6 Dissolve `utils/` and review `models/`**
+- [x] **6.6 Dissolve `utils/` and review `models/`**
   - Move each member of `utils/` to the package that owns its subject, or delete it if
     unreachable. Move `models/outputs.py` to `ui/artifacts/` if it remains single-consumer.
   - **Definition of done:** no package named `utils` remains, or `design.md` §4 records why
     it does; every moved module has a stated owner.
   - _Requirements: R11.4, R11.5_
 
-- [ ] **6.7 Phase gate**
+- [x] **6.7 Phase gate**
   - **Definition of done:** full CI green; README structure tree updated to the post-move
     layout; `tests/e2e/web` green — the proof the move was structural only.
 

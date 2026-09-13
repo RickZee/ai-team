@@ -8,8 +8,8 @@ Set AI_TEAM_USE_REAL_LLM=1 to run against real Ollama; default is mocked.
 from unittest.mock import MagicMock, patch
 
 import pytest
+from ai_team.backends.crewai_backend.crews.planning_crew import kickoff
 from ai_team.config.settings import get_settings
-from ai_team.crews.planning_crew import kickoff
 from crewai.crew import CrewOutput
 from crewai.utilities.converter import ConverterError
 from pydantic import ValidationError
@@ -46,7 +46,7 @@ class TestPlanningCrewKickoff:
             return
 
         with patch(
-            "ai_team.crews.planning_crew.create_planning_crew",
+            "ai_team.backends.crewai_backend.crews.planning_crew.create_planning_crew",
         ) as mock_create:
             mock_crew = MagicMock()
             mock_crew.kickoff.return_value = mock_crew_output

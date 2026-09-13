@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ai_team.agents.base import (
+from ai_team.backends.crewai_backend.agents.base import (
     ROLE_TO_SETTINGS_KEY,
     BaseAgent,
     _load_agents_config,
@@ -70,8 +70,11 @@ class TestCreateAgent:
         self, minimal_config: dict, mock_llm
     ) -> None:
         with (
-            patch("ai_team.agents.base.get_settings") as mock_settings,
-            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
+            patch(
+                "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
+                return_value=mock_llm,
+            ),
             patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
         ):
             mock_settings.return_value.guardrails.security_enabled = False

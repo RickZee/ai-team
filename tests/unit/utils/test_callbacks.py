@@ -4,7 +4,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from ai_team.utils.callbacks import AITeamCallback, MetricsReport
+from ai_team.backends.crewai_backend.callbacks import AITeamCallback, MetricsReport
 
 # -----------------------------------------------------------------------------
 # MetricsReport

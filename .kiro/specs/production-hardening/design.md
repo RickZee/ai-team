@@ -129,9 +129,13 @@ src/ai_team/
 | `ui/` | everything above | another backend's internals |
 | `evals/` | `core`, `harness`, `config` (contracts only) | `backends` (R10.2) |
 
-Two packages fail the "can you name what it owns" test today and are handled by R11.4–11.5:
-`utils/` (a name that means "had no home") and `models/` (whose 459-line `outputs.py` has
-exactly one consumer, `ui/artifacts/service.py` — so it is a UI concern, not a domain one).
+**After Track B (R11.4–11.5):** `utils/` is dissolved. Owners: `tools/coverage_paths.py`,
+`config/demo_input.py`, `backends/comparison.py`, `backends/crewai_backend/callbacks.py`,
+`backends/crewai_backend/llm_wrapper.py`. `reasoning.py` was unreachable and deleted.
+`models/` remains — it owns shared domain types (`requirements`, `architecture`,
+`development`, `qa_models`, `comparison_report`). `models/outputs.py` was a single-consumer
+LLM schema dump used only by the artifacts service; that consumer now normalizes dicts
+and the file is gone.
 
 ---
 

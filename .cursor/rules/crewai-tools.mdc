@@ -4,6 +4,9 @@ globs: "src/ai_team/tools/**/*.py"
 alwaysApply: false
 ---
 
+CrewAI agents, crews, tasks, and flows live under `src/ai_team/backends/crewai_backend/`.
+Tools stay in `src/ai_team/tools/`.
+
 # Tool Definition Pattern
 
 - Use `@tool("Display Name")`; docstring with Args and Returns

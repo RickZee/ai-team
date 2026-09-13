@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 from ai_team.core.results.writer import (
     scorecard_from_langgraph_state,
     scorecard_from_project_state,
 )
-from ai_team.flows.state import ProjectPhase, ProjectState
 from ai_team.tools import test_tools as test_tools_mod
 
 

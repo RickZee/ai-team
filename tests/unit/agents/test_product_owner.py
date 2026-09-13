@@ -1,8 +1,8 @@
 """Unit tests for Product Owner agent, tools, and validation."""
 
 import pytest
-from ai_team.agents.base import BaseAgent
-from ai_team.agents.product_owner import (
+from ai_team.backends.crewai_backend.agents.base import BaseAgent
+from ai_team.backends.crewai_backend.agents.product_owner import (
     create_product_owner_agent,
     get_template_for_project_type,
     requirements_from_agent_output,
@@ -157,8 +157,11 @@ class TestCreateProductOwnerAgent:
         mock_llm = MagicMock()
         mock_llm.model = "openrouter/deepseek/deepseek-v4-flash"
         with (
-            patch("ai_team.agents.base.get_settings") as mock_settings,
-            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
+            patch(
+                "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
+                return_value=mock_llm,
+            ),
             patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
         ):
             mock_settings.return_value.guardrails.security_enabled = False

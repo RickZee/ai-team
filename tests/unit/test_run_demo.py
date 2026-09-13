@@ -28,7 +28,7 @@ def _load_run_demo_module():
 
 def _run_demo_main(argv: list[str]):
     """Invoke run_demo.main() with mocks; never arm SIGALRM (Linux CI + pytest signals)."""
-    with patch("ai_team.flows.main_flow.run_ai_team") as mock_run:
+    with patch("ai_team.backends.crewai_backend.flows.main_flow.run_ai_team") as mock_run:
         mock_run.return_value = {"result": None, "state": {"current_phase": "complete"}}
         run_demo = _load_run_demo_module()
         with (
@@ -85,7 +85,7 @@ class TestRunDemoLoadDescription:
 
     def test_load_description_from_input_json(self) -> None:
         """Demo 02 has input.json; content includes Flask REST API."""
-        from ai_team.utils.demo_input import load_project_description
+        from ai_team.config.demo_input import load_project_description
 
         demo_dir = REPO_ROOT / "demos" / "02_todo_app"
         if not demo_dir.is_dir():
@@ -96,7 +96,7 @@ class TestRunDemoLoadDescription:
 
     def test_load_description_from_txt(self, tmp_path: Path) -> None:
         """project_description.txt takes precedence when present."""
-        from ai_team.utils.demo_input import load_project_description
+        from ai_team.config.demo_input import load_project_description
 
         demo_dir = tmp_path / "demo"
         demo_dir.mkdir()

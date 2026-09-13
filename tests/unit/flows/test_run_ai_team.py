@@ -6,7 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ai_team.flows.main_flow import FLOW_RECURSION_LIMIT, run_ai_team
+from ai_team.backends.crewai_backend.flows.main_flow import FLOW_RECURSION_LIMIT, run_ai_team
 
 
 class TestRunAiTeamRecursionLimit:
@@ -17,8 +17,10 @@ class TestRunAiTeamRecursionLimit:
         old_limit = sys.getrecursionlimit()
         try:
             with (
-                patch("ai_team.flows.main_flow.validate_models_before_run"),
-                patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class,
+                patch("ai_team.backends.crewai_backend.flows.main_flow.validate_models_before_run"),
+                patch(
+                    "ai_team.backends.crewai_backend.flows.main_flow.AITeamFlow"
+                ) as mock_flow_class,
             ):
                 mock_flow = MagicMock()
                 mock_flow.kickoff.return_value = None
@@ -34,8 +36,10 @@ class TestRunAiTeamRecursionLimit:
         old_limit = sys.getrecursionlimit()
         try:
             with (
-                patch("ai_team.flows.main_flow.validate_models_before_run"),
-                patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class,
+                patch("ai_team.backends.crewai_backend.flows.main_flow.validate_models_before_run"),
+                patch(
+                    "ai_team.backends.crewai_backend.flows.main_flow.AITeamFlow"
+                ) as mock_flow_class,
             ):
                 mock_flow = MagicMock()
                 mock_flow.kickoff.side_effect = RuntimeError("simulated failure")
@@ -57,8 +61,10 @@ class TestRunAiTeamRecursionLimit:
         old_limit = sys.getrecursionlimit()
         try:
             with (
-                patch("ai_team.flows.main_flow.validate_models_before_run"),
-                patch("ai_team.flows.main_flow.AITeamFlow") as mock_flow_class,
+                patch("ai_team.backends.crewai_backend.flows.main_flow.validate_models_before_run"),
+                patch(
+                    "ai_team.backends.crewai_backend.flows.main_flow.AITeamFlow"
+                ) as mock_flow_class,
             ):
                 mock_flow = MagicMock()
                 mock_flow.kickoff.side_effect = capture_limit_and_raise

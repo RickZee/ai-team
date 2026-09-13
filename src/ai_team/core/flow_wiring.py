@@ -1,16 +1,25 @@
-"""Introspect CrewAI Flow listener wiring for self-trigger loops.
+"""Backend-neutral CrewAI Flow listener introspection (eval contract, R10.2).
 
-CrewAI Flow emits a completed method's own name as the next trigger and clears
-completed listeners to allow cycles. A method that ``@listen``s to its own name
-therefore re-triggers forever (taxonomy FM-002 / failure-taxonomy §2).
-
-This module is the single source of truth for that introspection — used by the
-unit meta-test and by ``CHK-listener-self-trigger``.
+Evals must not import ``ai_team.backends.crewai_backend.flows``. The CrewAI flow class registers itself
+here at import time; checks introspect whatever is registered.
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+_FLOW_CLS: type[Any] | None = None
+
+
+def register_flow_class(flow_cls: type[Any]) -> None:
+    """Record the live Flow subclass for listener self-trigger checks."""
+    global _FLOW_CLS
+    _FLOW_CLS = flow_cls
+
+
+def get_registered_flow_class() -> type[Any] | None:
+    """Return the registered Flow class, or None if no backend loaded it."""
+    return _FLOW_CLS
 
 
 def flow_trigger_map(flow_cls: type[Any]) -> dict[str, tuple[list[str], bool]]:

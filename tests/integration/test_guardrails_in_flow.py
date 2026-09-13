@@ -7,15 +7,15 @@ guardrail callback on rejection, and flow continuing when guardrails pass.
 from __future__ import annotations
 
 import pytest
-from ai_team.flows.main_flow import AITeamFlow
-from ai_team.flows.state import ProjectPhase, ProjectState
+from ai_team.backends.crewai_backend.callbacks import AITeamCallback
+from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
+from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 from ai_team.guardrails.security import (
     GuardrailResult,
     code_safety_guardrail,
     crewai_code_safety_guardrail,
     prompt_injection_guardrail,
 )
-from ai_team.utils.callbacks import AITeamCallback
 
 # -----------------------------------------------------------------------------
 # Guardrail rejection triggers retry logic

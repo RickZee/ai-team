@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ai_team.flows.listener_introspection import flow_trigger_map, self_triggering_listeners
-from ai_team.flows.main_flow import AITeamFlow
+from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
+from ai_team.core.flow_wiring import flow_trigger_map, self_triggering_listeners
 
 
 class TestNoSelfTriggeringListeners:

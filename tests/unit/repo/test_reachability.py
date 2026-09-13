@@ -28,6 +28,14 @@ _ENTRY_POINTS = [
 
 _SKIP_PARTS = frozenset({"vendor", "node_modules", "frontend", "__pycache__"})
 
+# Compatibility shims (task 6.3). Imported only via deprecated paths; removal 2026-12-31.
+_DEPRECATED_SHIM_PREFIXES = (
+    "src/ai_team/agents/",
+    "src/ai_team/crews/",
+    "src/ai_team/tasks/",
+    "src/ai_team/flows/",
+)
+
 
 def _iter_py() -> list[Path]:
     out: list[Path] = []
@@ -130,11 +138,18 @@ def test_no_orphan_modules() -> None:
                     if name.startswith(prefix):
                         used_by[name].add(src)
 
+    for prefix in _DEPRECATED_SHIM_PREFIXES:
+        shim_dir = REPO_ROOT / prefix.rstrip("/")
+        if not shim_dir.is_dir() or not any(shim_dir.glob("*.py")):
+            raise AssertionError(f"deprecated shim prefix matched nothing: {prefix}")
+
     real_orphans: list[str] = []
     test_prefixes = ("tests.",)
     for name, path in sorted(by_name.items()):
         rel = path.relative_to(REPO_ROOT).as_posix()
         if rel in DORMANT_MODULES or path.name == "__init__.py":
+            continue
+        if any(rel.startswith(p) for p in _DEPRECATED_SHIM_PREFIXES):
             continue
         if "ui/web/frontend" in rel:
             continue

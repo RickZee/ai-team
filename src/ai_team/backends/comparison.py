@@ -8,13 +8,13 @@ from pathlib import Path
 
 import structlog
 from ai_team.backends.registry import get_backend
+from ai_team.config.demo_input import load_project_description, resolve_team_profile
 from ai_team.core.result import ProjectResult
 from ai_team.core.team_profile import TeamProfile, load_team_profile
 from ai_team.models.comparison_report import (
     ComparisonReport,
     snapshot_from_project_result,
 )
-from ai_team.utils.demo_input import load_project_description, resolve_team_profile
 
 logger = structlog.get_logger(__name__)
 

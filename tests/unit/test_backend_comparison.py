@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from ai_team.backends.comparison import compare_backends_on_description
 from ai_team.core.result import ProjectResult
-from ai_team.utils.backend_comparison import compare_backends_on_description
 
 
 def test_compare_backends_on_description_uses_both_backends() -> None:
@@ -41,7 +41,7 @@ def test_compare_backends_on_description_uses_both_backends() -> None:
             b.run.return_value = pr_l
         return b
 
-    with patch("ai_team.utils.backend_comparison.get_backend", side_effect=fake_get):
+    with patch("ai_team.backends.comparison.get_backend", side_effect=fake_get):
         report = compare_backends_on_description(
             description="A" * 20,
             demo_path=Path("/tmp/demo"),

@@ -1,11 +1,9 @@
-"""Task definitions for planning, development, testing, and deployment phases."""
+"""Deprecated import path. Removal: 2026-12-31 (v0.3.0)."""
 
-from ai_team.tasks.deployment_tasks import (
-    create_deployment_packaging_task,
-    create_documentation_generation_task,
-)
+from __future__ import annotations
 
-__all__ = [
-    "create_deployment_packaging_task",
-    "create_documentation_generation_task",
-]
+from ai_team._compat import warn_moved
+
+warn_moved("ai_team.tasks", "ai_team.backends.crewai_backend.tasks")
+
+from ai_team.backends.crewai_backend.tasks import *  # noqa: E402, F403

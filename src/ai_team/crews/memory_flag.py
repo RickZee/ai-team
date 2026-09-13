@@ -1,13 +1,9 @@
-"""Crew-level memory toggle aligned with application settings."""
+"""Deprecated import path. Removal: 2026-12-31 (v0.3.0)."""
 
 from __future__ import annotations
 
+from ai_team._compat import warn_moved
 
-def crew_memory_enabled() -> bool:
-    """Return whether CrewAI crew memory and embedder should be enabled."""
-    try:
-        from ai_team.config.settings import get_settings
+warn_moved("ai_team.crews.memory_flag", "ai_team.backends.crewai_backend.crews.memory_flag")
 
-        return get_settings().memory.memory_enabled
-    except Exception:
-        return False
+from ai_team.backends.crewai_backend.crews.memory_flag import *  # noqa: E402, F403

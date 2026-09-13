@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from ai_team.utils.coverage_paths import coverage_subprocess_env
+from ai_team.tools.coverage_paths import coverage_subprocess_env
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 

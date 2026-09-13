@@ -144,7 +144,7 @@ New behavior should be covered by unit and/or integration tests as appropriate.
 1. **Define the role** in `config/agents.yaml` (role, goal, backstory) — this file is shared across all three backends.
 2. **Map it to a model** by adding the role to `ENV_MODELS` in [`src/ai_team/config/models.py`](src/ai_team/config/models.py) (keyed by environment tier → role → `RoleModelConfig`). There is no per-agent `.env` model variable; model assignment lives in `models.py`, with optional per-run overrides in `config/team_profiles.yaml`. See [docs/MODELS.md](docs/MODELS.md).
 3. **Add it to a team profile** in `config/team_profiles.yaml` so a profile actually rosters the new role.
-4. **Wire it into the backends that need it:** the CrewAI path uses `src/ai_team/agents/` + `src/ai_team/crews/`; LangGraph and the Claude SDK consume the same `TeamProfile` roster and prompts. Keep the role's behavior consistent across backends, or document the difference.
+4. **Wire it into the backends that need it:** the CrewAI path uses `src/ai_team/backends/crewai_backend/agents/` + `src/ai_team/backends/crewai_backend/crews/`; LangGraph and the Claude SDK consume the same `TeamProfile` roster and prompts. Keep the role's behavior consistent across backends, or document the difference.
 5. **Document** the role in [docs/AGENTS.md](docs/AGENTS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and add tests.
 
 ### Adding a new tool

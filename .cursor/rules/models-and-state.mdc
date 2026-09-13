@@ -1,6 +1,6 @@
 ---
 description: Pydantic output and flow state models reference
-globs: ["src/ai_team/models/**/*.py", "src/ai_team/flows/state.py"]
+globs: ["src/ai_team/models/**/*.py", "src/ai_team/backends/crewai_backend/flows/state.py"]
 alwaysApply: false
 ---
 
@@ -13,7 +13,7 @@ alwaysApply: false
 - **DeploymentConfig**: dockerfile, docker_compose, ci_pipeline, environment_variables, infrastructure
 - **ProjectReport**: project_id, project_name, status, files, test_results, summary, duration
 
-# Flow State (src/ai_team/flows/state.py)
+# Flow State (src/ai_team/backends/crewai_backend/flows/state.py)
 
 **ProjectState**: project_id, project_description, current_phase, requirements, architecture, generated_files, test_results, deployment_config, phase_history, errors, retry_counts, max_retries, started_at, completed_at, metadata
 

@@ -4,7 +4,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ai_team.tasks.planning_tasks import (
+from ai_team.backends.crewai_backend.tasks.planning_tasks import (
     architecture_guardrail,
     create_planning_tasks,
     planning_tasks_config,
@@ -266,7 +266,9 @@ class TestCreatePlanningTasks:
 
     def test_creates_two_tasks(self) -> None:
         agents = {"product_owner": MagicMock(), "architect": MagicMock()}
-        with patch("ai_team.tasks.planning_tasks.Task") as mock_task_factory:
+        with patch(
+            "ai_team.backends.crewai_backend.tasks.planning_tasks.Task"
+        ) as mock_task_factory:
             mock_t1, mock_t2 = MagicMock(), MagicMock()
             mock_task_factory.side_effect = [mock_t1, mock_t2]
             tasks, timeouts = create_planning_tasks(agents)
@@ -278,7 +280,9 @@ class TestCreatePlanningTasks:
 
     def test_architecture_task_has_context(self) -> None:
         agents = {"product_owner": MagicMock(), "architect": MagicMock()}
-        with patch("ai_team.tasks.planning_tasks.Task") as mock_task_factory:
+        with patch(
+            "ai_team.backends.crewai_backend.tasks.planning_tasks.Task"
+        ) as mock_task_factory:
             mock_req, mock_arch = MagicMock(), MagicMock()
             mock_task_factory.side_effect = [mock_req, mock_arch]
             tasks, _ = create_planning_tasks(agents)
@@ -290,7 +294,9 @@ class TestCreatePlanningTasks:
 
     def test_missing_agent_raises(self) -> None:
         agents = {"product_owner": MagicMock()}
-        with patch("ai_team.tasks.planning_tasks.Task") as mock_task_factory:
+        with patch(
+            "ai_team.backends.crewai_backend.tasks.planning_tasks.Task"
+        ) as mock_task_factory:
             mock_task_factory.return_value = MagicMock()
             with pytest.raises(ValueError, match="architect"):
                 create_planning_tasks(agents)

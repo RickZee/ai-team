@@ -133,9 +133,9 @@ def _patch_create_llm_for_real_openrouter(use_real_llm: bool) -> Any:
         yield
         return
 
-    from ai_team.crews import development_crew as development_crew_mod
-    from ai_team.crews import planning_crew as planning_crew_mod
-    from ai_team.crews import testing_crew as testing_crew_mod
+    from ai_team.backends.crewai_backend.crews import development_crew as development_crew_mod
+    from ai_team.backends.crewai_backend.crews import planning_crew as planning_crew_mod
+    from ai_team.backends.crewai_backend.crews import testing_crew as testing_crew_mod
 
     _orig_create_planning = planning_crew_mod.create_planning_crew
     _orig_create_development = development_crew_mod.create_development_crew
@@ -344,7 +344,7 @@ def mock_testing_crew_output(
     quality_gate_passed: bool,
 ) -> Any:
     """Build a TestingCrewOutput-like object for testing."""
-    from ai_team.crews.testing_crew import TestingCrewOutput
+    from ai_team.backends.crewai_backend.crews.testing_crew import TestingCrewOutput
 
     return TestingCrewOutput(
         test_run_result=test_run_result,

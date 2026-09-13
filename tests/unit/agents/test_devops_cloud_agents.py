@@ -3,9 +3,15 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ai_team.agents.base import BaseAgent
-from ai_team.agents.cloud_engineer import CloudEngineer, create_cloud_engineer
-from ai_team.agents.devops_engineer import DevOpsEngineer, create_devops_engineer
+from ai_team.backends.crewai_backend.agents.base import BaseAgent
+from ai_team.backends.crewai_backend.agents.cloud_engineer import (
+    CloudEngineer,
+    create_cloud_engineer,
+)
+from ai_team.backends.crewai_backend.agents.devops_engineer import (
+    DevOpsEngineer,
+    create_devops_engineer,
+)
 from ai_team.guardrails import SecurityGuardrails
 from ai_team.tools.infrastructure import (
     CLOUD_TOOLS,
@@ -54,8 +60,11 @@ def infra_config() -> dict:
 class TestDevOpsEngineer:
     def test_create_devops_engineer_returns_base_agent(self, mock_llm, infra_config: dict) -> None:
         with (
-            patch("ai_team.agents.base.get_settings") as mock_settings,
-            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
+            patch(
+                "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
+                return_value=mock_llm,
+            ),
             patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
         ):
             mock_settings.return_value.guardrails.security_enabled = False
@@ -74,8 +83,11 @@ class TestDevOpsEngineer:
 class TestCloudEngineer:
     def test_create_cloud_engineer_returns_base_agent(self, mock_llm, infra_config: dict) -> None:
         with (
-            patch("ai_team.agents.base.get_settings") as mock_settings,
-            patch("ai_team.agents.base.create_llm_for_role", return_value=mock_llm),
+            patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
+            patch(
+                "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
+                return_value=mock_llm,
+            ),
             patch("crewai.agent.core.create_llm", side_effect=_identity_llm),
         ):
             mock_settings.return_value.guardrails.security_enabled = False

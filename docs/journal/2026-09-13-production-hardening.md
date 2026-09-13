@@ -23,3 +23,29 @@ serves the UI. Track B (package move, router split) deferred and recorded in
 - WebSocket Origin allowlist was only ports 5173/8421, so E2E on an ephemeral loopback port hung on "Connecting to live run…". Loopback Origin (any port) is now allowed; `https://evil.example` still fails.
 - Docker `uv sync` failed: hatchling required `README.md` and the builder stage did not copy it.
 - `docker compose … build` interpolated `AI_TEAM_WEB_TOKEN:?…` at parse time; switched to `${AI_TEAM_WEB_TOKEN:-}` so build works, bind guard still refuses `0.0.0.0` when empty.
+
+## Track B — 6.1 eval→core
+
+Evals no longer import `ai_team.flows` or `ai_team.backends`. CHK-listener-self-trigger
+reads `ai_team.core.flow_wiring` (CrewAI `AITeamFlow` registers at import). Solo arm
+uses `ai_team.core.workspace_layout`. Deleted `flows/listener_introspection.py` after
+the logic moved to core (reachability would have flagged the re-export as test-only).
+Unregistered flow class does not pin an empty eval cache.
+
+## Track B — 6.2 CrewAI package move
+
+`git mv` of `agents/`, `crews/`, `tasks/`, `flows/` under
+`src/ai_team/backends/crewai_backend/`. YAML config still lives in `ai_team.config`
+(resolved via the config package path, not `parent.parent`). Lazy flow→crew imports
+are relative so the >80-line ratchet stays at 58. Web E2E 27 passed, 1 skipped.
+
+## Track B — 6.3–6.7
+
+Deprecated shims at `ai_team.{agents,crews,tasks,flows}` warn and re-export until
+2026-12-31 (v0.3.0). Import-direction guard covers core/config/harness/tools/guardrails/memory/evals
+↛ backends/ui, plus backend subtrees ↛ each other. Guardrails `__init__` is a facade;
+logic lives in `legacy.py`. `utils/` dissolved (`coverage_paths` → tools, `demo_input` →
+config, `comparison` → backends, `callbacks`/`llm_wrapper` → crewai_backend; `reasoning.py`
+deleted as unreachable). `models/outputs.py` removed; artifacts service already normalized
+dicts. `models/` kept as domain types (design.md §4). README tree updated. Unit 1527,
+web E2E 27 passed / 1 skipped.

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from ai_team.flows.main_flow import (
+from ai_team.backends.crewai_backend.flows.main_flow import (
     _looks_like_architecture,
     _parse_planning_output,
 )

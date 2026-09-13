@@ -1,32 +1,11 @@
-"""
-DevOps / SRE Engineer agent.
+"""Deprecated import path. Removal: 2026-12-31 (v0.3.0)."""
 
-Designs CI/CD pipelines, Docker configs, K8s manifests, and monitoring.
-Uses tools: dockerfile_generator, compose_generator, ci_pipeline_generator,
-k8s_manifest_generator, monitoring_config_generator.
-Generated IaC is validated for security best practices (multi-stage builds,
-non-root users, health checks, resource limits).
-"""
+from __future__ import annotations
 
-from ai_team.agents.base import BaseAgent, create_agent
-from ai_team.tools.infrastructure import (
-    DEVOPS_TOOLS,
+from ai_team._compat import warn_moved
+
+warn_moved(
+    "ai_team.agents.devops_engineer", "ai_team.backends.crewai_backend.agents.devops_engineer"
 )
 
-__all__ = ["DevOpsEngineer", "create_devops_engineer"]
-
-
-def create_devops_engineer(**kwargs) -> BaseAgent:
-    """
-    Create the DevOps Engineer agent from config with infrastructure tools.
-
-    Uses agents.yaml key 'devops_engineer' (Role "DevOps / SRE Engineer",
-    allow_delegation: false, max_iter: 10). Tools generate Dockerfile,
-    docker-compose.yml, .github/workflows/ci.yml, K8s manifests, and
-    monitoring config; all outputs are validated for security best practices.
-    """
-    return create_agent("devops_engineer", tools=DEVOPS_TOOLS, **kwargs)
-
-
-# Alias for direct use
-DevOpsEngineer = create_devops_engineer
+from ai_team.backends.crewai_backend.agents.devops_engineer import *  # noqa: E402, F403
