@@ -80,7 +80,10 @@ tag `v0.2.0`, GitHub Release at https://github.com/RickZee/ai-team/releases/tag/
 Security job uploaded `pip-audit-report`. Phase gates 1.7 / 3.6 / 3.7 closed on
 green CI run 34774054947.
 
-Task 9.1 left open (human-triggered spend).
+Task 9.1 left open (human-triggered spend). The 2026-09-13 LangGraph smoke
+did not produce a publishable `PERFORMANCE.md` receipt; it is the first
+live eval case instead:
+[`docs/eval-runs/2026-09-13-langgraph-smoke/`](../eval-runs/2026-09-13-langgraph-smoke/).
 
 ## CI without `gh`
 

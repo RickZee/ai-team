@@ -1,0 +1,102 @@
+2026-09-13 14:26:50 [info     ] constraints_created            n=0 path=/Users/rickzakharov/dev/github/ai-team/workspace/2026-09-13_182650_write-a-single-python-module_01/docs/CONSTRAINTS.md
+2026-09-13 14:26:50 [info     ] spend_guard_reset              budget_usd=25.0 run_id=2026-09-13_182650_write-a-single-python-module_01
+2026-09-13 14:26:50 [info     ] langgraph_main_graph_compiled  checkpointer=SqliteSaver mode=full
+2026-09-13 14:26:50 [info     ] planning_subgraph_compiled     mode=single_agent workers=['architect']
+2026-09-13 14:26:50 [info     ] guardrail_wrapped_subgraph     behavioral_role=architect
+2026-09-13 14:27:10 [debug    ] route_after_behavioral         decision=pass status=pass
+2026-09-13 14:27:10 [info     ] development_subgraph_compiled  mode=single_agent workers=['fullstack_developer']
+2026-09-13 14:27:10 [info     ] guardrail_wrapped_subgraph     behavioral_role=fullstack_developer
+2026-09-13 14:27:21 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:27:21 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:27:21 [info     ] draft_staged                   bytes=2127 draft_id=31a97bc9286542309c600aeddcaea3a9 intended_path=test_calc.py
+2026-09-13 14:27:21 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/31a97bc9286542309c600aeddcaea3a9'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:27:21 [info     ] draft_staged                   bytes=807 draft_id=69e0730073284f9f899e853b349c1a02 intended_path=calc.py
+2026-09-13 14:27:21 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/69e0730073284f9f899e853b349c1a02'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:27:54 [debug    ] route_after_behavioral         decision=pass status=pass
+2026-09-13 14:27:54 [info     ] testing_subgraph_compiled      agent=qa_engineer
+2026-09-13 14:27:54 [info     ] guardrail_wrapped_subgraph     behavioral_role=qa_engineer
+2026-09-13 14:28:38 [error    ] testing_subgraph_failed        error=Path must be under workspace: /Users/rickzakharov/dev/github/ai-team/workspace
+│   [2m560 [0m[2m│   │   │   [0m_nested_config(config, "testing"),                         │
+│ │                    [2m│   [0m'guardrail_retry_count',                          │ │
+│ │                          [2m│   [0m'guardrail_retry_count',                    │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                    [1m0x133710300[0m>, 'guardrail_retry_count':                │ │
+│ │                    [1m0x133710300[0m>, 'guardrail_retry_count':                │ │
+│ │                    [2m│   [0m'guardrail_retry_count',                          │ │
+│ │                          at [1m0x133710300[0m>, 'guardrail_retry_count':       │ │
+│ │                          [2m│   [0m'guardrail_retry_count',                    │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                           'guardrail_retry_count':                       │ │
+│ │                    [1m0x13371d000[0m>, 'guardrail_retry_count':                │ │
+│ │               [1m0x13371d000[0m>, 'guardrail_retry_count':                     │ │
+│ │               [1m0x13371d000[0m>, 'guardrail_retry_count':                     │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │            [1m0x13371d000[0m>, 'guardrail_retry_count':                        │ │
+│ │                [1m0x13371d000[0m>, 'guardrail_retry_count':                    │ │
+│ │                [1m0x13371d000[0m>, 'guardrail_retry_count':                    │ │
+│ │                [1m0x13371d000[0m>, 'guardrail_retry_count':                    │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │                 [1m0x13371d000[0m>, 'guardrail_retry_count':                   │ │
+│ │              [1m0x13371d000[0m>, 'guardrail_retry_count':                      │ │
+│ │              [1m0x13371d000[0m>, 'guardrail_retry_count':                      │ │
+│ │                       [1m0x13371d000[0m>, 'guardrail_retry_count':             │ │
+│ │                       [1m0x13371d000[0m>, 'guardrail_retry_count':             │ │
+│ │                       [1m0x13371d000[0m>, 'guardrail_retry_count':             │ │
+│ │                       [1m0x13371d000[0m>, 'guardrail_retry_count':             │ │
+│ │                       [1m0x13371d000[0m>, 'guardrail_retry_count':             │ │
+│ │                       [1m0x13371d000[0m>, 'guardrail_retry_count':             │ │
+│ │                [1m0x13371d000[0m>, 'guardrail_retry_count':                    │ │
+2026-09-13 14:28:44 [info     ] toolbus_span                   agent_role=_harness backend=None kind=write phase=development risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:28:44 [info     ] draft_staged                   bytes=808 draft_id=23e628c52815428aa10b729cae037e88 intended_path=calc.py
+2026-09-13 14:28:44 [info     ] draft_committed                draft_id=23e628c52815428aa10b729cae037e88 path=calc.py
+2026-09-13 14:28:44 [info     ] toolbus_span                   agent_role=_harness artifact_refs=['calc.py'] backend=None code=ok kind=write ok=True phase=development result=ok risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:28:44 [info     ] code_block_extracted_to_workspace path=calc.py
+2026-09-13 14:28:44 [info     ] toolbus_span                   agent_role=_harness backend=None kind=write phase=development risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:28:44 [info     ] draft_staged                   bytes=2128 draft_id=74cb51548f0242cfa677345e51df6b54 intended_path=test_calc.py
+2026-09-13 14:28:44 [info     ] draft_committed                draft_id=74cb51548f0242cfa677345e51df6b54 path=test_calc.py
+2026-09-13 14:28:44 [info     ] toolbus_span                   agent_role=_harness artifact_refs=['test_calc.py'] backend=None code=ok kind=write ok=True phase=development result=ok risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:28:44 [info     ] code_block_extracted_to_workspace path=test_calc.py
+2026-09-13 14:28:44 [info     ] testing_exception_fallback     count=2
+2026-09-13 14:29:04 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:29:04 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:29:04 [info     ] draft_staged                   bytes=2127 draft_id=74996b620a5e4a3a8f040eb2829c2ae1 intended_path=tests/test_calc.py
+2026-09-13 14:29:04 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/74996b620a5e4a3a8f040eb2829c2ae1'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:29:04 [info     ] draft_staged                   bytes=807 draft_id=52eed271c3464186876db0542671e625 intended_path=calc.py
+2026-09-13 14:29:04 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/52eed271c3464186876db0542671e625'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:29:13 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:29:13 [info     ] draft_staged                   bytes=813 draft_id=b75ce242ea8444bba28ba5b1eed7f93d intended_path=calc.py
+2026-09-13 14:29:13 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/b75ce242ea8444bba28ba5b1eed7f93d'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:29:32 [debug    ] route_after_behavioral         decision=pass status=pass
+2026-09-13 14:32:20 [info     ] route_after_behavioral         decision=fail message=Output deviates from task scope (relevance 5% below 15%).
+2026-09-13 14:32:20 [info     ] guardrail_retry_wrap           attempt=1 max_retries=3
+2026-09-13 14:35:39 [info     ] route_after_behavioral         decision=fail message=Output deviates from task scope (relevance 0% below 15%).
+2026-09-13 14:35:39 [info     ] guardrail_retry_wrap           attempt=2 max_retries=3
+2026-09-13 14:40:12 [info     ] route_after_behavioral         decision=fail message=Output deviates from task scope (relevance 9% below 15%).
+2026-09-13 14:40:12 [info     ] guardrail_retry_wrap           attempt=3 max_retries=3
+2026-09-13 14:46:27 [info     ] route_after_behavioral         decision=fail message=Output deviates from task scope (relevance 0% below 15%).
+2026-09-13 14:46:38 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:46:38 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:46:38 [info     ] draft_staged                   bytes=813 draft_id=f13d0d1df8374c7e802a2b8a71103d7f intended_path=calc.py
+2026-09-13 14:46:38 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/f13d0d1df8374c7e802a2b8a71103d7f'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:46:38 [info     ] draft_staged                   bytes=2127 draft_id=c7d13e7edab84fecb1a6f32296582a42 intended_path=tests/test_calc.py
+2026-09-13 14:46:38 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/c7d13e7edab84fecb1a6f32296582a42'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:46:59 [debug    ] route_after_behavioral         decision=pass status=pass
+2026-09-13 14:48:36 [debug    ] route_after_behavioral         decision=pass status=pass
+2026-09-13 14:48:52 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:48:52 [info     ] toolbus_span                   agent_role=None backend=None kind=write phase=None risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_use
+2026-09-13 14:48:52 [info     ] draft_staged                   bytes=2127 draft_id=50fcd5eaac344af3b63b07f29e4c1f7b intended_path=workspace/2026-09-13_182650_write-a-single-python-module_01/tests/test_calc.py
+2026-09-13 14:48:52 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/50fcd5eaac344af3b63b07f29e4c1f7b'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:48:52 [info     ] draft_staged                   bytes=813 draft_id=3b5351ad1ca94a7496f6aa166ceb1719 intended_path=workspace/2026-09-13_182650_write-a-single-python-module_01/calc.py
+2026-09-13 14:48:52 [info     ] toolbus_span                   agent_role=None artifact_refs=['.harness/drafts/3b5351ad1ca94a7496f6aa166ceb1719'] backend=None code=drafted kind=write ok=True phase=None result=drafted risk_class=write run_id=None tool=write_file tool_name=write_file type=tool_result
+2026-09-13 14:49:19 [debug    ] route_after_behavioral         decision=pass status=pass

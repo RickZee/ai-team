@@ -1,0 +1,10 @@
+{
+  "kind": "bare_openrouter_chat",
+  "wall_s": 1.528,
+  "model": "deepseek/deepseek-v4-flash",
+  "prompt_tokens": 76,
+  "completion_tokens": 256,
+  "total_tokens": 332,
+  "cost_usd": 7.16e-05,
+  "completion_id": "gen-1789323995-LOO357hyDE0l2WLKOqun"
+}

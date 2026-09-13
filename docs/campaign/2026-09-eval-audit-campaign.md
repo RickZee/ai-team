@@ -55,6 +55,13 @@ Three reasons it works for ArqiSoft specifically:
 Do not publish L4 until the annotations exist. A promised follow-up that never
 arrives undoes the credibility the first three bought.
 
+**Source material for L4 (not yet annotated):** the 2026-09-13 LangGraph
+smoke — 1600 s, HITL, retry amplification after a successful write (last-12
+AI relevance scorer, then `retry_development`), empty Home, starved journal.
+Handoff and the debug loop we already describe:
+[`docs/eval-runs/2026-09-13-langgraph-smoke/README.md`](../eval-runs/2026-09-13-langgraph-smoke/README.md).
+Do not put FM ids in the annotation TUI; do not cite a pass rate from n=1.
+
 ---
 
 ## LinkedIn
@@ -345,6 +352,7 @@ corpus still carries one.
 | Raw audit (journal) | [`docs/journal/2026-09-13-eval-methodology-audit.md`](../journal/2026-09-13-eval-methodology-audit.md) |
 | Remediation spec | [`.kiro/specs/eval-methodology-alignment/`](../../.kiro/specs/eval-methodology-alignment/) |
 | Method sources | Husain & Shankar on Lenny's Podcast; Husain, *AI Evals FAQ* |
+| First live case (unlabeled) | [`docs/eval-runs/2026-09-13-langgraph-smoke/`](../eval-runs/2026-09-13-langgraph-smoke/) |
 
 Credit the source material by name in the anchor essay and in L3. The post works
 because it applies someone else's method honestly, not because it invents one.
