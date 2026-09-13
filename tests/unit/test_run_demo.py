@@ -46,7 +46,7 @@ class TestRunDemoOutputMode:
     @pytest.fixture(autouse=True)
     def _ensure_demo_dir(self) -> None:
         if not DEMO_TODO.is_dir():
-            pytest.skip(f"Demo dir not found: {DEMO_TODO}")
+            pytest.skip(f"precondition: demo dir not found ({DEMO_TODO})")
 
     def test_run_demo_crewai_calls_run_ai_team_with_no_monitor(self) -> None:
         """With --output crewai, run_ai_team is called with monitor=None."""
@@ -89,7 +89,7 @@ class TestRunDemoLoadDescription:
 
         demo_dir = REPO_ROOT / "demos" / "02_todo_app"
         if not demo_dir.is_dir():
-            pytest.skip(f"Demo dir not found: {demo_dir}")
+            pytest.skip(f"precondition: demo dir not found ({demo_dir})")
         desc = load_project_description(demo_dir)
         assert "Flask" in desc
         assert "REST API" in desc

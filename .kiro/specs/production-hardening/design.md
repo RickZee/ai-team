@@ -403,10 +403,10 @@ Recorded 2026-09-13. No unanswered row remains.
 | 12.4 | `.archive/` — delete from the tree, or keep with a stated retention rule? | **Delete**; git history is the archive | **Keep** — owner override 2026-09-13; `.archive/README.md` states retention and why each tracked survivor stays |
 | 12.5 | `COMPARISON_RESULTS.md` — merge into the journal, or keep as a distinct diary? | **Keep, with a purpose line** (R3.2); merging 512 lines of dated records loses their order | **Done** — kept |
 | 12.6 | Build backend after dropping Poetry tables — `hatchling` or `uv_build`? | **hatchling** (boring, widely understood, reads PEP 621 directly) | **Done** — hatchling |
-| 12.7 | Move `agents/crews/tasks/flows` with shims, or hard-move and update imports? | **Shims for one release** with a removal date in the docstring | **Deferred** with 12.10 (Track B) |
+| 12.7 | Move `agents/crews/tasks/flows` with shims, or hard-move and update imports? | **Shims for one release** with a removal date in the docstring | **Done** — shims warn until 2026-12-31 (v0.3.0) |
 | 12.8 | Web auth — shared token, or skip auth and document loopback-only? | **Shared token**; "it's local-only" is the sentence every incident report starts with | **Done** — `AI_TEAM_WEB_TOKEN` |
 | 12.9 | R22 benchmark — spend real money on one live multi-backend run, or publish mock-labelled numbers only? | **One live run, budget-capped.** A labelled mock benchmark is honest but answers nothing; this is the only place in the spec where spending is worth arguing for | **Pending human spend** (task 9.1, $25). Envelope documented; mock numbers not published |
-| 12.10 | Track B (phases 6–7) — do it, or record the layout problem in `ARCHITECTURE.md` and move on? | **Record and defer** unless the repo keeps being developed | **Deferred** — recorded in `ARCHITECTURE.md` |
+| 12.10 | Track B (phases 6–7) — do it, or record the layout problem in `ARCHITECTURE.md` and move on? | **Record and defer** unless the repo keeps being developed | **Done** — Phases 6 and 7 landed on `feature/phase-harness-alignment` |
 
 Decisions already closed by the requirements, recorded so they are not reopened: no
 behaviour change to the harness or taxonomy (constraints); deletion beats archiving for

@@ -15,7 +15,7 @@ _FIXTURES = Path("evals/fixtures/traces")
 
 
 @pytest.mark.skipif(
-    not _FIXTURES.is_dir() or not any(_FIXTURES.glob("*.json")), reason="no fixtures"
+    not _FIXTURES.is_dir() or not any(_FIXTURES.glob("*.json")), reason="precondition: no fixtures"
 )
 def test_tier_a_two_runs_byte_identical(tmp_path: Path) -> None:
     """Two consecutive Tier A runs → identical report.json except generated_at; $0 spend."""

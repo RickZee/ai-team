@@ -33,7 +33,7 @@ pytestmark = [
     pytest.mark.real_llm,
     pytest.mark.skipif(
         not os.environ.get("AI_TEAM_USE_REAL_LLM"),
-        reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
+        reason="precondition: AI_TEAM_USE_REAL_LLM=1 is unset",
     ),
 ]
 
@@ -199,7 +199,7 @@ class TestAllBackendsComplete:
         result, _ = backend_result
         score = result.metrics.get("goal_alignment")
         if score is None:
-            pytest.skip("Judge did not run")
+            pytest.fail("LLM judge did not run (compute_metrics requested run_judge=True)")
         assert score >= 0.6, f"{result.backend} goal alignment {score:.2f} < 0.6"
 
     def test_retry_count(self, backend_result):

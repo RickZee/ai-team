@@ -1,6 +1,6 @@
 """Session-wide guards that apply to every test in the suite.
 
-These exist because of two defects found on 2026-09-12 that no amount of line coverage
+These exist because of defects found on 2026-09-12 that no amount of line coverage
 would have caught: a unit test rewrote a committed golden record on every run
 (`test_r16_unit_gaps.py` monkeypatched `VALIDATION_LOG` but not `ALIGNMENT_DIR`), and a
 second test's assertion depended on the repo's `workspace/` directory being empty.
@@ -9,6 +9,11 @@ The rule both violate is the same one: **a test may not modify tracked files.** 
 truth under `evals/golden/`, the replay corpus under `evals/fixtures/traces/`, and the
 taxonomy are inputs to the $0 Tier A gate. A test that edits them corrupts the thing the
 gate measures, and it does so silently — the suite still passes.
+
+A third class is process-global state. ``reset_bus(empty=True)`` and
+``reload_settings()`` leak into later tests under a shuffled run — file-tool
+tests then fail with ``Unknown tool: read_file``. The per-test teardown below
+puts the bus catalog and the settings cache back.
 """
 
 from __future__ import annotations
@@ -67,3 +72,18 @@ def _tracked_inputs_stay_immutable() -> Iterator[None]:
         + ". Redirect the write to tmp_path (monkeypatch the module's directory constant, "
         "e.g. evals.alignment.ALIGNMENT_DIR and VALIDATION_LOG) rather than relaxing this guard."
     )
+
+
+@pytest.fixture(autouse=True)
+def _reset_process_singletons() -> Iterator[None]:
+    """Restore ToolBus and Settings after every test.
+
+    Teardown runs after monkeypatch restores the environment, so
+    ``reload_settings()`` re-reads the real env rather than a leftover tmp_path.
+    """
+    yield
+    from ai_team.config.settings import reload_settings
+    from ai_team.tools.bus import reset_bus
+
+    reset_bus()
+    reload_settings()

@@ -91,7 +91,7 @@ class TestOpenRouterGated:
     ) -> None:
         """create_llm_for_role() returns a CrewAI LLM with correct model_id and base_url."""
         if not use_real_llm:
-            pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
+            pytest.skip("precondition: AI_TEAM_USE_REAL_LLM=1 is unset")
         settings = OpenRouterSettings(
             OPENROUTER_API_KEY=os.environ.get("OPENROUTER_API_KEY", "dummy"),
             OPENROUTER_API_BASE=os.environ.get(
@@ -115,10 +115,10 @@ class TestOpenRouterGated:
     ) -> None:
         """Minimal completion call to verify OpenRouter API key works (free-tier model)."""
         if not use_real_llm:
-            pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
+            pytest.skip("precondition: AI_TEAM_USE_REAL_LLM=1 is unset")
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key or api_key == "dummy":
-            pytest.skip("Set OPENROUTER_API_KEY to run OpenRouter connectivity test")
+            pytest.skip("precondition: OPENROUTER_API_KEY not set")
         base = os.environ.get("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
         url = f"{base.rstrip('/')}/chat/completions"
         payload = {
@@ -130,7 +130,7 @@ class TestOpenRouterGated:
         try:
             resp = httpx.post(url, json=payload, headers=headers, timeout=30.0)
         except httpx.RequestError as e:
-            pytest.skip(f"OpenRouter request failed: {e}")
+            pytest.skip(f"precondition: OpenRouter unreachable ({e})")
         assert (
             resp.status_code == 200
         ), f"OpenRouter API returned {resp.status_code}: {resp.text[:500]}"
@@ -148,7 +148,7 @@ class TestOpenRouterGated:
     ) -> None:
         """Switching AI_TEAM_ENV changes model assignments."""
         if not use_real_llm:
-            pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
+            pytest.skip("precondition: AI_TEAM_USE_REAL_LLM=1 is unset")
         dev_manager = ENV_MODELS[Environment.DEV]["manager"].model_id
         prod_manager = ENV_MODELS[Environment.PROD]["manager"].model_id
         test_manager = ENV_MODELS[Environment.TEST]["manager"].model_id
@@ -164,7 +164,7 @@ class TestOpenRouterGated:
     ) -> None:
         """Estimate output matches expected ranges."""
         if not use_real_llm:
-            pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
+            pytest.skip("precondition: AI_TEAM_USE_REAL_LLM=1 is unset")
         settings = OpenRouterSettings(OPENROUTER_API_KEY="dummy")
         for complexity in ("simple", "medium", "complex"):
             rows, total_with_buffer, within_budget = estimate_run_cost(
@@ -188,7 +188,7 @@ class TestOpenRouterGated:
     ) -> None:
         """get_embedder_config() returns OpenRouter-backed embedder (openai provider)."""
         if not use_real_llm:
-            pytest.skip("Set AI_TEAM_USE_REAL_LLM=1 to run")
+            pytest.skip("precondition: AI_TEAM_USE_REAL_LLM=1 is unset")
         config = get_embedder_config()
         assert config.get("provider") == "openai"
         assert "config" in config

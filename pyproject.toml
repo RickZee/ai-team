@@ -71,6 +71,7 @@ dev = [
     "pip-audit>=2.10.0,<3.0.0",
     "pytest-playwright>=0.8.0,<0.9.0",
     "anthropic>=0.111.0",
+    "pytest-randomly>=5.0.0",
 ]
 
 [build-system]
@@ -152,7 +153,7 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -p no:randomly"
 norecursedirs = [
   ".*",
   "build",

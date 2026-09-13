@@ -234,7 +234,7 @@ The cheapest phase and the one a reviewer reads first.
     to guess whether a committed file is an input or an output.
   - _Requirements: R21.1, R21.6, R21.7, R21.9_
 
-- [ ] **2.8 Phase gate**
+- [x] **2.8 Phase gate**
   - _Requirements: R20.3_
 
 ---
@@ -268,7 +268,7 @@ The cheapest phase and the one a reviewer reads first.
   - **Definition of done:** passes now; fails if a test file is added under `evals/`.
   - _Requirements: R6.3_
 
-- [ ] **3.5 Test hygiene sweep**
+- [x] **3.5 Test hygiene sweep**
   - Confirm the two recorded isolation defects (golden-file writes; order-dependent
     workspace test) are fixed; review all 35 `pytest.skip` sites for the
     missing-precondition rule.

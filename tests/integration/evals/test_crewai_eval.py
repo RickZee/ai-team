@@ -28,7 +28,7 @@ pytestmark = [
     pytest.mark.real_llm,
     pytest.mark.skipif(
         not os.environ.get("AI_TEAM_USE_REAL_LLM"),
-        reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
+        reason="precondition: AI_TEAM_USE_REAL_LLM=1 is unset",
     ),
 ]
 
@@ -114,14 +114,14 @@ class TestCrewAIExperimentalEval:
         m = result.metrics
         score = m.get("goal_alignment")
         if score is None:
-            pytest.skip("LLM judge did not run")
+            pytest.fail("LLM judge did not run (compute_metrics requested run_judge=True)")
         assert score >= 0.6, f"Goal alignment {score:.2f} < 0.6"
 
     def test_acceptance_criteria_met(self, crewai_result):
         result, ws = crewai_result
         scores = result.judge_scores
         if not scores:
-            pytest.skip("LLM judge did not run")
+            pytest.fail("LLM judge did not run (compute_metrics requested run_judge=True)")
         for criterion, score in scores.items():
             assert score >= 0.5, f"Criterion failed ({score:.2f}): {criterion}"
 
@@ -140,7 +140,7 @@ class TestCrewAICostLatency:
     def test_within_budget(self, crewai_result):
         result, _ = crewai_result
         if result.cost_usd is None:
-            pytest.skip("Cost not reported by backend")
+            pytest.fail("cost_usd not reported by crewai backend")
         assert (
             result.cost_usd <= SCENARIO["budget_usd_max"]
         ), f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
@@ -148,7 +148,7 @@ class TestCrewAICostLatency:
     def test_completes_within_timeout(self, crewai_result):
         result, _ = crewai_result
         if result.wall_time_s is None:
-            pytest.skip("Wall time not recorded")
+            pytest.fail("wall_time_s not recorded for a live crewai eval")
         assert (
             result.wall_time_s <= SCENARIO["timeout_seconds"]
         ), f"Timed out: {result.wall_time_s:.1f}s > {SCENARIO['timeout_seconds']}s"

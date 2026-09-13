@@ -132,11 +132,11 @@ class TestPlanningCrewIntegration:
         """With mock: assert exact fixture output. With real LLM: assert structure only."""
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
-                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+                pytest.skip("precondition: Ollama unreachable")
             try:
                 result = planning_crew_kickoff(sample_project_description)
             except (ConverterError, ValidationError) as e:
-                pytest.skip(f"Real LLM output could not be parsed (try a larger model): {e!s}")
+                pytest.fail(f"Real LLM output could not be parsed: {e!s}")
             requirements, architecture, needs_clarification = _parse_planning_output(result)
             assert requirements is not None
             assert architecture is not None
@@ -181,11 +181,11 @@ class TestPlanningCrewIntegration:
         """With mock: kickoff called once with project_description. With real: run kickoff and assert structure."""
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
-                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+                pytest.skip("precondition: Ollama unreachable")
             try:
                 result = planning_crew_kickoff(sample_project_description)
             except (ConverterError, ValidationError) as e:
-                pytest.skip(f"Real LLM output could not be parsed (try a larger model): {e!s}")
+                pytest.fail(f"Real LLM output could not be parsed: {e!s}")
             assert result is not None
             assert hasattr(result, "tasks_output") and len(result.tasks_output) >= 2
             requirements, architecture, _ = _parse_planning_output(result)
@@ -232,7 +232,7 @@ class TestDevelopmentCrewIntegration:
 
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
-                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+                pytest.skip("precondition: Ollama unreachable")
             from ai_team.backends.crewai_backend.crews.development_crew import (
                 kickoff as _dev_kickoff,
             )
@@ -241,8 +241,8 @@ class TestDevelopmentCrewIntegration:
                 code_files, deployment_config = _dev_kickoff(requirements, architecture)
             except ValueError as e:
                 err = str(e)
-                if "LLM call" in err or "None or empty" in err or "OPENAI_API_KEY" in err:
-                    pytest.skip(f"Real LLM or crew RAG env (Ollama-only setup): {e!s}")
+                if "OPENAI_API_KEY" in err:
+                    pytest.skip(f"precondition: OpenAI/RAG env not configured ({e!s})")
                 raise
             assert isinstance(code_files, list)
             assert len(code_files) >= 1
@@ -284,7 +284,7 @@ class TestDevelopmentCrewIntegration:
         """With mock: assert fixture structure. With real: run _dev_kickoff and assert structure."""
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
-                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+                pytest.skip("precondition: Ollama unreachable")
             requirements = mock_crew_outputs["requirements"]
             architecture = mock_crew_outputs["architecture"]
             from ai_team.backends.crewai_backend.crews.development_crew import (
@@ -295,8 +295,8 @@ class TestDevelopmentCrewIntegration:
                 code_files, _ = _dev_kickoff(requirements, architecture)
             except ValueError as e:
                 err = str(e)
-                if "LLM call" in err or "None or empty" in err or "OPENAI_API_KEY" in err:
-                    pytest.skip(f"Real LLM or crew RAG env (Ollama-only setup): {e!s}")
+                if "OPENAI_API_KEY" in err:
+                    pytest.skip(f"precondition: OpenAI/RAG env not configured ({e!s})")
                 raise
             assert any("import" in cf.content or "from " in cf.content for cf in code_files)
             assert any("def " in cf.content or "class " in cf.content for cf in code_files)
@@ -327,12 +327,12 @@ class TestTestingCrewIntegration:
 
         if use_real_llm:
             if not get_settings().validate_ollama_connection():
-                pytest.skip("Ollama unreachable; run with mock or start Ollama")
+                pytest.skip("precondition: Ollama unreachable")
             try:
                 output = run_testing_crew(code_files)
             except ValueError as e:
                 if "LLM call" in str(e) or "None or empty" in str(e):
-                    pytest.skip(f"Real LLM returned empty response (try larger model): {e!s}")
+                    pytest.fail(f"Real LLM returned empty response: {e!s}")
                 raise
             assert output.test_run_result is not None
             assert isinstance(output.test_run_result.total, int)

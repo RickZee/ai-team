@@ -24,7 +24,7 @@ import pytest
 # Set AI_TEAM_BENCHMARK_FULL=1 to run; artifacts stay gitignored.
 if os.environ.get("AI_TEAM_BENCHMARK_FULL", "").lower() not in ("1", "true", "yes"):
     pytest.skip(
-        "performance suite is live-only (AI_TEAM_BENCHMARK_FULL=1); see docs/PERFORMANCE.md",
+        "precondition: AI_TEAM_BENCHMARK_FULL=1 (live spend); see docs/PERFORMANCE.md",
         allow_module_level=True,
     )
 

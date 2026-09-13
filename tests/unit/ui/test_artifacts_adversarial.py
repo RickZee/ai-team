@@ -42,7 +42,7 @@ def test_symlink_to_etc_passwd_rejected(two_runs: tuple[Path, str, str]) -> None
     ws, run_a, _ = two_runs
     target = Path("/etc/passwd")
     if not target.exists():
-        pytest.skip("no /etc/passwd on this platform")
+        pytest.skip("precondition: /etc/passwd is absent on this platform")
     link = ws / run_a / "passwd.link"
     link.symlink_to(target)
     with pytest.raises(ValueError, match="escapes|Invalid"):
@@ -96,7 +96,7 @@ def test_zip_does_not_include_escape_symlink(two_runs: tuple[Path, str, str]) ->
     ws, run_a, _ = two_runs
     target = Path("/etc/passwd")
     if not target.exists():
-        pytest.skip("no /etc/passwd on this platform")
+        pytest.skip("precondition: /etc/passwd is absent on this platform")
     (ws / run_a / "leak").symlink_to(target)
     blob = workspace_zip_bytes(run_a)
     assert b"root:" not in blob or os.path.basename(target) not in str(blob)
