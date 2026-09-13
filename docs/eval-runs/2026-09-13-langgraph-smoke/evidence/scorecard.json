@@ -1,0 +1,24 @@
+{
+  "status": "partial",
+  "run_id": "2026-09-13_182650_write-a-single-python-module_01",
+  "current_phase": "testing",
+  "backend": "langgraph",
+  "team_profile": "prototype",
+  "error_count": 0,
+  "test_passed": false,
+  "lint_ok": true,
+  "phases": {},
+  "guardrails": [],
+  "kpis": {
+    "tests_passed_field": false
+  },
+  "artifact_paths": {
+    "state_json": "runs/2026-09-13_182650_write-a-single-python-module_01/state.json",
+    "run_json": "runs/2026-09-13_182650_write-a-single-python-module_01/run.json",
+    "events_jsonl": "runs/2026-09-13_182650_write-a-single-python-module_01/events.jsonl",
+    "scorecard_json": "runs/2026-09-13_182650_write-a-single-python-module_01/reports/scorecard.json",
+    "test_results_json": "runs/2026-09-13_182650_write-a-single-python-module_01/artifacts/testing/test_results.json",
+    "ruff_txt": "runs/2026-09-13_182650_write-a-single-python-module_01/artifacts/testing/ruff.txt",
+    "pytest_txt": "runs/2026-09-13_182650_write-a-single-python-module_01/artifacts/testing/pytest.txt"
+  }
+}

@@ -23,7 +23,8 @@ showcase page unless the corresponding row below says you can.**
 | Have any judges been validated? | **No.** One prompt exists; its alignment report is `n: 0` | `fm-001-tool-call-omission.json` |
 | Is there a human-labeled golden set? | **No.** `evals/golden/` holds no labels | `golden stats` |
 | Has any trace been open-coded? | **No.** `evals/annotations/` is empty | `ls -A evals/annotations/` |
-| Does the corpus read the run-record tree? | **No.** Backfill defaults to `./workspace`; 210 run records unread in `./output/runs/` | `evals/cli.py:547` |
+| Does the corpus read the run-record tree? | **No.** Backfill defaults to `./workspace`; 210 run records unread in `./output/runs/` | `evals/cli.py` `--workspace-root` default |
+| Is there a live run worth open-coding? | **Yes — unlabeled.** LangGraph smoke `2026-09-13_182650_…`: 1600 s → HITL after retry amplification. Not a `CORPUS` rate. | [`eval-runs/2026-09-13-langgraph-smoke`](../eval-runs/2026-09-13-langgraph-smoke/) |
 
 ## Corpus kind
 

@@ -1,0 +1,15 @@
+{
+  "project_id": "2026-09-13_182650_write-a-single-python-module_01",
+  "backend": "langgraph",
+  "team_profile": "prototype",
+  "env": "dev",
+  "started_at": "2026-09-13T18:26:50.080146Z",
+  "completed_at": null,
+  "workspace_dir": "/Users/rickzakharov/dev/github/ai-team/workspace/2026-09-13_182650_write-a-single-python-module_01",
+  "output_dir": "/Users/rickzakharov/dev/github/ai-team/output/runs/2026-09-13_182650_write-a-single-python-module_01",
+  "argv": [],
+  "models": {},
+  "extra": {
+    "graph_mode": "full"
+  }
+}

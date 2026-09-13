@@ -1,0 +1,17 @@
+{
+  "passed": false,
+  "lint": {
+    "tool": "ruff",
+    "ok": true,
+    "returncode": 0,
+    "output": "All checks passed!"
+  },
+  "tests": {
+    "tool": "pytest",
+    "ok": false,
+    "returncode": 5,
+    "output": "============================= test session starts ==============================\ncollected 0 items\n\n============================ no tests ran in 0.11s ============================="
+  },
+  "no_tests_collected": true,
+  "reason": "No tests were collected (pytest exit 5). QA must write test files with file_writer (e.g. tests/test_*.py), not emit them as prose."
+}

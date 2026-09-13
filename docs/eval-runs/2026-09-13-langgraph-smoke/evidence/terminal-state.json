@@ -1,0 +1,65 @@
+{
+  "current_phase": "testing",
+  "retry_count": 3,
+  "max_retries": 3,
+  "test_results": {
+    "passed": false,
+    "lint": {
+      "tool": "ruff",
+      "ok": true,
+      "returncode": 0,
+      "output": "All checks passed!"
+    },
+    "tests": {
+      "tool": "pytest",
+      "ok": false,
+      "returncode": 5,
+      "output": "============================= test session starts ==============================\ncollected 0 items\n\n============================ no tests ran in 0.11s ============================="
+    },
+    "no_tests_collected": true,
+    "reason": "No tests were collected (pytest exit 5). QA must write test files with file_writer (e.g. tests/test_*.py), not emit them as prose."
+  },
+  "errors": [],
+  "phase_history": [
+    {
+      "phase": "planning",
+      "status": "complete"
+    },
+    {
+      "phase": "development",
+      "status": "complete",
+      "files": 260
+    },
+    {
+      "phase": "testing",
+      "status": "recovered",
+      "passed": false
+    },
+    {
+      "phase": "development",
+      "status": "complete",
+      "files": 274
+    },
+    {
+      "phase": "development",
+      "status": "complete",
+      "files": 283
+    },
+    {
+      "phase": "testing",
+      "status": "complete",
+      "passed": false
+    },
+    {
+      "phase": "development",
+      "status": "complete",
+      "files": 288
+    },
+    {
+      "phase": "testing",
+      "status": "complete",
+      "passed": false
+    }
+  ],
+  "interrupt": null
+}

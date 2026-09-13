@@ -133,6 +133,10 @@ When you run open coding: sample with
 `uv run python -m evals.cli sample --strategy stratified -n 100 --seed 1`, annotate,
 then `taxonomy propose --from-annotations`.
 
+The first live LangGraph case to put through that loop (unlabeled as of
+2026-09-13; not a published rate) is
+[`eval-runs/2026-09-13-langgraph-smoke`](eval-runs/2026-09-13-langgraph-smoke/README.md).
+
 ## Limitations
 
 - **Single annotator** (benevolent dictator) — no multi-rater κ on labels yet.

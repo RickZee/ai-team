@@ -77,7 +77,9 @@ taxonomy → checks / judges, with human ground truth.
 binary gates with TPR/TNR/κ thresholds.
 
 **Why:** Stops "LLM judges all the way down." Failure modes must come from observed
-errors, not invented scorecards.
+errors, not invented scorecards. The first live LangGraph smoke we are putting
+through that loop (unlabeled; not a rate) is
+[eval-runs/2026-09-13-langgraph-smoke](eval-runs/2026-09-13-langgraph-smoke/README.md).
 
 ### [Lenny's Podcast — Why AI evals are the hottest new skill (YouTube)](https://www.youtube.com/watch?v=BsWxPI9UM4c)
 
@@ -139,6 +141,7 @@ sources for the harness itself. Full checklist and citations live in
 | --- | --- |
 | [HARNESS.md](HARNESS.md) | Seven-layer instrumentation bar |
 | [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md) | Error-analysis-first eval loop |
+| [eval-runs/2026-09-13-langgraph-smoke](eval-runs/2026-09-13-langgraph-smoke/README.md) | First live case for that loop (unlabeled; not a published rate) |
 | [EVALS.md](EVALS.md) / [EVALS_ROADMAP.md](EVALS_ROADMAP.md) | Suite tiers; future role-eval calibrations (e.g. DPIaC-Eval, RealVuln) |
 | [posts/failure-taxonomy.md](posts/failure-taxonomy.md) | Observed failure classes with receipts |
 | [posts/harness-map.md](posts/harness-map.md) | Stencil → AI-Team layer mapping |
