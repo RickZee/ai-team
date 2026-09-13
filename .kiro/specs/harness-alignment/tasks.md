@@ -3,6 +3,9 @@
 **Spec ID:** `harness-alignment`
 **Requirements:** [`requirements.md`](./requirements.md) · **Design:** [`design.md`](./design.md)
 
+In-repo work is checked off. Live-spend tasks **4.3, 4.5, 5.4, 11.4** stay open
+(human-triggered; not run).
+
 ---
 
 ## How to execute this plan
@@ -32,7 +35,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 0 — Scaffolding
 
-- [ ] **0.1 Create package skeleton**
+- [x] **0.1 Create package skeleton**
   - Create `evals/arms/` (with `__init__.py`, `py.typed` not needed — inherits from `evals`),
     `evals/arms/vendor/.gitkeep`, `evals/results/ladder/.gitkeep`,
     `src/ai_team/harness/` additions are in-place (package exists).
@@ -40,7 +43,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
   - **Definition of done:** `uv run python -c "import evals.arms"` succeeds; `uv run mypy evals/` passes.
   - _Requirements: R1.4_
 
-- [ ] **0.2 Taxonomy version bump and reservations**
+- [x] **0.2 Taxonomy version bump and reservations**
   - Bump `evals/taxonomy/failure_modes.yaml` `version` to `1.2.0`.
   - Reserve FM-014, FM-015, FM-016, FM-017 ids with `status: reserved` and no
     `implemented_by`, so nothing else claims them mid-implementation.
@@ -48,7 +51,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     four reserved modes as unimplemented.
   - _Requirements: R7.1, R10.1, R12.1, R16.1_
 
-- [ ] **0.3 Trace schema additions**
+- [x] **0.3 Trace schema additions**
   - Add `Trace.arm_id: str | None = None` and allow `context_pressure: float | None` inside
     `phase_end` / `session_end` span payloads. Bump `SCHEMA_VERSION`.
   - Confirm every existing fixture under `evals/fixtures/traces/` still loads.
@@ -56,7 +59,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     `python -m evals.cli index rebuild` succeeds on the existing corpus.
   - _Requirements: R1.2, R5.1, R10.2_
 
-- [ ] **0.4 Suite guards (landed 2026-09-12 — verify, do not rewrite)**
+- [x] **0.4 Suite guards (landed 2026-09-12 — verify, do not rewrite)**
   - `tests/conftest.py` hashes `evals/golden/`, `evals/fixtures/traces/` and
     `evals/taxonomy/` at session start and asserts them unchanged at teardown.
   - `tests/unit/evals/test_suite_drift_guards.py` asserts `ALL_CHECK_IDS` ≡ registry, no
@@ -78,7 +81,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 1 — Durable acceptance list (free)
 
-- [ ] **1.1 Acceptance data model**
+- [x] **1.1 Acceptance data model**
   - Implement `src/ai_team/harness/acceptance.py` models per design §3.1: `AcceptanceItem`,
     `AcceptanceList`, `Demotion`, `VerifierIdentity`, `AcceptanceStatus`.
   - `id` = `sha256(normalized_description + "\x00".join(steps))[:12]`; normalization collapses
@@ -87,7 +90,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     changes and instability across any semantic edit.
   - _Requirements: R6.1, R6.2_
 
-- [ ] **1.2 Writer, loader, and the snapshot log**
+- [x] **1.2 Writer, loader, and the snapshot log**
   - Implement `write_initial`, `load`, `mark_passing`, `demote`, `status`.
   - Atomic writes (temp + `os.replace`). Every write appends
     `{ts, op, item_id, sha256_of_file}` to `logs/acceptance.jsonl`.
@@ -96,7 +99,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     concurrent-write safety (two writers, no torn file), and that `demote` refuses without a reason.
   - _Requirements: R6.3, R6.4, R6.5_
 
-- [ ] **1.3 Wire into planning**
+- [x] **1.3 Wire into planning**
   - Call `write_initial` at the end of the planning phase from the existing requirements
     output (`src/ai_team/models/requirements.py`), for all three backends.
   - Priority is assigned from existing MoSCoW ordering where present, else source order.
@@ -104,7 +107,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     the file appears in the change receipt and the Trace artifact inventory.
   - _Requirements: R6.1, R6.7_
 
-- [ ] **1.4 Deny agent writes to the acceptance file**
+- [x] **1.4 Deny agent writes to the acceptance file**
   - Extend the SDK backend PreToolUse hook to deny `Write`/`Edit`/`MultiEdit` whose
     `file_path` resolves to `ACCEPTANCE.json`, with a reason that names the MCP tool to use instead.
   - **Definition of done:** adversarial unit tests cover the direct path, a relative path, a
@@ -114,7 +117,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     of this task, since the same hook chain now carries the acceptance rule (R17.5).
   - _Requirements: R6.3, R17.5, R17.6_
 
-- [ ] **1.5 MCP tools `acceptance_status` and `acceptance_mark_passing`**
+- [x] **1.5 MCP tools `acceptance_status` and `acceptance_mark_passing`**
   - Add both to `tools/mcp_server.py`; `acceptance_status` on all role allow-lists,
     `acceptance_mark_passing` on QA only.
   - `acceptance_mark_passing` records `VerifierIdentity` (`agent_role`, `session_id`, `subagent_id`).
@@ -129,7 +132,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 2 — Three new checks (free, retroactive)
 
-- [ ] **2.1 `CHK-acceptance-monotonic`**
+- [x] **2.1 `CHK-acceptance-monotonic`**
   - Implement `evals/checks/acceptance.py`. Compare first and last acceptance snapshots:
     fail on removed ids, changed ids, `true → false` without a `demotions[]` record, or a
     `false → true` with empty/dangling evidence.
@@ -139,7 +142,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     `reserved` to `active` with `implemented_by: [CHK-acceptance-monotonic]`.
   - _Requirements: R7.2, R7.3, R7.4, R7.5_
 
-- [ ] **2.2 Record `context_pressure`**
+- [x] **2.2 Record `context_pressure`**
   - Emit `context_pressure` on `phase_end` and `session_end` spans from SDK usage reporting,
     falling back to `src/ai_team/config/token_tracker.py`. Emit `None` rather than guessing
     when the window size is unknown.
@@ -147,7 +150,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     no usage data produces `None` and does not raise.
   - _Requirements: R10.2_
 
-- [ ] **2.3 `CHK-premature-termination`**
+- [x] **2.3 `CHK-premature-termination`**
   - Implement in `evals/checks/context.py`. Fire only when: status ok, ≥ 1 unsatisfied
     acceptance item, no `spend_event` / `error` / watchdog / `max_turns` evidence in the
     trailing window, and `context_pressure ≥ 0.75` (configurable via check params).
@@ -157,7 +160,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     FM-015 set `active`.
   - _Requirements: R10.3, R10.4, R10.5_
 
-- [ ] **2.4 `CHK-verifier-independence`**
+- [x] **2.4 `CHK-verifier-independence`**
   - Implement in `evals/checks/verification.py`. Fail when a `passes` transition's
     `VerifierIdentity` matches the identity that produced the write spans for that item and no
     deterministic verifier contributed evidence.
@@ -165,7 +168,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     passes even with a matching identity; FM-016 set `active`.
   - _Requirements: R12.3, R12.4, R12.5_
 
-- [ ] **2.5 Structured QA verdicts**
+- [x] **2.5 Structured QA verdicts**
   - Have the QA agent emit `docs/qa_verdicts.jsonl` per design §4.5a:
     `{item_id, verdict, issues[], evidence[], qa_prompt_hash, identity, emitted_at}`.
     Structured output, not prose — the check needs to read the evaluator's own findings, not
@@ -175,7 +178,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     hash; Trace assembly tolerates the file's absence.
   - _Requirements: R16.2, R16.6_
 
-- [ ] **2.6 `CHK-evaluator-capitulation` and the QA false-negative rate**
+- [x] **2.6 `CHK-evaluator-capitulation` and the QA false-negative rate**
   - Implement in `evals/checks/verification.py`: fail when `verdict == "accept"` while
     `issues[]` holds a `major`/`blocker` entry and no remediation write span for that item
     appears between detection and verdict.
@@ -185,7 +188,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     acceptance passes; FM-017 set `active`; the rate appears in the metrics output.
   - _Requirements: R16.1, R16.3, R16.4, R16.5, R16.7_
 
-- [ ] **2.7 Backfill the existing corpus**
+- [x] **2.7 Backfill the existing corpus**
   - Run all four new checks over every trace already in `evals/traces/` and record outcomes.
   - **Definition of done:** `python -m evals.cli run --tier A` passes; a short note in
     `docs/journal/` records what the new checks found retroactively, with trace ids.
@@ -195,26 +198,26 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 3 — Arm scaffold (no new spend)
 
-- [ ] **3.1 Arm protocol and registry**
+- [x] **3.1 Arm protocol and registry**
   - Implement `evals/arms/base.py` and `evals/arms/registry.py` per design §2.2.
   - **Definition of done:** round-trip tests for `ArmSpec`/`ArmRun`/`Divergence`; duplicate
     registration raises.
   - _Requirements: R1.1, R1.3, R1.4_
 
-- [ ] **3.2 `ai_team` arm over the existing runner**
+- [x] **3.2 `ai_team` arm over the existing runner**
   - Implement `evals/arms/ai_team.py` wrapping the current run path. No behavior change; it
     only produces an `ArmSpec` and stamps `arm_id` onto the Trace.
   - **Definition of done:** an existing scenario run through the arm produces a byte-identical
     workspace to running it directly, plus `arm_id` on the trace.
   - _Requirements: R1.2, R1.6_
 
-- [ ] **3.3 Budget and ceiling enforcement**
+- [x] **3.3 Budget and ceiling enforcement**
   - Implement `CostControls`, the pre-flight sweep budget check, and the wall-clock kill.
   - **Definition of done:** a stub arm that sleeps past its ceiling is terminated and still
     yields a Trace with `status = "budget_exhausted"`.
   - _Requirements: R1.5_
 
-- [ ] **3.4 `ladder` CLI with `--dry-run` default**
+- [x] **3.4 `ladder` CLI with `--dry-run` default**
   - `python -m evals.cli ladder run --scenario S --arms a,b --n N [--execute]`.
   - Dry run prints the resolved plan, per-arm ceilings, and projected total; refuses when the
     projection exceeds the $25 sweep ceiling.
@@ -226,14 +229,14 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 4 — Control arms (first spend)
 
-- [ ] **4.1 Implement `SoloArm`**
+- [x] **4.1 Implement `SoloArm`**
   - Single SDK session, one general system prompt, scenario brief only. Pre-create the standard
     workspace scaffold. Keep cost/audit hooks; remove all behavioral components.
   - **Definition of done:** unit test with a mocked client asserts exactly one session, no
     subagents, no guardrail invocation, and the standard workspace layout.
   - _Requirements: R2.1, R2.2, R2.3_
 
-- [ ] **4.2 Trace assembly and receipt parity**
+- [x] **4.2 Trace assembly and receipt parity**
   - Ensure `from_workspace` yields a valid Trace for a solo workspace and that
     `receipt.write_from_run` produces the same fields as an `ai_team` run.
   - **Definition of done:** a recorded solo workspace fixture scores through all sixteen
@@ -247,7 +250,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     in the journal entry.
   - _Requirements: R2.3, R2.4_
 
-- [ ] **4.4 `harnessed_solo` arm — the missing middle rung**
+- [x] **4.4 `harnessed_solo` arm — the missing middle rung**
   - Implement `role_decomposition` as an ablatable component: the full harness (guardrails,
     smoke gate, constraints pinning, lessons, acceptance list) driving **one generalist
     agent** instead of nine roles. Register it under its own arm id `harnessed_solo` as an
@@ -268,7 +271,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 5 — Reference-harness arm
 
-- [ ] **5.1 Vendor the quickstart**
+- [x] **5.1 Vendor the quickstart**
   - Copy `anthropics/claude-quickstarts/autonomous-coding` to
     `evals/arms/vendor/autonomous_coding/` at a pinned sha. Write `PROVENANCE.md` with URL,
     sha, MIT licence text reference, retrieval date, and an explicit "do not edit" note.
@@ -276,7 +279,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     so accidental edits fail CI.
   - _Requirements: R3.1, R3.2_
 
-- [ ] **5.2 Implement `ReferenceArm`**
+- [x] **5.2 Implement `ReferenceArm`**
   - Scenario → `app_spec.txt`; `max_features` default 25; external wall-clock and iteration
     ceilings; stdout capture. Every adaptation recorded as a `Divergence`.
   - Handle unavailability (`claude` CLI, node, network) as `status = "unavailable"`.
@@ -284,7 +287,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     ceiling kill, and each unavailability cause.
   - _Requirements: R3.2, R3.3, R3.4, R3.6_
 
-- [ ] **5.3 Trace assembly from reference artifacts**
+- [x] **5.3 Trace assembly from reference artifacts**
   - Parse `[Tool: …]` / `[Done]` / `[BLOCKED]` markers, `feature_list.json`,
     `claude-progress.txt`, and git history into spans. Record every missing stream in
     `trace.warnings[]` rather than fabricating it.
@@ -302,20 +305,20 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 6 — Ladder report and claim discipline (free)
 
-- [ ] **6.1 `render_ladder`**
+- [x] **6.1 `render_ladder`**
   - Implement per design §4.7: JSON first, Markdown rendered from that JSON, per-arm `n`,
     means with CIs, FM incidence, smoke pass rate, accepted-change rate, demotion rate.
   - **Definition of done:** golden-file test on the three committed fixture traces; a test
     asserts the Markdown numbers are read from the JSON, not recomputed.
   - _Requirements: R5.1, R5.5_
 
-- [ ] **6.2 Stamps and refusals**
+- [x] **6.2 Stamps and refusals**
   - Implement `MIXED-MODEL` and `UNDERPOWERED` stamping and the flag-gated refusals.
   - **Definition of done:** tests assert refusal without flags, stamping with them, and that the
     stamp text appears in both JSON and Markdown outputs.
   - _Requirements: R5.2, R5.3_
 
-- [ ] **6.3 Per-phase cost, QA rate, and staleness columns**
+- [x] **6.3 Per-phase cost, QA rate, and staleness columns**
   - Add per-phase cost and wall-clock breakdown per arm from `logs/costs.jsonl`;
     `qa_false_negative_rate` beside `smoke_pass_rate`; and the `STALE` /
     `never measured` markers on ablation rows.
@@ -326,7 +329,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     measured.
   - _Requirements: R5.1a, R5.1b, R15.2, R15.4, R16.5_
 
-- [ ] **6.4 Divergence surfacing**
+- [x] **6.4 Divergence surfacing**
   - Render each arm's `source_ref` and full divergence list beneath the table.
   - **Definition of done:** the reference arm's row shows `max_features=25` and every other
     adaptation; a divergence added in code appears in the report without a report change.
@@ -338,13 +341,13 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 7 — UI verification
 
-- [ ] **7.1 Scenario `ui` block**
+- [x] **7.1 Scenario `ui` block**
   - Extend the scenario contract schema with an optional `ui` block
     (`base_url`, `boot_cmd`, `ready_path`, `viewport`). Populate it for `todo-api-beginner`.
   - **Definition of done:** existing scenarios without the block still validate.
   - _Requirements: R13.6_
 
-- [ ] **7.2 `run_ui_smoke`**
+- [x] **7.2 `run_ui_smoke`**
   - Implement `src/ai_team/tools/ui_smoke_tools.py` per design §4.5 with Playwright, headless
     Chromium, fixed viewport. Write `docs/ui_smoke_results.json` and screenshots to
     `docs/verification/<item_id>/`. Never probe a foreign service.
@@ -353,7 +356,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     console error fails the step with no model call; a UI-less scenario returns `skipped`.
   - _Requirements: R13.1, R13.2, R13.3, R13.4, R13.6_
 
-- [ ] **7.3 Expose as an MCP tool and extend FM-006**
+- [x] **7.3 Expose as an MCP tool and extend FM-006**
   - Register `run_ui_smoke` on `ai_team_tools`, QA allow-list only. Extend
     `CHK-runtime-smoke-present` so UI-bearing scenarios require a UI smoke result and a
     backend-only probe does not satisfy them.
@@ -361,7 +364,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     the check; the same trace on a non-UI scenario still passes.
   - _Requirements: R13.5, R13.8_
 
-- [ ] **7.4 Design rubric document**
+- [x] **7.4 Design rubric document**
   - Write `docs/UI_QUALITY_RUBRIC.md`: four criteria (design quality, originality, craft,
     functionality), calibration examples at each level, and an explicit note that criterion
     wording steers output toward convergence. State plainly that it is advisory until it clears
@@ -374,14 +377,14 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 8 — Multi-session continuation
 
-- [ ] **8.1 `SessionRecord` and the session log**
+- [x] **8.1 `SessionRecord` and the session log**
   - Implement the model and `logs/sessions.jsonl` writing; add `session_start` / `session_end` /
     `regression_check` span types to Trace assembly.
   - **Definition of done:** round-trip test; Trace assembly reads the new log without breaking
     on its absence.
   - _Requirements: R8.3_
 
-- [ ] **8.2 Session loop**
+- [x] **8.2 Session loop**
   - Implement `run_sessions` per design §4.3. Fresh context per session from the four files.
     Terminate on all-pass, `max_sessions`, spend, wall-clock, or `no_progress_sessions`.
   - Off by default; requires explicit `--max-sessions` and a total budget.
@@ -389,13 +392,13 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     exercises each termination condition in its own test.
   - _Requirements: R8.1, R8.2, R8.4, R8.6_
 
-- [ ] **8.3 Commit discipline**
+- [x] **8.3 Commit discipline**
   - Require a commit at session end; mark `dirty_exit` otherwise and feed FM-012.
   - **Definition of done:** a stubbed session leaving uncommitted changes produces
     `status = "dirty_exit"` and the existing FM-012 check fires on its trace.
   - _Requirements: R8.5_
 
-- [ ] **8.4 Regression verification**
+- [x] **8.4 Regression verification**
   - Implement the R9 policy: highest-priority passing item plus one seeded-random item not
     verified in the last `m` sessions. Demote on failure and prioritize demoted items.
   - **Definition of done:** integration test injects a regression between sessions and asserts
@@ -406,19 +409,19 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 9 — Contract negotiation
 
-- [ ] **9.1 Contract model and store**
+- [x] **9.1 Contract model and store**
   - Implement `src/ai_team/harness/contracts.py` and the `docs/contracts/<item_id>.json` format.
   - **Definition of done:** round-trip tests; round ceiling enforced at the store layer.
   - _Requirements: R11.1, R11.3_
 
-- [ ] **9.2 Negotiation step**
+- [x] **9.2 Negotiation step**
   - Developer writes the contract; QA validates against the acceptance item and returns
     `accepted` / `rejected` with reasons. File-based handoff only.
   - **Definition of done:** integration test with a stubbed QA rejecting twice asserts
     escalation at round 3 through `flows/error_handling.py`, not a fourth round.
   - _Requirements: R11.2, R11.3_
 
-- [ ] **9.3 Gate implementation on an accepted contract**
+- [x] **9.3 Gate implementation on an accepted contract**
   - PreToolUse hook denies writes to `src/` for an item without an accepted contract, when the
     component is enabled. No-op when ablated.
   - **Definition of done:** adversarial tests for enabled-deny and ablated-allow; verification
@@ -429,7 +432,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 10 — Default-deny bash
 
-- [ ] **10.1 Command extraction with fail-safe semantics**
+- [x] **10.1 Command extraction with fail-safe semantics**
   - Implement the parser. Block on anything it cannot decompose.
   - **Definition of done:** one unit test per construct in R14.4 — `&&`, `||`, `;`, pipes,
     `$(…)`, backticks, `env VAR=x cmd`, `xargs`, `nohup`, `timeout`, absolute paths,
@@ -443,7 +446,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     documenting test inverted in the same commit.
   - _Requirements: R14.3, R14.4, R17.7_
 
-- [ ] **10.2 Per-role allowlists**
+- [x] **10.2 Per-role allowlists**
   - Define them in `tools/permissions.py` beside the tool allow-lists. Evaluate the allowlist
     **after** the existing deny patterns.
   - **Definition of done:** a developer-role command permitted for developers is blocked for the
@@ -453,14 +456,14 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     granting nothing) would otherwise ship.
   - _Requirements: R14.1, R14.2, R17.5_
 
-- [ ] **10.3 False-positive budget**
+- [x] **10.3 False-positive budget**
   - Run the guardrail corpus with the allowlist active; measure the FP delta against the current
     budget. Keep the allowlist **disabled by default** unless `CHK-guardrail-fp-budget` holds.
   - **Definition of done:** corpus numbers recorded in the journal; the default-on decision is
     made from that measurement, not from preference.
   - _Requirements: R14.5, R14.6_
 
-- [ ] **10.4 Confirm no settings-file confinement**
+- [x] **10.4 Confirm no settings-file confinement**
   - Assert in a test that no `.claude_settings.json` is written into a generated workspace;
     confinement stays hook-enforced.
   - **Definition of done:** test present and passing.
@@ -470,14 +473,14 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ## Phase 11 — Ablation sweep and writeup
 
-- [ ] **11.1 `AblatedArm` and the component registry**
+- [x] **11.1 `AblatedArm` and the component registry**
   - Implement config-driven ablation for the closed set in R4.1. Fail loudly on a component
     that cannot be disabled by config.
   - **Definition of done:** each named component can be disabled and the active set is recorded
     in `ArmSpec.harness_components` and in trace provenance.
   - _Requirements: R4.1, R4.2, R4.3_
 
-- [ ] **11.2 Ablation result store and staleness**
+- [x] **11.2 Ablation result store and staleness**
   - Persist each result to `evals/results/ablations/<component>.json` with `model_id`,
     `model_snapshot_date`, `measured_at`, `scenario_id`, `n`, delta and CI.
   - Implement `python -m evals.cli ablation status` listing every component as
@@ -487,7 +490,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     `STALE` without re-running anything; a component with no result reads `never measured`.
   - _Requirements: R15.1, R15.2, R15.3, R15.4, R15.5_
 
-- [ ] **11.3 Ablation deltas in the report**
+- [x] **11.3 Ablation deltas in the report**
   - Render deltas against the `ai_team` control with CIs, plus the
     `components with no measured effect at this n` section.
   - **Definition of done:** golden-file test on synthetic traces; a zero-delta component lands
@@ -501,7 +504,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     table carries its stamps honestly.
   - _Requirements: R5.1–R5.5, R4.4_
 
-- [ ] **11.5 Journal entry and taxonomy update**
+- [x] **11.5 Journal entry and taxonomy update**
   - Write `docs/journal/<date>.md` with commit references per house style. Record what each
     arm cost, what each ablation changed, and — explicitly — any component that bought nothing.
   - Update `docs/posts/failure-taxonomy.md` with narrative sections for **FM-011 through
@@ -522,7 +525,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 ---
 
-- [ ] **11.6 Re-ratchet the coverage floor**
+- [x] **11.6 Re-ratchet the coverage floor**
   - Recompute the combined `src/ai_team` + `evals` figure on macOS and in CI, then raise
     `fail_under` in `pyproject.toml` to the measured value less the observed
     macOS/ubuntu branch variance (~6pt). Record the new value and its basis in the comment
