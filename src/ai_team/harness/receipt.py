@@ -57,6 +57,8 @@ class ChangeReceipt(BaseModel):
     rollback_ref: str | None = None
     guardrail_evidence: GuardrailEvidence = Field(default_factory=GuardrailEvidence)
     provenance: dict[str, Any] = Field(default_factory=dict)
+    acceptance_path: str | None = None
+    acceptance_item_count: int | None = None
     written_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -127,6 +129,8 @@ def receipt_to_markdown(receipt: ChangeReceipt) -> str:
         f"- failures: {', '.join(receipt.failure_ids) or 'none'}",
         f"- output_hash: `{receipt.output_hash or '—'}`",
         f"- rollback: `{receipt.rollback_ref or '—'}`",
+        f"- acceptance: `{receipt.acceptance_path or '—'}` "
+        f"({receipt.acceptance_item_count if receipt.acceptance_item_count is not None else '—'} items)",
         "",
         "## Routes",
         "",
@@ -187,6 +191,19 @@ class ReceiptWriter:
         accepted = is_accepted_change(smoke=smoke_d, required_ok=required_ok, failure_ids=fails)
         accepted_n = 1 if accepted else 0
         output_hash = workspace_tree_hash(workspace) if workspace else None
+        acceptance_path = None
+        acceptance_item_count = None
+        if workspace is not None:
+            acc = workspace / "ACCEPTANCE.json"
+            if acc.is_file():
+                acceptance_path = "ACCEPTANCE.json"
+                try:
+                    payload = json.loads(acc.read_text(encoding="utf-8"))
+                    items = payload.get("items") if isinstance(payload, dict) else None
+                    if isinstance(items, list):
+                        acceptance_item_count = len(items)
+                except (OSError, ValueError, json.JSONDecodeError):
+                    acceptance_item_count = None
         receipt = ChangeReceipt(
             run_id=run_id,
             backend=backend,
@@ -207,6 +224,8 @@ class ReceiptWriter:
             rollback_ref=rollback_ref,
             guardrail_evidence=guardrail_evidence or GuardrailEvidence(),
             provenance=provenance or {},
+            acceptance_path=acceptance_path,
+            acceptance_item_count=acceptance_item_count,
         )
         self.write(output_dir, receipt)
         return receipt

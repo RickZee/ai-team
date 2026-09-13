@@ -24,7 +24,7 @@ HarnessLayer = Literal[
 ]
 Severity = Literal["blocker", "major", "minor"]
 Detection = Literal["check", "judge", "manual"]
-Status = Literal["active", "retired"]
+Status = Literal["active", "retired", "reserved"]
 
 VALID_LAYERS = frozenset({"model", "framework", "harness", "provider"})
 VALID_HARNESS_LAYERS = frozenset(
@@ -32,7 +32,7 @@ VALID_HARNESS_LAYERS = frozenset(
 )
 VALID_SEVERITIES = frozenset({"blocker", "major", "minor"})
 VALID_DETECTIONS = frozenset({"check", "judge", "manual"})
-VALID_STATUSES = frozenset({"active", "retired"})
+VALID_STATUSES = frozenset({"active", "retired", "reserved"})
 
 
 class ExampleRef(BaseModel):
@@ -148,7 +148,7 @@ def _parse_failure_mode(entry: dict[str, Any]) -> FailureMode:
         raise TaxonomyValidationError(f"{fm_id}: implemented_by must be a list")
     implemented_by = [str(x) for x in implemented_by]
 
-    if detection == "check" and not implemented_by:
+    if detection == "check" and not implemented_by and status != "reserved":
         raise TaxonomyValidationError(f"detection:check with empty implemented_by: {fm_id}")
 
     positive = _parse_examples(entry.get("positive_examples"), "positive_examples", fm_id)
@@ -335,10 +335,13 @@ def write_coverage_md(
         "| --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- |",
     ]
     uncovered: list[str] = []
+    reserved: list[str] = []
     for fm in taxonomy.failure_modes:
         checks = check_ids_by_fm.get(fm.id, []) or list(fm.implemented_by)
         jlist = judges.get(fm.id, [])
-        if fm.detection == "check" and not checks:
+        if fm.status == "reserved":
+            reserved.append(fm.id)
+        elif fm.detection == "check" and not checks:
             uncovered.append(fm.id)
         rate = measured.get(fm.id)
         rate_s = "—" if rate is None else f"{rate:.3f}"
@@ -355,6 +358,13 @@ def write_coverage_md(
             lines.append(f"- {uid}")
     else:
         lines.append("_None — every check-detected FM has a named implementation._")
+
+    lines.extend(["", "## Reserved (not yet implemented)", ""])
+    if reserved:
+        for rid in reserved:
+            lines.append(f"- {rid} — reserved, unimplemented")
+    else:
+        lines.append("_None — no reserved failure modes._")
 
     lines.extend(
         [

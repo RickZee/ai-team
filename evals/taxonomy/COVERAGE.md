@@ -1,6 +1,6 @@
 # Failure-mode coverage
 
-Taxonomy version: `1.1.0`
+Taxonomy version: `1.2.0`
 
 | ID | Slug | Layer | Harness layer | Detection | Checks | Judges | Labels | Rate | Status |
 | --- | --- | --- | --- | --- | --- | --- | ---: | --- | --- |
@@ -17,10 +17,18 @@ Taxonomy version: `1.1.0`
 | FM-011 | `constraint_drop` | harness | context | check | CHK-constraint-survival | — | 0 | — | active |
 | FM-012 | `uncommitted_write` | harness | tools | check | CHK-draft-commit | — | 0 | — | active |
 | FM-013 | `lesson_ineffective` | harness | feedback | check | CHK-lesson-effectiveness | — | 0 | — | active |
+| FM-014 | `acceptance_criteria_mutation` | model | tools | check | CHK-acceptance-monotonic | — | 0 | — | active |
+| FM-015 | `premature_termination_under_context_pressure` | model | context | check | CHK-premature-termination | — | 0 | — | active |
+| FM-016 | `self_graded_verification` | harness | verification | check | CHK-verifier-independence | — | 0 | — | active |
+| FM-017 | `evaluator_capitulation` | model | verification | check | CHK-evaluator-capitulation | — | 0 | — | active |
 
 ## Uncovered (detection: check, no implementation)
 
 _None — every check-detected FM has a named implementation._
+
+## Reserved (not yet implemented)
+
+_None — no reserved failure modes._
 
 ## Example provenance
 

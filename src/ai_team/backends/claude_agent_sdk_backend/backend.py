@@ -273,6 +273,36 @@ class ClaudeAgentBackend:
     ) -> dict[str, Any]:
         docs = workspace / "docs"
         src = workspace / "src"
+        try:
+            from ai_team.harness.acceptance import write_initial_from_any
+            from ai_team.models.requirements import RequirementsDocument
+
+            req_json = read_json_if_exists(docs / "requirements.json")
+            parsed: RequirementsDocument | dict[str, Any] | None = None
+            if isinstance(req_json, dict):
+                try:
+                    parsed = RequirementsDocument.model_validate(req_json)
+                except (ValueError, TypeError):
+                    parsed = req_json
+            if parsed is not None:
+                write_initial_from_any(workspace, parsed, workspace.name)
+        except Exception as acc_exc:  # noqa: BLE001 — acceptance must not break collect
+            logger.debug("acceptance_write_skipped", error=str(acc_exc))
+        try:
+            from ai_team.harness.context_pressure import emit_phase_end
+
+            usage = result_msg.usage if result_msg else None
+            used = None
+            if isinstance(usage, dict):
+                inp = usage.get("input_tokens") or 0
+                out = usage.get("output_tokens") or 0
+                try:
+                    used = int(inp) + int(out)
+                except (TypeError, ValueError):
+                    used = None
+            emit_phase_end(workspace, "session", used_tokens=used, status="ok")
+        except Exception as press_exc:  # noqa: BLE001
+            logger.debug("context_pressure_emit_skipped", error=str(press_exc))
         return {
             "workspace": str(workspace),
             "requirements": read_text_if_exists(docs / "requirements.md"),

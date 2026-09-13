@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "trace_id": "CHK-listener-self-trigger__pass__fixture",
   "scenario_id": "smoke-test",
   "backend": "crewai",
+  "arm_id": null,
   "status": "complete",
   "started_at": "2026-08-01T12:00:00Z",
   "ended_at": "2026-08-01T12:05:00Z",

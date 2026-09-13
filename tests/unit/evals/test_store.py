@@ -92,3 +92,9 @@ def test_load_future_schema_raises_migration_message(tmp_path: Path) -> None:
 def test_migrate_unknown_future_version() -> None:
     with pytest.raises(TraceSchemaError, match="migration"):
         migrate_trace_dict({"schema_version": 99, "trace_id": "x"})
+
+
+def test_migrate_v1_to_v2_adds_arm_id() -> None:
+    migrated = migrate_trace_dict({"schema_version": 1, "trace_id": "old"})
+    assert migrated["schema_version"] == SCHEMA_VERSION
+    assert migrated["arm_id"] is None

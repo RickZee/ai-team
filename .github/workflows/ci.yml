@@ -92,7 +92,7 @@ jobs:
           mkdir -p test-results .coverage-data
           if [ "${{ matrix.python-version }}" = "3.12" ]; then
             uv run pytest tests/unit -v --tb=short \
-              --cov=src/ai_team --cov-report=xml --cov-report=term \
+              --cov=src/ai_team --cov=evals --cov-report=xml --cov-report=term \
               --junitxml=test-results/unit.xml
           else
             uv run pytest tests/unit -v --tb=short \

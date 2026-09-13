@@ -16,9 +16,17 @@ def _identity(doc: dict[str, Any]) -> dict[str, Any]:
     return doc
 
 
+def _migrate_v2(doc: dict[str, Any]) -> dict[str, Any]:
+    """Add optional ``arm_id``; payload ``context_pressure`` is already free-form."""
+    out = dict(doc)
+    out.setdefault("arm_id", None)
+    return out
+
+
 # Map: target_version -> migration that upgrades FROM target_version-1 TO target_version.
 MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: _identity,
+    2: _migrate_v2,
 }
 
 

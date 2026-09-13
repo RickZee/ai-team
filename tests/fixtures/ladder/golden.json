@@ -1,0 +1,73 @@
+{
+  "stamps": ["UNDERPOWERED"],
+  "arms": [
+    {
+      "arm_id": "ai_team",
+      "n": 1,
+      "cost_usd_mean": 2.0,
+      "cost_usd_ci": [2.0, 2.0],
+      "wall_clock_s_mean": 20.0,
+      "wall_clock_s_ci": [20.0, 20.0],
+      "fm_incidence": {},
+      "smoke_pass_rate": 1.0,
+      "accepted_change_rate": 1.0,
+      "demotion_rate": 0.0,
+      "qa_false_negative_rate": 0.0,
+      "source_ref": "local",
+      "divergences": [],
+      "phase_cost": {},
+      "phase_wall_clock": {},
+      "staleness": null,
+      "cost_per_fm_avoided": null,
+      "cost_per_fm_avoided_stamp": null
+    },
+    {
+      "arm_id": "reference",
+      "n": 1,
+      "cost_usd_mean": 4.0,
+      "cost_usd_ci": [4.0, 4.0],
+      "wall_clock_s_mean": 40.0,
+      "wall_clock_s_ci": [40.0, 40.0],
+      "fm_incidence": {},
+      "smoke_pass_rate": 0.0,
+      "accepted_change_rate": 0.0,
+      "demotion_rate": 0.0,
+      "qa_false_negative_rate": 0.0,
+      "source_ref": "vendor:3313e97",
+      "divergences": [
+        {
+          "field": "max_features",
+          "expected": 200,
+          "actual": 25,
+          "reason": "R3.3 cap"
+        }
+      ],
+      "phase_cost": {},
+      "phase_wall_clock": {},
+      "staleness": null,
+      "cost_per_fm_avoided": null,
+      "cost_per_fm_avoided_stamp": null
+    },
+    {
+      "arm_id": "solo",
+      "n": 1,
+      "cost_usd_mean": 1.0,
+      "cost_usd_ci": [1.0, 1.0],
+      "wall_clock_s_mean": 10.0,
+      "wall_clock_s_ci": [10.0, 10.0],
+      "fm_incidence": {},
+      "smoke_pass_rate": 1.0,
+      "accepted_change_rate": 1.0,
+      "demotion_rate": 0.0,
+      "qa_false_negative_rate": 0.0,
+      "source_ref": "local",
+      "divergences": [],
+      "phase_cost": {},
+      "phase_wall_clock": {},
+      "staleness": null,
+      "cost_per_fm_avoided": null,
+      "cost_per_fm_avoided_stamp": null
+    }
+  ],
+  "no_measured_effect": []
+}

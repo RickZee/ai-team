@@ -151,6 +151,7 @@ extend-exclude = [
   "tests/fixtures/mini_workspace",
   "evals/fixtures/traces",
   "evals/judges/cache",
+  "evals/arms/vendor",
 ]
 
 [tool.ruff.lint]
@@ -174,6 +175,8 @@ module = [
   "evals.run_evals",
   "evals.backends.*",
   "evals.test_backend_comparison",
+  "evals.arms.vendor",
+  "evals.arms.vendor.*",
 ]
 ignore_errors = true
 
@@ -240,16 +243,29 @@ markers = [
 constraint-dependencies = ["pip>=26.2"]
 
 [tool.coverage.run]
-source = ["src/ai_team"]
+source = ["src/ai_team", "evals"]
 branch = true
 data_file = ".coverage-data/.coverage"
+omit = [
+  "evals/arms/vendor/*",
+]
 
 [tool.coverage.report]
-# Fail the run if total coverage drops below this floor. Conservative starting
-# value — ratchet upward as coverage improves; it is a regression gate, not a
-# target. Applied wherever pytest runs with --cov (CI unit-test step).
-# 55 allows branch-coverage variance between macOS dev and ubuntu-latest CI (~6pt).
-fail_under = 55
+# Fail the run if total coverage drops below this floor. It is a regression gate,
+# not a target — ratchet upward after each green week. Applied wherever pytest runs
+# with --cov (CI unit-test step).
+#
+# History:
+#   55  initial floor (src/ai_team only; actual was ~63% combined line+branch)
+#   58  2026-09-12 — `evals` added to the measured source (11.6k lines that were
+#       previously unmeasured; it scores ~66%, so the combined total barely moved).
+#       Still allows the ~6pt branch-coverage variance seen between macOS dev and
+#       ubuntu-latest CI. Re-ratchet once a full local run confirms the combined
+#       figure — this floor was set from a partial (evals-only) measurement.
+#   60  2026-09-12 — harness-alignment (task 11.6). Full `tests/unit` on macOS
+#       measured 66% combined line+branch (`src/ai_team` + `evals`, vendor
+#       omitted). Floor is measured minus the ~6pt macOS/ubuntu branch variance.
+fail_under = 60
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

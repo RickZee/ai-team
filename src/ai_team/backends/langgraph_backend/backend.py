@@ -212,6 +212,16 @@ class LangGraphBackend:
                 planning_arch = state_dict.get("architecture") or {}
                 if planning_req:
                     b.write_artifact_json("planning", "requirements.json", planning_req)
+                    try:
+                        from ai_team.harness.acceptance import write_initial_from_any
+
+                        write_initial_from_any(
+                            b.workspace_dir,
+                            planning_req if isinstance(planning_req, dict) else None,
+                            thread_id,
+                        )
+                    except Exception as acc_exc:
+                        logger.debug("acceptance_write_skipped", error=str(acc_exc))
                 if planning_arch:
                     b.write_artifact_json("planning", "architecture.json", planning_arch)
                 # Testing artifacts (best-effort).
@@ -416,6 +426,16 @@ class LangGraphBackend:
                     planning_arch = final_state.get("architecture") or {}
                     if planning_req:
                         b.write_artifact_json("planning", "requirements.json", planning_req)
+                        try:
+                            from ai_team.harness.acceptance import write_initial_from_any
+
+                            write_initial_from_any(
+                                b.workspace_dir,
+                                planning_req if isinstance(planning_req, dict) else None,
+                                thread_id,
+                            )
+                        except Exception as acc_exc:
+                            logger.debug("acceptance_write_skipped", error=str(acc_exc))
                     if planning_arch:
                         b.write_artifact_json("planning", "architecture.json", planning_arch)
                     # Testing artifacts (best-effort).

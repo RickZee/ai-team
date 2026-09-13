@@ -1,4 +1,4 @@
-# Ten Ways Multi-Agent Systems Actually Fail
+# Seventeen Ways Multi-Agent Systems Actually Fail
 
 *A failure taxonomy from running the same AI engineering team on three orchestration
 frameworks — CrewAI, LangGraph, and the Claude Agent SDK — with receipts for every entry.*
@@ -11,10 +11,14 @@ team against real briefs, side by side on three orchestrators. Every entry below
 reproducible trace, a root cause, and a shipped fix in
 [the repo](https://github.com/RickZee/ai-team). None of them were in the demo script.
 
-The punchline up front: **only one of the ten was caused by an LLM being dumb.** The
-rest were systems engineering — event semantics, GIL contention, race conditions,
-guardrail calibration, verification gaps. If you're building agentic systems, the model
-is not where most of your reliability budget goes.
+The punchline up front: **four of the seventeen were caused by an LLM being
+dumb** — and that count rose because the instruments improved, not because the
+model got worse. FM-014, FM-015, and FM-017 were always happening; we could not
+see them until the acceptance list, context-pressure field, and structured QA
+verdicts existed. The other thirteen are still systems engineering — event
+semantics, GIL contention, race conditions, guardrail calibration, verification
+gaps. If you're building agentic systems, the model is not where most of your
+reliability budget goes, but it is no longer honest to say it is only one row.
 
 ---
 
@@ -35,11 +39,20 @@ Each section below maps to an FM id in
 | 8 | FM-008 | metric_source_drift |
 | 9 | FM-009 | provider_dialect_mismatch |
 | 10 | FM-010 | gate_environment_mismatch |
+| 11 | FM-011 | constraint_drop |
+| 12 | FM-012 | uncommitted_write |
+| 13 | FM-013 | lesson_ineffective |
+| 14 | FM-014 | acceptance_criteria_mutation |
+| 15 | FM-015 | premature_termination_under_context_pressure |
+| 16 | FM-016 | self_graded_verification |
+| 17 | FM-017 | evaluator_capitulation |
 
 Harness layers (tools, verification, context, guardrails, observability, routing,
-feedback) and FM-011…013: [HARNESS.md](../HARNESS.md). Machine coverage including
+feedback): [HARNESS.md](../HARNESS.md). Machine coverage including
 `harness_layer`: [`evals/taxonomy/COVERAGE.md`](../../evals/taxonomy/COVERAGE.md).
 Methodology: [`docs/EVAL_METHODOLOGY.md`](../EVAL_METHODOLOGY.md).
+The layer ratio in the punchline is counted from
+[`failure_modes.yaml`](../../evals/taxonomy/failure_modes.yaml), not typed here.
 
 ---
 
@@ -260,17 +273,84 @@ environment before the gate runs.
 **Lesson:** every gap between the gate environment and the app's real environment is a
 place where correct work gets marked wrong — the mirror image of failure #6.
 
+## 11. A pinned constraint disappears by the time tests run
+
+**Symptom:** intake recorded a distinctive constraint; testing or deployment
+prompts no longer mention it. The agent "forgot" a requirement the harness
+had pinned.
+
+**Root cause:** compaction / prompt assembly dropped a constraint id that
+summarizers are not allowed to remove. This is harness-layer context
+(FM-011), not a model that cannot follow instructions.
+
+**Fix:** `CHK-constraint-survival` compares intake `constraint_ids` to later
+phase_start payloads.
+
+## 12. A live write never went through draft-then-commit
+
+**Symptom:** `src/` or `tests/` changed on disk without a `commit_write`.
+Session loops that skip the end-of-session commit are `dirty_exit` and feed
+this mode (FM-012).
+
+**Fix:** ToolBus draft-then-commit; `CHK-draft-commit`; session loop marks
+`dirty_exit` when git is dirty.
+
+## 13. A lesson is marked ineffective and nobody escalates it
+
+**Symptom:** the same `fm_id` recurs across the configured window; the
+feedback layer leaves the lesson at `status=ineffective` (FM-013).
+
+**Fix:** `CHK-lesson-effectiveness` plus the self-improvement loop that
+must strengthen or re-target the constraint.
+
+## 14. The agent edits the definition of done
+
+**Symptom:** `ACCEPTANCE.json` items vanish, change identity, or flip
+`passes` without a harness demotion / without evidence (FM-014).
+
+**Root cause:** a model that can write the bar will move it. Layer: model,
+at the tools surface.
+
+**Fix:** harness-owned acceptance list; PreToolUse deny; `CHK-acceptance-monotonic`.
+
+## 15. The run wraps up because the window is filling
+
+**Symptom:** status ok, acceptance items still open, no spend/error/watchdog
+excuse, `context_pressure ≥ 0.75` (FM-015). Context anxiety.
+
+**Fix:** emit `context_pressure` (or `None`, never a guess);
+`CHK-premature-termination`.
+
+## 16. The writer grades their own work
+
+**Symptom:** a `passes: true` transition is signed by the same
+`(agent_role, subagent_id)` that wrote the files, and no smoke / ui_smoke /
+test evidence exists (FM-016). Harness verification gap.
+
+**Fix:** `CHK-verifier-independence`; MCP `acceptance_mark_passing` records
+identity.
+
+## 17. QA finds a blocker and approves anyway
+
+**Symptom:** structured verdict `accept` while `issues[]` holds major/blocker
+and no remediation write landed in between (FM-017). The evaluator is
+independent and still returns the wrong verdict — distinct from #16.
+
+**Fix:** `docs/qa_verdicts.jsonl`; `CHK-evaluator-capitulation`;
+`qa_false_negative_rate` against deterministic verifiers.
+
 ## What this adds up to
 
 Across three frameworks and dozens of runs, the ranking of what actually determined
 reliability:
 
 1. **The harness** — salvage, smoke gates, spend guards, process isolation, atomic ids,
-   calibrated guardrails, gate-environment fidelity. Framework-agnostic, and where
-   nearly all the fixes landed (seven of ten classes).
-2. **The model** — one failure class (#1), but it dominates outcomes once the platform
-   is sound: the same pipeline succeeds in ~13 minutes with a strong tool-calling model
-   and escalates to a human with a weak one.
+   calibrated guardrails, gate-environment fidelity, acceptance ownership, session
+   discipline. Framework-agnostic, and where nearly all the fixes landed.
+2. **The model** — four classes (#1, #14, #15, #17). They dominate outcomes once the
+   platform is sound, and three of them were invisible until the harness grew
+   instruments. The same pipeline still succeeds in ~13 minutes with a strong
+   tool-calling model and escalates to a human with a weak one.
 3. **The framework** — real differences in semantics and ergonomics (#2 was framework
    specific), but smaller than either of the above.
 4. **The provider** — a layer most write-ups ignore entirely (#9): routing, dialects,

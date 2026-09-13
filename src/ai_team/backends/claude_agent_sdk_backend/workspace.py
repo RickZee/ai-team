@@ -62,6 +62,7 @@ def ensure_workspace_layout(workspace: Path, description: str) -> None:
     """Create standard directories and seed a short project brief."""
     for sub in (
         "docs",
+        "docs/contracts",
         "src",
         "tests",
         "infrastructure",
@@ -69,6 +70,9 @@ def ensure_workspace_layout(workspace: Path, description: str) -> None:
         ".github/workflows",
     ):
         (workspace / sub).mkdir(parents=True, exist_ok=True)
+    contracts_keep = workspace / "docs" / "contracts" / ".gitkeep"
+    if not contracts_keep.exists():
+        contracts_keep.write_text("", encoding="utf-8")
     brief = workspace / "docs" / "project_brief.md"
     if not brief.exists():
         brief.write_text(

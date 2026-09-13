@@ -94,3 +94,6 @@ then `taxonomy propose --from-annotations`.
   (task 9.4). **Campaign status:** still warn-only as of 2026-09-09 — see
   [campaign/EVAL_GATE_STATUS.md](campaign/EVAL_GATE_STATUS.md). Do not claim a hard
   gate in posts until that file says otherwise.
+- **UI quality rubric** ([UI_QUALITY_RUBRIC.md](UI_QUALITY_RUBRIC.md)) is advisory.
+  No gate, check, or judge reads it. Deterministic UI evidence is `run_ui_smoke`
+  and the FM-006 extension of `CHK-runtime-smoke-present`.

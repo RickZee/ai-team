@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from ai_team.flows.main_flow import (
@@ -55,3 +56,45 @@ class TestParsePlanningOutputRejectsWrongSchema:
             or "invalid schema" in architecture.system_overview
         )
         assert architecture.components == []
+
+
+def test_stubbed_planning_writes_acceptance(tmp_path: Path) -> None:
+    """Definition of done for harness-alignment 1.3: planning produces ACCEPTANCE.json."""
+    from ai_team.harness.acceptance import write_initial
+    from ai_team.harness.receipt import ReceiptWriter
+    from ai_team.models.requirements import (
+        AcceptanceCriterion,
+        MoSCoW,
+        RequirementsDocument,
+        UserStory,
+    )
+
+    from evals.trace.builder import TraceBuilder
+
+    req = RequirementsDocument(
+        project_name="todo-api",
+        description="todos",
+        user_stories=[
+            UserStory(
+                as_a="user",
+                i_want="list todos",
+                so_that="I can plan",
+                acceptance_criteria=[AcceptanceCriterion(description="GET /todos returns 200")],
+                priority=MoSCoW.MUST,
+            )
+        ],
+    )
+    write_initial(tmp_path, req, "plan-1")
+    assert (tmp_path / "ACCEPTANCE.json").is_file()
+    rec = ReceiptWriter().write_from_run(
+        output_dir=tmp_path / "out",
+        workspace=tmp_path,
+        run_id="plan-1",
+        backend="crewai",
+        smoke={"ran": False, "skip_reason": "planning only"},
+    )
+    assert rec.acceptance_path == "ACCEPTANCE.json"
+    assert rec.acceptance_item_count is not None and rec.acceptance_item_count >= 1
+    (tmp_path / "logs").mkdir(exist_ok=True)
+    trace = TraceBuilder(backend="crewai", tier="A").from_workspace(tmp_path)
+    assert any(a.path == "ACCEPTANCE.json" for a in trace.artifacts)

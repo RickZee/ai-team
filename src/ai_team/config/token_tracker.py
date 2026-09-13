@@ -111,6 +111,17 @@ class TokenTracker:
         """Sum of all record costs; must be called with _lock held."""
         return sum(r.cost_usd for r in self._records)
 
+    def used_tokens(self) -> int:
+        """Total input+output tokens recorded so far."""
+        with self._lock:
+            return sum(r.input_tokens + r.output_tokens for r in self._records)
+
+    def context_pressure(self, window_tokens: int | None) -> float | None:
+        """Consumed tokens over *window_tokens*, or None when the window is unknown."""
+        from ai_team.harness.context_pressure import context_pressure as _pressure
+
+        return _pressure(self.used_tokens(), window_tokens)
+
     def _aggregate_by_role(self) -> dict[str, dict[str, Any]]:
         """Aggregate records by role: input_tokens, output_tokens, cost_usd."""
         with self._lock:

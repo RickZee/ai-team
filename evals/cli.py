@@ -507,6 +507,35 @@ def _cmd_judge_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ladder_run(args: argparse.Namespace) -> int:
+    from evals.arms.ladder import SweepBudgetError, run_sweep
+
+    arm_ids = [a.strip() for a in str(args.arms).split(",") if a.strip()]
+    try:
+        result = run_sweep(
+            args.scenario,
+            arm_ids,
+            int(args.n),
+            execute=bool(args.execute),
+            out_dir=Path(args.out) if args.out else None,
+        )
+    except SweepBudgetError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except KeyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def _cmd_ablation_status(args: argparse.Namespace) -> int:
+    from evals.arms.ablation_store import status_table
+
+    print(status_table(Path(args.results_dir) if args.results_dir else None))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct the top-level argparse parser."""
     parser = argparse.ArgumentParser(prog="python -m evals.cli")
@@ -700,6 +729,26 @@ def build_parser() -> argparse.ArgumentParser:
     drift.add_argument("--current", required=True, help="directory of current receipts")
     drift.add_argument("--previous", required=True, help="directory of previous receipts")
     drift.set_defaults(func=_cmd_drift)
+
+    ladder = sub.add_parser("ladder", help="harness-alignment ladder sweeps")
+    ladder_sub = ladder.add_subparsers(dest="ladder_command", required=True)
+    lrun = ladder_sub.add_parser("run", help="resolve (default) or execute a ladder sweep")
+    lrun.add_argument("--scenario", required=True)
+    lrun.add_argument("--arms", required=True, help="comma-separated arm ids")
+    lrun.add_argument("-n", "--n", type=int, default=1)
+    lrun.add_argument(
+        "--execute",
+        action="store_true",
+        help="required for any live call; default is dry-run",
+    )
+    lrun.add_argument("--out", default=None)
+    lrun.set_defaults(func=_cmd_ladder_run)
+
+    ablation = sub.add_parser("ablation", help="ablation result store")
+    ablation_sub = ablation.add_subparsers(dest="ablation_command", required=True)
+    astatus = ablation_sub.add_parser("status", help="current | STALE | never measured")
+    astatus.add_argument("--results-dir", default=None)
+    astatus.set_defaults(func=_cmd_ablation_status)
 
     return parser
 

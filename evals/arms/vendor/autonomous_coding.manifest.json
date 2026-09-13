@@ -1,0 +1,20 @@
+{
+  "sha": "3313e9716fb5b977248bcd06cb0cc86a8c547b9b",
+  "files": {
+    ".gitignore": "343b4b131f5e111b9951eda8b37e71a91ed4b410eb81bcbedcf0bee39b635362",
+    "LICENSE": "d7a04bf11ce24a7b79cd44b4a78dcc9971eaeb3b565821de437e0ecb7723e634",
+    "PROVENANCE.md": "9a759ede368200ea3cde108d9043939da23a96c7231f4c289926741f0d023db5",
+    "README.md": "46886061c3558c864e6ce42d229038d220bc5dea10735f2a552ec5d50bb6ef83",
+    "agent.py": "4cfe854312b8086bf5793a0e6020fe17e41d0a086e7c699d951eac65b868b2cb",
+    "autonomous_agent_demo.py": "13dab897acc437092dc2173e4df9917f3b5ea09396525947ebb33d6492482b23",
+    "client.py": "8b0fb5cf6593c280fe5975fce3623ca50c5c704944db200f3ec6cf5df54b1b81",
+    "progress.py": "bee445bd3890274fdb36246257d43a8aba11a3ad118f2832aae5bebec5ea0667",
+    "prompts/app_spec.txt": "892eeb0988a8984224ac95fd3c5378255e1c0f1f16ce49eb74472007681474d6",
+    "prompts/coding_prompt.md": "6f1fe5ef3c81a9aed7478ce0c51d8fd067f8c6b90183c5f921610fa4b35dfedc",
+    "prompts/initializer_prompt.md": "dc30edc9806096d7a9337a1676acb6b53caee539791663f675fdaec54b98cd13",
+    "prompts.py": "38a1009ad2d77376cc7378461055f1c5e754ba7899615697f417b3065de5fcdd",
+    "requirements.txt": "c6ab04f259caad2aded2a0e32e5d93812b8f78307663381bb1482a7e97d71841",
+    "security.py": "6f281b99ccfc2f32073e56541782c2ade67da72a289cbdd0c85f818927d3f936",
+    "test_security.py": "760b9db3ad3d9f3664bb5bc315a5ff153d06edf27b6ef2a16808973418f624dc"
+  }
+}

@@ -334,8 +334,10 @@ class AITeamFlow(Flow[ProjectState]):
             or_settings = OpenRouterSettings()
             tracker = TokenTracker(or_settings)
             tracker.register_crewai_hook()
+            self._token_tracker = tracker
         except Exception as exc:
             logger.debug("kickoff_token_tracker_skipped", error=str(exc))
+            self._token_tracker = None
 
         try:
             from ai_team.config.llm_observability import register_llm_observability_hooks
@@ -631,6 +633,25 @@ class AITeamFlow(Flow[ProjectState]):
                 needs_clarification=needs_clarification,
                 confidence=confidence,
             )
+            if self.state.requirements is not None:
+                try:
+                    from ai_team.config.settings import get_workspace_dir
+                    from ai_team.harness.acceptance import write_initial_from_any
+                    from ai_team.harness.context_pressure import emit_phase_end
+
+                    ws = Path(get_workspace_dir())
+                    write_initial_from_any(
+                        ws,
+                        self.state.requirements,
+                        self.state.project_id,
+                    )
+                    used = None
+                    tracker = getattr(self, "_token_tracker", None)
+                    if tracker is not None and hasattr(tracker, "used_tokens"):
+                        used = tracker.used_tokens()
+                    emit_phase_end(ws, "planning", used_tokens=used, status="ok")
+                except Exception as acc_exc:
+                    self.logger.warning("acceptance_write_skipped", error=str(acc_exc))
             return {
                 "status": "success",
                 "needs_clarification": needs_clarification,

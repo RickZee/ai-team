@@ -24,8 +24,11 @@ from evals.trace.parsers import (
     parse_costs_jsonl,
     parse_langgraph_messages,
     parse_phases_jsonl,
+    parse_qa_verdicts_jsonl,
     parse_session_json,
+    parse_sessions_jsonl,
     parse_smoke_report,
+    parse_ui_smoke_report,
     scan_workspace_artifacts,
 )
 
@@ -242,6 +245,12 @@ class TraceBuilder:
 
         smoke_spans, w = parse_smoke_report(workspace / "docs" / "smoke_results.json")
         warnings.extend(w)
+        ui_spans, w = parse_ui_smoke_report(workspace / "docs" / "ui_smoke_results.json")
+        warnings.extend(w)
+        qa_spans, w = parse_qa_verdicts_jsonl(workspace / "docs" / "qa_verdicts.jsonl")
+        warnings.extend(w)
+        session_spans, w = parse_sessions_jsonl(logs / "sessions.jsonl")
+        warnings.extend(w)
 
         lg_spans: list[Span] = []
         token_total: int | None = None
@@ -270,7 +279,14 @@ class TraceBuilder:
         cost = _merge_costs(cost_from_session, cost_from_log, cost_from_tokens)
 
         all_spans = _assign_span_ids(
-            phase_spans + cost_spans + audit_spans + smoke_spans + lg_spans
+            phase_spans
+            + cost_spans
+            + audit_spans
+            + smoke_spans
+            + ui_spans
+            + qa_spans
+            + session_spans
+            + lg_spans
         )
 
         started_at = all_spans[0].t_start if all_spans else datetime.now(UTC)
@@ -300,11 +316,20 @@ class TraceBuilder:
             model_ids=dict(session_meta.get("model_ids") or {}),
         )
 
+        arm_id = None
+        arm_file = workspace / ".arm_id"
+        if arm_file.is_file():
+            try:
+                arm_id = arm_file.read_text(encoding="utf-8").strip() or None
+            except OSError:
+                arm_id = None
+
         return Trace(
             schema_version=SCHEMA_VERSION,
             trace_id=make_trace_id(sid, backend_name, started_at),
             scenario_id=sid,
             backend=backend_name,
+            arm_id=arm_id,
             status=norm_status,
             started_at=started_at,
             ended_at=ended_at,
