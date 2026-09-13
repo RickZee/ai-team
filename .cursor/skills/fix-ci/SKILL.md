@@ -17,7 +17,11 @@ For **pip-audit / bandit** only, same skill.
 
 ## 0. Systematic triage (start here)
 
-1. Open the [failed run](https://github.com/RickZee/ai-team/actions) → note **which job** is red (ignore **cancelled** matrix legs).
+1. Open the public [Actions](https://github.com/RickZee/ai-team/actions) page (or
+   `https://api.github.com/repos/RickZee/ai-team/actions/runs?branch=<branch>`).
+   Do **not** hang on `gh auth login` or GitHub MCP `mcp_auth`. Note **which job**
+   is red (ignore **cancelled** matrix legs). Feature-branch pushes do not run CI
+   until a PR targets `main`/`develop`.
 2. Map the job to a local command (table in §1).
 3. Reproduce locally. Prefer `./scripts/ci_check.sh --matrix` before push to main (lint + 3.12 cov + 3.11 + security).
 4. Fix root cause — do not lower coverage threshold or skip tests without evidence.

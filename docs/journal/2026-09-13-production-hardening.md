@@ -81,3 +81,10 @@ UI, which needs `gh auth login`.
 
 Task 9.1 left open (human-triggered spend).
 
+## CI without `gh`
+
+Steering: watch the public Actions page/API
+(`https://github.com/RickZee/ai-team/actions`). Do not hang on `gh auth login`
+or GitHub MCP `mcp_auth`. `.github/workflows/ci.yml` only runs on push/PR to
+`main`/`develop`.
+

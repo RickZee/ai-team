@@ -36,3 +36,6 @@ Guardrail &lt;100ms; guardrail overhead &lt;10% of task time; memory op &lt;50ms
 - **Commits**: Conventional Commits — `feat(scope):`, `fix(scope):`, `test(scope):`, `docs(scope):`
 - **PR**: one phase or one feature per PR
 - **Checks**: ruff, mypy, pytest (unit), pytest (integration)
+- **CI**: watch https://github.com/RickZee/ai-team/actions (public). Do not hang
+  on `gh auth` or GitHub MCP `mcp_auth`. Feature-branch push is a no-op until a
+  PR targets `main`/`develop`.

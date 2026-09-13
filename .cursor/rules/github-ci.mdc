@@ -1,0 +1,28 @@
+---
+description: How to start and watch GitHub Actions without hanging on gh or MCP auth
+alwaysApply: true
+---
+
+# GitHub CI
+
+`.github/workflows/ci.yml` runs on **push to `main`/`develop`** and **pull_request into those**. A feature-branch push is a no-op until a PR exists.
+
+## Watch CI on the public site
+
+Do **not** block on `gh auth login` or GitHub MCP `mcp_auth` (that prompt has hung this repo). Git push already works over HTTPS.
+
+Monitor with unauthenticated HTTP:
+
+- Actions: https://github.com/RickZee/ai-team/actions
+- Branch runs: https://github.com/RickZee/ai-team/actions?query=branch%3Afeature%2Fphase-harness-alignment
+- API: `https://api.github.com/repos/RickZee/ai-team/actions/runs?branch=<branch>`
+- Releases: https://github.com/RickZee/ai-team/releases
+- Compare / open PR: https://github.com/RickZee/ai-team/compare/main...<branch>
+
+`gh run view` is optional when `gh` is already authenticated.
+
+## After a push that should run CI
+
+1. Confirm a PR into `main` or `develop` exists (or open one via the compare URL / git credentials).
+2. Poll the public Actions API or page until jobs complete.
+3. If red, follow `.cursor/skills/fix-ci/SKILL.md` from the failed job name.
