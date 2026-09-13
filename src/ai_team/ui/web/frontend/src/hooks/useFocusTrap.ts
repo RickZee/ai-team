@@ -3,8 +3,15 @@ import { useEffect, useRef } from "react";
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Trap focus inside a modal and restore focus when closed. */
-export function useFocusTrap(open: boolean, containerRef: React.RefObject<HTMLElement | null>) {
+/**
+ * Trap focus inside a modal, restore it on close, handle Escape, overlay click,
+ * and lock background scroll.
+ */
+export function useFocusTrap(
+  open: boolean,
+  containerRef: React.RefObject<HTMLElement | null>,
+  onClose?: () => void,
+) {
   const previousFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -15,7 +22,15 @@ export function useFocusTrap(open: boolean, containerRef: React.RefObject<HTMLEl
     const focusables = container?.querySelectorAll<HTMLElement>(FOCUSABLE);
     focusables?.[0]?.focus();
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose?.();
+        return;
+      }
       if (e.key !== "Tab" || !container) return;
       const items = container.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (items.length === 0) return;
@@ -30,10 +45,20 @@ export function useFocusTrap(open: boolean, containerRef: React.RefObject<HTMLEl
       }
     };
 
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.hasAttribute("data-overlay")) {
+        onClose?.();
+      }
+    };
+
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+      document.body.style.overflow = previousOverflow;
       previousFocus.current?.focus();
     };
-  }, [open, containerRef]);
+  }, [open, containerRef, onClose]);
 }

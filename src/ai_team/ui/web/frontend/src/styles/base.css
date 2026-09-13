@@ -1,0 +1,91 @@
+html {
+  font-size: 100%;
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--fg-default);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 400;
+  line-height: var(--leading-normal);
+  accent-color: var(--intent-accent);
+}
+
+h1, h2 {
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+h1 {
+  font-size: var(--text-lg);
+}
+
+h2 {
+  font-size: var(--text-md);
+}
+
+h3, h4 {
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+
+a {
+  color: var(--intent-accent);
+}
+
+a:hover {
+  color: var(--intent-accent-hover);
+}
+
+:focus-visible {
+  outline: 2px solid var(--intent-accent);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 1001;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-raised);
+  color: var(--fg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.measure {
+  max-width: var(--measure);
+}

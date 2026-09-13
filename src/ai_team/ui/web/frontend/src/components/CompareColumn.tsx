@@ -9,6 +9,7 @@ import { PhasePipeline } from "./PhasePipeline";
 import type { RunWsStatus } from "../hooks/useWebSocket";
 import type { MonitorState } from "../types";
 import { deriveCompareColumnVariant } from "../utils/compareColumnState";
+import { statusChipClassMd } from "../utils/statusIntent";
 
 interface CompareColumnProps {
   title: string;
@@ -45,13 +46,13 @@ function TerminalResultCard({
 
   return (
     <div className="compare-terminal-card" data-testid={`${testIdPrefix}-terminal`}>
-      <span className={`chip chip-md status-chip status-${status}`}>{statusLabel}</span>
+      <span className={statusChipClassMd(status)}>{statusLabel}</span>
       <div className="compare-terminal-stats">
         <span>{monitor.elapsed}</span>
         {monitor.cost_usd != null && <span>${monitor.cost_usd.toFixed(4)}</span>}
         {(m.tests_passed > 0 || m.tests_failed > 0) && (
           <span>
-            {m.tests_passed}✓{m.tests_failed > 0 ? ` / ${m.tests_failed}✗` : ""} tests
+            {m.tests_passed} passed{m.tests_failed > 0 ? ` · ${m.tests_failed} failed` : ""} tests
           </span>
         )}
         {m.files_generated > 0 && <span>{m.files_generated} files</span>}
@@ -77,16 +78,16 @@ export function CompareColumn({
 
   return (
     <div className="compare-col panel-inner" data-testid={`${testIdPrefix}-col`}>
-      <h3 className={`backend-title ${titleClass}`} title={title}>
+      <h2 className={`backend-title ${titleClass}`}>
         {title}
-      </h3>
+      </h2>
 
       {variant.kind === "idle" && (
         <EmptyState
           title="Not started"
           hint="Run a comparison from the form above to start all three backends."
           testId={`${testIdPrefix}-empty`}
-          className="empty-state compare-col-placeholder"
+          className="compare-col-placeholder"
         />
       )}
 
@@ -94,7 +95,7 @@ export function CompareColumn({
         <EmptyState
           title="Starting…"
           testId={`${testIdPrefix}-starting`}
-          className="empty-state compare-col-placeholder"
+          className="compare-col-placeholder"
         />
       )}
 
@@ -124,13 +125,13 @@ export function CompareColumn({
             tokenEstimate={variant.monitor.token_estimate}
             sessionId={variant.monitor.session_id}
           />
-          <div className="panel">
-            <h4 className="panel-header">Activity Log</h4>
+          <div className="panel-section">
+            <h3 className="panel-header">Activity Log</h3>
             <ActivityLog entries={variant.monitor.log} compact />
           </div>
           {variant.monitor.guardrail_events.length > 0 && (
-            <div className="panel">
-              <h4 className="panel-header">Guardrails</h4>
+            <div className="panel-section">
+              <h3 className="panel-header">Guardrails</h3>
               <GuardrailsPanel events={variant.monitor.guardrail_events} terminal={false} />
             </div>
           )}

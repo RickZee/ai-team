@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LogEntry } from "../types";
 import { formatLogMessage, formatLogTime } from "../utils/formatLogMessage";
+import { EmptyState } from "./EmptyState";
 
 const LEVEL_CLASS: Record<string, string> = {
   error: "log-error",
@@ -14,18 +15,14 @@ const LEVELS = ["info", "success", "warn", "error"] as const;
 export function ActivityLog({
   entries,
   compact = false,
-  ariaLive,
 }: {
   entries: LogEntry[];
   compact?: boolean;
-  ariaLive?: "polite" | "off";
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [agentFilter, setAgentFilter] = useState("");
-  const [enabledLevels, setEnabledLevels] = useState<Set<string>>(
-    () => new Set(LEVELS),
-  );
+  const [enabledLevels, setEnabledLevels] = useState<Set<string>>(() => new Set(LEVELS));
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [showJumpLatest, setShowJumpLatest] = useState(false);
@@ -50,10 +47,7 @@ export function ActivityLog({
       if (!enabledLevels.has(e.level)) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
-        if (
-          !e.message.toLowerCase().includes(q) &&
-          !e.agent.toLowerCase().includes(q)
-        ) {
+        if (!e.message.toLowerCase().includes(q) && !e.agent.toLowerCase().includes(q)) {
           return false;
         }
       }
@@ -71,7 +65,8 @@ export function ActivityLog({
 
   useEffect(() => {
     if (autoScroll && !showJumpLatest) {
-      bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      bottomRef.current?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth" });
     }
   }, [filtered.length, autoScroll, showJumpLatest]);
 
@@ -89,7 +84,7 @@ export function ActivityLog({
   };
 
   if (entries.length === 0) {
-    return <div className="empty-state">Waiting for agent activity…</div>;
+    return <EmptyState title="Waiting for agent activity…" />;
   }
 
   return (
@@ -149,19 +144,15 @@ export function ActivityLog({
       <div
         ref={scrollRef}
         className="activity-log"
-        aria-live={ariaLive}
-        aria-relevant="additions"
+        tabIndex={0}
+        aria-label="Activity log"
         onScroll={handleScroll}
       >
         {filtered.map((entry, i) => {
           const display = formatLogMessage(entry.message);
           const ts = formatLogTime(entry.timestamp);
           return (
-            <div
-              key={i}
-              className={`log-line ${LEVEL_CLASS[entry.level] || "log-info"}`}
-              title={entry.message}
-            >
+            <div key={i} className={`log-line ${LEVEL_CLASS[entry.level] || "log-info"}`}>
               <span className="log-ts">{ts}</span>
               <span className="log-sep" aria-hidden>
                 ·

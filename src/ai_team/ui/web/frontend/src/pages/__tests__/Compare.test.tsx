@@ -52,9 +52,9 @@ describe("Compare — base rendering", () => {
 
   it("renders three backend columns", () => {
     render(<MemoryRouter><Compare /></MemoryRouter>);
-    expect(screen.getByText("CrewAI")).toBeInTheDocument();
-    expect(screen.getByText("LangGraph")).toBeInTheDocument();
-    expect(screen.getByText("Claude Agent SDK")).toBeInTheDocument();
+    expect(screen.getAllByText("CrewAI").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("LangGraph").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Claude Agent SDK").length).toBeGreaterThan(0);
     expect(screen.getByTestId("compare-crewai-col")).toBeInTheDocument();
     expect(screen.getByTestId("compare-langgraph-col")).toBeInTheDocument();
     expect(screen.getByTestId("compare-claude-col")).toBeInTheDocument();

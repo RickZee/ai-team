@@ -37,7 +37,7 @@ export function EstimateTable({ estimate, runMultiplier = 1 }: EstimateTableProp
             Total (with 20% buffer)
             {runMultiplier > 1 ? ` × ${runMultiplier} runs` : ""}
           </td>
-          <td className={estimate.within_budget ? "green" : "red"}>${total.toFixed(4)}</td>
+          <td className={estimate.within_budget ? "text-success" : "text-danger"}>${total.toFixed(4)}</td>
         </tr>
       </tfoot>
     </table>

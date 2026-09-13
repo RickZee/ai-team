@@ -1,0 +1,279 @@
+/* Split from App.css — tokens only. See styles/tokens.css. */
+
+.form-helper, .estimate-helper {
+font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+.estimate-inline {
+margin-top: var(--space-3);
+}
+
+.compare-col-error {
+text-align: left;
+  border: 1px solid var(--tint-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--tint-danger);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.compare-col-error-label {
+font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--intent-danger);
+}
+
+.compare-col-error-reason {
+font-size: var(--text-sm);
+  color: var(--fg-muted);
+  font-weight: 400;
+  margin: 0;
+  word-break: break-word;
+}
+
+.compare-failures-banner {
+background: var(--tint-danger);
+  border: 1px solid var(--tint-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.compare-failures-heading {
+font-weight: 600;
+  color: var(--intent-danger);
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.compare-failures-list {
+margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.compare-failures-list li {
+margin-bottom: var(--space-1);
+}
+
+.estimate-panel {
+overflow-x: auto;
+}
+
+.estimate-table {
+width: 100%;
+  border-collapse: collapse;
+}
+
+.estimate-table th, .estimate-table td {
+padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.estimate-table th {
+font-size: var(--text-sm);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.estimate-table tfoot td {
+font-weight: 600;
+  border-top: 2px solid var(--border-subtle);
+}
+
+.compare-page {
+display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.compare-form {
+background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.compare-form h2 {
+margin-bottom: var(--space-4);
+}
+
+.compare-col {
+display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.compare-col-placeholder {
+margin-top: 0;
+  padding: var(--space-3) 0;
+}
+
+.compare-terminal-card {
+display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-raised);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.compare-terminal-stats {
+display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.compare-form-collapsed {
+padding: var(--space-3) var(--space-4);
+}
+
+.compare-form-summary {
+  width: 100%;
+  text-align: left;
+  font-size: var(--text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backend-title {
+font-size: var(--text-md);
+  font-weight: 600;
+  padding: var(--space-2) 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crewai-title {
+color: var(--cat-1);
+}
+
+.langgraph-title {
+color: var(--cat-2);
+}
+
+.claude-title {
+color: var(--cat-3);
+}
+
+.compare-summary {
+margin-top: var(--space-4);
+  overflow-x: auto;
+}
+
+.summary-table {
+width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 36rem;
+}
+
+.summary-table th:first-child, .summary-table td:first-child {
+position: sticky;
+  left: 0;
+  background: var(--bg-surface);
+  z-index: 1;
+}
+
+.summary-table th, .summary-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 12rem;
+  padding: var(--space-2) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.compare-finished-banner {
+display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.summary-table th {
+font-size: var(--text-sm);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.estimate-budget-warn {
+margin-top: var(--space-3);
+  font-size: var(--text-base);
+}
+
+.summary-best {
+background: var(--tint-success);
+  color: var(--intent-success);
+  font-weight: 600;
+}
+
+.summary-failed {
+color: var(--intent-danger);
+  opacity: 0.7;
+}
+
+.summary-failed-reason {
+font-size: var(--text-sm);
+  font-style: italic;
+  opacity: 1;
+  color: var(--fg-muted);
+  max-width: 200px;
+  word-break: break-word;
+}
+
+.summary-failure-reason-row td {
+border-top: 1px solid var(--tint-danger);
+  background: var(--tint-danger);
+}
+
+.compare-verdict {
+margin-bottom: var(--space-3);
+  font-size: var(--text-base);
+}
+
+.summary-direction {
+font-size: var(--text-xs);
+}
+
+.page-header p, .home-header p, .compare-page .page-header p, .run-page .page-header p {
+max-width: var(--measure);
+}
+
+.compare-grid,
+.compare-grid-3 {
+display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.compare-col-fold > summary {
+display: none;
+}
+
+.compare-secondary-metrics[hidden] {
+display: none;
+}
+
+.summary-best-marker {
+margin-inline-start: var(--space-1);
+  font-size: var(--text-xs);
+}

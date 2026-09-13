@@ -70,7 +70,7 @@ export function DownloadPanel({
           </a>
         </p>
       )}
-      <p className="download-note text-dim">
+      <p className="download-note text-muted">
         Re-running individual failed tests requires the CLI (<code>ai-team</code>) against the
         workspace directory.
       </p>

@@ -26,18 +26,18 @@ export function RunLaunchStatus({ status, runId, errorMessage }: RunLaunchStatus
       <p
         className={
           status === "error"
-            ? "red"
+            ? "text-danger"
             : status === "complete"
-              ? "green"
+              ? "text-success"
               : status === "complete_approved"
-                ? "yellow"
+                ? "text-warning"
                 : ""
         }
       >
         {STATUS_LABEL[status]}
-        {runId && status !== "connecting" && <span className="dim"> ({runId})</span>}
+        {runId && status !== "connecting" && <span className="text-muted"> ({runId})</span>}
       </p>
-      {errorMessage && <p className="red">{errorMessage}</p>}
+      {errorMessage && <p className="text-danger">{errorMessage}</p>}
       {runId && (status === "running" || status === "connecting" || status === "awaiting_human") && (
         <Link to={`/runs/${runId}`} className="btn-primary" data-testid="run-open-dashboard">
           Open dashboard

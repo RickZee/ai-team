@@ -24,6 +24,7 @@ vi.mock("../../hooks/useApi", () => ({
   deleteRun: vi.fn(),
   getProjectTests: vi.fn().mockResolvedValue({ total: 0, passed: 0, failed: 0, source: "empty" }),
   getProjectArchitecture: vi.fn().mockResolvedValue({ system_overview: "" }),
+  getRunReceipt: vi.fn().mockResolvedValue(null),
   getProjectTree: vi.fn().mockResolvedValue({ tree: [] }),
 }));
 

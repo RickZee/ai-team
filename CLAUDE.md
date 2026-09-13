@@ -39,3 +39,11 @@ Agents coordinate through these paths (file-based handoff), not a shared in-memo
 - **claude-agent-sdk** — Anthropic API key; Claude Agent SDK + Claude Code runtime; native MCP and session persistence.
 
 Choose the backend explicitly (`--backend`); do not assume OpenRouter keys work for the Claude Agent SDK backend.
+
+## Kiro specs
+
+Feature work specified under `.kiro/specs/<id>/` is executed from `tasks.md`.
+That file is a **living checklist**: check a box only when its Definition of
+done is literally true; leave human-triggered spend tasks open. Read
+`requirements.md` then `design.md` before implementing. Full steering:
+`.cursor/rules/kiro-specs.mdc`.

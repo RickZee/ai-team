@@ -118,8 +118,8 @@ export function Run() {
       )}
 
       <header className="page-header">
-        <h2>Run Pipeline</h2>
-        <p className="dim">Configure and start a run — live monitoring opens on the run detail page.</p>
+        <h1>Run pipeline</h1>
+        <p className="text-muted">Configure and start a run — live monitoring opens on the run detail page.</p>
       </header>
 
       <div className="run-form panel">
@@ -168,7 +168,7 @@ export function Run() {
           }
         />
         {estimate && !estimate.within_budget && (
-          <p className="estimate-budget-warn yellow">
+          <p className="estimate-budget-warn text-warning">
             Estimated cost exceeds default budget — review before running.
           </p>
         )}
@@ -187,7 +187,7 @@ export function Run() {
 
       {status === "complete" && runId && (
         <div className="run-complete panel">
-          <span className="green">Run complete</span>
+          <span className="text-success">Run complete</span>
           <Link to={`/runs/${runId}`} className="btn-primary" data-testid="run-open-dashboard">
             Open dashboard
           </Link>

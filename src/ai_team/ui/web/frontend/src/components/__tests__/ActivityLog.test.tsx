@@ -20,7 +20,7 @@ const longEntries: LogEntry[] = Array.from({ length: 50 }, (_, i) => ({
 describe("ActivityLog", () => {
   it("filters by level toggles", async () => {
     const user = userEvent.setup();
-    render(<ActivityLog entries={entries} ariaLive="polite" />);
+    render(<ActivityLog entries={entries} />);
     await user.click(screen.getByTestId("log-level-error"));
     expect(screen.queryByText("Test failed")).not.toBeInTheDocument();
     expect(screen.getByText("Starting intake")).toBeInTheDocument();
