@@ -20,6 +20,8 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-09-12 (alignment)](2026-09-12-harness-alignment.md) | New FM-014…017 scored retroactively; historical traces inconclusive (no acceptance / pressure / QA verdicts yet). |
 | [2026-09-12 (arms)](2026-09-12-harness-alignment-arms.md) | Ladder arms + report; live spends not run; punchline rewritten to four of seventeen. |
 | [2026-09-13 (alignment CI)](2026-09-13-harness-alignment-ci.md) | Every suite/CI failure found landing harness-alignment, and the first-run risks if Actions is red. |
+| [2026-09-13 (eval audit)](2026-09-13-eval-methodology-audit.md) | The corpus audit: 50 traces with 0 spans, 0 annotations, 0 of 17 failure modes observed — and the prompt line that made error analysis impossible. |
+| [2026-09-13 (UI refinement)](2026-09-13-ui-refinement.md) | Token/CSS split, frozen testids, Playwright heading-level miss, migrator `0.var(--space-*)` residue. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
 
 The July rigor arc (Jul 21–24) has no standalone entry — it lives in

@@ -629,3 +629,90 @@ currently measures correctly and has almost nothing true to measure yet.
 Full handoff: [2026-08-16](2026-08-16.md).
 
 ---
+
+## Sep 13 — the auditor audits itself, and loses
+
+I sat down to do a routine alignment pass. Hamel Husain and Shreya Shankar had just
+done [an episode of Lenny's Podcast](https://www.lennysnewsletter.com/p/why-ai-evals-are-the-hottest-new-skill)
+on evals; `EVAL_METHODOLOGY.md` already cites them; the job was to read the source,
+compare, note the deltas.
+
+There were no deltas. The methodology in this repo is correct. Traces before scores.
+Binary over Likert. TPR *and* TNR, never accuracy. Benevolent dictator. Open coding
+that refuses to show the annotator a model's guess — there is a docstring in
+`annotate.py` telling future agents not to "helpfully" add AI assistance, and I still
+think that is the best paragraph in the codebase.
+
+Then I opened the corpus.
+
+Fifty traces. Zero spans between them. One backend, one status, one scenario id and
+that id is `unknown`. All fifty created inside a **1.97-second window** on August 16.
+`evals/annotations/` — empty. Four hundred and forty run workspaces on disk, two
+hundred and twenty-one of them empty directories, and **not one** containing a log
+file.
+
+Then I found where the records actually were. `output/runs/` — 211 dated directories, 210
+`run.json` files carrying backend, workspace path, completion time and final status,
+141 `state.json` with real cost and token counts, 60 cost logs, 8 signed receipts.
+Three backends. **A sixty-nine-day span.** All of it sitting there since July.
+
+`evals/cli.py:547` — `backfill.add_argument("--workspace-root", default="./workspace")`.
+
+The eval harness has been reading the directory where the generated code lands instead
+of the directory where the run records live. One argument. The corpus that indexed as
+one backend over 1.97 seconds could have been three backends over sixty-nine days, for
+nothing, on the day the backfill was written.
+
+The one thing genuinely missing is phase telemetry, and that one *is* a bullet in a
+prompt — *"Write phase transition entries to workspace/logs/phases.jsonl"* — with a
+single code writer added last week. Zero of those files exist anywhere. Which makes the
+defect specific rather than general: `audit.jsonl` and `costs.jsonl` have real writers
+in code. Phase records are the one signal left to an instruction, and they are the one
+signal every trajectory check depends on.
+
+So the honest sentence is not "we haven't done error analysis yet." It is: **I pointed
+the measurement at the wrong directory and then built two more specs on the empty
+result.** Thirteen thousand lines under `evals/` — sampling, annotation, axial
+clustering, golden splits, Cohen's κ, bootstrap CIs, prevalence bias correction, a `$0`
+Tier A gate in CI. All of it real. All of it fed 94 synthetic fixtures across 21 checks,
+which prove the check code behaves as written and have never once said anything about
+whether `ai-team` works.
+
+The repo *said* this. `evals/golden/README.md` says it. `EVAL_METHODOLOGY.md` said it
+under a heading literally titled "Open-coding status (honest)." I had written the
+disclosure and then let the numbers travel without it, which is a more interesting
+failure than lying would have been, and considerably harder to catch.
+
+The August entry below ends with the line "it currently measures correctly and has
+almost nothing true to measure yet." That was written as a deferral. Four weeks later
+it reads as a diagnosis I filed and then walked past on my way to building the next
+layer. [Jul 23](#jul-23--the-n1-mistake-applied-to-the-defense-layer) caught an n=1
+mistake in the defense layer. This is the same mistake in the measurement layer, and
+the reason I missed it for longer is that the measurement layer is the one that was
+supposed to catch things.
+
+So: no code today. One spec —
+[`eval-methodology-alignment`](../../.kiro/specs/eval-methodology-alignment/) — that
+points the corpus at `output/runs/` where the records already are, moves phase telemetry
+into the harness where it belongs, deletes the prompt line rather than supplementing it, adds FM-018 `self_reported_telemetry` (the quiet sibling of
+FM-016: a bad verdict you can argue with versus a clean-looking dataset you cannot),
+makes `unindexable` a real trace state so an unreadable run stops being counted as a
+failed one, puts a diversity floor on the corpus with a stamp the renderer enforces,
+and stamps every failure mode with where it came from. That last field makes the
+current state legible in one line: **zero of seventeen failure modes have been
+observed.**
+
+Three of the requirements are refusals — `taxonomy propose` under 30 unaided
+annotations, `judge validate` under 100 labels, re-runs above ceiling — with no
+override flag, because a flag is how a refusal becomes a formality. And Phase 4 is
+marked human-only with an instruction that an agent reading the task list must stop
+and say so. I now have thirteen thousand lines that would cheerfully generate me a
+golden set, and that is exactly the thing that must never happen.
+
+The smallest version of the fix is one free task plus one unavoidable one: re-index
+`output/runs/`, then read thirty traces myself. Which is, stripped of everything else, the entire content
+of the podcast.
+
+Full audit: [2026-09-13](2026-09-13-eval-methodology-audit.md).
+
+---
