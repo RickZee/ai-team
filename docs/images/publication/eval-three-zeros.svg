@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 627" width="1200" height="627" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="627" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">I AUDITED MY OWN EVAL SYSTEM</text>
+  <text x="70" y="126" font-size="50" font-weight="700" fill="#1a1a2e">Three numbers came back</text>
+  <text x="70" y="164" font-size="20" fill="#5f5e5a">13,000 lines of eval infrastructure. Every stage built, typed, unit-tested.</text>
+
+  <g>
+    <rect x="70" y="206" width="340" height="268" rx="12" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="70" y="206" width="6" height="268" rx="3" fill="#b4462f"/>
+    <text x="102" y="318" font-size="104" font-weight="700" fill="#b4462f">0</text>
+    <text x="102" y="356" font-size="17" font-weight="600" fill="#1a1a2e">spans</text>
+    <text x="102" y="386" font-size="16" fill="#5f5e5a">across all 50 indexed traces.</text>
+    <text x="102" y="410" font-size="16" fill="#5f5e5a">The trace store held shells.</text>
+    <text x="102" y="452" font-size="13" font-family="monospace" fill="#96938a">select sum(span_count)</text>
+  </g>
+
+  <g>
+    <rect x="430" y="206" width="340" height="268" rx="12" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="430" y="206" width="6" height="268" rx="3" fill="#b4462f"/>
+    <text x="462" y="318" font-size="104" font-weight="700" fill="#b4462f">0</text>
+    <text x="462" y="356" font-size="17" font-weight="600" fill="#1a1a2e">traces read by a human</text>
+    <text x="462" y="386" font-size="16" fill="#5f5e5a">The annotation tool works.</text>
+    <text x="462" y="410" font-size="16" fill="#5f5e5a">Nobody ever opened it.</text>
+    <text x="462" y="452" font-size="13" font-family="monospace" fill="#96938a">ls -A evals/annotations/</text>
+  </g>
+
+  <g>
+    <rect x="790" y="206" width="340" height="268" rx="12" fill="#ffffff" stroke="#d3d1c7"/>
+    <rect x="790" y="206" width="6" height="268" rx="3" fill="#b4462f"/>
+    <text x="822" y="318" font-size="104" font-weight="700" fill="#b4462f">0<tspan font-size="38" fill="#96938a"> / 17</tspan></text>
+    <text x="822" y="356" font-size="17" font-weight="600" fill="#1a1a2e">failure modes observed</text>
+    <text x="822" y="386" font-size="16" fill="#5f5e5a">13 came from an essay I wrote</text>
+    <text x="822" y="410" font-size="16" fill="#5f5e5a">from memory. 4 from references.</text>
+    <text x="822" y="452" font-size="13" font-family="monospace" fill="#96938a">taxonomy/failure_modes.yaml</text>
+  </g>
+
+  <rect x="70" y="510" width="1060" height="72" rx="10" fill="#f1efe7" stroke="#ddd9cc"/>
+  <rect x="70" y="510" width="6" height="72" rx="3" fill="#1d9e75"/>
+  <text x="102" y="542" font-size="20" font-weight="600" fill="#1a1a2e">Every stage downstream of &#8220;look at your data&#8221; was built.</text>
+  <text x="102" y="568" font-size="20" font-weight="600" fill="#b4462f">None of them had ever seen any data.</text>
+</svg>

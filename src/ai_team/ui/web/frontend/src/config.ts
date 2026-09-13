@@ -16,6 +16,24 @@ export function getApiBase(): string {
   return origin ? `${origin}/api` : "/api";
 }
 
+export function getWebToken(): string {
+  return ((import.meta.env.VITE_AI_TEAM_WEB_TOKEN as string | undefined) || "").trim();
+}
+
+export function authHeaders(extra?: HeadersInit): HeadersInit {
+  const token = getWebToken();
+  const headers = new Headers(extra);
+  if (token) headers.set("X-AI-Team-Token", token);
+  return headers;
+}
+
+export function withTokenQuery(url: string): string {
+  const token = getWebToken();
+  if (!token) return url;
+  const join = url.includes("?") ? "&" : "?";
+  return `${url}${join}token=${encodeURIComponent(token)}`;
+}
+
 export function getWsBase(): string {
   if (envWs) return envWs.replace(/\/$/, "");
   if (typeof window !== "undefined" && window.location) {

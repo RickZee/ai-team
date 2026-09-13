@@ -93,3 +93,42 @@ def delete_run(run_id: str) -> RunDeletionResult:
 def delete_runs(run_ids: list[str]) -> list[RunDeletionResult]:
     """Delete multiple runs; returns one result per id in order."""
     return [delete_run(run_id) for run_id in run_ids]
+
+
+def prune_runs(*, older_than_days: int, output_root: Path | None = None) -> list[str]:
+    """Delete run bundles (and matching workspaces) older than *older_than_days*.
+
+    Idempotent: a second call on the same tree removes nothing. Returns removed
+    run ids. Never touches a directory whose name is not a run id.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    if older_than_days < 1:
+        raise ValueError("older_than_days must be >= 1")
+    settings = get_settings()
+    root = (output_root or Path(settings.project.output_dir)).resolve()
+    runs_dir = root / RUNS_SUBDIR
+    if not runs_dir.is_dir():
+        return []
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
+    removed: list[str] = []
+    for child in sorted(runs_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        try:
+            mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=UTC)
+        except OSError:
+            continue
+        if mtime >= cutoff:
+            continue
+        result = delete_run(child.name)
+        if (
+            result.existed
+            or result.workspace_deleted
+            or result.bundle_deleted
+            or not child.exists()
+        ):
+            removed.append(child.name)
+    rebuild_registry(root)
+    logger.info("runs_pruned", count=len(removed), older_than_days=older_than_days)
+    return removed

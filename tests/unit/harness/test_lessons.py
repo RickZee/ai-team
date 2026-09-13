@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+from ai_team.config.settings import reload_settings
+from ai_team.core.results import ResultsBundle
 from ai_team.harness.context import ConstraintLoader
 from ai_team.harness.lessons_loop import (
     LessonStore,
@@ -55,3 +58,30 @@ def test_two_run_inject(tmp_path: Path) -> None:
     second = ConstraintLoader(tmp_path)
     assert any(i.startswith("CST-lesson-") for i in second.ids())
     assert (tmp_path / "docs" / "LESSONS.md").is_file()
+
+
+def test_lessons_closed_loop_through_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Run n writes a lesson; run n+1 loads it — through ResultsBundle, not a direct import."""
+    out = tmp_path / "out"
+    shared = tmp_path / "shared"
+    out.mkdir()
+    shared.mkdir()
+    monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out))
+    monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(shared))
+    reload_settings()
+
+    first = ResultsBundle("run-a", workspace_dir=shared)
+    first.write_state({"metadata": {"smoke_results": {"ran": True, "success": False}}})
+    first.finalize(final_status="error")
+    constraints_1 = (shared / "docs" / "CONSTRAINTS.md").read_text(encoding="utf-8")
+    assert "CST-lesson-" in constraints_1
+    assert (shared / "docs" / "qa_verdicts.jsonl").is_file()
+
+    second = ResultsBundle("run-b", workspace_dir=shared)
+    second.init_dirs()
+    constraints_2 = (shared / "docs" / "CONSTRAINTS.md").read_text(encoding="utf-8")
+    assert "CST-lesson-" in constraints_2
+    ids_after = ConstraintLoader(shared).ids()
+    assert any(i.startswith("CST-lesson-") for i in ids_after)

@@ -110,3 +110,28 @@ def test_delete_runs_returns_one_result_per_id(isolated_dirs: tuple[Path, Path])
     assert results[2].existed is False
     idx = json.loads((out_root / "index.json").read_text(encoding="utf-8"))
     assert idx["runs"] == []
+
+
+def test_prune_runs_removes_old_keeps_new_and_is_idempotent(
+    isolated_dirs: tuple[Path, Path],
+) -> None:
+    import os
+    import time
+
+    from ai_team.core.results.cleanup import prune_runs
+
+    out_root, ws_root = isolated_dirs
+    _seed_run(out_root, ws_root, "old-run")
+    _seed_run(out_root, ws_root, "new-run")
+    old_mtime = time.time() - 20 * 86400
+    os.utime(out_root / "runs" / "old-run", (old_mtime, old_mtime))
+    os.utime(ws_root / "old-run", (old_mtime, old_mtime))
+
+    removed = prune_runs(older_than_days=14, output_root=out_root)
+    assert "old-run" in removed
+    assert "new-run" not in removed
+    assert not (out_root / "runs" / "old-run").exists()
+    assert (out_root / "runs" / "new-run").exists()
+
+    again = prune_runs(older_than_days=14, output_root=out_root)
+    assert again == []

@@ -4,6 +4,8 @@ Historical run diary — live comparison data with commit receipts. For narrativ
 context see [journal/README.md](journal/README.md). For non-obvious bugs see
 [troubleshooting/README.md](troubleshooting/README.md).
 
+![Verified three-backend Compare tab, 2026-07-06](images/compare-verified-2026-07-06.gif)
+
 ## First post-wiring-fix 3-way comparison — 2026-07-01 evening
 
 - **Comparison id:** `432ec61f-0d2c-48ad-a10d-b724f748d588` (`GET /api/comparisons/432ec61f-...`)

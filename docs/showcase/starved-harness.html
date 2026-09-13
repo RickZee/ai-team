@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An audit of ai-team's eval harness: every stage of the error-analysis loop is built, and none of them has ever seen real data.">
+<title>The Starved Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+  :root {
+    --ground: #F3F5F2;
+    --surface: #FCFCFB;
+    --surface-sunk: #ECEFEA;
+    --ink: #171A18;
+    --ink-2: #40463F;
+    --ink-3: #6B726A;
+    --rule: #D5D9D1;
+    --rule-strong: #B6BCB2;
+    --accent: #1F6FB2;
+    --accent-soft: rgba(31, 111, 178, 0.10);
+    --cat-1: #1F6FB2;
+    --cat-2: #B03A6A;
+    --state-met: #3E7D52;
+    --state-unmet: #9E2F28;
+    --empty-hatch: rgba(107, 114, 106, 0.30);
+
+    --f-display: "IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+    --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --wrap: 1080px;
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131614;
+      --surface: #1B1F1D;
+      --surface-sunk: #101312;
+      --ink: #E9ECE7;
+      --ink-2: #BFC5BC;
+      --ink-3: #8B938A;
+      --rule: #2E3430;
+      --rule-strong: #444B45;
+      --accent: #3E86C8;
+      --accent-soft: rgba(62, 134, 200, 0.14);
+      --cat-1: #3E86C8;
+      --cat-2: #C55A85;
+      --state-met: #63A87A;
+      --state-unmet: #D3665E;
+      --empty-hatch: rgba(139, 147, 138, 0.32);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #131614;
+    --surface: #1B1F1D;
+    --surface-sunk: #101312;
+    --ink: #E9ECE7;
+    --ink-2: #BFC5BC;
+    --ink-3: #8B938A;
+    --rule: #2E3430;
+    --rule-strong: #444B45;
+    --accent: #3E86C8;
+    --accent-soft: rgba(62, 134, 200, 0.14);
+    --cat-1: #3E86C8;
+    --cat-2: #C55A85;
+    --state-met: #63A87A;
+    --state-unmet: #D3665E;
+    --empty-hatch: rgba(139, 147, 138, 0.32);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--wrap);
+    margin: 0 auto;
+    padding-inline: 24px;
+    padding-block: 0 88px;
+  }
+
+  .prose { max-width: var(--measure); }
+
+  p { margin: 0 0 1.05em; color: var(--ink-2); }
+  p strong { color: var(--ink); font-weight: 600; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  code, .mono { font-family: var(--f-mono); font-variant-ligatures: none; }
+  code { font-size: 0.86em; color: var(--ink); background: var(--surface-sunk); padding: 0.1em 0.36em; border-radius: 2px; }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-block: 40px 26px;
+    margin-bottom: 44px;
+  }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: clamp(3rem, 9vw, 5.5rem);
+    line-height: 0.94;
+    letter-spacing: -0.02em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: clamp(1.06rem, 2.1vw, 1.28rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0;
+  }
+  .standfirst em { color: var(--ink); font-style: italic; }
+
+  /* ---------- section furniture ---------- */
+  section { margin-block: 64px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 10px;
+    margin-bottom: 26px;
+  }
+  .sec-head h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .sec-tag {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  /* ---------- zero row ---------- */
+  .zeros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border-block: 1px solid var(--rule);
+  }
+  .zero {
+    background: var(--surface);
+    padding: 22px 20px 20px;
+  }
+  .zero .n {
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 3.4rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .zero .n small { font-size: 1.15rem; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+  .zero .lab {
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .zero .src {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-top: 8px;
+    word-break: break-all;
+  }
+
+  /* ---------- the loop strip ---------- */
+  .loop {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 10px;
+  }
+  .stage {
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 12px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .stage .idx {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+  }
+  .stage .name {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .bars { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+  .bar-row { display: flex; align-items: center; gap: 7px; }
+  .bar-key {
+    font-family: var(--f-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    width: 30px;
+    flex: none;
+  }
+  .bar {
+    height: 8px;
+    flex: 1;
+    border: 1px solid var(--rule-strong);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .bar.empty {
+    background-image: repeating-linear-gradient(135deg, var(--empty-hatch) 0 1px, transparent 1px 5px);
+  }
+  .bar-val {
+    font-family: var(--f-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    width: 26px;
+    text-align: right;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .loop-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 14px;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  .loop-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 22px; height: 8px; border: 1px solid var(--rule-strong); border-radius: 2px; flex: none; }
+  .swatch.full { background: var(--accent); }
+  .swatch.none { background-image: repeating-linear-gradient(135deg, var(--empty-hatch) 0 1px, transparent 1px 5px); }
+
+  /* ---------- tables ---------- */
+  .tbl-scroll { overflow-x: auto; border-block: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 520px; }
+  caption {
+    text-align: left;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-bottom: 10px;
+  }
+  th, td { text-align: left; padding: 10px 14px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    border-bottom-color: var(--rule-strong);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.num b { color: var(--ink); font-weight: 600; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .pill::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .pill.unmet { color: var(--state-unmet); }
+  .pill.unmet::before { background: var(--state-unmet); }
+  .pill.met { color: var(--state-met); }
+  .pill.met::before { background: var(--state-met); }
+  .pill.na { color: var(--ink-3); }
+  .pill.na::before { background: transparent; border: 1px solid var(--ink-3); }
+
+  /* ---------- root cause panel ---------- */
+  .rootcause {
+    background: var(--surface);
+    border-left: 3px solid var(--state-unmet);
+    padding: 24px 24px 20px;
+    box-shadow: 0 1px 0 var(--rule), 0 8px 24px -18px rgba(0,0,0,0.45);
+  }
+  .rootcause .path {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    word-break: break-all;
+    margin-bottom: 10px;
+  }
+  .rootcause .line {
+    font-family: var(--f-mono);
+    font-size: clamp(13px, 2vw, 15.5px);
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--surface-sunk);
+    padding: 14px 16px;
+    border-radius: 3px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+  .rootcause p:last-child { margin-bottom: 0; }
+
+  /* ---------- provenance bar ---------- */
+  .prov {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 22px 22px 18px;
+  }
+  .prov-bar {
+    display: flex;
+    gap: 2px;
+    height: 46px;
+    margin-bottom: 14px;
+  }
+  .prov-seg {
+    border-radius: 3px;
+    position: relative;
+    cursor: default;
+  }
+  .prov-seg.essay { background: var(--cat-1); flex: 13; }
+  .prov-seg.reference { background: var(--cat-2); flex: 4; }
+  .prov-seg.observed {
+    flex: 0 0 76px;
+    border: 1px dashed var(--rule-strong);
+    background-image: repeating-linear-gradient(135deg, var(--empty-hatch) 0 1px, transparent 1px 6px);
+  }
+  .prov-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .prov-labels span { display: inline-flex; align-items: center; gap: 8px; }
+  .key {
+    width: 12px; height: 12px; border-radius: 2px; flex: none;
+  }
+  .key.essay { background: var(--cat-1); }
+  .key.reference { background: var(--cat-2); }
+  .key.observed { border: 1px dashed var(--rule-strong); background-image: repeating-linear-gradient(135deg, var(--empty-hatch) 0 1px, transparent 1px 6px); }
+  .prov-labels b { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+
+  /* ---------- phases ---------- */
+  .phases { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .phase {
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 18px;
+    padding: 18px 20px;
+  }
+  .phase .p-id {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-top: 3px;
+  }
+  .phase h3 {
+    font-family: var(--f-display);
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .phase p { margin: 0; font-size: 14.5px; line-height: 1.55; }
+  .phase .flag {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--state-unmet);
+    display: block;
+    margin-top: 8px;
+  }
+
+  /* ---------- rules box ---------- */
+  .rules {
+    border: 1px solid var(--rule-strong);
+    background: var(--accent-soft);
+    padding: 24px 26px;
+  }
+  .rules h3 {
+    font-family: var(--f-display);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  .rules ol { margin: 0; padding-left: 1.2em; }
+  .rules li { margin-bottom: 10px; color: var(--ink-2); }
+  .rules li:last-child { margin-bottom: 0; }
+  .rules li strong { color: var(--ink); }
+
+  footer {
+    border-top: 2px solid var(--ink);
+    margin-top: 72px;
+    padding-top: 22px;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+
+  .kicker {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(1.25rem, 3vw, 1.7rem);
+    line-height: 1.32;
+    color: var(--ink);
+    max-width: 34ch;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  @media (max-width: 620px) {
+    .phase { grid-template-columns: 1fr; gap: 6px; }
+    .zero .n { font-size: 2.8rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Eval harness audit</span>
+      <span>ai-team · ArqiSoft</span>
+      <span>13 September 2026</span>
+      <span>Corpus: NON-REPRESENTATIVE</span>
+    </div>
+    <h1>The Starved Harness</h1>
+    <p class="standfirst">
+      I built an eval system that implements the error-analysis methodology correctly,
+      in about thirteen thousand lines. Then I audited it against the methodology it cites and found
+      that <em>every stage downstream of "look at your data" has never seen any data.</em>
+      This is what the audit found, and what the numbers are actually worth.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>Three numbers</h2>
+      <span class="sec-tag">measured 2026-09-13</span>
+    </div>
+    <div class="zeros">
+      <div class="zero">
+        <span class="n">0</span>
+        <span class="lab">Spans across all 50 indexed traces. The trace store is populated with shells — every log file the builder looked for was missing.</span>
+        <span class="src">sum(span_count) — evals/traces/index.db</span>
+      </div>
+      <div class="zero">
+        <span class="n">0</span>
+        <span class="lab">Traces ever open-coded by a human. The annotation tool is built, typed and tested. The annotations directory is empty.</span>
+        <span class="src">ls -A evals/annotations/</span>
+      </div>
+      <div class="zero">
+        <span class="n">0 <small>of 17</small></span>
+        <span class="lab">Failure modes derived from observation. Thirteen came from an essay written from memory; four from external references.</span>
+        <span class="src">evals/taxonomy/failure_modes.yaml</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Built everywhere, fed nowhere</h2>
+      <span class="sec-tag">the loop, stage by stage</span>
+    </div>
+    <div class="prose">
+      <p>
+        The methodology is not in dispute. Traces before scores. Binary verdicts, never
+        Likert. True-positive <em>and</em> true-negative rates, never accuracy alone. A single
+        domain expert as annotator. Open coding that deliberately refuses to show the
+        annotator a model's guess, because a model-labelled ground truth makes every number
+        downstream meaningless.
+      </p>
+      <p>
+        All seven stages are implemented. The top bar is how much of the stage exists in code.
+        The bottom bar is how much real data has ever passed through it.
+      </p>
+    </div>
+
+    <div class="loop" style="margin-top:26px">
+      <div class="stage">
+        <span class="idx">01</span>
+        <span class="name">Telemetry</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:16%"></i></span><span class="bar-val">part</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <span class="idx">02</span>
+        <span class="name">Trace corpus</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:100%"></i></span><span class="bar-val">full</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <span class="idx">03</span>
+        <span class="name">Sample</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:100%"></i></span><span class="bar-val">full</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <span class="idx">04</span>
+        <span class="name">Open code</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:100%"></i></span><span class="bar-val">full</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <span class="idx">05</span>
+        <span class="name">Axial code</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:100%"></i></span><span class="bar-val">full</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <span class="idx">06</span>
+        <span class="name">Label &amp; align</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:100%"></i></span><span class="bar-val">full</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+      <div class="stage">
+        <span class="idx">07</span>
+        <span class="name">Gate</span>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-key">code</span><span class="bar"><i style="width:100%"></i></span><span class="bar-val">full</span></div>
+          <div class="bar-row"><span class="bar-key">data</span><span class="bar empty"></span><span class="bar-val">none</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="loop-legend">
+      <span><i class="swatch full"></i> code — implemented, typed, unit-tested</span>
+      <span><i class="swatch none"></i> data — real traces that have passed through it</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What the corpus actually is</h2>
+      <span class="sec-tag">floors from spec R4</span>
+    </div>
+    <div class="prose">
+      <p>
+        The guardrail in the source material is <strong>“roughly 100 diverse traces.”</strong>
+        The word carrying the weight is <em>diverse</em>. Here is what fifty traces turned
+        out to be.
+      </p>
+    </div>
+    <div class="tbl-scroll" style="margin-top:20px">
+      <table>
+        <caption>Indexed corpus vs. the representativeness floors</caption>
+        <thead>
+          <tr>
+            <th scope="col">Measure</th>
+            <th scope="col" class="num">Actual</th>
+            <th scope="col" class="num">Floor</th>
+            <th scope="col">State</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Indexed traces</td><td class="num"><b>50</b></td><td class="num">≥ 100</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Spans across all traces</td><td class="num"><b>0</b></td><td class="num">—</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Distinct backends</td><td class="num"><b>1</b> <span style="color:var(--ink-3)">crewai</span></td><td class="num">≥ 3</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Distinct scenario ids</td><td class="num"><b>0</b> <span style="color:var(--ink-3)">all “unknown”</span></td><td class="num">≥ 4</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Distinct run statuses</td><td class="num"><b>1</b> <span style="color:var(--ink-3)">failed</span></td><td class="num">≥ 2</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Creation time span</td><td class="num"><b>1.97 s</b></td><td class="num">≥ 14 d</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Run workspaces on disk</td><td class="num"><b>440</b> <span style="color:var(--ink-3)">221 empty</span></td><td class="num">—</td><td><span class="pill na">context</span></td></tr>
+          <tr><td>Workspaces containing any log file</td><td class="num"><b>0</b></td><td class="num">—</td><td><span class="pill unmet">unmet</span></td></tr>
+          <tr><td>Run records in <span class="mono">output/runs/</span>, unread</td><td class="num"><b>210</b> <span style="color:var(--ink-3)">3 backends, 69 d</span></td><td class="num">—</td><td><span class="pill na">available</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose" style="margin-top:22px">
+      <p>
+        Fifty traces from one backend, one scenario, one status, produced inside a two-second
+        batch is <strong>n=1 wearing n=50's clothes</strong> — and the last row is the part
+        that stings: the runs that would clear four of these five floors were already on disk,
+        in a directory the corpus builder never opened. Every floor is unmet, so anything
+        derived from this corpus renders with a <code>NON-REPRESENTATIVE</code> stamp — emitted
+        by the report renderer, where prose cannot opt out of it.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Root cause, in two parts</h2>
+      <span class="sec-tag">neither of them in the eval code</span>
+    </div>
+    <div class="prose">
+      <p>
+        <strong>One: the corpus reads the wrong tree.</strong> The backfill command defaults
+        to <code>--workspace-root ./workspace</code> — the directory where the
+        <em>agents' generated code</em> lands. The harness's own run records go somewhere
+        else, and have been accumulating there since July.
+      </p>
+    </div>
+    <div class="tbl-scroll" style="margin-top:20px;margin-bottom:26px">
+      <table>
+        <caption>What sits in ./output/runs/, unread by the eval corpus</caption>
+        <thead>
+          <tr><th scope="col">Artifact</th><th scope="col">What it carries</th><th scope="col" class="num">Count</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>dated run directories</td><td>one per run (plus 18 stray entries)</td><td class="num"><b>211</b></td></tr>
+          <tr><td class="mono">run.json</td><td>backend · workspace_dir · completed_at · final_status</td><td class="num"><b>210</b></td></tr>
+          <tr><td class="mono">state.json</td><td>actual cost · total tokens · monitor snapshot</td><td class="num"><b>141</b></td></tr>
+          <tr><td class="mono">logs/costs.jsonl</td><td>per-run spend rows</td><td class="num"><b>60</b></td></tr>
+          <tr><td class="mono">receipt.json</td><td>signed run receipt</td><td class="num"><b>8</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rootcause">
+      <div class="path">evals/cli.py:547</div>
+      <div class="line">backfill.add_argument("--workspace-root", default="./workspace")</div>
+      <p>
+        Backends recorded in that unread tree: <strong>langgraph 148, crewai 1,
+        claude-agent-sdk 1</strong>, unset 60 — spanning <strong>6 July to 13 September, 69
+        days</strong>. The corpus that indexed as one backend over 1.97 seconds could have
+        been three backends over sixty-nine days, for <strong>$0.00</strong>, on the day that
+        line was written. Four of the five diversity floors were reachable from disk the
+        entire time.
+      </p>
+    </div>
+    <div class="prose" style="margin-top:32px">
+      <p>
+        <strong>Two: phase telemetry is asked for, not written.</strong>
+        <code>phases.jsonl</code> yields the phase and retry spans every trajectory check
+        reasons over. Its only writer in code is a harness module added last week, which
+        appends a single row when it records context pressure. Otherwise:
+      </p>
+    </div>
+    <div class="rootcause" style="margin-top:18px">
+      <div class="path">src/ai_team/backends/claude_agent_sdk_backend/agents/prompts.py:23</div>
+      <div class="line">7. Write phase transition entries to workspace/logs/phases.jsonl<br>&nbsp;&nbsp;&nbsp;(JSON lines: phase, status, timestamp).</div>
+      <p>
+        <strong>Zero such files exist</strong> — not under <code>workspace/</code>, not under
+        <code>output/runs/</code>, not in 440 runs.
+      </p>
+      <p>
+        Worth being precise, because the general version of this claim would be false and the
+        specific version is more useful: most of the telemetry here <em>is</em> written by
+        code. <code>audit.jsonl</code> has a writer in the tool bus. <code>costs.jsonl</code>
+        has two, and sixty of them exist on disk. Phase records are the one signal left to an
+        instruction — and the one every trajectory check depends on.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Where the taxonomy came from</h2>
+      <span class="sec-tag">17 failure modes by origin</span>
+    </div>
+    <div class="prov">
+      <div class="prov-bar" role="img" aria-label="Origin of 17 failure modes: 13 derived from an essay, 4 from external references, 0 from observation.">
+        <div class="prov-seg essay" title="Essay — 13 modes"></div>
+        <div class="prov-seg reference" title="External reference — 4 modes"></div>
+        <div class="prov-seg observed" title="Observed in traces — 0 modes"></div>
+      </div>
+      <div class="prov-labels">
+        <span><i class="key essay"></i> Essay, written from memory <b>13</b></span>
+        <span><i class="key reference"></i> External reference <b>4</b></span>
+        <span><i class="key observed"></i> Observed in a trace <b>0</b></span>
+      </div>
+    </div>
+    <div class="prose" style="margin-top:22px">
+      <p>
+        Thirteen failure modes came from an essay I wrote in July from memory. Four came from
+        published Anthropic references. None came from reading a trace. Every deterministic
+        check in the harness is bound to one of these seventeen, which means the checks are
+        well-engineered detectors for failures nobody has confirmed the system has.
+      </p>
+      <p>
+        The fix is a field, not an argument: each mode now records <code>origin</code> —
+        <code>essay</code>, <code>reference</code>, <code>hypothesis</code> or
+        <code>open_coding</code> — and <code>open_coding</code> requires annotation ids behind
+        it. Promotion takes evidence. It makes today's state legible in one line, and
+        uncomfortable to look at until it changes.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What a green check is worth</h2>
+      <span class="sec-tag">corpus kind, rendered on every rate</span>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <caption>Three kinds of pass rate, and which one this repo can currently produce</caption>
+        <thead>
+          <tr>
+            <th scope="col">Kind</th>
+            <th scope="col">Source</th>
+            <th scope="col">What a pass rate means</th>
+            <th scope="col">Today</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">FIXTURE-ONLY</td>
+            <td>94 synthetic pass/fail/na fixtures across 21 checks</td>
+            <td>the check code behaves as written</td>
+            <td><span class="pill met">available</span></td>
+          </tr>
+          <tr>
+            <td class="mono">CORPUS</td>
+            <td>indexed traces from real runs</td>
+            <td>the system behaved this way on this sample</td>
+            <td><span class="pill unmet">no corpus</span></td>
+          </tr>
+          <tr>
+            <td class="mono">LIVE</td>
+            <td>a budgeted tier run just executed</td>
+            <td>the system behaves this way now</td>
+            <td><span class="pill unmet">unspent</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose" style="margin-top:22px">
+      <p>
+        The per-PR eval job in CI is real, costs <strong>$0.00</strong>, and runs on every pull
+        request. It replays fixtures. A green result proves the check code behaves as written
+        and has never once said anything about whether the agents work. The repo already
+        disclosed this, in a README — and then let the numbers travel without the disclosure
+        attached. Rendering the corpus kind beside every rate is what stops a fixture pass rate
+        from arriving in a conference talk as a quality claim.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>The remediation</h2>
+      <span class="sec-tag">16 requirements · 9 phases · 47 tasks</span>
+    </div>
+    <div class="phases">
+      <div class="phase">
+        <span class="p-id">Task 2.4</span>
+        <div>
+          <h3>Read the tree the records are in</h3>
+          <p>One argument, <strong>$0.00</strong>, and the highest-value task in the spec: ~210 traces, three backends, a 69-day span, with backend and status taken from run records instead of guessed from directory names. <code>--workspace-root</code> survives as a secondary source for runs with no record.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="p-id">Phase 1</span>
+        <div>
+          <h3>Phase telemetry becomes harness-owned</h3>
+          <p>A single writer on the execution path, constructed by the backend wrapper so a new backend inherits it, writing beside <code>run.json</code> rather than into a tree nobody reads. Every record stamped <code>writer: harness</code> by the module, so no call site can forge it. The prompt line is <strong>deleted</strong>, not supplemented — leaving it gives one file two writers and makes provenance unresolvable exactly when it matters.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="p-id">FM-018</span>
+        <div>
+          <h3>Self-reported telemetry becomes a failure mode</h3>
+          <p>A run whose records were written by the model rather than the harness. Deterministic, $0.00, scoreable retroactively — it marks all 50 existing traces, and that is recorded as a baseline, not a regression. Its sibling FM-016 catches an agent grading its own work; FM-018 catches an agent <em>reporting</em> its own work, which is worse, because it yields a clean-looking dataset nothing downstream can question.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="p-id">Phase 2</span>
+        <div>
+          <h3>Unreadable is not failed</h3>
+          <p>A new <code>unindexable</code> trace state, excluded from every numerator and denominator and counted separately. Absence of evidence stops being recorded as evidence of failure. Then a diversity floor with a stamp the renderer enforces.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="p-id">Phase 4</span>
+        <div>
+          <h3>One hundred traces, read by a person</h3>
+          <p>Thirty unaided first, then to saturation — defined operationally as twenty consecutive traces producing no new tag. Axial coding into five to eight categories, counted, with Wilson intervals and the sample stamped on the table.</p>
+          <span class="flag">Human-only · an agent reading the task list must stop here and say so</span>
+        </div>
+      </div>
+      <div class="phase">
+        <span class="p-id">Guards</span>
+        <div>
+          <h3>Three refusals with no override flag</h3>
+          <p>Axial clustering refuses under 30 unaided annotations. Judge validation refuses under 100 human labels. The re-run resolver refuses above its ceiling. The loop was skippable because nothing refused — and a flag is how a refusal becomes a formality.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>The rules this page follows</h2>
+      <span class="sec-tag">claim discipline</span>
+    </div>
+    <div class="rules">
+      <h3>What may be published from a starved harness</h3>
+      <ol>
+        <li><strong>Every rate carries its corpus kind and its <span class="mono">n</span>.</strong> A rate without <span class="mono">n</span> is a defect in the claim, not a rounding of it.</li>
+        <li><strong>“$0 per-PR eval gate in CI” is publishable.</strong> “Our agents pass 94% of evals” is not, in any phrasing, until a <span class="mono">CORPUS</span> rate exists.</li>
+        <li><strong>The gap is the story.</strong> Describing the harness as finished and fed would be a worse claim than describing it as built and starving — and the second one is the interesting half.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">
+      The smallest version of the fix is one free command and one unavoidable afternoon:
+      re-index the right directory, then read thirty traces yourself.
+      That will change what you build next more than the remaining eight phases combined — which
+      is, stripped of everything else, the entire content of the podcast that started this.
+    </p>
+  </section>
+
+  <footer>
+    <div>Audit performed 2026-09-13 against <span class="mono">ai-team</span> @ <span class="mono">87600d2</span>. Every figure on this page is a query result or a file count, reproducible from the repository.</div>
+    <div style="margin-top:10px">
+      Method sources: Hamel Husain &amp; Shreya Shankar, <a href="https://www.lennysnewsletter.com/p/why-ai-evals-are-the-hottest-new-skill">“Why AI evals are the hottest new skill for product builders”</a> (Lenny's Podcast) · Hamel Husain, <a href="https://hamel.dev/blog/posts/evals-faq/">AI Evals FAQ</a>.
+    </div>
+    <div style="margin-top:10px">ArqiSoft, LLC · Rick Zakharov</div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -16,7 +16,7 @@ The `demos/` folder contains self-contained project scenarios used to exercise a
 | 2 | `02_todo_app` | `full` | Full-stack TODO app — Flask REST API + SQLite, HTML/JS UI, Dockerized | [BUSINESS_USE_CASE.md](../demos/02_todo_app/BUSINESS_USE_CASE.md) |
 
 > Folder numbers are kept stable for git history; `01_hello_world`, `03_data_pipeline`,
-> and `04_ml_api` were retired to `.archive/demos-removed-2026-06-28/`.
+> and `04_ml_api` were retired to [`.archive/demos-removed-2026-06-28/`](../.archive/demos-removed-2026-06-28/).
 
 Team profiles are documented in [TEAM_PROFILES.md](TEAM_PROFILES.md). Set `team_profile` in `input.json` or pass `--team` to `run_demo.py` / `compare_backends.py`.
 

@@ -3,7 +3,7 @@ Cross-backend comparison: runs the same scenario on all three backends,
 computes all metrics, prints a side-by-side scorecard, and writes a JSON report.
 
 Run:
-    AI_TEAM_USE_REAL_LLM=1 uv run pytest evals/test_backend_comparison.py -v -s
+    AI_TEAM_USE_REAL_LLM=1 uv run pytest tests/integration/evals/test_backend_comparison.py -v -s
 
 Or via CLI:
     AI_TEAM_USE_REAL_LLM=1 uv run python -m evals.run_evals --compare
@@ -28,10 +28,14 @@ from evals.fixtures import (
 )
 from evals.metrics import compute_metrics, format_scorecard
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("AI_TEAM_USE_REAL_LLM"),
-    reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.real_llm,
+    pytest.mark.skipif(
+        not os.environ.get("AI_TEAM_USE_REAL_LLM"),
+        reason="Set AI_TEAM_USE_REAL_LLM=1 to run real-LLM evals",
+    ),
+]
 
 SCENARIO_ID = os.environ.get("EVAL_SCENARIO", "smoke-test")
 SCENARIO = load_scenario(SCENARIO_ID)

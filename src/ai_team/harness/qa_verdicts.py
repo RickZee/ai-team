@@ -73,3 +73,51 @@ def load_verdicts(workspace: Path) -> list[QaVerdict]:
         except (ValueError, TypeError):
             continue
     return out
+
+
+def emit_verdicts_from_acceptance(workspace: Path, *, session_id: str = "finalize") -> Path:
+    """Write ``docs/qa_verdicts.jsonl`` from ``ACCEPTANCE.json`` (default-path producer).
+
+    Missing acceptance is an empty file so the parser has a producer rather than
+    absence. Never raises.
+    """
+    from ai_team.harness.acceptance import load
+
+    identity = VerifierIdentity(agent_role="qa_engineer", session_id=session_id)
+    hashed = prompt_hash("harness-finalize")
+    path = verdicts_path(workspace)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            return path
+        items = []
+        try:
+            items = load(workspace).items
+        except Exception:  # noqa: BLE001 — absence is empty, not an error
+            items = []
+        lines: list[str] = []
+        for item in items:
+            verdict = QaVerdict(
+                item_id=item.id,
+                verdict="accept" if item.passes else "reject",
+                issues=(
+                    []
+                    if item.passes
+                    else [
+                        QaIssue(
+                            description="not verified at finalize",
+                            severity="major",
+                            evidence=list(item.steps),
+                        )
+                    ]
+                ),
+                evidence=list(item.steps),
+                qa_prompt_hash=hashed,
+                identity=identity,
+            )
+            lines.append(json.dumps(verdict.model_dump(mode="json"), default=str))
+        path.write_text(("\n".join(lines) + ("\n" if lines else "")), encoding="utf-8")
+        logger.info("qa_verdicts_emitted", count=len(lines))
+    except Exception as exc:  # noqa: BLE001 — producer must never abort a run
+        logger.warning("qa_verdicts_emit_failed", error=str(exc))
+    return path

@@ -27,4 +27,18 @@ describe("config", () => {
     const { getWsBase } = await import("../config");
     expect(getWsBase()).toBe("wss://app.example");
   });
+
+  it("authHeaders attaches the token when configured", async () => {
+    vi.stubEnv("VITE_AI_TEAM_WEB_TOKEN", "sekrit");
+    const { authHeaders } = await import("../config");
+    const headers = new Headers(authHeaders());
+    expect(headers.get("X-AI-Team-Token")).toBe("sekrit");
+  });
+
+  it("authHeaders omits the token when unset", async () => {
+    vi.stubEnv("VITE_AI_TEAM_WEB_TOKEN", "");
+    const { authHeaders } = await import("../config");
+    const headers = new Headers(authHeaders());
+    expect(headers.get("X-AI-Team-Token")).toBeNull();
+  });
 });

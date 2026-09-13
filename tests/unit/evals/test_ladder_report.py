@@ -162,3 +162,23 @@ def test_markdown_reads_json_not_recompute() -> None:
     assert "25" in md
     assert "full scenario contract" in md
     assert STAMP_UNDERPOWERED in md
+
+
+def test_ladder_report_cli_activates_module(tmp_path: Path) -> None:
+    """``python -m evals.cli ladder report`` is the one-step activation (R1.4)."""
+    traces = [_trace("arm_a") for _ in range(3)]
+    path = tmp_path / "traces.json"
+    path.write_text(json.dumps(traces), encoding="utf-8")
+    from evals.cli import main
+
+    rc = main(
+        [
+            "ladder",
+            "report",
+            "--traces",
+            str(path),
+            "--allow-underpowered",
+            "--allow-mixed-model",
+        ]
+    )
+    assert rc == 0

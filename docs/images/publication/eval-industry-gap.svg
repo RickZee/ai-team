@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 627" width="1200" height="627" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <pattern id="h3" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#d8b4a8" stroke-width="1.6"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="627" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">THE QUESTION NOBODY SURVEYS</text>
+  <text x="70" y="122" font-size="44" font-weight="700" fill="#1a1a2e">89% of teams have agent observability</text>
+  <text x="70" y="158" font-size="20" fill="#5f5e5a">I was one of them. Mine was writing to one directory and reading from another.</text>
+
+  <!-- bars: track x=440 w=560 -->
+  <g font-size="17">
+    <text x="70" y="222" fill="#3c3a36">Have observability</text>
+    <rect x="440" y="206" width="560" height="22" rx="4" fill="#eceadf"/>
+    <rect x="440" y="206" width="498" height="22" rx="4" fill="#1d9e75"/>
+    <text x="1016" y="223" font-weight="700" fill="#137a59">89%</text>
+
+    <text x="70" y="270" fill="#3c3a36">Detailed step-level tracing</text>
+    <rect x="440" y="254" width="560" height="22" rx="4" fill="#eceadf"/>
+    <rect x="440" y="254" width="347" height="22" rx="4" fill="#1d9e75"/>
+    <text x="1016" y="271" font-weight="700" fill="#137a59">62%</text>
+
+    <text x="70" y="318" fill="#3c3a36">Run offline evals</text>
+    <rect x="440" y="302" width="560" height="22" rx="4" fill="#eceadf"/>
+    <rect x="440" y="302" width="293" height="22" rx="4" fill="#1d9e75"/>
+    <text x="1016" y="319" font-weight="700" fill="#137a59">52%</text>
+
+    <text x="70" y="366" fill="#3c3a36">Use human review</text>
+    <rect x="440" y="350" width="560" height="22" rx="4" fill="#eceadf"/>
+    <rect x="440" y="350" width="335" height="22" rx="4" fill="#1d9e75"/>
+    <text x="1016" y="367" font-weight="700" fill="#137a59">60%</text>
+  </g>
+
+  <text x="70" y="404" font-size="13" fill="#96938a">LangChain, State of Agent Engineering — n = 1,340 practitioners</text>
+
+  <!-- the missing row -->
+  <rect x="70" y="428" width="1060" height="118" rx="10" fill="#fdf4f1" stroke="#e0b4a8" stroke-width="1.5"/>
+  <rect x="70" y="428" width="6" height="118" rx="3" fill="#b4462f"/>
+  <g font-size="17">
+    <text x="102" y="470" font-weight="600" fill="#8a4636">Traces a human has actually read</text>
+    <rect x="440" y="454" width="560" height="22" rx="4" fill="url(#h3)" stroke="#e0b4a8"/>
+    <text x="1016" y="471" font-weight="700" fill="#b4462f">not asked</text>
+  </g>
+  <text x="102" y="510" font-size="16" fill="#8a4636">Every one of those percentages measures whether you installed the thing.</text>
+  <text x="102" y="533" font-size="16" font-weight="700" fill="#8a4636">None of them measures whether anyone looked at what it produced. Mine: zero, for two months.</text>
+
+  <text x="70" y="592" font-size="19" font-weight="600" fill="#1a1a2e">Installing observability is procurement. Reading traces is the work.</text>
+</svg>

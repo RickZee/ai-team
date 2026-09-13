@@ -34,6 +34,8 @@ There were no deltas. The methodology was right.
 
 Then I opened the corpus.
 
+![Seven months of commits, with the day-one lesson and the September audit as bookends](../images/eval-seven-months.svg)
+
 ## Fifty traces, zero spans
 
 ```
@@ -69,6 +71,8 @@ contain generated `src/` and `tests/` and nothing else. Workspaces containing a
 log file of any kind: **zero**.
 
 ## The harness had been logging the whole time
+
+![workspace/ holds generated code and no telemetry; output/runs/ holds 210 run records across three backends and 69 days, and the backfill default points at the first one](../images/eval-two-trees.svg)
 
 Every one of those fifty traces carries the same warning block:
 
@@ -154,6 +158,8 @@ The true version is worse:
 
 > **I pointed the measurement at the wrong directory, and then wrote two more
 > specs on top of the empty result without noticing.**
+
+![Seven loop stages: every one implemented in code, every one with zero real traces through it](../images/eval-built-vs-fed.svg)
 
 Thirteen thousand lines of sampling, annotation, clustering, split discipline,
 alignment statistics, bias correction — all real, all typed, all unit-tested, and
@@ -281,7 +287,9 @@ podcast that started this.
 
 ---
 
-*The full audit, with the queries and the file counts, is in the engineering
+*A standalone HTML version of this audit, with the tables rendered, is at
+[`docs/showcase/starved-harness.html`](../showcase/starved-harness.html).
+The full audit, with the queries and the file counts, is in the engineering
 journal: [`2026-09-13-eval-methodology-audit.md`](../journal/2026-09-13-eval-methodology-audit.md).
 The remediation spec is [`.kiro/specs/eval-methodology-alignment/`](../../.kiro/specs/eval-methodology-alignment/).
 Current gate status and what may be claimed from it:

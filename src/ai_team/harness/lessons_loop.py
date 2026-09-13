@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
+LESSONS_REL = Path("docs") / "lessons.jsonl"
+
 _WS_RE = re.compile(r"\s+")
 
 
@@ -159,3 +161,29 @@ def inject_lessons_into_constraints(workspace: Path, store: LessonStore) -> None
             )
         )
     write_lessons_md(workspace, [r.model_dump(mode="json") for r in store.all()])
+
+
+def lesson_store_for(workspace: Path) -> LessonStore:
+    """JSONL store under ``<workspace>/docs/lessons.jsonl``."""
+    return LessonStore(workspace / LESSONS_REL)
+
+
+def apply_lessons_at_start(workspace: Path) -> None:
+    """Default-path hook: pin stored lessons into ``CONSTRAINTS.md``."""
+    try:
+        inject_lessons_into_constraints(workspace, lesson_store_for(workspace))
+    except Exception as exc:  # noqa: BLE001 — lessons must never abort a run
+        logger.warning("lesson_start_failed", error=str(exc))
+
+
+def apply_lessons_at_finish(workspace: Path, failure_ids: list[str]) -> None:
+    """Default-path hook: upsert failures, tick the window, re-pin for the next run."""
+    try:
+        store = lesson_store_for(workspace)
+        for fm_id in failure_ids:
+            if fm_id:
+                store.upsert_from_failure(fm_id=fm_id)
+        store.record_run(failure_ids)
+        inject_lessons_into_constraints(workspace, store)
+    except Exception as exc:  # noqa: BLE001 — lessons must never abort a run
+        logger.warning("lesson_finish_failed", error=str(exc))

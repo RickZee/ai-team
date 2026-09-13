@@ -1,6 +1,6 @@
 # Eval harness (`evals/`)
 
-Rigorous eval system for ai-team: Trace boundary, failure taxonomy FM-001…010,
+Rigorous eval system for ai-team: Trace boundary, failure taxonomy FM-001…017,
 deterministic checks, optional binary judges, Tier A ($0) replay gate.
 
 Spec: `.kiro/specs/eval-harness/`. Methodology: [`docs/EVAL_METHODOLOGY.md`](../docs/EVAL_METHODOLOGY.md).
@@ -62,19 +62,15 @@ Live working dirs (gitignored): `traces/`, `annotations/`, `samples/`, `results/
 (harness + legacy backend tests):
 
 ```text
-evals/backends/test_claude_sdk_eval.py: from ai_team.backends.registry import get_backend
-evals/backends/test_claude_sdk_eval.py: from ai_team.core.team_profile import load_team_profile
-evals/backends/test_crewai_eval.py: from ai_team.backends.registry import get_backend
-evals/backends/test_crewai_eval.py: from ai_team.core.team_profile import load_team_profile
-evals/backends/test_langgraph_eval.py: from ai_team.backends.registry import get_backend
-evals/backends/test_langgraph_eval.py: from ai_team.core.team_profile import load_team_profile
+tests/integration/evals/test_claude_sdk_eval.py: from ai_team.backends.registry import get_backend
+tests/integration/evals/test_crewai_eval.py: from ai_team.backends.registry import get_backend
+tests/integration/evals/test_langgraph_eval.py: from ai_team.backends.registry import get_backend
+tests/integration/evals/test_backend_comparison.py: from ai_team.backends.registry import get_backend
 evals/checks/trajectory.py: from ai_team.flows.listener_introspection import self_triggering_listeners
 evals/checks/trajectory.py: from ai_team.flows.main_flow import AITeamFlow
 evals/guardrail_eval.py: from ai_team.guardrails.behavioral import (...)
 evals/guardrail_eval.py: from ai_team.guardrails.corpus_metrics import ConfusionCounts, format_report, score
 evals/guardrail_eval.py: from ai_team.guardrails.security import code_safety_guardrail
-evals/test_backend_comparison.py: from ai_team.backends.registry import get_backend
-evals/test_backend_comparison.py: from ai_team.core.team_profile import load_team_profile
 evals/trace/workspace.py: from ai_team.config.settings import get_settings
 ```
 

@@ -1,5 +1,9 @@
 # Results bundle (org-grade artifacts)
 
+This document describes the per-run workspace and output bundle layout — not
+benchmark scores. Dated measurements live in [COMPARISON_RESULTS.md](COMPARISON_RESULTS.md)
+and [PERFORMANCE.md](PERFORMANCE.md).
+
 Each `ai-team` run produces:
 
 - An **isolated working directory**: `workspace/<project_id>/`

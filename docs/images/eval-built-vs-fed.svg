@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <pattern id="h2" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#c3c1b6" stroke-width="1.6"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="560" fill="#faf9f5"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#1d9e75"/>
+
+  <text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">THE ERROR-ANALYSIS LOOP</text>
+  <text x="70" y="120" font-size="44" font-weight="700" fill="#1a1a2e">Built everywhere. Fed nowhere.</text>
+  <text x="70" y="156" font-size="20" fill="#5f5e5a">Top bar: how much of the stage exists in code. Bottom bar: how much real data has passed through it.</text>
+
+  <g transform="translate(70,200)">
+    <!-- 7 stages, each 145 wide + 10 gap = 155; 7*155-10 = 1075 -->
+    <g transform="translate(0,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">01</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Telemetry</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#ffffff" stroke="#c3c1b6"/>
+      <rect x="17" y="127" width="20" height="10" rx="2" fill="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+    <g transform="translate(155,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">02</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Trace corpus</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#1d9e75" stroke="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+    <g transform="translate(310,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">03</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Sample</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#1d9e75" stroke="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+    <g transform="translate(465,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">04</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Open code</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#1d9e75" stroke="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+    <g transform="translate(620,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">05</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Axial code</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#1d9e75" stroke="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+    <g transform="translate(775,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">06</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Label &amp; align</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#1d9e75" stroke="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+    <g transform="translate(930,0)">
+      <rect width="145" height="200" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+      <text x="16" y="30" font-size="13" font-family="monospace" fill="#96938a">07</text>
+      <text x="16" y="58" font-size="17" font-weight="700" fill="#1a1a2e">Gate</text>
+      <text x="16" y="118" font-size="11" fill="#96938a" letter-spacing="1">CODE</text>
+      <rect x="16" y="126" width="113" height="12" rx="3" fill="#1d9e75" stroke="#1d9e75"/>
+      <text x="16" y="164" font-size="11" fill="#96938a" letter-spacing="1">DATA</text>
+      <rect x="16" y="172" width="113" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    </g>
+  </g>
+
+  <g transform="translate(70,440)">
+    <rect x="0" y="0" width="34" height="12" rx="3" fill="#1d9e75"/>
+    <text x="46" y="11" font-size="15" fill="#5f5e5a">implemented, typed, unit-tested</text>
+    <rect x="330" y="0" width="34" height="12" rx="3" fill="url(#h2)" stroke="#c3c1b6"/>
+    <text x="376" y="11" font-size="15" fill="#5f5e5a">real traces that have passed through it</text>
+  </g>
+
+  <text x="70" y="512" font-size="21" font-weight="600" fill="#1a1a2e">A green eval run proved my check code behaves as written.</text>
+  <text x="70" y="540" font-size="21" font-weight="600" fill="#b4462f">It never once said anything about whether the agents work.</text>
+</svg>

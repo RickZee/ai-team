@@ -6,6 +6,7 @@ import random
 import subprocess
 from pathlib import Path
 
+import pytest
 from ai_team.harness.acceptance import write_initial
 from ai_team.harness.session_loop import (
     SessionRecord,
@@ -70,10 +71,26 @@ class _Stub:
         return dict(self.results[idx])
 
 
-def test_sessions_off_by_default() -> None:
+@pytest.fixture(autouse=True)
+def _session_loop_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Activate the dormant module for tests that call ``run_sessions``."""
+    monkeypatch.setenv("AI_TEAM_SESSION_LOOP", "1")
+
+
+def test_sessions_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AI_TEAM_SESSION_LOOP", raising=False)
     assert sessions_enabled(None) is False
     assert sessions_enabled(1) is False
-    assert sessions_enabled(3) is True
+    assert sessions_enabled(3) is False
+
+
+def test_session_loop_flag_on_and_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Activation is one env var (R1.4). to see this fail: drop the flag check in sessions_enabled."""
+    monkeypatch.delenv("AI_TEAM_SESSION_LOOP", raising=False)
+    assert sessions_enabled(4) is False
+    monkeypatch.setenv("AI_TEAM_SESSION_LOOP", "1")
+    assert sessions_enabled(4) is True
+    assert sessions_enabled(1) is False
 
 
 def test_three_sessions_and_max_sessions(tmp_path: Path) -> None:

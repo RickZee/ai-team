@@ -167,6 +167,7 @@ def _save_benchmark_results(
     benchmark_collector: dict[str, Any],
     benchmark_results_dir: Path,
 ) -> None:
-    """After all performance tests, write benchmark_results.json and performance_report.md."""
+    """After all performance tests, write gitignored benchmark_results.json (live only)."""
     yield
-    _write_benchmark_artifacts(benchmark_collector, benchmark_results_dir)
+    if benchmark_collector.get("meta", {}).get("run_real"):
+        _write_benchmark_artifacts(benchmark_collector, benchmark_results_dir)

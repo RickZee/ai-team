@@ -2,6 +2,18 @@
 
 This document describes the AI Team system architecture: flows, crews, agents, tools, guardrails, memory, and UI layers. It aligns with the multi-backend design and the `Backend` protocol.
 
+**Layout debt (Track B, deferred):** `agents/`, `crews/`, `tasks/`, and `flows/` sit at
+`src/ai_team/` top level but are reachable only through the CrewAI backend. Moving
+them under `backends/crewai_backend/` is specified in
+[`.kiro/specs/production-hardening/`](../.kiro/specs/production-hardening/) Phases 6–7
+and is not done here — the import-direction guard allowlists the remaining
+`evals → flows` coupling until then.
+
+Companion diagrams: [inter-agent overview](images/inter-agent-overview.svg),
+[CrewAI](images/inter-agent-crewai.svg), [LangGraph](images/inter-agent-langgraph.svg),
+[Claude SDK](images/inter-agent-claude-sdk.svg). Self-improvement loop:
+[self-trigger-loop.svg](images/self-trigger-loop.svg).
+
 ---
 
 ## 0. UI & Monitoring Layer

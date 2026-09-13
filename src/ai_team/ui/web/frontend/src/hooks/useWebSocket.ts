@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getWsBase } from "../config";
+import { getWsBase, withTokenQuery } from "../config";
 import type { MonitorState } from "../types";
 
 function wsConnectErrorMessage(closeCode?: number): string {
@@ -103,7 +103,7 @@ export function useRunWebSocket() {
       setErrorMessage(null);
       setHitlPayload(null);
 
-      const ws = new WebSocket(`${getWsBase()}/ws/run`);
+      const ws = new WebSocket(withTokenQuery(`${getWsBase()}/ws/run`));
       wsRef.current = ws;
       let opened = false;
 
@@ -170,7 +170,7 @@ export function useMonitorWebSocket(runId: string | null) {
   useEffect(() => {
     if (!runId) return;
 
-    const ws = new WebSocket(`${getWsBase()}/ws/monitor/${runId}`);
+    const ws = new WebSocket(withTokenQuery(`${getWsBase()}/ws/monitor/${runId}`));
 
     ws.onmessage = (e) => {
       const msg: WSMessage = JSON.parse(e.data);

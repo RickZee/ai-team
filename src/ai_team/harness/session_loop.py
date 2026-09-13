@@ -6,6 +6,7 @@ Off by default. Requires an explicit ``max_sessions`` and a total budget.
 from __future__ import annotations
 
 import json
+import os
 import random
 import subprocess
 from datetime import UTC, datetime
@@ -19,6 +20,7 @@ from pydantic import BaseModel, Field
 logger = structlog.get_logger(__name__)
 
 SESSIONS_LOG = Path("logs") / "sessions.jsonl"
+SESSION_LOOP_ENV = "AI_TEAM_SESSION_LOOP"
 SessionStatus = Literal["ok", "dirty_exit", "error", "budget_exhausted"]
 
 
@@ -53,9 +55,14 @@ class SessionBackend(Protocol):
         ...
 
 
+def session_loop_flag_enabled() -> bool:
+    """True when ``AI_TEAM_SESSION_LOOP`` is set to a truthy value."""
+    return os.environ.get(SESSION_LOOP_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def sessions_enabled(max_sessions: int | None) -> bool:
-    """The loop stays off unless *max_sessions* is explicitly > 1."""
-    return bool(max_sessions and max_sessions > 1)
+    """The loop stays off unless the env flag is on *and* ``max_sessions`` is > 1."""
+    return session_loop_flag_enabled() and bool(max_sessions and max_sessions > 1)
 
 
 def append_session_record(workspace: Path, record: SessionRecord) -> None:

@@ -66,7 +66,7 @@ uv run pytest tests/unit -v
 3. **Optional: run the web dashboard**
 
    ```bash
-   uv run ai-team-web   # FastAPI on http://127.0.0.1:8421
+   uv run ai-team-web   # FastAPI on http://127.0.0.1:8421 (no token required on loopback)
    cd src/ai_team/ui/web/frontend && npm run dev   # React on :5173 (proxies API)
    ```
 

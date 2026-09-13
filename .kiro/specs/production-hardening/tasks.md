@@ -73,7 +73,7 @@ or data-testid values. Stop when its Definition of done is satisfied and
 
 ## Phase 0 — Baseline
 
-- [ ] **0.1 Record the before state**
+- [x] **0.1 Record the before state**
   - Write `.kiro/specs/production-hardening/BASELINE.md` with: LOC per top-level package;
     the five orphan modules and their LOC; the 808 LOC of uncollected tests; the
     `ignore_errors` module count (16); complexity counts (63 / 8 / 17); `docs/**.md` file
@@ -83,7 +83,7 @@ or data-testid values. Stop when its Definition of done is satisfied and
     by a command recorded in `BASELINE.md`, so the spec's own claims are checkable.
   - _Requirements: R20.3_
 
-- [ ] **0.2 Record the wire-or-delete decisions**
+- [x] **0.2 Record the wire-or-delete decisions**
   - Fill the decision column of `design.md` §2 for all five modules. This is a **human
     decision**, not an agent one — the agent records it.
   - **Definition of done:** each of the five has `wire`, `dormant`, or `delete` written in
@@ -96,14 +96,14 @@ or data-testid values. Stop when its Definition of done is satisfied and
 
 Nothing in this phase changes behaviour. Every deletion is preceded by a repo-wide search.
 
-- [ ] **1.1 Remove orphan modules marked `delete`**
+- [x] **1.1 Remove orphan modules marked `delete`**
   - For each module marked `delete` in 0.2, remove it and its tests in one commit naming
     the superseding mechanism.
   - **Definition of done:** `uv run pytest tests/unit` green; no reference to the module
     remains in `src/`, `evals/`, `tests/`, or `docs/`.
   - _Requirements: R1.5_
 
-- [ ] **1.2 Resolve the uncollected test files**
+- [x] **1.2 Resolve the uncollected test files**
   - `evals/backends/test_claude_sdk_eval.py` (175), `test_crewai_eval.py` (169),
     `test_langgraph_eval.py` (191), `evals/test_backend_comparison.py` (273): move under
     `tests/integration/` with an appropriate marker and make them pass, or delete.
@@ -113,7 +113,7 @@ Nothing in this phase changes behaviour. Every deletion is preceded by a repo-wi
     entries gone.
   - _Requirements: R6.1, R6.2, R8.3_
 
-- [ ] **1.3 Remove empty and orphan directories**
+- [x] **1.3 Remove empty and orphan directories**
   - `src/ai_team/rag/`, `src/ai_team/optimizers/`, `tests/unit/rag/`, `evals/annotations/`
     (if it has no `.gitkeep` purpose), and the untracked
     `src/ai_team/ui/web/frontend/workspace/` debris.
@@ -121,15 +121,15 @@ Nothing in this phase changes behaviour. Every deletion is preceded by a repo-wi
     with a documented `.gitkeep` purpose.
   - _Requirements: R1.7_
 
-- [ ] **1.4 Resolve `.archive/`**
-  - Per decision 12.4: delete the 21 tracked files from the working tree, or add
+- [x] **1.4 Resolve `.archive/`**
+  - Per decision 12.4: **keep** the 21 tracked files and add
     `.archive/README.md` stating the retention rule and why each survivor is kept.
   - Fix the two docs linking into it (`docs/prompts/PROMPTS.md`,
     `docs/prompts/PROMPT_TRACKING.md`).
   - **Definition of done:** no doc links into a non-existent archive path.
   - _Requirements: R3.2, R4.1_
 
-- [ ] **1.5 Resolve unreferenced images and the tracked empty log**
+- [x] **1.5 Resolve unreferenced images and the tracked empty log**
   - Triage the 25 unreferenced images (~7 MB): reference, move to a publication-assets
     directory with a `README.md` stating their purpose, or delete.
   - Untrack and gitignore `evals/golden/.validation_log.jsonl`, or document its purpose and
@@ -138,7 +138,7 @@ Nothing in this phase changes behaviour. Every deletion is preceded by a repo-wi
     publication-assets allowlist; no tracked zero-length append log remains.
   - _Requirements: R21.3, R21.5_
 
-- [ ] **1.6 Consolidate the dependency declaration and fix project metadata**
+- [x] **1.6 Consolidate the dependency declaration and fix project metadata**
   - Remove the `[tool.poetry]` / `[tool.poetry.dependencies]` / `[tool.poetry.group.dev]`
     tables; keep PEP 621 `[project]` as the single source; switch the build backend to one
     that reads it (design §12.6 defaults to `hatchling`).
@@ -162,7 +162,7 @@ Nothing in this phase changes behaviour. Every deletion is preceded by a repo-wi
 
 The cheapest phase and the one a reviewer reads first.
 
-- [ ] **2.1 Make the harness status table true** *(highest-value task in this spec)*
+- [x] **2.1 Make the harness status table true** *(highest-value task in this spec)*
   - Apply the §3 predicates to all seven rows of `docs/HARNESS.md`. For each row: verify
     the module path exists and is reachable; verify the claimed status against its
     predicate; downgrade the row if it cannot be demonstrated.
@@ -172,7 +172,7 @@ The cheapest phase and the one a reviewer reads first.
     found new ones.
   - _Requirements: R2.1, R2.2, R2.3, R2.5_
 
-- [ ] **2.2 Wire the modules marked `wire`**
+- [x] **2.2 Wire the modules marked `wire`**
   - For each: put it on a default path, and add a test that exercises it *through* that
     path rather than by direct import.
   - `qa_verdicts`: wire the writer so `docs/qa_verdicts.jsonl` is produced — without it
@@ -182,7 +182,7 @@ The cheapest phase and the one a reviewer reads first.
     entry point; `HARNESS.md` rows restored to their claimed status with the test named.
   - _Requirements: R1.3, R2.4_
 
-- [ ] **2.3 Make the modules marked `dormant` activatable**
+- [x] **2.3 Make the modules marked `dormant` activatable**
   - Add one documented flag per module (`AI_TEAM_SESSION_LOOP`, a `ladder` CLI
     subcommand); add each to `.env.example` and the configuration reference; add a test
     asserting both the on and off paths.
@@ -190,7 +190,7 @@ The cheapest phase and the one a reviewer reads first.
     `evals/arms/base.py`'s component list names no orphan.
   - _Requirements: R1.4, R1.6_
 
-- [ ] **2.4 Fix the README**
+- [x] **2.4 Fix the README**
   - Add the eight missing packages to the structure tree (`agents`, `crews`, `tasks`,
     `flows`, `harness`, `models`, `reports`, `utils` — noting that Phase 6 will move four
     of them). Correct `FM-001…010` to the current taxonomy range. Correct or remove the
@@ -199,14 +199,14 @@ The cheapest phase and the one a reviewer reads first.
     contradicts the code.
   - _Requirements: R5.1, R5.3, R5.4, R5.6_
 
-- [ ] **2.5 Adopt the workspace-artifact notation and fix references**
+- [x] **2.5 Adopt the workspace-artifact notation and fix references**
   - Apply the `<workspace>/` prefix convention (design §5.2) across docs; fix the ~70
     unresolvable relative links and the ~20 stale source paths listed in R4.3.
   - **Definition of done:** a manual run of the (not yet CI-wired) reference checker
     reports zero unresolvable references.
   - _Requirements: R4.1, R4.2, R4.3_
 
-- [ ] **2.6 Consolidate the document set**
+- [x] **2.6 Consolidate the document set**
   - Apply the R3.2 table: `EVALS_ROADMAP.md`, `PROMPT_TRACKING.md`,
     `performance_report.md`, `COMPARISON_RESULTS.md`, `RESULTS.md`, and the
     EVALS/EVAL_METHODOLOGY/evals-README overlap.
@@ -217,7 +217,7 @@ The cheapest phase and the one a reviewer reads first.
     surviving doc; each opens with its purpose; no doc presents unlabelled mock numbers.
   - _Requirements: R3.1, R3.2, R3.3, R3.4, R3.5, R5.5_
 
-- [ ] **2.7 Refresh and explain the Tier A baseline**
+- [x] **2.7 Refresh and explain the Tier A baseline**
   - Regenerate `evals/baselines/tier_a.json` against the current corpus
     (`python -m evals.cli baseline accept --reason …`) so it covers all 20 registered checks
     rather than 13, and pins a current sha.
@@ -241,14 +241,14 @@ The cheapest phase and the one a reviewer reads first.
 
 ## Phase 3 — Gates
 
-- [ ] **3.1 Frontend quality gates in CI**
+- [x] **3.1 Frontend quality gates in CI**
   - Add `npm run lint` and `npm test` to the web CI job, before `npm run build`. Not
     `continue-on-error`.
   - **Definition of done:** CI runs 110 frontend cases; a deliberately broken test fails
     the job.
   - _Requirements: R7.1, R7.2_
 
-- [ ] **3.2 Type budget**
+- [x] **3.2 Type budget**
   - Add `tests/unit/repo/test_type_budget.py` counting modules matched by `ignore_errors`;
     record the floor (16 minus whatever 1.2 removed) in `ratchets.toml`; give every
     surviving override an inline comment naming its exit condition.
@@ -256,14 +256,14 @@ The cheapest phase and the one a reviewer reads first.
     added; no override lacks a stated exit.
   - _Requirements: R8.1, R8.2, R8.4, R8.5_
 
-- [ ] **3.3 Retire the overrides this spec has earned**
+- [x] **3.3 Retire the overrides this spec has earned**
   - Remove `ignore_errors` for `ai_team.tools.smoke_tools` and `ai_team.tools.test_tools`
     (both cited as *enforced* in the harness table) and fix the resulting type errors.
   - **Definition of done:** `uv run mypy src/` green with two fewer overrides; ratchet
     lowered in the same commit.
   - _Requirements: R8.3_
 
-- [ ] **3.4 Collection guard**
+- [x] **3.4 Collection guard**
   - `tests/unit/repo/test_collection.py`: no `test_*.py` outside `testpaths`.
   - **Definition of done:** passes now; fails if a test file is added under `evals/`.
   - _Requirements: R6.3_
@@ -290,56 +290,65 @@ The cheapest phase and the one a reviewer reads first.
 
 ## Phase 4 — Control plane
 
-- [ ] **4.1 Token authentication**
+- [x] **4.1 Token authentication**
   - Add `AI_TEAM_WEB_TOKEN` to settings and `.env.example`; implement
     `ui/web/auth.py::require_token` per design §7.1 using `secrets.compare_digest`; apply
     to every mutating route and every workspace-reading route. `/api/health` stays open.
-  - **Definition of done:** with a token set, every protected route returns 401 without the
-    header and behaves identically with it; `tests/e2e/web` green (it runs loopback with no
+  - Add `tests/unit/ui/test_auth.py` covering, per route: 401 without the header, 200 with it,
+    and 200 without it when no token is configured.
+  - Add the **route-coverage test** in the same module: enumerate `app.routes` and assert each
+    is either in the public allowlist (`/api/health`, SPA catch-all, static assets) or carries
+    the auth dependency. This is the test that catches the twenty-fifth route, not the
+    twenty-four this task secures.
+  - **Definition of done:** both tests green; deleting the dependency from any one router makes
+    the route-coverage test fail by name; `tests/e2e/web` green (it runs loopback with no
     token).
-  - _Requirements: R15.1, R15.2, R15.3_
+  - _Requirements: R15.1, R15.2, R15.3, R15.3a_
 
-- [ ] **4.2 Safe bind defaults**
+- [x] **4.2 Safe bind defaults**
   - Default `--host` to `127.0.0.1`; refuse a non-loopback bind unless a token is
     configured; log a startup warning when running unauthenticated on loopback.
-  - **Definition of done:** `ai-team-web` binds loopback by default; `--host 0.0.0.0`
-    without a token exits non-zero with a message naming the variable.
+  - **Definition of done:** `ai-team-web` binds loopback by default; `--host 0.0.0.0` without a
+    token exits non-zero with a message naming the variable; `tests/unit/ui/test_auth.py`
+    covers all three cases (default bind, non-loopback without token, non-loopback with token)
+    by calling the argument parser and the bind guard directly — no socket is opened in a test.
   - _Requirements: R15.4, R15.5_
 
-- [ ] **4.3 WebSocket handshake checks**
+- [x] **4.3 WebSocket handshake checks**
   - Validate the token and the `Origin` header at `/ws/run` and `/ws/monitor/{run_id}`.
   - **Definition of done:** a WS connection from a disallowed origin is rejected at
     handshake; a test covers it. (CORS middleware never sees an upgrade — this is the gap
     the task exists to close.)
   - _Requirements: R15.7_
 
-- [ ] **4.4 Frontend token support**
+- [x] **4.4 Frontend token support**
   - Send the token when configured; no change to the zero-config local flow.
   - **Definition of done:** dev server works with no token; a configured token is sent on
-    every API and WS call; frontend tests green.
+    every API and WS call; a vitest case asserts the header is attached when configured and
+    absent when not; frontend tests green.
   - _Requirements: R15.6_
 
-- [ ] **4.5 Artifact path containment**
+- [x] **4.5 Artifact path containment**
   - Add the post-resolve `is_relative_to(base)` assertion; stop directory walks following
     symlinks out of the base; apply the same rules to the ZIP download.
   - **Definition of done:** the new adversarial tests (4.6) pass; no existing artifact test
     regresses.
   - _Requirements: R16.1, R16.2, R16.5_
 
-- [ ] **4.6 Adversarial artifact tests**
+- [x] **4.6 Adversarial artifact tests**
   - `tests/unit/ui/test_artifacts_adversarial.py`: symlink to `/etc/passwd`; symlink to a
     sibling run's workspace; nested symlinked directory; absolute-path `project_id`;
     sensitive-name bypass attempt.
   - **Definition of done:** all five fail closed; reverting 4.5 makes at least three fail.
   - _Requirements: R16.4_
 
-- [ ] **4.7 Update the threat model**
+- [x] **4.7 Update the threat model**
   - Add the four control-plane rows to `SECURITY.md` in its existing format; state the
     deployment posture in one line; add the reporting channel and supported-version window.
   - **Definition of done:** every new row names a control that exists in code after 4.1–4.5.
   - _Requirements: R17.1, R17.2, R17.3, R17.4, R17.5_
 
-- [ ] **4.8 Phase gate**
+- [x] **4.8 Phase gate**
   - **Definition of done:** full CI green including `tests/e2e/web`; a manual check that
     the documented local quickstart still works end to end with no token.
 
@@ -347,27 +356,27 @@ The cheapest phase and the one a reviewer reads first.
 
 ## Phase 5 — Container
 
-- [ ] **5.1 `.dockerignore` and build context**
+- [x] **5.1 `.dockerignore` and build context**
   - Add `node_modules`, `dist`, `workspace`, `logs`, `.coverage-data`.
   - **Definition of done:** build context size drops by roughly the frontend's
     `node_modules` (~230 MB locally); `docker build` succeeds.
   - _Requirements: R18.4_
 
-- [ ] **5.2 Frontend build stage (decision 12.3)**
+- [x] **5.2 Frontend build stage (decision 12.3)**
   - Add a Node stage producing `dist/`; copy it into the runtime image; make
     `register_frontend()` log a warning when `dist/index.html` is absent.
   - **Definition of done:** a started container serves the dashboard at `/`; the warning
     appears when the stage is skipped.
   - _Requirements: R18.1, R18.2_
 
-- [ ] **5.3 Runtime image minimality**
+- [x] **5.3 Runtime image minimality**
   - Remove `build-essential` from the runtime stage; justify or remove `git`; switch the
     healthcheck to `/api/health`.
   - **Definition of done:** `gcc` absent from the runtime image; healthcheck passes;
     image size recorded as the ratchet.
   - _Requirements: R18.3, R18.5_
 
-- [ ] **5.4 Compose correctness**
+- [x] **5.4 Compose correctness**
   - Fix the build context (`context: ..`, `dockerfile: docker/Dockerfile`); remove or
     profile-gate the Ollama + GPU service; set `AI_TEAM_WEB_TOKEN`; add resource limits and
     a restart policy; decide the `workspace/` mount.
@@ -375,14 +384,14 @@ The cheapest phase and the one a reviewer reads first.
     from a clean checkout on a machine with no GPU.
   - _Requirements: R19.1, R19.2, R19.3, R19.4, R19.5_
 
-- [ ] **5.5 Image CI job**
+- [x] **5.5 Image CI job**
   - Build the image in CI and assert: non-root user, no `gcc` on `PATH`, size under the
     ratchet, `/api/health` → 200 in a started container.
   - **Definition of done:** the job fails if any assertion is violated; runtime under two
     minutes.
   - _Requirements: R18.6, R18.7_
 
-- [ ] **5.6 Phase gate**
+- [x] **5.6 Phase gate**
 
 ---
 
@@ -480,41 +489,52 @@ The cheapest phase and the one a reviewer reads first.
 
 ## Phase 8 — Guards
 
-- [ ] **8.1 Reachability guard**
+Every task in this phase is subject to **R24**: offline, deterministic, order-independent, no
+writes to tracked files, a recorded way to watch it fail, and a failure on an empty match set.
+A guard that silently matches nothing is the default failure mode of repo-hygiene tests, and
+it is worse than no guard because it reports success.
+
+- [x] **8.1 Reachability guard**
   - `tests/unit/repo/test_reachability.py` with the commented `DORMANT_MODULES` allowlist
     naming each module's activation flag.
   - **Definition of done:** passes; adding an unreferenced module fails it with the
     three-option message from design §9.
   - _Requirements: R9.1, R9.2, R9.5_
 
-- [ ] **8.2 Reference guard**
+- [x] **8.2 Reference guard**
   - `tests/unit/repo/test_references.py` implementing the `<workspace>/` convention;
     relative links and source paths only, no external HTTP.
   - **Definition of done:** passes; a deliberately broken link fails it with file and line.
   - _Requirements: R4.4, R9.3_
 
-- [ ] **8.3 README structure guard**
+- [x] **8.3 README structure guard**
   - `tests/unit/repo/test_readme_structure.py`.
   - **Definition of done:** passes; adding a package without updating the README fails it.
   - _Requirements: R5.2, R9.4_
 
-- [ ] **8.4 Data-artifact guard**
+- [x] **8.4 Data-artifact guard**
   - `tests/unit/repo/test_data_artifacts.py`: fixture↔check mapping in both directions (94
     fixtures / 20 check ids / zero orphans today — keep it that way); baseline covers every
     registered check; no image outside the publication allowlist is unreferenced.
   - **Definition of done:** passes; adding a check without a fixture, or an image nothing
-    references, fails it by name.
+    references, fails it by name; the test raises rather than passes if the fixture glob or the
+    check registry comes back empty (R24.4); the docstring records the one-line mutation that
+    makes it fail.
   - _Requirements: R21.2, R21.4, R21.8_
 
-- [ ] **8.5 Complexity ratchets**
+- [x] **8.5 Complexity ratchets**
   - `tests/unit/repo/test_complexity.py` + `ratchets.toml` with dated comments in the style
     of the existing `fail_under` history block.
-  - **Definition of done:** passes at the post-Phase-7 counts; a new 150-line function
-    fails it.
+  - **Definition of done:** passes at the post-Phase-7 counts; a new 150-line function fails
+    it; the AST walk raises if it visits zero files (R24.4); the docstring records the mutation
+    that makes it fail.
   - _Requirements: R12.1, R12.2, R12.6, R20.3, R20.4_
 
-- [ ] **8.6 Wire the guards into CI and close out**
-  - Add `tests/unit/repo` to the `lint` job; confirm total added CI time < 30 s.
+- [x] **8.6 Wire the guards into CI and close out**
+  - Add `tests/unit/repo` to the `lint` job; measure and record the total added CI time.
+  - Run the full suite shuffled and confirm order-independence for every test this spec added
+    (R24.1); confirm the `tests/conftest.py` hash guard still passes, i.e. no new test writes to
+    a tracked golden/fixture/taxonomy file (R24.2).
   - Update `BASELINE.md` with the after-state; answer every open decision in `design.md`
     §12.
   - **Definition of done:** all guards green in CI; §12 has no unanswered row; the numbers
@@ -539,7 +559,7 @@ what turns two of the four claimed properties from adjectives into artifacts.
     mock run unless labelled in the same block; a reader can reproduce it.
   - _Requirements: R22.1, R22.2, R22.3_
 
-- [ ] **9.2 Document the operating envelope**
+- [x] **9.2 Document the operating envelope**
   - One section of `docs/PERFORMANCE.md` (or `docs/OPERATIONS.md`): single process; run registry
     in memory and lost on restart (`RunState.runs` — its docstring already admits this);
     concurrent-run ceiling and its source; per-run disk growth; spend ceiling; wall-clock kill.
@@ -550,21 +570,22 @@ what turns two of the four claimed properties from adjectives into artifacts.
     without its next step; the README's scalability language matches this section exactly.
   - _Requirements: R22.4, R22.5, R22.8_
 
-- [ ] **9.3 Retention policy**
+- [x] **9.3 Retention policy**
   - Define and implement retention for `workspace/` and `output/` (437 run directories on the
     audit machine, unbounded), with a command that enforces it and a note in the envelope doc.
   - **Definition of done:** a documented command prunes runs older than the stated window;
-    running it twice is idempotent; the demo/quickstart path is unaffected.
+    a unit test over a temporary tree asserts it removes what it should, keeps what it should,
+    and is idempotent on a second run; the demo/quickstart path is unaffected.
   - _Requirements: R22.6_
 
-- [ ] **9.4 Resolve `tests/performance/`**
+- [x] **9.4 Resolve `tests/performance/`**
   - The eight benchmark tests either produce 9.1's artifact or are removed — publishing nothing
     is the same defect as a module nothing imports.
   - **Definition of done:** the directory is wired to the published benchmark, or gone, with the
     reason in the commit message.
   - _Requirements: R22.7_
 
-- [ ] **9.5 Phase gate**
+- [x] **9.5 Phase gate**
   - **Definition of done:** full CI green; a reader can answer "how fast, how much, and what
     breaks first?" from one document.
 

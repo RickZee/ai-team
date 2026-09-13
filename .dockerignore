@@ -22,6 +22,11 @@ htmlcov
 venv
 .venv
 env
+.coverage-data
+
+# Frontend (built in the Node stage)
+**/node_modules
+**/dist
 
 # IDE and editor
 .idea
@@ -30,17 +35,13 @@ env
 *.swp
 *.swo
 
-# Docs and dev (not needed in image)
+# Docs and dev
 docs
 *.md
 !README.md
 
-# Tests (not needed in runtime image)
+# Tests
 tests
-
-# Demos and scripts (optional; include if app needs them)
-# demos
-# scripts
 
 # Local env and secrets
 .env
@@ -52,8 +53,10 @@ Dockerfile
 docker-compose*.yml
 .dockerignore
 
-# Output (mounted at runtime)
+# Runtime mounts / generated
 output
+workspace
+logs
 
 # OS
 .DS_Store

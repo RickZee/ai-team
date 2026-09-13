@@ -529,6 +529,28 @@ def _cmd_ladder_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ladder_report(args: argparse.Namespace) -> int:
+    """Render a ladder table from a traces JSON file (offline)."""
+    from evals.ladder_report import ClaimRefusalError, markdown_from_ladder_json, render_ladder
+
+    raw = json.loads(Path(args.traces).read_text(encoding="utf-8"))
+    traces = raw if isinstance(raw, list) else list(raw.get("traces") or [])
+    try:
+        doc = render_ladder(
+            traces,
+            allow_mixed_model=bool(args.allow_mixed_model),
+            allow_underpowered=bool(args.allow_underpowered),
+        )
+    except ClaimRefusalError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.format == "md":
+        print(markdown_from_ladder_json(doc))
+    else:
+        print(json.dumps(doc, indent=2, default=str))
+    return 0
+
+
 def _cmd_ablation_status(args: argparse.Namespace) -> int:
     from evals.arms.ablation_store import status_table
 
@@ -743,6 +765,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     lrun.add_argument("--out", default=None)
     lrun.set_defaults(func=_cmd_ladder_run)
+
+    lreport = ladder_sub.add_parser(
+        "report",
+        help="render ladder JSON/Markdown from traces (activates evals.ladder_report)",
+    )
+    lreport.add_argument("--traces", required=True, help="JSON file: a list of traces")
+    lreport.add_argument("--format", choices=("json", "md"), default="json")
+    lreport.add_argument("--allow-mixed-model", action="store_true")
+    lreport.add_argument("--allow-underpowered", action="store_true")
+    lreport.set_defaults(func=_cmd_ladder_report)
 
     ablation = sub.add_parser("ablation", help="ablation result store")
     ablation_sub = ablation.add_subparsers(dest="ablation_command", required=True)

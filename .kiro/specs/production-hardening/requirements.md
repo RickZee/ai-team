@@ -114,6 +114,7 @@ that is neither.
 | Data artifacts | Stale/partial Tier A baseline; 25 unreferenced images (~7 MB); a tracked empty log | R21 |
 | Performance & scale | Two of the four claimed properties have no evidence and no stated limits | R22 |
 | Repo surface | Actions pinned by mutable tag; no PR/issue template, CODEOWNERS, or CHANGELOG | R23 |
+| Test quality | ~12 new test modules, and no stated bar for the tests themselves | R24 |
 
 ### Design constraints (decided)
 
@@ -603,6 +604,13 @@ the same credential.
 `secrets.compare_digest`. This is a single-operator boundary, not an identity system
 (non-goal).
 
+15.3a THE SYSTEM SHALL add a **route-coverage test** that enumerates `app.routes` at import
+time and asserts every route is either listed in an explicit public allowlist (`/api/health`,
+the SPA catch-all, static assets) or carries the auth dependency. Asserting that today's 24
+routes return 401 checks this spec's work; the route-coverage test is what catches the
+twenty-fifth route somebody adds next year. The allowlist is the documentation of every
+deliberately public endpoint.
+
 15.4 WHERE `AI_TEAM_WEB_TOKEN` IS UNSET, THE SERVER SHALL bind loopback only and SHALL log
 a prominent warning at startup stating that the control plane is unauthenticated. It SHALL
 NOT bind a non-loopback interface without a token.
@@ -935,6 +943,54 @@ never committed by hand.
 
 ---
 
+### R24 — Test design bar for everything this spec adds
+
+**User story:** As the maintainer, I do not want ten new guard modules to become the next
+source of flaky, order-dependent tests.
+
+**Context.** This spec adds roughly a dozen test modules — eight repo guards, adversarial
+artifact tests, auth tests, container assertions. They parse files, walk the tree, and read
+config, which is precisely the shape that produced this repository's two existing
+test-isolation defects (golden-file writes; an order-dependent workspace test). A guard suite
+that is itself unreliable is worse than no guard suite, because it trains the team to re-run
+CI until it goes green.
+
+**Acceptance criteria**
+
+24.1 EVERY TEST this spec adds SHALL be **offline, deterministic, and order-independent**: no
+network, no model call, no dependence on the working directory, no dependence on another
+test having run. The suite SHALL pass under a shuffled run.
+
+24.2 NO TEST this spec adds SHALL write to a tracked file. The existing `tests/conftest.py`
+hash guard over `evals/golden/`, `evals/fixtures/traces/`, and `evals/taxonomy/` already
+asserts this for those paths; the new tests SHALL respect it rather than extend the ignore
+list.
+
+24.3 EVERY GUARD SHALL ship with a demonstration that it can fail. Either a negative fixture
+committed alongside it, or a one-line mutation recorded in the test's docstring
+(`to see this fail: add padding: 0.35rem to App.css`). A guard nobody has watched fail is a
+guard nobody knows works.
+
+24.4 EVERY GUARD THAT SCANS A SET SHALL fail when the set is empty. A glob that matches
+nothing, a registry that imports nothing, or an AST walk over zero files SHALL raise rather
+than report success — the most common silent failure in repo-hygiene tests is a path that
+stopped matching after a refactor.
+
+24.5 NO NEW PYTEST MARKER SHALL be introduced without an entry in `pyproject.toml`'s `markers`
+list. The repo registers twelve markers today and that discipline SHALL hold.
+
+24.6 EVERY GUARD'S FAILURE MESSAGE SHALL name the offending file, the line where possible, and
+the action that fixes it (R9.5). This is restated here because it is the single property that
+decides whether a guard survives its first angry morning.
+
+24.7 THE NEW TESTS SHALL live in `tests/unit/repo/` (repository invariants) or beside the code
+they cover (`tests/unit/ui/`, `tests/unit/harness/`), never in a new top-level directory.
+
+24.8 THE ADDED RUNTIME SHALL be measured once at task 8.6 and recorded, not asserted per-run
+(R20.5).
+
+---
+
 ## Traceability summary
 
 | Requirement | Primary files |
@@ -955,3 +1011,4 @@ never committed by hand.
 | R21 | `evals/baselines/tier_a.json`, `evals/golden/`, `docs/images/`, `evals/VERSION`, `.cursor/rules/*.mdc` |
 | R22 | `tests/performance/`, `docs/PERFORMANCE.md` (new), `ui/web/server.py` (`RunState`), `scripts/` (retention) |
 | R23 | `.github/workflows/*.yml`, `.github/` templates, `CODEOWNERS`, `CHANGELOG.md` |
+| R24 | every test module this spec adds; `tests/conftest.py`; `pyproject.toml` markers |

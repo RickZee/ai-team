@@ -17,6 +17,14 @@ instructions. This document describes the threat model and the controls in place
 | Runaway cost | Misbehaving agent loop burning API spend | Per-run budget caps enforced at runtime (live-verified aborts); hard wall-clock timeouts with subprocess kill |
 | Cross-run interference | One run reading or writing another run's workspace | Per-run workspace isolation; subprocess isolation per backend run; see [journal/2026-07-06.md](docs/journal/2026-07-06.md) for run-identity contract fixes |
 | Unaccountable automation | A human override silently converting a failing run into a passing one | Distinct `complete_approved` terminal status; `audit.jsonl` per run; HITL decisions recorded |
+| Unauthenticated run start | Anyone on the network POSTs `/api/demo` or opens `/ws/run` | Shared token (`AI_TEAM_WEB_TOKEN`) via `require_token`; loopback-only bind when unset; default `--host 127.0.0.1` |
+| Unauthenticated deletion | `DELETE /api/runs/{id}` from a shared network | Same token; non-loopback bind refused without it |
+| Workspace read exposure | `GET /api/projects/{id}/file` or ZIP download of another operator's run | Token on all workspace-read routes; post-resolve path containment (R16) so a symlink cannot escape the run directory |
+| WebSocket origin spoofing | Browser on a hostile origin upgrades `/ws/run` (CORS does not apply to WS) | Origin checked against `AI_TEAM_CORS_ORIGINS` at handshake; token query/header when configured |
+
+**Deployment posture:** a single-operator tool bound to loopback unless `AI_TEAM_WEB_TOKEN` is set. This is not multi-tenant and has no RBAC/SSO.
+
+Rate limiting is the next control, not implemented.
 
 ## Guardrail architecture
 
@@ -39,22 +47,26 @@ every new tool or guardrail ships with adversarial tests).
   semantics (no orphaned work after deadline).
 - Generated code is executed only inside per-run workspaces; evaluation commands
   run in the target workspace, never the repo root.
-- Local web UI binds to localhost; it is a development/operations console, not an
-  internet-facing service. Do not expose it publicly without adding
-  authentication — it can start paid runs and delete run data.
+- Local web UI defaults to `127.0.0.1`. Binding a non-loopback interface
+  requires `AI_TEAM_WEB_TOKEN`. Artifact reads assert workspace containment
+  after `Path.resolve()` so a symlink written by an agent cannot escape.
 
 ## Reporting a vulnerability
 
-Open a GitHub issue with the `security` label, or email the maintainer directly
-(see repo profile) for anything sensitive. Include a minimal reproduction.
-Please do not open public issues for anything that could enable abuse of a
-deployed instance before a fix lands.
+Open a GitHub issue with the `security` label, or email
+[rick.zakharov@gmail.com](mailto:rick.zakharov@gmail.com) for anything
+sensitive. Include a minimal reproduction. Please do not open public issues
+for anything that could enable abuse of a deployed instance before a fix lands.
+
+**Supported versions:** the `main` branch and the latest tagged release. Older
+tags are not patched.
 
 ## Known limitations (honest ledger)
 
 - Guardrails are pattern/heuristic based — they reduce, not eliminate, prompt
   injection and unsafe-code risk. Do not run this system against untrusted
   briefs with credentials in scope.
-- The web UI has no authentication layer (localhost-only by design).
+- The web UI is a single-operator console: unauthenticated only on loopback;
+  a shared token is required to bind `0.0.0.0`. Not multi-tenant.
 - Cross-run workspace-nesting leak was fixed via the run-identity contract (journal
   [2026-07-06](docs/journal/2026-07-06.md)); report any recurrence as a security issue.

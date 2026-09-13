@@ -316,6 +316,9 @@ path for orchestration.
 | `MEMORY_EMBEDDING_MODEL` | OpenRouter embedding model for CrewAI memory |
 | `AI_TEAM_MAX_COST_PER_RUN` | Pre-run estimate ceiling |
 | `AI_TEAM_RUN_BUDGET_USD` | Runtime spend abort |
+| `AI_TEAM_WEB_TOKEN` | Shared control-plane token; required to bind a non-loopback host |
+| `AI_TEAM_SESSION_LOOP` | Dormant multi-session continuation (`1` to activate) |
+| `AI_TEAM_MAX_SESSIONS` | Session count when `AI_TEAM_SESSION_LOOP=1` |
 
 Token budget estimates per role: `ROLE_TOKEN_BUDGETS` in `models.py` (used by cost estimator).
 

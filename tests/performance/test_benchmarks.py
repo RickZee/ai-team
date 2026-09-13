@@ -12,12 +12,21 @@ from __future__ import annotations
 import cProfile
 import io
 import json
+import os
 import pstats
 import time
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+# Live-only. Mock timings were deleted from the published envelope (R22.7).
+# Set AI_TEAM_BENCHMARK_FULL=1 to run; artifacts stay gitignored.
+if os.environ.get("AI_TEAM_BENCHMARK_FULL", "").lower() not in ("1", "true", "yes"):
+    pytest.skip(
+        "performance suite is live-only (AI_TEAM_BENCHMARK_FULL=1); see docs/PERFORMANCE.md",
+        allow_module_level=True,
+    )
 
 # Demo 1 spec (beginner complexity) — same as E2E test
 DEMO1_SPEC = """Create a simple Flask REST API with:

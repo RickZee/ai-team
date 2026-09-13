@@ -1,0 +1,19 @@
+# tests/unit/repo/ratchets.toml — production-hardening R20.3
+# Values dated 2026-09-13 from BASELINE.md / post-Track-A measurement.
+# A ratchet may only move in the improving direction.
+
+# mypy ignore_errors LOC (sum of files matched by overrides). Counted by
+# test_type_budget.py. History: 2026-09-13 Track A after dropping evals.backends
+# and smoke/test_tools overrides. Measured 12,726 LOC / 70 files.
+mypy_ignore_errors_loc = 13000
+
+# Complexity (src/ + evals/, excluding frontend, vendor, node_modules).
+# Branch count is the primary axis (R12.2). 2026-09-13 measured 58 / 7 / 15
+# with the ≤2-branch exemption (R12.6). Track B would cut this further.
+functions_over_80_lines = 58
+functions_over_150_lines = 7
+functions_over_8_params = 15
+
+# Docker image size (MB). 2026-09-13 local `docker build -f docker/Dockerfile`
+# measured 790 MB; ratchet leaves ~100 MB headroom.
+docker_image_mb = 900

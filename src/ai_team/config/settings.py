@@ -193,6 +193,17 @@ class HumanFeedbackSettings(BaseSettings):
     )
 
 
+class WebSettings(BaseSettings):
+    """Control-plane token for the FastAPI dashboard (R15)."""
+
+    model_config = SettingsConfigDict(env_prefix="AI_TEAM_WEB_", extra="ignore")
+
+    token: str = Field(
+        default="",
+        description="Shared operator token. Empty = loopback-only unauthenticated mode.",
+    )
+
+
 class ProjectSettings(BaseSettings):
     """Project execution settings: output/workspace dirs, iterations, and timeout."""
 
@@ -259,6 +270,10 @@ class Settings(BaseSettings):
         default_factory=CrewAISettings,
         description="CrewAI backend subprocess isolation config",
     )
+    web: WebSettings = Field(
+        default_factory=WebSettings,
+        description="Web control-plane auth (AI_TEAM_WEB_TOKEN)",
+    )
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Settings":
@@ -283,6 +298,7 @@ class Settings(BaseSettings):
             ("human_feedback", HumanFeedbackSettings),
             ("anthropic", AnthropicAgentSdkSettings),
             ("crewai", CrewAISettings),
+            ("web", WebSettings),
         ]:
             if name in data and isinstance(data[name], dict):
                 kwargs[name] = model_class.model_validate(data[name])  # type: ignore[attr-defined]
