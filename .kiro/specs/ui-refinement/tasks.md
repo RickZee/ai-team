@@ -40,9 +40,9 @@ Stop when its Definition of done is satisfied and
   - Screenshot (manually, checked into nothing — attach to the PR) Home, Run, Compare with
     three live columns, RunDetail on each of its four tabs, and Artifacts.
   - **Definition of done:** `BASELINE.md` exists with the six counts; all screenshots taken.
-  - _2026-09-13: counts are in `BASELINE.md`. Before-screenshots cannot be reconstructed
-    after Phases 1–9 landed. After-state shots live in `screenshots/` (Home, Run, Compare
-    idle/1280/800, RunDetail four tabs, stop-run confirm)._
+  - _2026-09-13: numeric counts are in `BASELINE.md`. Visuals were shot after `ee821f6`
+    (finished UI), so they do not satisfy this task. Before-shots can still be taken from
+    `87600d2` (parent of `ee821f6`); see `BASELINE.md`._
   - _Requirements: R21.2_
 
 - [x] **0.2 Freeze the test-id surface**
@@ -139,7 +139,8 @@ was not dead — restore it and investigate.
 - [ ] **2.4 Phase gate**
   - **Definition of done:** all gates green; screenshots retaken and compared against 0.1 —
     differences are sub-pixel spacing only, no layout breakage.
-  - _2026-09-13: cannot compare against missing 0.1 before-shots. After-state shots exist._
+  - _2026-09-13: unchecked. Reconstructing 0.1 from `87600d2` still cannot produce this
+    gate — it required a Phase-2-only tree photographed before colour/IA/nav landed._
   - _Requirements: R21.2, R21.3_
 
 ---
@@ -204,8 +205,9 @@ This is the phase a reviewer will notice. Keep it to one commit.
   - **Definition of done:** all gates green; screenshots retaken; the only intended visual
     deltas are: primary buttons blue, destructive confirms red, all control borders
     lighter.
-  - _2026-09-13: after-state shots show cyan `New run` / `Run` and a red Stop-run confirm.
-    Still unchecked: no 0.1 before-shots to diff against._
+  - _2026-09-13: unchecked. After-state shots show cyan primary and a red Stop-run confirm,
+    mixed with later a11y/Compare/nav changes. A 3.7-only diff would need a Phase-3 tree
+    photographed before Phases 4–8._
   - _Requirements: R21.2, R21.3_
 
 ---

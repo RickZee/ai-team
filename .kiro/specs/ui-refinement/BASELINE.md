@@ -17,7 +17,15 @@ Captured 2026-09-13 from `src/ai_team/ui/web/frontend`.
 
 ## Screenshots
 
-**Before-state (task 0.1):** not captured before Phases 1–9 landed; cannot be reconstructed.
+Phases 1–9 landed in `ee821f6` before any page was photographed. The PNGs in
+`screenshots/` are therefore the **finished UI** (tokens + colour + a11y + Compare IA +
+nav), not a Phase 0 baseline and not a Phase 2 or Phase 3 gate.
+
+**0.1 before-state:** counts in the table above were taken from the pre-change tree.
+Visuals were not. They can still be shot by checking out `87600d2` (parent of `ee821f6`),
+running Vite, and capturing Home, `/run`, Compare with three live columns, RunDetail ×4,
+and Artifacts. That would close 0.1. It would not close 2.4 or 3.7: those gates need
+photos taken *between* phases, and those intermediate trees were never photographed.
 
 **After-state (2026-09-13):** `.kiro/specs/ui-refinement/screenshots/`
 

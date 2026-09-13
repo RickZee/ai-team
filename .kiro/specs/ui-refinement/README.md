@@ -108,3 +108,10 @@ defects fixed — the part a user or an auditor would actually notice.
 
 If even that is too long: **task 1.1 and task 4.2**. Delete the dead sheet, and make the
 form labels work.
+
+## Screenshot status
+
+`screenshots/` holds the **after** state (shot after `ee821f6`). Task 0.1 before-shots
+were skipped; they can still be taken from `87600d2`. Tasks 2.4 and 3.7 stay open —
+those gates needed photos between phases, which were never taken. Inventory and how to
+reconstruct 0.1: [`BASELINE.md`](./BASELINE.md).

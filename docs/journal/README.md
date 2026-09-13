@@ -22,7 +22,7 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-09-13 (alignment CI)](2026-09-13-harness-alignment-ci.md) | Every suite/CI failure found landing harness-alignment, and the first-run risks if Actions is red. |
 | [2026-09-13 (eval audit)](2026-09-13-eval-methodology-audit.md) | The corpus audit: 50 traces with 0 spans, 0 annotations, 0 of 17 failure modes observed — and the prompt line that made error analysis impossible. |
 | [2026-09-13 (LangGraph smoke)](2026-09-13-langgraph-smoke-eval.md) | First live eval case: path-sandbox crash + lexical guardrail retry storm; traces still starved; 9.1 not published. |
-| [2026-09-13 (UI refinement)](2026-09-13-ui-refinement.md) | Token/CSS split, frozen testids, Playwright heading-level miss, migrator `0.var(--space-*)` residue. |
+| [2026-09-13 (UI refinement)](2026-09-13-ui-refinement.md) | Token/CSS split, frozen testids, Playwright heading-level miss, migrator residue; after-state screenshots (0.1 reconstructable from `87600d2`). |
 | [2026-09-14 (check liveness)](2026-09-14-check-liveness.md) | 76% of the check suite abstains and nothing reported it; two span types have no producer at all; a four-stage workbench for the human half of the loop. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
 

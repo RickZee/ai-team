@@ -53,6 +53,11 @@ restores focus; confirm uses `.btn-danger`. Command palette Escape closes. Skip 
 first in the a11y tree (`href="#main"`); mouse click is intercepted because it is visually
 hidden until `:focus`. Embedded-browser Tab key events did not move native focus.
 
-**0.1 / 2.4 / 3.7 — still open.** `BASELINE.md` has the six counts. Before-screenshots
-cannot be reconstructed. After-state PNGs are in `.kiro/specs/ui-refinement/screenshots/`:
-cyan primary, red stop-run confirm, four RunDetail tabs.
+**0.1 / 2.4 / 3.7 — still open.** Numeric 0.1 counts are in `BASELINE.md`. The PNGs in
+`.kiro/specs/ui-refinement/screenshots/` were taken **after** `ee821f6` (Phases 1–9), so
+they are the finished UI, not a before/after pair.
+
+- **0.1 visuals** can still be shot from `87600d2` (parent of `ee821f6`).
+- **2.4 / 3.7** cannot: those gates needed photos *between* phases. Replaying the old UI
+  does not produce a tokens-only or colour-only tree. The after-shots do show cyan
+  primary and a red Stop-run confirm; they also include later a11y, Compare, and nav.
