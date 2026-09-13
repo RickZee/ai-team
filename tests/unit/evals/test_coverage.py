@@ -169,9 +169,9 @@ class TestSeedTablesTrackTheRegistry:
     def test_every_registered_check_has_a_reads_entry(self) -> None:
         registered = {c.id for c in all_checks()}
         declared = set(coverage._CHECK_SPAN_READS)
-        assert registered == declared, (
-            f"missing: {sorted(registered - declared)}; stale: {sorted(declared - registered)}"
-        )
+        assert (
+            registered == declared
+        ), f"missing: {sorted(registered - declared)}; stale: {sorted(declared - registered)}"
 
     def test_mandatory_is_a_subset_of_reads(self) -> None:
         for check_id, groups in coverage._CHECK_SPAN_MANDATORY.items():
