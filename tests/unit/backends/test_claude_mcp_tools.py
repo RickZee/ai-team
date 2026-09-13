@@ -24,6 +24,33 @@ from ai_team.backends.claude_agent_sdk_backend.tools.permissions import (
 )
 
 
+def _mcp_tool_catalog_bytes(tools: list[object]) -> bytes:
+    """Canonical MCP-facing fingerprint: name, description, schema, annotations."""
+    rows = []
+    for t in tools:
+        schema = getattr(t, "input_schema", None) or {}
+        rows.append(
+            {
+                "annotations": getattr(t, "annotations", None),
+                "description": getattr(t, "description", None),
+                "input_schema": {k: getattr(v, "__name__", str(v)) for k, v in schema.items()},
+                "name": getattr(t, "name", None),
+            }
+        )
+    return json.dumps(rows, sort_keys=True, separators=(",", ":")).encode()
+
+
+# Captured from build_ai_team_mcp_tools before the 7.2 extraction (order + schemas).
+_PRE_EXTRACTION_MCP_CATALOG = b'[{"annotations":null,"description":"Run path security and (for .py) code safety checks on a workspace file.","input_schema":{"check_types":"list","file_path":"str"},"name":"run_guardrails"},{"annotations":null,"description":"Run pytest with coverage for a path relative to the process cwd (usually repo root).","input_schema":{"source_path":"str","test_path":"str"},"name":"run_project_tests"},{"annotations":null,"description":"Boot the generated app from the workspace and probe it over HTTP (docker compose or a Flask app module). Catches runtime breakage that passing unit tests miss (app won\'t boot, every request 500s). Writes docs/smoke_results.json. Run after pytest, before declaring the run complete.","input_schema":{},"name":"run_app_smoke"},{"annotations":null,"description":"Check a code string for dangerous patterns (eval, exec, etc.).","input_schema":{"code":"str"},"name":"validate_code_safety"},{"annotations":null,"description":"Write a file through the shared ToolBus (draft-then-commit). Path relative to workspace.","input_schema":{"content":"str","path":"str"},"name":"write_workspace_file"},{"annotations":null,"description":"Read-only acceptance list status: counts and the next unsatisfied item.","input_schema":{},"name":"acceptance_status"},{"annotations":null,"description":"Mark one acceptance item passing with evidence paths (QA only).","input_schema":{"agent_role":"str","evidence":"list","item_id":"str","session_id":"str","subagent_id":"str","verified_by":"str"},"name":"acceptance_mark_passing"},{"annotations":null,"description":"Playwright UI smoke against the local app declared in scenario.ui. Never probes a foreign host. Writes docs/ui_smoke_results.json. QA only.","input_schema":{"item_id":"str"},"name":"run_ui_smoke"}]'
+
+
+def test_mcp_tool_list_byte_identical_to_pre_extraction_catalog(tmp_path: Path) -> None:
+    """MCP tool list advertised to Claude is byte-identical after the 7.2 split."""
+    assert _mcp_tool_catalog_bytes(build_ai_team_mcp_tools(tmp_path)) == (
+        _PRE_EXTRACTION_MCP_CATALOG
+    )
+
+
 def test_get_disallowed_tools_for_yaml_role() -> None:
     assert "Bash" in get_disallowed_tools_for_yaml_role("product_owner")
     assert "Bash" in get_disallowed_tools_for_yaml_role("architect")

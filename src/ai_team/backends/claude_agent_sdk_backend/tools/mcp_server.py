@@ -28,8 +28,8 @@ def _resolve_under_workspace(workspace: Path, file_path: str) -> Path:
     return candidate
 
 
-def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
-    """Create SdkMcpTool instances bound to ``workspace``."""
+def _mcp_guardrail_tools(workspace: Path) -> list[Any]:
+    """Path security + code-safety scan of a workspace file."""
 
     @tool(
         "run_guardrails",
@@ -71,6 +71,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             "is_error": bool(fail),
         }
 
+    return [run_guardrails]
+
+
+def _mcp_project_test_tools(_workspace: Path) -> list[Any]:
+    """Pytest coverage runner (cwd-relative paths)."""
+
     @tool(
         "run_project_tests",
         "Run pytest with coverage for a path relative to the process cwd (usually repo root).",
@@ -95,6 +101,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             "content": [{"type": "text", "text": json.dumps(payload, default=str)}],
             "is_error": not bool(payload.get("success")),
         }
+
+    return [run_project_tests]
+
+
+def _mcp_app_smoke_tools(workspace: Path) -> list[Any]:
+    """HTTP smoke of the generated app."""
 
     @tool(
         "run_app_smoke",
@@ -127,6 +139,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             "is_error": is_error,
         }
 
+    return [run_app_smoke]
+
+
+def _mcp_code_safety_tools(_workspace: Path) -> list[Any]:
+    """String-level dangerous-pattern scan."""
+
     @tool(
         "validate_code_safety",
         "Check a code string for dangerous patterns (eval, exec, etc.).",
@@ -142,6 +160,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
                 "is_error": True,
             }
         return {"content": [{"type": "text", "text": json.dumps(body, default=str)}]}
+
+    return [validate_code_safety]
+
+
+def _mcp_workspace_write_tools(_workspace: Path) -> list[Any]:
+    """Draft-then-commit writes through the shared ToolBus."""
 
     @tool(
         "write_workspace_file",
@@ -167,6 +191,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             "is_error": not obs.ok,
         }
 
+    return [write_workspace_file]
+
+
+def _mcp_acceptance_status_tools(workspace: Path) -> list[Any]:
+    """Read-only acceptance list status."""
+
     @tool(
         "acceptance_status",
         "Read-only acceptance list status: counts and the next unsatisfied item.",
@@ -190,6 +220,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
             "next_item": st.next_item.model_dump(mode="json") if st.next_item else None,
         }
         return {"content": [{"type": "text", "text": json.dumps(payload, default=str)}]}
+
+    return [acceptance_status]
+
+
+def _mcp_acceptance_mark_tools(workspace: Path) -> list[Any]:
+    """QA-only mark-passing with evidence paths."""
 
     @tool(
         "acceptance_mark_passing",
@@ -249,6 +285,12 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
         }
         return {"content": [{"type": "text", "text": json.dumps(payload, default=str)}]}
 
+    return [acceptance_mark_passing]
+
+
+def _mcp_ui_smoke_tools(workspace: Path) -> list[Any]:
+    """Playwright UI smoke against scenario.ui (QA only)."""
+
     @tool(
         "run_ui_smoke",
         (
@@ -282,15 +324,20 @@ def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
         is_error = result.status == "fail"
         return {"content": [{"type": "text", "text": payload}], "is_error": is_error}
 
+    return [run_ui_smoke]
+
+
+def build_ai_team_mcp_tools(workspace: Path) -> list[Any]:
+    """Create SdkMcpTool instances bound to ``workspace``."""
     return [
-        run_guardrails,
-        run_project_tests,
-        run_app_smoke,
-        validate_code_safety,
-        write_workspace_file,
-        acceptance_status,
-        acceptance_mark_passing,
-        run_ui_smoke,
+        *_mcp_guardrail_tools(workspace),
+        *_mcp_project_test_tools(workspace),
+        *_mcp_app_smoke_tools(workspace),
+        *_mcp_code_safety_tools(workspace),
+        *_mcp_workspace_write_tools(workspace),
+        *_mcp_acceptance_status_tools(workspace),
+        *_mcp_acceptance_mark_tools(workspace),
+        *_mcp_ui_smoke_tools(workspace),
     ]
 
 

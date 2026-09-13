@@ -44,6 +44,28 @@ class TestWebServerHealth:
         assert r.status_code == 200
         assert r.json().get("status") == "ok"
 
+    def test_create_app_builds_without_module_app(self) -> None:
+        """Factory returns a fresh app; CORS and routes are attached there (R13.4)."""
+        from ai_team.ui.web.server import create_app
+
+        application = create_app()
+        client = TestClient(application)
+        r = client.get("/api/health")
+        assert r.status_code == 200
+        assert r.json().get("status") == "ok"
+        paths: set[str] = set()
+        for route in application.routes:
+            inner = getattr(route, "original_router", None)
+            if inner is not None:
+                paths.update(getattr(ir, "path", "") for ir in inner.routes)
+            else:
+                path = getattr(route, "path", None)
+                if path:
+                    paths.add(path)
+        assert "/api/runs" in paths
+        assert "/ws/run" in paths
+        assert any(m.cls.__name__ == "CORSMiddleware" for m in application.user_middleware)
+
 
 class TestWebServerRunRequestDefaults:
     """``RunRequest`` default backend is langgraph — document API contract."""
@@ -657,3 +679,82 @@ class TestLanggraphHitlStatus:
         path = os.environ.get("AI_TEAM_LANGGRAPH_SQLITE_PATH")
         assert path, "ai_team.ui.web.server must set a default persistent checkpoint path"
         assert path != ":memory:"
+
+
+class TestTokenEstimatePrecedence:
+    """One test per source of ``_resolve_token_estimate`` (R13.5)."""
+
+    def test_monitor_wins_over_receipt_and_spend(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from ai_team.harness.receipt import ReceiptWriter
+        from ai_team.monitor import TeamMonitor
+        from ai_team.ui.web import server as web_server
+
+        ws = tmp_path / "workspace"
+        out = tmp_path / "output"
+        ws.mkdir()
+        out.mkdir()
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws))
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out))
+        from ai_team.config.settings import reload_settings
+
+        reload_settings()
+        rid = "tok-monitor"
+        (ws / rid).mkdir()
+        ReceiptWriter().write_from_run(
+            output_dir=out / "runs" / rid,
+            workspace=ws / rid,
+            run_id=rid,
+            backend="langgraph",
+            provenance={"total_tokens": 50},
+        )
+        web_server.state.create_run(rid, "langgraph", "full", "x")
+        web_server.state.runs[rid]["spend"] = {"total_tokens": 75}
+        monitor = TeamMonitor(project_name="tok")
+        monitor.metrics.token_estimate = 10
+        assert web_server._resolve_token_estimate(monitor, rid) == 10
+        web_server.state.runs.pop(rid, None)
+
+    def test_receipt_used_when_monitor_empty(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from ai_team.harness.receipt import ReceiptWriter
+        from ai_team.monitor import TeamMonitor
+        from ai_team.ui.web import server as web_server
+
+        ws = tmp_path / "workspace"
+        out = tmp_path / "output"
+        ws.mkdir()
+        out.mkdir()
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(ws))
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(out))
+        from ai_team.config.settings import reload_settings
+
+        reload_settings()
+        rid = "tok-receipt"
+        (ws / rid).mkdir()
+        ReceiptWriter().write_from_run(
+            output_dir=out / "runs" / rid,
+            workspace=ws / rid,
+            run_id=rid,
+            backend="langgraph",
+            provenance={"total_tokens": 42},
+        )
+        web_server.state.create_run(rid, "langgraph", "full", "x")
+        web_server.state.runs[rid]["spend"] = {"total_tokens": 99}
+        monitor = TeamMonitor(project_name="tok")
+        assert monitor.metrics.token_estimate == 0
+        assert web_server._resolve_token_estimate(monitor, rid) == 42
+        web_server.state.runs.pop(rid, None)
+
+    def test_live_spend_used_when_monitor_and_receipt_empty(self) -> None:
+        from ai_team.monitor import TeamMonitor
+        from ai_team.ui.web import server as web_server
+
+        rid = "tok-spend"
+        web_server.state.create_run(rid, "crewai", "full", "x")
+        web_server.state.runs[rid]["spend"] = {"total_tokens": 1413}
+        monitor = TeamMonitor(project_name="tok")
+        assert web_server._resolve_token_estimate(monitor, rid) == 1413
+        web_server.state.runs.pop(rid, None)

@@ -49,3 +49,14 @@ config, `comparison` → backends, `callbacks`/`llm_wrapper` → crewai_backend;
 deleted as unreachable). `models/outputs.py` removed; artifacts service already normalized
 dicts. `models/` kept as domain types (design.md §4). README tree updated. Unit 1527,
 web E2E 27 passed / 1 skipped.
+
+## Track B — Phase 7 complexity
+
+`_cmd_run` is a one-parameter adapter over `RunOptions` / `execute_run` (`cli_run.py`).
+MCP tools are one builder per group; a frozen catalog bytes test pins the advertised
+list. `evaluate_gate` is a decision table over per-criterion helpers; Tier A still
+prints `verdict=fail` on the fail/pass fixture corpus. Web routes live in
+`ui/web/routers/` with `create_app()` owning CORS and SPA registration. Dashboard
+tokens resolve monitor → receipt/disk → live spend. Complexity ratchet 58/7/15 →
+55/4/14. Web E2E 27 passed / 1 skipped.
+

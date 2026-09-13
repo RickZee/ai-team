@@ -9,15 +9,12 @@ show cost tables without executing the pipeline.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from typing import Literal, cast
 
 import structlog
-from ai_team.backends.registry import get_backend
-from ai_team.core.team_profile import load_team_profile
-from ai_team.monitor import TeamMonitor
+from ai_team.cli_run import RunOptions, execute_run
 from dotenv import load_dotenv
 
 logger = structlog.get_logger(__name__)
@@ -102,265 +99,9 @@ def _cmd_compare_costs(complexity: str) -> int:
 _OUTPUT_CHOICES = ("tui", "crewai")
 
 
-def _cmd_run(
-    description: str,
-    env: str | None,
-    complexity: str | None,
-    output_mode: str,
-    skip_estimate: bool,
-    project_name: str,
-    run_name: str = "",
-    backend_name: str = "crewai",
-    team: str = "full",
-    thread_id: str = "",
-    stream: bool = False,
-    resume_thread: str = "",
-    resume_input: str = "",
-    langgraph_mode: str | None = None,
-    claude_budget: float | None = None,
-    fork_session: bool = False,
-) -> int:
-    """Run the AI team flow with optional env and complexity overrides."""
-    resume_thr = (resume_thread or "").strip()
-    claude_backends = ("claude-agent-sdk", "claude-sdk")
-    has_desc = bool((description or "").strip())
-    if not resume_thr and not has_desc:
-        return 2
-    if env is not None:
-        os.environ["AI_TEAM_ENV"] = env
-    try:
-        profile = load_team_profile(team)
-    except KeyError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-    use_tui = output_mode == "tui" and backend_name in ("crewai", "langgraph", *claude_backends)
-    monitor_obj = TeamMonitor(project_name=project_name) if use_tui else None
-    try:
-        import asyncio
-
-        from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
-        from ai_team.backends.langgraph_backend.backend import LangGraphBackend
-        from ai_team.config.settings import get_settings
-
-        backend = get_backend(backend_name)
-        hitl_default = (get_settings().human_feedback.default_response or "").strip()
-
-        # Gap #1: close the self-improvement loop. Promote recurring failures from
-        # prior runs into lessons before this run starts, so injected prompts are
-        # current. Cheap (pure SQLite, no LLM) and never aborts the run.
-        from ai_team.memory.self_improvement_runtime import (
-            maybe_extract_lessons_at_startup,
-            persist_run_metrics,
-        )
-
-        def _run_post_run_quality_gates() -> None:
-            """Backend-agnostic post-run gates: deployment README + runtime smoke.
-
-            Runs for every backend (incl. future ones) from the shared post-run
-            path, independent of each backend's internal guardrail plumbing —
-            these scan the per-run workspace on disk, not backend state, so a new
-            or regressed backend cannot silently ship a non-booting app or a
-            run with no docs. Warn-only here: failures are logged, the run is
-            not aborted. The smoke gate also *produces* the evidence — it boots
-            the generated app and writes docs/smoke_results.json even when the
-            backend's agents never ran a runtime check themselves, so LangGraph
-            and CrewAI get the same coverage as the Claude Agent SDK agents.
-            """
-            ws = get_settings().project.workspace_dir
-            try:
-                from ai_team.guardrails.quality import deployment_artifacts_guardrail
-
-                res = deployment_artifacts_guardrail(ws, profile.phases)
-                if not res.passed:
-                    logger.warning(
-                        "deployment_artifacts_check",
-                        message=res.message,
-                        suggestions=res.suggestions,
-                        workspace=str(ws),
-                    )
-            except Exception as exc:  # never let a doc check abort a run
-                logger.debug("deployment_artifacts_check_skipped", error=str(exc))
-
-            if "testing" not in {str(p).strip().lower() for p in profile.phases}:
-                return
-            try:
-                from ai_team.guardrails.quality import runtime_smoke_guardrail
-                from ai_team.tools.smoke_tools import load_or_run_smoke
-
-                # Reuse the backend's smoke result if it already booted the app
-                # this run; otherwise boot it now so the gate has evidence.
-                load_or_run_smoke(ws)
-                res = runtime_smoke_guardrail(ws, profile.phases)
-                if not res.passed:
-                    logger.warning(
-                        "runtime_smoke_check",
-                        message=res.message,
-                        suggestions=res.suggestions,
-                        workspace=str(ws),
-                    )
-            except Exception as exc:  # never let the smoke gate abort a run
-                logger.debug("runtime_smoke_check_skipped", error=str(exc))
-
-        if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
-            maybe_extract_lessons_at_startup()
-
-        if backend_name == "langgraph" and resume_thr:
-            if not isinstance(backend, LangGraphBackend):
-                print("Error: resume requires LangGraph backend.", file=sys.stderr)
-                return 1
-            resume_kw: dict[str, object] = {
-                "monitor": monitor_obj,
-                "skip_estimate": skip_estimate,
-                "complexity_override": complexity,
-            }
-            if langgraph_mode is not None:
-                resume_kw["graph_mode"] = langgraph_mode
-            pr = backend.resume(
-                resume_thr,
-                resume_input,
-                profile,
-                **resume_kw,
-            )
-            if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
-                persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
-                _run_post_run_quality_gates()
-            raw = pr.raw
-            out: dict[str, object] = {
-                "backend": pr.backend_name,
-                "team_profile": pr.team_profile,
-                "success": pr.success,
-                "error": pr.error,
-                "result": raw.get("result"),
-                "state": raw.get("state"),
-                "thread_id": raw.get("thread_id"),
-            }
-            print(json.dumps(out, indent=2, default=str))
-            return 0 if pr.success else 1
-
-        if backend_name == "langgraph" and (stream or use_tui):
-            if not isinstance(backend, LangGraphBackend):
-                print("Error: internal backend type mismatch.", file=sys.stderr)
-                return 1
-            if monitor_obj:
-                monitor_obj.start()
-            run_kw: dict[str, object] = {
-                "monitor": monitor_obj if use_tui else None,
-                "skip_estimate": skip_estimate,
-                "complexity_override": complexity,
-                "run_label": run_name,
-            }
-            if thread_id.strip():
-                run_kw["thread_id"] = thread_id.strip()
-            if langgraph_mode is not None:
-                run_kw["graph_mode"] = langgraph_mode
-            print_jsonl = stream and not use_tui
-            try:
-                for ev in backend.iter_stream_events(
-                    description.strip(),
-                    profile,
-                    **run_kw,
-                ):
-                    if print_jsonl:
-                        print(json.dumps(ev, default=str))
-            finally:
-                if monitor_obj:
-                    monitor_obj.stop()
-            return 0
-
-        if backend_name in claude_backends and (stream or use_tui):
-            if not isinstance(backend, ClaudeAgentBackend):
-                print("Error: internal backend type mismatch.", file=sys.stderr)
-                return 1
-            desc = (
-                description.strip()
-                if has_desc
-                else "Continue the project from the saved Claude session and workspace logs."
-            )
-            if monitor_obj:
-                monitor_obj.start()
-            run_kw_claude: dict[str, object] = {
-                "monitor": monitor_obj if use_tui else None,
-                "skip_estimate": skip_estimate,
-                "complexity_override": complexity,
-                "run_label": run_name,
-            }
-            if thread_id.strip():
-                run_kw_claude["thread_id"] = thread_id.strip()
-            if resume_thr:
-                run_kw_claude["resume_session_id"] = resume_thr
-            if fork_session:
-                run_kw_claude["fork_session"] = True
-            if claude_budget is not None:
-                run_kw_claude["max_budget_usd"] = claude_budget
-            if hitl_default:
-                run_kw_claude["hitl_default_answer"] = hitl_default
-            print_jsonl_claude = stream and not use_tui
-
-            async def _stream_claude() -> None:
-                async for ev in backend.stream(desc, profile, env=env, **run_kw_claude):
-                    if print_jsonl_claude:
-                        print(json.dumps(ev, default=str))
-
-            try:
-                asyncio.run(_stream_claude())
-            finally:
-                if monitor_obj:
-                    monitor_obj.stop()
-            return 0
-
-        run_kw = {
-            "monitor": monitor_obj,
-            "skip_estimate": skip_estimate,
-            "complexity_override": complexity,
-            "run_label": run_name,
-        }
-        if thread_id.strip() and backend_name == "langgraph":
-            run_kw["thread_id"] = thread_id.strip()
-        if backend_name == "langgraph" and langgraph_mode is not None:
-            run_kw["graph_mode"] = langgraph_mode
-        if backend_name in claude_backends:
-            if resume_thr:
-                run_kw["resume_session_id"] = resume_thr
-            if fork_session:
-                run_kw["fork_session"] = True
-            if claude_budget is not None:
-                run_kw["max_budget_usd"] = claude_budget
-            if hitl_default:
-                run_kw["hitl_default_answer"] = hitl_default
-            if thread_id.strip():
-                run_kw["thread_id"] = thread_id.strip()
-        desc_run = description.strip() if has_desc else ""
-        if not desc_run:
-            desc_run = "Continue from previous run (no new description text provided)."
-        pr = backend.run(
-            desc_run,
-            profile,
-            env=env,
-            **run_kw,
-        )
-        if not os.environ.get("AI_TEAM_SKIP_POST_RUN"):
-            persist_run_metrics(pr)  # Gap #3: record quality KPIs for trend analysis.
-            _run_post_run_quality_gates()
-        raw = pr.raw
-        out = {
-            "backend": pr.backend_name,
-            "team_profile": pr.team_profile,
-            "success": pr.success,
-            "error": pr.error,
-            "result": raw.get("result"),
-            "state": raw.get("state"),
-        }
-        if backend_name == "langgraph":
-            out["thread_id"] = raw.get("thread_id")
-        if backend_name in claude_backends:
-            out["session_id"] = raw.get("session_id")
-            out["workspace"] = raw.get("workspace")
-        print(json.dumps(out, indent=2, default=str))
-        return 0 if pr.success else 1
-    except Exception as e:
-        logger.exception("ai_team_run_failed", error=str(e))
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
+def _cmd_run(opts: RunOptions) -> int:
+    """Run the selected backend from typed options (R12.4)."""
+    return execute_run(opts)
 
 
 def main() -> int:
@@ -555,31 +296,12 @@ def main() -> int:
         print(f"pruned {len(removed)} run(s)")
         return 0
     if command == "run":
-        description = (args.run_description or "").strip()
-        resume_thr = (getattr(args, "resume", "") or "").strip()
-        if not description and not resume_thr:
+        opts = RunOptions.from_namespace(args)
+        if not opts.description and not opts.resume_thread:
             run_p.error(
                 "Project description is required unless resuming (--resume SESSION_OR_THREAD_ID)."
             )
-        output_mode = "tui" if args.monitor else args.output
-        return _cmd_run(
-            description=description,
-            env=args.env,
-            complexity=args.complexity,
-            output_mode=output_mode,
-            skip_estimate=args.skip_estimate,
-            project_name=args.project_name,
-            run_name=getattr(args, "run_name", "") or "",
-            backend_name=args.backend,
-            team=args.team,
-            thread_id=getattr(args, "thread_id", "") or "",
-            stream=bool(getattr(args, "stream", False)),
-            resume_thread=resume_thr,
-            resume_input=getattr(args, "resume_input", "") or "",
-            langgraph_mode=getattr(args, "langgraph_mode", None),
-            claude_budget=getattr(args, "claude_budget", None),
-            fork_session=bool(getattr(args, "fork_session", False)),
-        )
+        return _cmd_run(opts)
     return 1
 
 

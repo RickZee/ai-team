@@ -449,7 +449,7 @@ The cheapest phase and the one a reviewer reads first.
 
 ## Phase 7 — Complexity
 
-- [ ] **7.1 `main.py:_cmd_run` (259 lines, 71 branches, 16 params)**
+- [x] **7.1 `main.py:_cmd_run` (259 lines, 71 branches, 16 params)**
   - Introduce a `RunOptions` dataclass built from the parsed namespace; extract the
     argument-resolution, backend-selection, and result-reporting blocks.
   - **Definition of done:** `_cmd_run` under 120 lines and 8 parameters; the run path is
@@ -457,33 +457,33 @@ The cheapest phase and the one a reviewer reads first.
     (every flag still works).
   - _Requirements: R12.3, R12.4, R12.5_
 
-- [ ] **7.2 `mcp_server.py:build_ai_team_mcp_tools` (264 lines)**
+- [x] **7.2 `mcp_server.py:build_ai_team_mcp_tools` (264 lines)**
   - Extract one builder per tool group.
   - **Definition of done:** under 120 lines; the MCP tool list is byte-identical before and
     after (assert it in a test).
   - _Requirements: R12.3, R12.5_
 
-- [ ] **7.3 `evals/gate.py:evaluate_gate` (230 lines, 38 branches)**
+- [x] **7.3 `evals/gate.py:evaluate_gate` (230 lines, 38 branches)**
   - Extract per-criterion evaluation; keep the decision table in one readable place.
   - **Definition of done:** under 120 lines; Tier A gate output identical on the committed
     corpus.
   - _Requirements: R12.3, R12.5_
 
-- [ ] **7.4 Web router split**
+- [x] **7.4 Web router split**
   - Split `server.py` (1,791 LOC, 24 routes) into routers by resource plus an app factory;
     move module-level side effects into the factory.
   - **Definition of done:** every route path, method, response shape and status code
     unchanged; `tests/e2e/web` green; no new abstraction layer introduced.
   - _Requirements: R13.1, R13.2, R13.3, R13.4_
 
-- [ ] **7.5 One cost resolver**
+- [x] **7.5 One cost resolver**
   - Consolidate `_resolve_token_estimate`'s three-source fallback into one resolver with a
     documented precedence order.
   - **Definition of done:** one function owns the number the dashboard shows; its
     precedence is stated in a docstring and covered by a test per source.
   - _Requirements: R13.5_
 
-- [ ] **7.6 Phase gate**
+- [x] **7.6 Phase gate**
 
 ---
 

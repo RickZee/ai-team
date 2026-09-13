@@ -1,7 +1,7 @@
 """Auth, bind defaults, and route-coverage for the control plane (R15, R24).
 
 to see the route-coverage test fail: remove ``dependencies=_AUTH`` from any
-non-public route in ``server.py``.
+non-public route in ``ui/web/routers/``.
 """
 
 from __future__ import annotations
@@ -18,6 +18,19 @@ from ai_team.ui.web.auth import (
 from ai_team.ui.web.server import app, build_web_parser
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.testclient import TestClient
+from starlette.routing import BaseRoute
+
+
+def _iter_http_and_ws_routes(app_routes: list[BaseRoute]) -> list[BaseRoute]:
+    """Flatten FastAPI ``_IncludedRouter`` wrappers so coverage sees real paths."""
+    out: list[BaseRoute] = []
+    for route in app_routes:
+        inner = getattr(route, "original_router", None)
+        if inner is not None:
+            out.extend(inner.routes)
+        else:
+            out.append(route)
+    return out
 
 
 def _reload_token(monkeypatch: pytest.MonkeyPatch, token: str) -> None:
@@ -106,7 +119,7 @@ def test_route_coverage_every_route_authed_or_public() -> None:
     public_exact = set(PUBLIC_PATHS)
     missing: list[str] = []
     scanned = 0
-    for route in app.routes:
+    for route in _iter_http_and_ws_routes(list(app.routes)):
         if isinstance(route, APIWebSocketRoute):
             scanned += 1
             # Handshake is accept_websocket, not Depends — treat path as authed by contract.

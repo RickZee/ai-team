@@ -9,10 +9,11 @@ mypy_ignore_errors_loc = 13000
 
 # Complexity (src/ + evals/, excluding frontend, vendor, node_modules).
 # Branch count is the primary axis (R12.2). 2026-09-13 measured 58 / 7 / 15
-# with the ≤2-branch exemption (R12.6). Track B would cut this further.
-functions_over_80_lines = 58
-functions_over_150_lines = 7
-functions_over_8_params = 15
+# with the ≤2-branch exemption (R12.6). Track B Phase 7 extraction (RunOptions,
+# MCP tool groups, evaluate_gate split, web routers) measured 55 / 4 / 14.
+functions_over_80_lines = 55
+functions_over_150_lines = 4
+functions_over_8_params = 14
 
 # Docker image size (MB). 2026-09-13 local `docker build -f docker/Dockerfile`
 # measured 790 MB; ratchet leaves ~100 MB headroom.
