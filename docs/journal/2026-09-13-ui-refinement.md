@@ -38,7 +38,21 @@ the gate green, and what actually fixed them.
 A one-shot rem→token replace turned `0.2rem` into `0.var(--space-6)` because `2rem`
 matched inside `0.2rem`. All `0.var(--*)` occurrences mapped back to `--space-1`.
 
-## Not run
+## Human-triggered gates (same machine, 2026-09-13)
 
-Screenshots (0.1 / 2.4 / 3.7) and a live three-backend compare (7.4) stay
-human-triggered. Full keyboard-only pass (4.8) not recorded here.
+Servers: `uv run ai-team-web --port 8421 --host 127.0.0.1` and
+`npm run dev` in `src/ai_team/ui/web/frontend` → `http://127.0.0.1:5173`.
+
+**7.4 — done.** Compare → `Play sample runs (free · no files)` (`compare-demo`).
+Three demo columns completed (~30s). At 1280px: three columns side by side. At 800px:
+Comparison Summary leads; columns fold. Not the paid “Run All Backends” path.
+
+**4.8 — done.** Home → New run (`/run`) → run detail. Tabs: ArrowRight wraps Tests→Overview;
+End jumps to Tests; Home jumps to Overview. Live demo → Stop run? → Escape closes and
+restores focus; confirm uses `.btn-danger`. Command palette Escape closes. Skip link is
+first in the a11y tree (`href="#main"`); mouse click is intercepted because it is visually
+hidden until `:focus`. Embedded-browser Tab key events did not move native focus.
+
+**0.1 / 2.4 / 3.7 — still open.** `BASELINE.md` has the six counts. Before-screenshots
+cannot be reconstructed. After-state PNGs are in `.kiro/specs/ui-refinement/screenshots/`:
+cyan primary, red stop-run confirm, four RunDetail tabs.

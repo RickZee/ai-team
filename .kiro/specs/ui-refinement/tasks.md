@@ -40,6 +40,9 @@ Stop when its Definition of done is satisfied and
   - Screenshot (manually, checked into nothing — attach to the PR) Home, Run, Compare with
     three live columns, RunDetail on each of its four tabs, and Artifacts.
   - **Definition of done:** `BASELINE.md` exists with the six counts; all screenshots taken.
+  - _2026-09-13: counts are in `BASELINE.md`. Before-screenshots cannot be reconstructed
+    after Phases 1–9 landed. After-state shots live in `screenshots/` (Home, Run, Compare
+    idle/1280/800, RunDetail four tabs, stop-run confirm)._
   - _Requirements: R21.2_
 
 - [x] **0.2 Freeze the test-id surface**
@@ -136,6 +139,7 @@ was not dead — restore it and investigate.
 - [ ] **2.4 Phase gate**
   - **Definition of done:** all gates green; screenshots retaken and compared against 0.1 —
     differences are sub-pixel spacing only, no layout breakage.
+  - _2026-09-13: cannot compare against missing 0.1 before-shots. After-state shots exist._
   - _Requirements: R21.2, R21.3_
 
 ---
@@ -200,6 +204,8 @@ This is the phase a reviewer will notice. Keep it to one commit.
   - **Definition of done:** all gates green; screenshots retaken; the only intended visual
     deltas are: primary buttons blue, destructive confirms red, all control borders
     lighter.
+  - _2026-09-13: after-state shots show cyan `New run` / `Run` and a red Stop-run confirm.
+    Still unchecked: no 0.1 before-shots to diff against._
   - _Requirements: R21.2, R21.3_
 
 ---
@@ -272,7 +278,7 @@ This is the phase a reviewer will notice. Keep it to one commit.
     Chrome and Safari; the decision on the scrollbar override is recorded in design §9.
   - _Requirements: R15.2, R15.3, R15.4, R6.6_
 
-- [ ] **4.8 Phase gate**
+- [x] **4.8 Phase gate**
   - **Definition of done:** all gates green; a full keyboard-only pass of Home → new run →
     run detail (all four tabs) → stop-run confirm reaches and operates every control.
   - _Requirements: R21.2, R21.3_
@@ -386,7 +392,7 @@ This is the phase a reviewer will notice. Keep it to one commit.
     and `Compare.reattach.test.tsx` green.
   - _Requirements: R18.3, R18.5, R18.6_
 
-- [ ] **7.4 Phase gate**
+- [x] **7.4 Phase gate**
   - **Definition of done:** all gates green, including a live three-backend sample compare
     (`Play sample runs`) driven end to end at 1280px and 800px.
   - _Requirements: R21.2, R21.3_
