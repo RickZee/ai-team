@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+import argparse
 from unittest.mock import MagicMock, patch
 
 import pytest
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
+from ai_team.cli_run import RunOptions, execute_run
 from ai_team.core.result import ProjectResult
 from ai_team.main import _OUTPUT_CHOICES, _cmd_run, _preprocess_argv_for_subcommand
+
+
+def _opts(**kwargs: object) -> RunOptions:
+    values: dict[str, object] = {
+        "description": "A project",
+        "skip_estimate": True,
+        "project_name": "P",
+        "backend_name": "crewai",
+        "team": "full",
+        "output_mode": "crewai",
+    }
+    values.update(kwargs)
+    return RunOptions(**values)  # type: ignore[arg-type]
 
 
 class TestCmdRunOutputMode:
@@ -24,16 +39,13 @@ class TestCmdRunOutputMode:
         )
         mock_backend = MagicMock()
         mock_backend.run.return_value = pr
-        with patch("ai_team.main.get_backend", return_value=mock_backend):
+        with patch("ai_team.cli_run.get_backend", return_value=mock_backend):
             _cmd_run(
-                description="Create a REST API",
-                env=None,
-                complexity=None,
-                output_mode=output_mode,
-                skip_estimate=True,
-                project_name="Test Project",
-                backend_name="crewai",
-                team="full",
+                _opts(
+                    description="Create a REST API",
+                    output_mode=output_mode,
+                    project_name="Test Project",
+                )
             )
         mock_backend.run.assert_called_once()
         call_kw = mock_backend.run.call_args[1]
@@ -56,17 +68,8 @@ class TestCmdRunOutputMode:
         )
         mock_backend = MagicMock()
         mock_backend.run.return_value = pr
-        with patch("ai_team.main.get_backend", return_value=mock_backend):
-            _cmd_run(
-                description="A project",
-                env=None,
-                complexity=None,
-                output_mode="crewai",
-                skip_estimate=True,
-                project_name="Proj",
-                backend_name="crewai",
-                team="full",
-            )
+        with patch("ai_team.cli_run.get_backend", return_value=mock_backend):
+            _cmd_run(_opts(description="A project", output_mode="crewai", project_name="Proj"))
         assert mock_backend.run.call_args[1]["monitor"] is None
 
     def test_cmd_run_tui_passes_monitor_with_project_name(self) -> None:
@@ -79,17 +82,8 @@ class TestCmdRunOutputMode:
         )
         mock_backend = MagicMock()
         mock_backend.run.return_value = pr
-        with patch("ai_team.main.get_backend", return_value=mock_backend):
-            _cmd_run(
-                description="A project",
-                env=None,
-                complexity=None,
-                output_mode="tui",
-                skip_estimate=True,
-                project_name="Demo 01",
-                backend_name="crewai",
-                team="full",
-            )
+        with patch("ai_team.cli_run.get_backend", return_value=mock_backend):
+            _cmd_run(_opts(description="A project", output_mode="tui", project_name="Demo 01"))
         mon = mock_backend.run.call_args[1]["monitor"]
         assert mon is not None
         assert mon.project_name == "Demo 01"
@@ -109,19 +103,15 @@ class TestCmdRunLangGraph:
         backend = LangGraphBackend()
         with (
             patch.object(backend, "resume", return_value=pr) as mock_resume,
-            patch("ai_team.main.get_backend", return_value=backend),
+            patch("ai_team.cli_run.get_backend", return_value=backend),
         ):
             code = _cmd_run(
-                description="",
-                env=None,
-                complexity=None,
-                output_mode="crewai",
-                skip_estimate=True,
-                project_name="P",
-                backend_name="langgraph",
-                team="full",
-                resume_thread="tid-abc",
-                resume_input="approved",
+                _opts(
+                    description="",
+                    backend_name="langgraph",
+                    resume_thread="tid-abc",
+                    resume_input="approved",
+                )
             )
         assert code == 0
         mock_resume.assert_called_once()
@@ -149,21 +139,75 @@ class TestCmdRunLangGraph:
                 "iter_stream_events",
                 side_effect=fake_iter,
             ) as mock_iter,
-            patch("ai_team.main.get_backend", return_value=backend),
+            patch("ai_team.cli_run.get_backend", return_value=backend),
         ):
             code = _cmd_run(
-                description="Build a thing",
-                env=None,
-                complexity=None,
-                output_mode="crewai",
-                skip_estimate=True,
-                project_name="P",
-                backend_name="langgraph",
-                team="full",
-                stream=True,
+                _opts(
+                    description="Build a thing",
+                    backend_name="langgraph",
+                    stream=True,
+                )
             )
         assert code == 0
         mock_iter.assert_called_once()
+
+
+class TestRunOptionsFromNamespace:
+    """Run path is callable without argparse; from_namespace maps every run flag."""
+
+    def test_execute_run_without_cli(self) -> None:
+        """``execute_run(RunOptions)`` does not require constructing argv."""
+        pr = ProjectResult(
+            backend_name="crewai",
+            success=True,
+            raw={"result": None, "state": {}},
+            team_profile="full",
+        )
+        mock_backend = MagicMock()
+        mock_backend.run.return_value = pr
+        with patch("ai_team.cli_run.get_backend", return_value=mock_backend):
+            code = execute_run(_opts(description="from test"))
+        assert code == 0
+        mock_backend.run.assert_called_once()
+
+    def test_from_namespace_maps_flags(self) -> None:
+        """Every CLI run flag lands on the matching ``RunOptions`` field."""
+        args = argparse.Namespace(
+            run_description="  Build it  ",
+            env="dev",
+            complexity="simple",
+            output="crewai",
+            monitor=True,
+            skip_estimate=True,
+            project_name="Named",
+            run_name="slug-1",
+            backend="langgraph",
+            team="lean",
+            thread_id="tid",
+            stream=True,
+            resume="sess",
+            resume_input="yes",
+            langgraph_mode="full",
+            claude_budget=1.5,
+            fork_session=True,
+        )
+        opts = RunOptions.from_namespace(args)
+        assert opts.description == "Build it"
+        assert opts.env == "dev"
+        assert opts.complexity == "simple"
+        assert opts.output_mode == "tui"
+        assert opts.skip_estimate is True
+        assert opts.project_name == "Named"
+        assert opts.run_name == "slug-1"
+        assert opts.backend_name == "langgraph"
+        assert opts.team == "lean"
+        assert opts.thread_id == "tid"
+        assert opts.stream is True
+        assert opts.resume_thread == "sess"
+        assert opts.resume_input == "yes"
+        assert opts.langgraph_mode == "full"
+        assert opts.claude_budget == 1.5
+        assert opts.fork_session is True
 
 
 class TestPreprocessArgvForSubcommand:
@@ -209,16 +253,13 @@ class TestMainArgparseOutput:
         )
         mock_backend = MagicMock()
         mock_backend.run.return_value = pr
-        with patch("ai_team.main.get_backend", return_value=mock_backend):
+        with patch("ai_team.cli_run.get_backend", return_value=mock_backend):
             _cmd_run(
-                description="Build a CLI",
-                env=None,
-                complexity=None,
-                output_mode="crewai",
-                skip_estimate=True,
-                project_name="AI-Team Project",
-                backend_name="crewai",
-                team="full",
+                _opts(
+                    description="Build a CLI",
+                    output_mode="crewai",
+                    project_name="AI-Team Project",
+                )
             )
         assert mock_backend.run.call_args[1]["monitor"] is None
 
@@ -232,15 +273,12 @@ class TestMainArgparseOutput:
         )
         mock_backend = MagicMock()
         mock_backend.run.return_value = pr
-        with patch("ai_team.main.get_backend", return_value=mock_backend):
+        with patch("ai_team.cli_run.get_backend", return_value=mock_backend):
             _cmd_run(
-                description="Build a CLI",
-                env=None,
-                complexity=None,
-                output_mode="tui",
-                skip_estimate=True,
-                project_name="AI-Team Project",
-                backend_name="crewai",
-                team="full",
+                _opts(
+                    description="Build a CLI",
+                    output_mode="tui",
+                    project_name="AI-Team Project",
+                )
             )
         assert mock_backend.run.call_args[1]["monitor"] is not None

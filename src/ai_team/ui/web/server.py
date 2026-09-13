@@ -24,21 +24,17 @@ from typing import Any, Literal
 import structlog
 import uvicorn
 from ai_team.ui.web.auth import (
-    accept_websocket,
     assert_bind_allowed,
     cors_allow_origins,
-    require_token,
     warn_if_unauthenticated,
 )
-from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
-
-_AUTH = [Depends(require_token)]
 
 ComplexityOption = Literal["simple", "medium", "complex"]
 
@@ -54,16 +50,6 @@ ComplexityOption = Literal["simple", "medium", "complex"]
 os.environ.setdefault(
     "AI_TEAM_LANGGRAPH_SQLITE_PATH",
     str(Path(__file__).resolve().parents[4] / "workspace" / ".langgraph_checkpoints.sqlite"),
-)
-
-app = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_allow_origins(),
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 _TERMINAL_STATUSES = frozenset({"complete", "complete_approved", "error", "cancelled"})
@@ -318,110 +304,6 @@ class ResumeRequest(BaseModel):
     feedback: str
 
 
-# ---------------------------------------------------------------------------
-# REST endpoints
-# ---------------------------------------------------------------------------
-
-
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
-
-
-@app.get("/api/profiles", dependencies=_AUTH)
-async def list_profiles():
-    """List available team profiles."""
-    from ai_team.core.team_profile import load_team_profiles
-
-    profiles = load_team_profiles()
-    return {
-        name: {
-            "agents": p.agents,
-            "phases": p.phases,
-            "model_overrides": p.model_overrides,
-        }
-        for name, p in profiles.items()
-    }
-
-
-_BACKEND_CATALOG = [
-    {
-        "name": "crewai",
-        "label": "CrewAI",
-        "streaming": False,
-        "required_key": "OPENROUTER_API_KEY",
-    },
-    {
-        "name": "langgraph",
-        "label": "LangGraph",
-        "streaming": True,
-        "required_key": "OPENROUTER_API_KEY",
-    },
-    {
-        "name": "claude-agent-sdk",
-        "label": "Claude Agent SDK",
-        "streaming": True,
-        "required_key": "ANTHROPIC_API_KEY",
-    },
-]
-
-
-@app.get("/api/backends", dependencies=_AUTH)
-async def list_backends():
-    """List available backends with API key configuration hints."""
-    backends = []
-    for entry in _BACKEND_CATALOG:
-        env_key = entry["required_key"]
-        configured = bool(os.environ.get(env_key, "").strip())
-        backends.append({**entry, "configured": configured})
-    return {"backends": backends}
-
-
-@app.post("/api/estimate", dependencies=_AUTH)
-async def estimate_cost(req: EstimateRequest):
-    """Return cost estimate for a run."""
-    from ai_team.config.cost_estimator import estimate_run_cost
-    from ai_team.config.models import OpenRouterSettings
-
-    settings = OpenRouterSettings()
-    rows, total, within_budget = estimate_run_cost(settings, req.complexity)
-    return {
-        "complexity": req.complexity,
-        "rows": [
-            {
-                "role": r.role,
-                "model_id": r.model_id,
-                "input_tokens": r.input_tokens,
-                "output_tokens": r.output_tokens,
-                "cost_usd": r.cost_usd,
-            }
-            for r in rows
-        ],
-        "total_usd": total,
-        "within_budget": within_budget,
-    }
-
-
-@app.get("/api/runs", dependencies=_AUTH)
-async def list_runs():
-    """List all runs."""
-    return {"runs": list(state.runs.values())}
-
-
-@app.get("/api/runs/history", dependencies=_AUTH)
-async def run_history(limit: int = Query(200, ge=1, le=1000)):
-    """Persisted run history (SQLite, data/memory.db) — survives server restarts.
-
-    Unlike GET /api/runs (in-memory, wiped on restart), this reflects every run
-    the server has ever started, including runs from a process that later died
-    or was restarted mid-run. Registered before /api/runs/{run_id} so "history"
-    isn't swallowed as a run_id path param.
-    """
-    if state.store is None:
-        return {"runs": [], "persisted": False}
-    return {"runs": state.store.list_runs(limit=limit), "persisted": True}
-
-
 def _load_run_receipt(run_id: str):
     """Load on-disk change receipt for *run_id*, or None."""
     try:
@@ -549,388 +431,6 @@ def _run_artifact_metrics(run_id: str) -> dict[str, Any]:
     except Exception:  # metrics are best-effort; never break the endpoint
         logger.debug("run_artifact_metrics_failed", run_id=run_id)
     return out
-
-
-@app.get("/api/runs/{run_id}/receipt", dependencies=_AUTH)
-async def get_run_receipt(run_id: str):
-    """Return the on-disk change receipt. Source of truth; not the live event stream."""
-    from ai_team.harness.receipt import load_receipt
-    from ai_team.ui.artifacts.service import resolve_project_paths
-
-    _ws, bundle = resolve_project_paths(run_id)
-    receipt = load_receipt(bundle)
-    if receipt is None:
-        raise HTTPException(status_code=404, detail="Receipt not found")
-    return receipt.model_dump(mode="json")
-
-
-@app.get("/api/runs/{run_id}", dependencies=_AUTH)
-async def get_run(run_id: str):
-    """Get run details including monitor state, spend, and artifact metrics."""
-    run = state.runs.get(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-
-    from ai_team.core.spend_guard import current_spend
-
-    monitor = state.monitors.get(run_id)
-    monitor_data = _serialize_monitor(monitor, run_id) if monitor else None
-    if monitor_data is None:
-        monitor_data = _load_monitor_snapshot_from_bundle(run_id)
-    return {
-        **run,
-        "project_id": run.get("project_id") or run_id,
-        "monitor": monitor_data,
-        # Subprocess-isolated backends (CrewAI) report spend via their result
-        # payload (stashed on the run record); in-process backends are readable
-        # from the run_id-keyed spend registry.
-        "spend": run.get("spend") or current_spend(run_id=run_id),
-        "metrics": _run_artifact_metrics(run_id),
-    }
-
-
-@app.get("/api/comparisons", dependencies=_AUTH)
-async def list_comparisons(limit: int = Query(50, ge=1, le=200)):
-    """Recent Compare-tab sessions (grouped by comparison_id)."""
-    if state.store is None:
-        return {"comparisons": [], "persisted": False}
-    return {"comparisons": state.store.list_comparisons(limit=limit), "persisted": True}
-
-
-@app.get("/api/comparisons/{comparison_id}", dependencies=_AUTH)
-async def get_comparison(comparison_id: str):
-    """The 1-3 backend runs that belong to one Compare-tab session."""
-    if state.store is None:
-        raise HTTPException(status_code=503, detail="Run persistence unavailable")
-    runs = state.store.get_comparison(comparison_id)
-    if not runs:
-        raise HTTPException(status_code=404, detail="Comparison not found")
-    return {"comparison_id": comparison_id, "runs": runs}
-
-
-@app.get("/api/registry/runs", dependencies=_AUTH)
-async def registry_runs():
-    """List runs from disk registry merged with in-memory web sessions."""
-    from ai_team.ui.artifacts.service import load_registry
-
-    rows = load_registry(list(state.runs.values()))
-    return {"runs": [r.model_dump() for r in rows]}
-
-
-@app.get("/api/projects/{project_id}/tree", dependencies=_AUTH)
-async def project_tree(
-    project_id: str,
-    root: Literal["workspace", "bundle"] = Query(default="workspace"),
-):
-    """Nested file tree for a project workspace or results bundle."""
-    from ai_team.ui.artifacts.service import build_tree
-
-    try:
-        nodes = build_tree(project_id, root)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    return {"project_id": project_id, "root": root, "tree": [n.model_dump() for n in nodes]}
-
-
-@app.get("/api/projects/{project_id}/file", dependencies=_AUTH)
-async def project_file(
-    project_id: str,
-    path: str = Query(..., description="Relative file path"),
-    root: Literal["workspace", "bundle"] = Query(default="workspace"),
-):
-    """Read a single artifact file (text) or return binary metadata."""
-    from ai_team.ui.artifacts.service import read_artifact_file
-
-    try:
-        content = read_artifact_file(project_id, root, path)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    if content.is_binary:
-        raise HTTPException(
-            status_code=415,
-            detail={
-                "message": "Binary file cannot be displayed as text",
-                "size_bytes": content.size_bytes,
-                "path": content.path,
-            },
-        )
-    return content.model_dump()
-
-
-@app.get("/api/projects/{project_id}/tests", dependencies=_AUTH)
-async def project_tests(project_id: str):
-    """Normalized test results for the Tests tab."""
-    from ai_team.ui.artifacts.service import load_tests_panel
-
-    try:
-        panel = load_tests_panel(project_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    return panel.model_dump()
-
-
-@app.get("/api/projects/{project_id}/architecture", dependencies=_AUTH)
-async def project_architecture(project_id: str):
-    """Architecture document for the Architecture tab."""
-    from ai_team.ui.artifacts.service import load_architecture_panel
-
-    try:
-        panel = load_architecture_panel(project_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    return panel.model_dump()
-
-
-@app.get("/api/projects/{project_id}/download.zip", dependencies=_AUTH)
-async def project_download_zip(project_id: str):
-    """Download workspace as ZIP."""
-    from ai_team.ui.artifacts.service import workspace_zip_bytes
-
-    try:
-        data = workspace_zip_bytes(project_id)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    return Response(
-        content=data,
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{project_id}-workspace.zip"'},
-    )
-
-
-@app.post("/api/runs/{run_id}/resume", dependencies=_AUTH)
-async def resume_run(run_id: str, req: ResumeRequest):
-    """Resume a LangGraph run blocked on human review (HITL)."""
-    run = state.runs.get(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-    if run["status"] != "awaiting_human":
-        raise HTTPException(status_code=400, detail="Run is not awaiting human input")
-    if run["backend"] != "langgraph":
-        raise HTTPException(status_code=400, detail="Resume only supported for langgraph backend")
-
-    feedback = (req.feedback or "").strip()
-    if not feedback:
-        raise HTTPException(status_code=400, detail="Feedback is required")
-
-    from ai_team.backends.langgraph_backend.backend import LangGraphBackend
-    from ai_team.backends.registry import get_backend
-    from ai_team.core.team_profile import load_team_profile
-
-    backend = get_backend("langgraph")
-    if not isinstance(backend, LangGraphBackend):
-        raise HTTPException(status_code=500, detail="LangGraph backend unavailable")
-
-    profile = load_team_profile(run["profile"])
-    thread_id = str(run.get("thread_id") or run_id)
-    monitor = state.monitors.get(run_id)
-    run["status"] = "running"
-
-    loop = asyncio.get_event_loop()
-
-    def _resume() -> None:
-        # Match the graph_mode the original run used (see _stream_langgraph_events_to_ws).
-        backend.resume(
-            thread_id,
-            feedback,
-            profile,
-            graph_mode=os.environ.get("AI_TEAM_LANGGRAPH_GRAPH_MODE", "full"),
-        )
-
-    try:
-        await loop.run_in_executor(None, _resume)
-        # A resume that reaches terminal did so on the operator's say-so, not
-        # by passing the quality gate — record that distinctly so the registry
-        # and comparison tables don't over-report green (state.json may still
-        # say passed: False for this run).
-        run["approved_via_hitl"] = True
-        run["quality_gate_at_approval"] = _capture_quality_gate_snapshot(run_id)
-        state.finish_run(run_id, success=True)
-        return {
-            "run_id": run_id,
-            "status": "complete_approved",
-            "approved_via_hitl": True,
-            "quality_gate_at_approval": run.get("quality_gate_at_approval"),
-            "monitor": _serialize_monitor(monitor, run_id) if monitor else None,
-        }
-    except Exception as e:
-        state.finish_run(run_id, success=False, error=str(e))
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/demo", dependencies=_AUTH)
-async def start_demo():
-    """Start a demo run and return run_id (poll via /api/runs/{id} or connect WebSocket)."""
-    from ai_team.core.run_naming import resolve_run_id
-
-    run_id = resolve_run_id(
-        description="Demo: Flask REST API",
-        team_profile="full",
-        run_label="demo",
-    )
-    state.create_run(run_id, "demo", "full", "Demo: Flask REST API", is_sample=True)
-    task = asyncio.create_task(_run_demo_async(run_id))
-    state.tasks[run_id] = task
-    return {"run_id": run_id}
-
-
-@app.post("/api/runs/{run_id}/cancel", dependencies=_AUTH)
-async def cancel_run(run_id: str):
-    """Cancel a running run (cooperative cancel)."""
-    run = state.runs.get(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-    terminal = _TERMINAL_STATUSES
-    if run["status"] in terminal:
-        raise HTTPException(status_code=400, detail=f"Run is already terminal ({run['status']})")
-    state.cancel_run(run_id)
-    return {"run_id": run_id, "status": "cancelling"}
-
-
-@app.delete("/api/runs/{run_id}", dependencies=_AUTH)
-async def delete_run_endpoint(run_id: str):
-    """Delete a terminal run from disk and in-memory state."""
-    from ai_team.core.results.cleanup import delete_run as delete_run_disk
-
-    run = state.runs.get(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-    terminal = _TERMINAL_STATUSES
-    if run["status"] not in terminal:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Run is not terminal ({run['status']}); cancel or wait before deleting",
-        )
-    disk_result = delete_run_disk(run_id)
-    with contextlib.suppress(KeyError):
-        state.remove_run(run_id)
-    logger.info("run_deleted", run_id=run_id, existed_on_disk=disk_result.existed)
-    return {
-        "run_id": run_id,
-        "deleted": True,
-        "disk": disk_result.model_dump(),
-    }
-
-
-# ---------------------------------------------------------------------------
-# WebSocket — real-time streaming
-# ---------------------------------------------------------------------------
-
-
-@app.websocket("/ws/run")
-async def ws_run(websocket: WebSocket):
-    """
-    WebSocket endpoint for running a backend with real-time streaming.
-
-    Client sends JSON: {backend, profile, description, complexity}
-    Server streams JSON events: {type, data} until {type: "complete"}
-    """
-    if not await accept_websocket(websocket):
-        return
-    try:
-        msg = await websocket.receive_json()
-        req = RunRequest(**msg)
-
-        from ai_team.core.run_naming import resolve_run_id
-
-        run_id = resolve_run_id(
-            description=req.description,
-            team_profile=req.profile,
-        )
-        state.create_run(
-            run_id,
-            req.backend,
-            req.profile,
-            req.description,
-            estimate_usd=req.estimate_usd,
-            complexity=req.complexity,
-            comparison_id=req.comparison_id,
-        )
-        state.runs[run_id]["thread_id"] = run_id
-        state.runs[run_id]["project_id"] = run_id
-
-        await websocket.send_json({"type": "run_started", "run_id": run_id, "project_id": run_id})
-
-        # The run executes in a detached task tracked by run_id so it survives
-        # this socket. If the client navigates away (Run tab -> Dashboard) the
-        # /ws/run socket closes, but the run keeps going and is observed via
-        # /ws/monitor/{run_id}. We only cancel on an explicit cancel request
-        # (state.cancel_run), never on client disconnect.
-        task = _spawn_detached_run(websocket, run_id, req)
-        state.tasks[run_id] = task
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError:
-            if (
-                state.is_cancel_requested(run_id)
-                and state.runs.get(run_id, {}).get("status") != "cancelled"
-            ):
-                monitor = state.monitors.get(run_id)
-                state.finish_cancelled(run_id)
-                with contextlib.suppress(Exception):
-                    await websocket.send_json(
-                        {
-                            "type": "complete",
-                            "run_status": "cancelled",
-                            "data": _serialize_monitor(monitor),
-                            "project_id": run_id,
-                        }
-                    )
-            # Client disconnect (not an explicit cancel): the detached run task
-            # keeps running; do not propagate cancellation to it.
-
-    except WebSocketDisconnect:
-        logger.info("ws_client_disconnected")
-    except Exception as e:
-        with contextlib.suppress(Exception):
-            await websocket.send_json({"type": "error", "message": str(e)})
-
-
-@app.websocket("/ws/monitor/{run_id}")
-async def ws_monitor(websocket: WebSocket, run_id: str):
-    """
-    WebSocket endpoint for monitoring an active run.
-
-    Pushes monitor state snapshots every 500ms while the run is active.
-    """
-    if not await accept_websocket(websocket):
-        return
-    try:
-        while True:
-            monitor = state.monitors.get(run_id)
-            run = state.runs.get(run_id)
-            if not run:
-                await websocket.send_json({"type": "error", "message": "Run not found"})
-                break
-
-            data = _serialize_monitor(monitor, run_id) if monitor else {}
-            data["run_status"] = run["status"]
-            await websocket.send_json({"type": "monitor_update", "data": data})
-
-            if run["status"] == "awaiting_human":
-                payload = run.get("hitl_payload") or {}
-                await websocket.send_json(
-                    {
-                        "type": "hitl_required",
-                        "data": {**payload, "monitor": data, "run_id": run_id},
-                    }
-                )
-                break
-
-            if run["status"] in _TERMINAL_STATUSES:
-                final_type = "error" if run["status"] == "error" else "complete"
-                await websocket.send_json(
-                    {
-                        "type": final_type,
-                        "run_status": run["status"],
-                        "data": data,
-                        "message": run.get("error"),
-                    }
-                )
-                break
-
-            await asyncio.sleep(0.5)
-    except WebSocketDisconnect:
-        pass
 
 
 # ---------------------------------------------------------------------------
@@ -1715,36 +1215,118 @@ def _resolve_cost_usd(monitor, run_id: str | None) -> float | None:
     return None
 
 
-def _resolve_token_estimate(monitor, run_id: str | None) -> int:
-    """Token count for the dashboard — prefer live monitor, else spend registry."""
-    if monitor.metrics.token_estimate > 0:
-        return int(monitor.metrics.token_estimate)
-    if not run_id:
-        return 0
+def _as_positive_int(value: object) -> int | None:
+    """Return a positive int, or None if *value* is missing/non-numeric/zero."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    if value <= 0:
+        return None
+    return int(value)
+
+
+def _tokens_from_receipt(run_id: str) -> int | None:
+    """On-disk token total: receipt fields, then bundle ``state.json``."""
+    receipt = _load_run_receipt(run_id)
+    if receipt is not None:
+        found = _as_positive_int((receipt.provenance or {}).get("total_tokens"))
+        if found is not None:
+            return found
+        tests = receipt.tests if isinstance(receipt.tests, dict) else {}
+        found = _as_positive_int(tests.get("total_tokens"))
+        if found is not None:
+            return found
+    try:
+        from ai_team.core.results.writer import ResultsBundle
+
+        state_path = ResultsBundle(run_id).output_dir / "state.json"
+        if not state_path.is_file():
+            return None
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return _as_positive_int(data.get("total_tokens"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    return None
+
+
+def _tokens_from_live_spend(run_id: str) -> int | None:
+    """In-process spend: stashed run payload, then the spend-guard registry."""
     run = state.runs.get(run_id) or {}
     spend = run.get("spend") or {}
-    tokens = spend.get("total_tokens")
-    if isinstance(tokens, int | float) and tokens > 0:
-        return int(tokens)
+    found = _as_positive_int(spend.get("total_tokens"))
+    if found is not None:
+        return found
     from ai_team.core.spend_guard import current_spend
 
-    tokens = current_spend(run_id=run_id).get("total_tokens")
-    if isinstance(tokens, int | float) and tokens > 0:
-        return int(tokens)
+    return _as_positive_int(current_spend(run_id=run_id).get("total_tokens"))
+
+
+def _resolve_token_estimate(monitor, run_id: str | None) -> int:
+    """Token count the dashboard shows.
+
+    Precedence (first positive integer wins):
+
+    1. Live monitor ``metrics.token_estimate`` — in-progress stream.
+    2. On-disk receipt (``provenance.total_tokens`` / ``tests.total_tokens``)
+       then bundle ``state.json`` ``total_tokens`` — FM-008 after finalize.
+    3. Live spend: stashed ``run["spend"]``, then ``current_spend``.
+    """
+    if monitor is not None:
+        found = _as_positive_int(getattr(monitor.metrics, "token_estimate", 0))
+        if found is not None:
+            return found
+    if not run_id:
+        return 0
+    found = _tokens_from_receipt(run_id)
+    if found is not None:
+        return found
+    found = _tokens_from_live_spend(run_id)
+    if found is not None:
+        return found
     return 0
+
+
+# ---------------------------------------------------------------------------
+# App factory (R13.4)
+# ---------------------------------------------------------------------------
+
+
+def create_app() -> FastAPI:
+    """Build the dashboard API: CORS, resource routers, no import-time SPA mount."""
+    application = FastAPI(title="AI-Team Dashboard API", version="0.1.0")
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_allow_origins(),
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    from ai_team.ui.web.routers.catalog import router as catalog_router
+    from ai_team.ui.web.routers.comparisons import router as comparisons_router
+    from ai_team.ui.web.routers.projects import router as projects_router
+    from ai_team.ui.web.routers.runs import router as runs_router
+    from ai_team.ui.web.routers.websockets import router as websockets_router
+
+    application.include_router(catalog_router)
+    application.include_router(runs_router)
+    application.include_router(comparisons_router)
+    application.include_router(projects_router)
+    application.include_router(websockets_router)
+    application.state.frontend_registered = False
+    return application
+
+
+app = create_app()
 
 
 # ---------------------------------------------------------------------------
 # Frontend (SPA) — client-side routes need index.html fallback
 # ---------------------------------------------------------------------------
 
-_FRONTEND_REGISTERED = False
-
 
 def register_frontend(app: FastAPI, frontend_dist: Path | None = None) -> None:
     """Serve the Vite build and fall back to ``index.html`` for React Router paths."""
-    global _FRONTEND_REGISTERED
-    if _FRONTEND_REGISTERED:
+    if getattr(app.state, "frontend_registered", False):
         return
     dist = frontend_dist or (Path(__file__).parent / "frontend" / "dist")
     index = dist / "index.html"
@@ -1773,7 +1355,7 @@ def register_frontend(app: FastAPI, frontend_dist: Path | None = None) -> None:
             return FileResponse(target)
         return FileResponse(index)
 
-    _FRONTEND_REGISTERED = True
+    app.state.frontend_registered = True
 
 
 # ---------------------------------------------------------------------------
