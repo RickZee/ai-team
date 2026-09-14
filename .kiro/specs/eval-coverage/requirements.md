@@ -134,6 +134,8 @@ returns `not_applicable` while the spans it needed sit in the trace unread.
 | Claim discipline | a rate over 76% n/a renders like a rate | R11 |
 | Duplicate identities | 94 fixture files, 72 distinct `trace_id`s | R3.7, R3.8 |
 | Test hygiene | — | R12 |
+| Per-run evidence | run record has a quality-gate scorecard, no eval check results | R13 |
+| Feed-forward | no rule on what a run may learn from evals | R14 |
 
 ---
 
@@ -442,6 +444,97 @@ harness they instrument.
 
 ---
 
+## R13 — Per-run check evidence lives in the run record
+
+**User story.** As someone reading a single run, I want to see which checks decided, which
+abstained, and why, without running a suite or reading structlog — because the run record is
+where I look when a run goes wrong.
+
+### Background
+
+`output/runs/<run_id>/reports/scorecard.json` exists and is the **quality gate** — `lint_ok`,
+`test_passed`, `phases`, `guardrails`. It is not eval checks. On the 2026-09-13 smoke run it
+reads `"guardrails": []` and `"phases": {}` despite four behavioral-guardrail failures, so the
+scorecard is starved by the same telemetry defect the rest of this spec addresses. There is no
+per-run record of eval check outcomes anywhere.
+
+### Acceptance criteria
+
+1. The harness SHALL write `<run_record>/reports/check_results.json` after a run, holding one
+   entry per registered Tier A check: `check_id`, `failure_mode_id`, `outcome`, `na_reason`,
+   `evidence_text`, and `evidence_span_ids`.
+2. It SHALL be written by harness code with `writer: "harness"`, co-located with the run record
+   per `eval-methodology-alignment` R1.7.
+3. It SHALL be rendered as **evidence, never as a score**. A per-run summary SHALL NOT display a
+   pass rate, a percentage, a ratio, or a count of passes without the abstention count beside it.
+   `n` is 1. "18 of 20 checks passed" on a single run, most of them `not_applicable`, is the
+   claim R11 exists to prevent.
+4. WHERE a check abstained, the per-run view SHALL show the `na_reason` prominently. The value of
+   this artifact is that the smoke run would have shown
+   `CHK-guardrail-fp-budget: na — no guardrail_check spans` in the run view, instead of that
+   requiring a 1600-second structlog read.
+5. `coverage liveness` SHALL be able to fold these per-run files directly, so corpus liveness is
+   an aggregation of run records rather than a separate scoring pass.
+6. Writing this file SHALL NOT fail a run, and SHALL NOT be attempted when no checks are
+   registered.
+7. The existing run UI SHALL gain a panel reading this file, following the conventions of
+   `TestResultsPanel` and `GuardrailsPanel`. It SHALL show abstentions by default rather than
+   hiding them behind a toggle — a hidden abstention is the defect this spec started from.
+
+## R14 — Feed-forward discipline: what a run may learn from evals
+
+**User story.** As the owner, I want evals to improve the system without becoming the thing the
+system optimizes for, so that a measurement stays a measurement.
+
+### Background
+
+An eval result that reaches an agent's context becomes an optimization target. The taxonomy
+already names that failure three times — FM-014 (`acceptance_criteria_mutation`), FM-016
+(`self_graded_verification`), FM-018 (`self_reported_telemetry`). An agent that can read
+`CHK-guardrail-fp-budget: fail` and act on it is precisely the self-grading loop those modes
+describe, and it also contaminates the corpus: traces recorded after such feedback sample
+system-behaviour-under-eval-pressure, not system behaviour. Husain is explicit that generic
+metrics are a signal for choosing traces to inspect, never a target
+(`eval-methodology-alignment` R15.3).
+
+The distinction this requirement draws: **product-gate results feed the agent; eval-check results
+feed the human and the corpus.**
+
+### Acceptance criteria
+
+1. Eval check results, liveness verdicts, failure-mode ids, and taxonomy content SHALL NOT appear
+   in any agent prompt, system message, tool result, or memory or lesson record consumed by an
+   agent at runtime.
+2. A test SHALL assert (1) by scanning prompt-construction paths for check ids, FM ids, and
+   liveness vocabulary. This is the second gate in this spec, alongside R4.6, and for the same
+   reason: it is a code property, not a data state.
+3. Product quality-gate results — pytest, ruff, type checks, runtime smoke — SHALL continue to
+   reach the agent unchanged. That is a build loop and is correct; this requirement does not
+   restrict it.
+4. The maintainer-facing loop SHALL be: check fires → human reads → harness or prompt fix →
+   replay the same scenario. This is the loop `docs/eval-runs/2026-09-13-langgraph-smoke/README.md`
+   §"Debug loop" already describes, and no requirement here replaces it with an automated one.
+5. Exactly one automated feed-forward SHALL be permitted: **corpus coverage selects the next
+   runs.** Dimension cells reported `never measured` (`eval-methodology-alignment` R6.5) SHALL be
+   readable as a run-selection input, so that what gets run next is driven by what has not been
+   measured.
+6. That selection SHALL affect **which scenarios run**, never what any agent is told. A scenario
+   contract chosen because its cell is unmeasured SHALL be byte-identical to the same contract
+   chosen for any other reason.
+7. The existing lessons loop (`memory/lessons.py`, `harness/lessons_loop.py`) SHALL remain the
+   only agent-facing feedback path, and FM-013 (`lesson_ineffective`) SHALL remain its detector.
+   No eval verdict SHALL be written into a lesson.
+8. WHERE a human decides an eval finding justifies a configuration change — a timeout, a
+   guardrail threshold, a retry ceiling — the change SHALL be recorded as a human decision with
+   the finding that motivated it, and SHALL NOT be applied automatically.
+
+### On "evals as living requirements"
+
+The source material treats evals as requirements that evolve. This spec supports the direction and
+deliberately stops short of automating it: a confirmed failure mode SHOULD motivate a requirement,
+and that authoring step is human. Nothing here writes to a spec. Recorded so the gap is visible
+rather than implied — see `design.md` §9.8.
+
 ## Constraints
 
 | | |
@@ -451,7 +544,8 @@ harness they instrument.
 | Tier A stays $0.00 | every check added here is deterministic and offline |
 | Budget | ≤ **$1.00** for control runs (R10.5). Nothing else in this spec spends. Additive to the $5 suite, $25 ladder, $15 alignment. |
 | No semantic changes | the `requires` migration adds declarations and changes no existing check's verdict (R12.5) |
-| One gate only | R4.6 — a check whose mandatory span type has no parser fails CI. Liveness itself never gates. |
+| Two gates only | R4.6 — a check whose mandatory span type has no parser fails CI. R14.2 — eval vocabulary in an agent prompt fails CI. Liveness itself never gates. |
+| Evals never reach agents | R14.1 — check results, liveness and FM ids stay out of every agent-facing path; product gate results are unaffected |
 | Telemetry is harness-owned | R5 and R6 write through harness code on the call path, per `eval-methodology-alignment` R1; no new agent instructions |
 | Hypothesis ≠ observed | R8's six modes stay out of active coverage counts until a human annotation promotes them (R9) |
 | Out of scope | changing any existing check's semantics, re-opening the arm/ladder design, multi-annotator κ, online monitoring, vendor platforms |

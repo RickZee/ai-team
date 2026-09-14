@@ -145,10 +145,43 @@ A Tier A run today earns all three. The renderer shows one.
 | Tier A stays $0.00 | every check added here is deterministic and offline |
 | Budget | ≤ **$1.00**, control runs only (R10.5). Additive to the $5 suite, $25 ladder, $15 alignment. |
 | No semantic changes | the `requires` migration adds declarations and changes **no** existing check's verdict — task 2.5 is the guard |
-| One gate only | a check whose mandatory span type has no parser fails CI (R4.6). Liveness itself never gates. |
+| Two gates only | a check whose mandatory span type has no parser fails CI (R4.6); eval vocabulary in an agent prompt fails CI (R14.2). Liveness itself never gates. |
+| Evals never reach agents | check results, liveness verdicts and FM ids stay out of every agent-facing path (R14.1). Product gate results — pytest, ruff, smoke — are unaffected. |
 | Telemetry is harness-owned | R5/R6 write through `harness/telemetry.py` per alignment R1 — **not a second writer** |
 | Hypothesis ≠ observed | FM-019…FM-024 stay out of active coverage counts until a human annotation promotes them |
 | Out of scope | changing existing check semantics, re-opening the arm/ladder design, multi-annotator κ, online monitoring |
+
+## What a run may learn from an eval
+
+Per-run check evidence (R13) makes an automated feedback loop tempting, and R14 draws the line:
+
+```
+  PRODUCT LOOP   run → pytest / ruff / smoke → agent context → next attempt        (unchanged)
+  EVAL LOOP      run → reports/check_results.json → human → harness fix → replay
+  CORPUS LOOP    coverage → cells "never measured" → which scenarios run next      (the one automation)
+```
+
+An eval verdict in an agent's context turns the measurement into a target, and this taxonomy
+already has three modes for that: FM-014 (mutates the definition of done), FM-016 (writer is also
+the passer), FM-018 (reports its own work). The corpus loop is safe because it changes the
+sampling, not the subject — the contract handed to an agent is byte-identical either way.
+
+## On fidelity to the source material
+
+The methodology in `eval-methodology-alignment` R7–R15 is Husain and Shankar's: ~100-trace pool,
+≥30 unaided, saturation, benevolent dictator, binary verdicts, 100–200 labels per judged mode,
+TPR/TNR never accuracy, generic metrics as a sampling signal only, 2–4 week cadence.
+
+**Instrument liveness is not theirs.** They write about LLM application traces, where the trace
+*is* the model input and output and exists by construction. In an agentic harness the telemetry is
+something the harness must write, so "the check cannot see anything" is a failure mode their
+setting does not produce. This spec is an extension for this domain, not an implementation of
+something in the article, and it should not borrow the authority.
+
+Two acknowledged gaps: **multi-annotator agreement** (they discuss κ between humans; this repo
+declines it for the single dictator — a deliberate deviation, not coverage), and **"evals as living
+requirements"** (nothing here re-derives a requirement from a confirmed failure mode; design
+decision §9.8).
 
 ## Cross-spec dependency
 

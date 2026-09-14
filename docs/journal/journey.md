@@ -716,3 +716,64 @@ of the podcast.
 Full audit: [2026-09-13](2026-09-13-eval-methodology-audit.md).
 
 ---
+
+## Sep 14 — the instruments, not the data
+
+Yesterday's audit ended on a deferral I was pleased with: re-index `output/runs/`, then
+read thirty traces myself. Free, obvious, mine to do. I did neither today, and what I did
+instead is the reason the deferral was incomplete.
+
+I went looking for how the checks would behave once the corpus was fixed, and folded the
+abstentions out of the Tier A report we already ship. **1435 of 1880 results were
+`not_applicable` — 76%.** The headline that report prints is `FAIL — 182 failed check(s)`,
+which is true, and says nothing about the three quarters of the suite that declined to
+answer, because `not_applicable` appears in no headline, no verdict, no scorecard cell and
+no incidence row. The renderer has no field for it.
+
+Then the part that is not a data problem. `CHK-interrupt-latency` reads `human_interrupt`
+spans. **No parser in the repo constructs one** — the literal exists only in the
+`SpanType` union. Same for `error`. So that check has never been able to fire and never
+will, on any corpus, however well fed. Yesterday I wrote that the machinery had been
+starved. It had also, in two places, been built without a mouth.
+
+The receipt is the smoke run from the day before. It ended in `interrupt()` → `human_review`
+after four relevance retries at 5%, 0%, 9%, 0% against a 15% floor — textbook FM-003 and
+FM-005, and both checks abstain on it. I had already written *"do not claim
+CHK-guardrail-fp-budget caught this run"* in that handoff, and felt good about the
+honesty. A sentence in a handoff does not survive contact with a green badge. A row
+reading `UNREACHABLE` does.
+
+There is a pattern here I should name, because it is now three for three.
+[Jul 23](#jul-23--the-n1-mistake-applied-to-the-defense-layer) caught an n=1 mistake in
+the defense layer. [Sep 13](#sep-13--the-auditor-audits-itself-and-loses) caught it in the
+measurement layer. Today is the layer under that: not "is the measurement right" but
+"is the instrument connected." Each time the tell was the same — something reported a
+clean result while measuring nothing, and I read the result rather than the denominator.
+
+The second half of the day was a decision I nearly got wrong. The liveness numbers are
+exactly the sort of thing that wants a dashboard, and I started to build one. But R13 of
+the alignment spec already says the annotation friction *is* why open coding never
+happened, and `evals/annotations/` is still empty after two sessions of me writing about
+it. A dashboard would have been a third artifact about the problem. So instead: a
+workbench, four stages, gated in the order the podcast puts them — open code at 30 unaided
+records before clustering unlocks, one accepted category before a failure mode can be
+drafted, a hundred labels before a judge exists. Stage 4 is empty and says so.
+
+The gates are the point. I have written those three thresholds into a requirements
+document twice now and walked past them both times. In a spec they are prose I wrote and
+can therefore reason my way around at 11pm. In the page they are a locked tab that tells
+me it is waiting for twenty-nine more traces.
+
+Stage 2 turned out not to be decoration: R8.3 requires a human accept/merge/reject between
+the clusterer and the taxonomy, `taxonomy propose` could already cluster, and there was
+nowhere for a human to decide. That step has been specified since August and had no
+surface at all.
+
+So the carry-forward is unchanged and now two sessions old: re-index, then read thirty
+traces. The difference is that the second one now costs a keystroke per trace instead of
+an `$EDITOR` round-trip, and I have removed the last excuse I had for it — which was, if
+I am honest, the actual deliverable today.
+
+Full entry: [2026-09-14](2026-09-14-check-liveness.md).
+
+---
