@@ -337,6 +337,35 @@ place by having a reader, and the fix for "no reader" is sometimes deletion.
 
 ---
 
+## 4b. The two loops (R13, R14)
+
+Per-run check evidence and feed-forward are one design, because the first is what makes the second
+tempting and the second is what keeps the first honest.
+
+```
+  PRODUCT LOOP — agent-facing, already correct, unchanged by this spec
+    run → pytest / ruff / smoke → agent context → next attempt
+
+  EVAL LOOP — maintainer-facing
+    run → reports/check_results.json → human reads → harness or prompt fix → replay
+                    │
+                    └→ corpus fold → liveness + coverage report
+
+  CORPUS LOOP — the one safe automation
+    coverage report → dimension cells "never measured" → selects which scenarios run next
+                                                          (never what an agent is told)
+```
+
+The boundary is not stylistic. An eval verdict in an agent's context turns the measurement into a
+target, and this taxonomy already has three modes for that outcome — FM-014, FM-016, FM-018. The
+per-run file is therefore written *beside* the run, read by people and by the fold, and excluded
+from every prompt path by a CI gate (R14.2).
+
+The corpus loop is safe because it changes the *sampling*, not the *subject*. Choosing to run an
+unmeasured scenario cell is the same decision an analyst makes by hand; the contract handed to the
+agent is byte-identical either way (R14.6). That is a self-improvement loop on what the project
+knows about itself, which is the useful half, without the half that corrupts the data.
+
 ## 5. Error handling
 
 | Condition | Behavior |
@@ -441,6 +470,23 @@ Overhead is a cost, not a failure, and the taxonomy is about failures. Counter-a
 the control on a smoke test is a failure of the harness's purpose. Keeping it as
 `origin: hypothesis` defers the question honestly — if open coding never produces it as a code,
 it becomes `unobserved` and the question answers itself.
+
+**9.8 — "Evals as living requirements": how far should this go?**
+The source material frames evals as requirements that evolve with the system. This spec supports
+that and stops at the human boundary: a confirmed failure mode motivates a requirement, and a
+person writes it. Automating spec-authoring from taxonomy changes is attractive and is where the
+self-grading risk reappears at the document layer — a system that writes its own acceptance
+criteria from its own measurements has the FM-014 problem one level up. Left open deliberately.
+Minimum useful step, if taken: `taxonomy coverage` emitting a list of confirmed FMs with no
+corresponding requirement, as a prompt for a human to write one.
+
+**9.9 — Is instrument liveness actually part of this methodology?**
+No, and the spec should not borrow authority it has not earned. Husain and Shankar write about LLM
+application traces, where the trace *is* the model input and output and is present by
+construction. In an agentic harness the telemetry is something the harness must write, so
+"the check cannot see anything" is a failure mode their setting does not produce. Everything in
+`eval-methodology-alignment` R7–R15 is theirs. The liveness layer is an extension for this domain,
+and `README.md` says so.
 
 **9.6 — `CHK-listener-self-trigger` reads source code, not traces. Does R1.3 reject it?**
 As written, yes — its `requires` would be empty, because it inspects

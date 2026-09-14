@@ -1,0 +1,1461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error Analysis Workbench — ai-team evals</title>
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   Error Analysis Workbench
+   Husain & Shankar loop, human-driven: open code → axial code → taxonomy → judge.
+   Self-contained. No dependencies, no network, no model output anywhere.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #f7f7f5;
+  --panel: #ffffff;
+  --panel-2: #fbfbfa;
+  --ink: #1b1b19;
+  --ink-2: #55534e;
+  --ink-3: #8a8780;
+  --line: #e3e2dd;
+  --line-2: #cfcec8;
+  --accent: #0f6f7a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3f1f2;
+  --pass: #2f6b3f;
+  --pass-soft: #e6f0e8;
+  --fail: #a33a2a;
+  --fail-soft: #f7e8e5;
+  --na: #8a6d1f;
+  --na-soft: #f6efdc;
+  --locked: #6b6a65;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16171a;
+    --panel: #1d1f23;
+    --panel-2: #23252a;
+    --ink: #eceae4;
+    --ink-2: #a8a59d;
+    --ink-3: #76736c;
+    --line: #2e3137;
+    --line-2: #3d4149;
+    --accent: #4fc3cf;
+    --accent-ink: #10262a;
+    --accent-soft: #16363a;
+    --pass: #79c48d;
+    --pass-soft: #16301e;
+    --fail: #e08a78;
+    --fail-soft: #351d18;
+    --na: #d9b45c;
+    --na-soft: #322818;
+    --locked: #8a8780;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16171a; --panel: #1d1f23; --panel-2: #23252a;
+  --ink: #eceae4; --ink-2: #a8a59d; --ink-3: #76736c;
+  --line: #2e3137; --line-2: #3d4149;
+  --accent: #4fc3cf; --accent-ink: #10262a; --accent-soft: #16363a;
+  --pass: #79c48d; --pass-soft: #16301e;
+  --fail: #e08a78; --fail-soft: #351d18;
+  --na: #d9b45c; --na-soft: #322818; --locked: #8a8780;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+button, input, textarea, select { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: 15px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+h3 { font-size: 13px; }
+code, .mono { font-family: var(--mono); font-size: 12.5px; }
+a { color: var(--accent); }
+
+/* ── chrome ─────────────────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+.topbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.brand small { color: var(--ink-3); font-size: 11.5px; }
+.stages { display: flex; gap: 2px; margin-left: auto; }
+.stage-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border: 1px solid transparent; border-radius: var(--r);
+  background: none; cursor: pointer; color: var(--ink-2); font-size: 13px;
+}
+.stage-tab:hover:not(:disabled) { background: var(--panel-2); color: var(--ink); }
+.stage-tab[aria-selected="true"] {
+  background: var(--accent-soft); color: var(--accent);
+  border-color: var(--accent); font-weight: 600;
+}
+.stage-tab:disabled { color: var(--locked); cursor: not-allowed; opacity: .75; }
+.stage-num {
+  display: inline-grid; place-items: center; width: 17px; height: 17px;
+  border-radius: 50%; background: var(--line); color: var(--ink-2);
+  font-size: 10.5px; font-weight: 700;
+}
+.stage-tab[aria-selected="true"] .stage-num { background: var(--accent); color: var(--accent-ink); }
+
+.metrics { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.metric { display: flex; flex-direction: column; line-height: 1.25; }
+.metric b { font-size: 14px; font-variant-numeric: tabular-nums; }
+.metric span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+
+.btn {
+  padding: 5px 11px; border: 1px solid var(--line-2); border-radius: var(--r);
+  background: var(--panel); cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); color: var(--accent-ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.sm { padding: 3px 8px; font-size: 12px; }
+kbd {
+  font-family: var(--mono); font-size: 10.5px; padding: 1px 4px;
+  border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 3px;
+  background: var(--panel-2); color: var(--ink-2);
+}
+
+/* ── layout ─────────────────────────────────────────────────────────────── */
+.stage { flex: 1; min-height: 0; display: none; }
+.stage.active { display: flex; }
+.col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.col.list { width: 268px; border-right: 1px solid var(--line); background: var(--panel-2); }
+.col.card { flex: 1; }
+.col.annot { width: 372px; border-left: 1px solid var(--line); background: var(--panel-2); }
+.scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; }
+.pad { padding: 14px; }
+.section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.section:last-child { border-bottom: 0; }
+.section > h2 { margin-bottom: 8px; }
+
+/* ── trace list ─────────────────────────────────────────────────────────── */
+.filters { padding: 10px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.filters select, .filters input {
+  width: 100%; padding: 4px 7px; border: 1px solid var(--line-2);
+  border-radius: 4px; background: var(--panel); font-size: 12.5px;
+}
+.frow { display: flex; gap: 6px; }
+.tracerow {
+  display: block; width: 100%; text-align: left; padding: 7px 12px;
+  border: 0; border-bottom: 1px solid var(--line); background: none;
+  cursor: pointer; border-left: 3px solid transparent;
+}
+.tracerow:hover { background: var(--panel); }
+.tracerow[aria-current="true"] { background: var(--accent-soft); border-left-color: var(--accent); }
+.tracerow .tid { font-family: var(--mono); font-size: 11.5px; display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracerow .meta { font-size: 10.5px; color: var(--ink-3); display: flex; gap: 6px; margin-top: 2px; }
+.done-dot { color: var(--pass); font-weight: 700; }
+
+/* ── trace card ─────────────────────────────────────────────────────────── */
+.cardhead { padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.cardhead .tid { font-family: var(--mono); font-size: 14px; font-weight: 600; word-break: break-all; }
+.kv { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+.kv b { color: var(--ink); font-weight: 600; }
+.pill {
+  display: inline-block; padding: 1px 7px; border-radius: 99px;
+  font-size: 11px; font-weight: 600; border: 1px solid transparent;
+}
+.pill.pass { background: var(--pass-soft); color: var(--pass); }
+.pill.fail { background: var(--fail-soft); color: var(--fail); }
+.pill.na { background: var(--na-soft); color: var(--na); }
+.pill.plain { background: var(--panel-2); color: var(--ink-2); border-color: var(--line-2); }
+
+/* phase timeline */
+.timeline { display: flex; flex-direction: column; gap: 3px; }
+.tl-row { display: grid; grid-template-columns: 128px 1fr auto; gap: 10px; align-items: center; font-size: 12px; }
+.tl-name { font-weight: 600; text-align: right; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-bar { height: 16px; border-radius: 3px; background: var(--accent-soft); border: 1px solid var(--accent);
+  position: relative; min-width: 3px; }
+.tl-bar.repeat { background: var(--na-soft); border-color: var(--na); }
+.tl-bar.err { background: var(--fail-soft); border-color: var(--fail); }
+.tl-dur { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.evlist { display: flex; flex-direction: column; gap: 4px; }
+.ev { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: baseline;
+  padding: 5px 8px; border-radius: 4px; background: var(--panel-2); font-size: 12px; }
+.ev .n { font-family: var(--mono); color: var(--ink-3); font-size: 11px; }
+.ev .txt { color: var(--ink-2); word-break: break-word; }
+.ev.selectable { cursor: pointer; border: 1px solid transparent; }
+.ev.selectable:hover { border-color: var(--line-2); }
+.ev.chosen { border-color: var(--fail); background: var(--fail-soft); }
+
+.files { font-family: var(--mono); font-size: 11.5px; display: flex; flex-direction: column; gap: 1px; }
+.files div { display: flex; gap: 8px; }
+.files .k { color: var(--ink-3); width: 52px; flex: none; }
+pre.out {
+  margin: 0; padding: 9px 11px; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 4px; font-family: var(--mono); font-size: 11.5px;
+  max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+}
+.empty { color: var(--ink-3); font-style: italic; font-size: 12.5px; }
+.starved {
+  padding: 9px 11px; border-radius: 4px; font-size: 12.5px;
+  background: var(--na-soft); color: var(--na); border: 1px solid currentColor;
+}
+.starved b { color: inherit; }
+
+/* ── annotation panel ───────────────────────────────────────────────────── */
+.nomodel {
+  font-size: 11.5px; color: var(--ink-3); padding: 7px 10px; border-radius: 4px;
+  background: var(--panel); border: 1px dashed var(--line-2); line-height: 1.45;
+}
+textarea.note {
+  width: 100%; min-height: 118px; resize: vertical; padding: 8px 10px;
+  border: 1px solid var(--line-2); border-radius: 4px; background: var(--panel);
+  font-family: var(--sans); font-size: 13px;
+}
+textarea.note:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.tagbox { display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  padding: 6px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--panel); }
+.tagbox input { flex: 1; min-width: 110px; border: 0; background: none; padding: 3px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 8px;
+  border-radius: 99px; background: var(--accent-soft); color: var(--accent);
+  font-size: 12px; font-weight: 600;
+}
+.chip button { border: 0; background: none; cursor: pointer; color: inherit;
+  font-size: 14px; line-height: 1; padding: 0 3px; opacity: .7; }
+.chip button:hover { opacity: 1; }
+.recent { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.recent button {
+  padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line-2);
+  background: var(--panel); cursor: pointer; font-size: 11.5px; color: var(--ink-2);
+}
+.recent button:hover { border-color: var(--accent); color: var(--accent); }
+
+.sat { display: flex; flex-direction: column; gap: 5px; }
+.satbar { height: 7px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.satbar i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.sat small { color: var(--ink-3); font-size: 11.5px; }
+.sat.reached .satbar i { background: var(--pass); }
+.sat.reached small { color: var(--pass); font-weight: 600; }
+
+/* ── gates ──────────────────────────────────────────────────────────────── */
+.gate { max-width: 620px; margin: 48px auto; padding: 22px 24px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.gate h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gate p { color: var(--ink-2); margin: 0 0 12px; }
+.gate .req { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.gateprog { margin: 14px 0; }
+.lock { color: var(--na); }
+
+/* ── tables ─────────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th, td { padding: 6px 9px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+tr.rejected td { opacity: .42; text-decoration: line-through; }
+tr.accepted { background: var(--pass-soft); }
+.ci { color: var(--ink-3); font-size: 11px; }
+.tablewrap { overflow-x: auto; }
+
+.actions { display: flex; gap: 4px; }
+.hint { font-size: 12px; color: var(--ink-3); }
+.warn { color: var(--fail); font-size: 12.5px; }
+.ok { color: var(--pass); font-size: 12.5px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+label.field { display: block; margin-bottom: 10px; }
+label.field > span { display: block; font-size: 11.5px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+label.field input, label.field select, label.field textarea {
+  width: 100%; padding: 6px 9px; border: 1px solid var(--line-2);
+  border-radius: 4px; background: var(--panel);
+}
+label.field textarea { min-height: 74px; resize: vertical; font-family: var(--sans); }
+
+/* ── drop / modal ───────────────────────────────────────────────────────── */
+.loader { max-width: 680px; margin: 8vh auto; padding: 26px; }
+.drop {
+  border: 2px dashed var(--line-2); border-radius: 10px; padding: 40px 24px;
+  text-align: center; background: var(--panel); cursor: pointer;
+}
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 18px 0 0; }
+.steps li { counter-increment: s; position: relative; padding-left: 28px; margin-bottom: 12px;
+  color: var(--ink-2); font-size: 13px; }
+.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 1px;
+  width: 19px; height: 19px; border-radius: 50%; background: var(--accent);
+  color: var(--accent-ink); font-size: 11px; font-weight: 700;
+  display: grid; place-items: center;
+}
+.steps code { background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
+  border: 1px solid var(--line); display: inline-block; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid;
+  place-items: center; padding: 20px; z-index: 50; }
+.modal .box { background: var(--panel); border-radius: 10px; padding: 22px;
+  max-width: 560px; width: 100%; max-height: 84vh; overflow: auto; }
+.kbd-list { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; align-items: center; font-size: 13px; }
+.toast {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 99px;
+  font-size: 13px; z-index: 60; box-shadow: 0 4px 18px rgba(0,0,0,.22);
+}
+@media (max-width: 1100px) {
+  .col.list { width: 210px; }
+  .col.annot { width: 320px; }
+}
+@media (max-width: 860px) {
+  .stage.active { flex-direction: column; overflow-y: auto; }
+  .col.list, .col.annot { width: auto; border: 0; border-top: 1px solid var(--line); }
+  .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── loader ──────────────────────────────────────────────────────────── -->
+  <div id="loader" class="loader">
+    <h1 style="font-size:20px">Error Analysis Workbench</h1>
+    <p style="color:var(--ink-2);margin:8px 0 0">
+      The human loop from Husain &amp; Shankar, in four stages: read traces and invent codes,
+      cluster them, derive the taxonomy, then earn a judge. Each stage unlocks only when the
+      previous one has done enough work to justify it.
+    </p>
+    <p class="hint" style="margin:10px 0 20px">
+      Runs entirely in this page. No network, no model calls, nothing leaves your machine.
+      Stage 1 shows you no suggestions of any kind — that is the point of it
+      (<code>eval-harness</code> R3.7).
+    </p>
+
+    <div id="drop" class="drop" tabindex="0" role="button" aria-label="Load a trace bundle">
+      <div style="font-size:15px;font-weight:600">Drop a trace bundle here</div>
+      <div class="hint" style="margin-top:5px">or click to choose &mdash; <code>bundle.json</code></div>
+    </div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+    <div id="loaderr" class="warn" style="margin-top:12px" hidden></div>
+
+    <ol class="steps">
+      <li>Sample a batch to read:<br><code>uv run python -m evals.cli sample --strategy stratified -n 100 --seed 1</code></li>
+      <li>Bundle it for this page:<br><code>uv run python -m evals.cli annotate bundle --sample &lt;sample_id&gt; --out bundle.json</code></li>
+      <li>Read and code the traces here, then <b>Export</b>.</li>
+      <li>Ingest what you wrote:<br><code>uv run python -m evals.cli annotate --sample &lt;sample_id&gt; --batch-file annotations.jsonl</code></li>
+    </ol>
+  </div>
+
+  <!-- ── topbar ──────────────────────────────────────────────────────────── -->
+  <div class="topbar" id="topbar" hidden>
+    <div class="brand">
+      <h1>Error Analysis Workbench</h1>
+      <small id="sampleLabel" class="mono"></small>
+    </div>
+    <div class="metrics">
+      <div class="metric"><b id="mProgress">0 / 0</b><span>coded</span></div>
+      <div class="metric"><b id="mTags">0</b><span>distinct codes</span></div>
+      <div class="metric"><b id="mStreak">0</b><span>streak</span></div>
+      <div class="metric"><b id="mElapsed">0:00</b><span>elapsed</span></div>
+    </div>
+    <div class="stages" role="tablist" aria-label="Loop stages">
+      <button class="stage-tab" role="tab" data-stage="1" aria-selected="true">
+        <span class="stage-num">1</span> Open code</button>
+      <button class="stage-tab" role="tab" data-stage="2" aria-selected="false">
+        <span class="stage-num">2</span> Axial code</button>
+      <button class="stage-tab" role="tab" data-stage="3" aria-selected="false">
+        <span class="stage-num">3</span> Taxonomy</button>
+      <button class="stage-tab" role="tab" data-stage="4" aria-selected="false">
+        <span class="stage-num">4</span> Judge</button>
+    </div>
+    <button class="btn sm" id="btnTheme" title="Toggle theme">◐</button>
+    <button class="btn sm" id="btnHelp" title="Keyboard shortcuts">?</button>
+  </div>
+
+  <!-- ══ STAGE 1 — OPEN CODING ═════════════════════════════════════════════ -->
+  <div class="stage" id="stage1">
+    <div class="col list">
+      <div class="filters">
+        <input type="search" id="fSearch" placeholder="Filter by trace id…" aria-label="Filter by trace id">
+        <div class="frow">
+          <select id="fBackend" aria-label="Backend"><option value="">all backends</option></select>
+          <select id="fStatus" aria-label="Status"><option value="">all statuses</option></select>
+        </div>
+        <div class="frow">
+          <select id="fScenario" aria-label="Scenario"><option value="">all scenarios</option></select>
+          <select id="fDone" aria-label="Coded state">
+            <option value="">coded + uncoded</option>
+            <option value="todo">uncoded only</option>
+            <option value="done">coded only</option>
+          </select>
+        </div>
+        <select id="fSort" aria-label="Order">
+          <option value="manifest">manifest order</option>
+          <option value="duration_desc">longest first</option>
+          <option value="duration_asc">shortest first</option>
+          <option value="started_desc">newest first</option>
+          <option value="started_asc">oldest first</option>
+        </select>
+      </div>
+      <div class="scroll" id="traceList" role="listbox" aria-label="Traces"></div>
+    </div>
+
+    <div class="col card">
+      <div class="cardhead">
+        <div class="tid" id="cTid">—</div>
+        <div class="kv" id="cMeta"></div>
+      </div>
+      <div class="scroll" id="cardBody"></div>
+    </div>
+
+    <div class="col annot">
+      <div class="scroll">
+        <div class="section">
+          <h2>Codes <span class="hint" style="text-transform:none;letter-spacing:0">— your words</span></h2>
+          <div class="tagbox" id="tagbox">
+            <input id="tagInput" placeholder="type a code, Enter to add" aria-label="Add a code"
+                   autocomplete="off" spellcheck="false">
+          </div>
+          <div class="recent" id="recentTags"></div>
+          <p class="nomodel" style="margin:9px 0 0">
+            No suggestions are offered and no taxonomy is shown here. The codes must be yours —
+            a model's vocabulary in this box would make every downstream number meaningless.
+            Reuse appears above only after <em>you</em> have used a code.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Note</h2>
+          <textarea class="note" id="noteInput" placeholder="What did you actually see? Plain language."
+                    spellcheck="true"></textarea>
+        </div>
+
+        <div class="section">
+          <h2>First divergence</h2>
+          <div id="ffPicked" class="hint">None selected — click a span in the card, or press a number.</div>
+          <button class="btn sm" id="btnClearFF" style="margin-top:7px">Clear</button>
+        </div>
+
+        <div class="section">
+          <h2>Saturation</h2>
+          <div class="sat" id="satWrap">
+            <div class="satbar"><i id="satFill" style="width:0%"></i></div>
+            <small id="satText">0 of 20 consecutive traces with no new code</small>
+          </div>
+        </div>
+
+        <div class="section">
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <button class="btn primary" id="btnSave">Save &amp; next <kbd>⏎</kbd></button>
+            <button class="btn" id="btnSkip">Skip <kbd>s</kbd></button>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:7px;flex-wrap:wrap">
+            <button class="btn sm" id="btnExport">Export JSONL <kbd>e</kbd></button>
+            <button class="btn sm" id="btnImport">Restore export…</button>
+            <input type="file" id="fileRestore" accept=".jsonl,.json" hidden>
+          </div>
+          <p class="hint" style="margin:9px 0 0">
+            Saved in this page as you go, but the browser is not your ground truth —
+            export and ingest to make it real.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STAGE 2 — AXIAL CODING ════════════════════════════════════════════ -->
+  <div class="stage" id="stage2">
+    <div class="col card">
+      <div id="gate2" class="pad"></div>
+      <div id="axialBody" class="scroll pad" hidden>
+        <h2 style="margin-bottom:4px">Axial coding</h2>
+        <p class="hint" style="margin:0 0 16px;max-width:70ch">
+          Your codes, normalised and counted the same way <code>evals/taxonomy/propose.py</code>
+          does it — lowercase, snake_case, punctuation stripped. Clustering is arithmetic, not a
+          model. Accept a cluster to carry it into stage 3, merge near-duplicates, reject noise.
+          The working target is <b>5–8 categories</b> on a first pass.
+        </p>
+
+        <div class="section" style="border:1px solid var(--line);border-radius:6px;background:var(--panel);margin-bottom:16px">
+          <div class="metrics">
+            <div class="metric"><b id="axN">0</b><span>records</span></div>
+            <div class="metric"><b id="axCodes">0</b><span>distinct codes</span></div>
+            <div class="metric"><b id="axAccepted">0</b><span>accepted</span></div>
+            <div class="metric"><b id="axTarget">—</b><span>vs target 5–8</span></div>
+          </div>
+        </div>
+
+        <div class="tablewrap">
+        <table id="axTable">
+          <thead><tr>
+            <th>Category</th><th class="num">n</th><th class="num">share</th>
+            <th>95% CI</th><th>Your spellings</th><th>Example traces</th><th>Decision</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn" id="btnAxExport">Export categories JSON</button>
+          <button class="btn" id="btnAxMerge" disabled>Merge selected…</button>
+          <span class="hint" style="align-self:center">
+            Wilson intervals over the annotated sample only — never extrapolated to the corpus.
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STAGE 3 — TAXONOMY ════════════════════════════════════════════════ -->
+  <div class="stage" id="stage3">
+    <div class="col card">
+      <div id="gate3" class="pad"></div>
+      <div id="taxBody" class="scroll pad" hidden>
+        <h2 style="margin-bottom:4px">Taxonomy draft</h2>
+        <p class="hint" style="margin:0 0 16px;max-width:70ch">
+          One failure mode per accepted category, stamped <code>origin: open_coding</code> with the
+          annotation evidence that produced it. This page emits YAML for you to read and paste —
+          it never writes <code>failure_modes.yaml</code>, because a taxonomy that edits itself
+          from its own measurements has the FM-014 problem one level up.
+        </p>
+        <div id="taxForms"></div>
+        <h3 style="margin:20px 0 7px">YAML fragment</h3>
+        <pre class="out" id="taxYaml" style="max-height:none"></pre>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn" id="btnTaxCopy">Copy YAML</button>
+          <button class="btn" id="btnTaxExport">Download fragment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STAGE 4 — JUDGE ═══════════════════════════════════════════════════ -->
+  <div class="stage" id="stage4">
+    <div class="col card">
+      <div id="gate4" class="pad"></div>
+      <div id="judgeBody" class="scroll pad" hidden></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal" id="help" hidden>
+  <div class="box">
+    <h3 style="margin-bottom:12px">Keyboard</h3>
+    <div class="kbd-list">
+      <kbd>j</kbd><span>next trace</span>
+      <kbd>k</kbd><span>previous trace</span>
+      <kbd>t</kbd><span>jump to the code box</span>
+      <kbd>n</kbd><span>jump to the note</span>
+      <kbd>1</kbd>–<kbd>9</kbd><span>mark that span as the first divergence</span>
+      <kbd>⏎</kbd><span>save and advance (from the code box or note)</span>
+      <kbd>s</kbd><span>skip without saving</span>
+      <kbd>e</kbd><span>export JSONL</span>
+      <kbd>?</kbd><span>this list</span>
+      <kbd>esc</kbd><span>close / leave a field</span>
+    </div>
+    <p class="hint" style="margin:16px 0 0">
+      No <code>$EDITOR</code> round-trip. The friction of the terminal loop is the reason
+      <code>evals/annotations/</code> is still empty.
+    </p>
+    <button class="btn" style="margin-top:14px" onclick="document.getElementById('help').hidden=true">Close</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════════
+   State. `records` is the ground truth this page holds; export makes it real.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const S = {
+  bundle: null,          // { sample_id, annotator, generated_at, traces: [...] }
+  traces: [],
+  order: [],             // filtered/sorted trace ids
+  idx: 0,
+  records: new Map(),    // trace_id -> {trace_id, note, tags, first_failure_span_id, coded_at, unaided}
+  draft: { tags: [], note: '', ff: null },
+  started: Date.now(),
+  categories: new Map(), // canonical -> {decision, renamed, mergedInto}
+  taxDrafts: new Map(),  // canonical -> {id, slug, title, definition, layer, harness_layer, severity}
+  stage: 1,
+};
+const UNAIDED_MIN = 30;      // eval-methodology-alignment R7.4
+const SATURATION_TARGET = 20; // R7.5
+const LABELS_MIN = 100;       // R12.3
+
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* ── persistence: best-effort only. file:// blocks storage in some browsers. ── */
+const LS_KEY = 'ai-team.workbench.v1';
+function persist() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      sample_id: S.bundle?.sample_id,
+      annotator: S.bundle?.annotator,
+      records: Array.from(S.records.values()),
+      categories: Array.from(S.categories.entries()),
+      taxDrafts: Array.from(S.taxDrafts.entries()),
+      started: S.started,
+    }));
+  } catch (e) { /* private window, file://, blocked storage — export is the real path */ }
+}
+function restore(sampleId) {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (d.sample_id !== sampleId) return false;
+    (d.records || []).forEach(r => S.records.set(r.trace_id, r));
+    S.categories = new Map(d.categories || []);
+    S.taxDrafts = new Map(d.taxDrafts || []);
+    if (d.started) S.started = d.started;
+    return S.records.size > 0;
+  } catch (e) { return false; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mirrors of evals/taxonomy/propose.py — must stay byte-identical in behaviour.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function normalizeTag(tag) {
+  let t = String(tag).trim().toLowerCase();
+  t = t.replace(/-/g, '_').replace(/ /g, '_');
+  t = t.replace(/[^a-z0-9_]+/g, '');
+  t = t.replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+  return t || 'unnamed';
+}
+/** Wilson score interval (eval-methodology-alignment R8.1). */
+function wilson(x, n, z = 1.96) {
+  if (!n) return [0, 0];
+  const p = x / n, z2 = z * z;
+  const denom = 1 + z2 / n;
+  const centre = (p + z2 / (2 * n)) / denom;
+  const half = (z / denom) * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n));
+  return [Math.max(0, centre - half), Math.min(1, centre + half)];
+}
+/** Trailing runs with no new code (mirrors annotate.saturation_streak). */
+function saturationStreak(recs) {
+  const seen = new Set();
+  let streak = 0;
+  for (const r of recs) {
+    const fresh = (r.tags || []).filter(t => !seen.has(t));
+    if (fresh.length) { streak = 0; fresh.forEach(t => seen.add(t)); }
+    else { streak += 1; (r.tags || []).forEach(t => seen.add(t)); }
+  }
+  return streak;
+}
+const codedInOrder = () =>
+  Array.from(S.records.values()).sort((a, b) => (a.coded_at || 0) - (b.coded_at || 0));
+const distinctCodes = () => {
+  const s = new Set();
+  S.records.forEach(r => (r.tags || []).forEach(t => s.add(normalizeTag(t))));
+  return s;
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bundle loading
+   ═══════════════════════════════════════════════════════════════════════════ */
+function loadBundle(raw) {
+  let d;
+  try { d = JSON.parse(raw); }
+  catch (e) { return fail('Not valid JSON: ' + e.message); }
+
+  const traces = Array.isArray(d) ? d : d.traces;
+  if (!Array.isArray(traces) || !traces.length)
+    return fail('No traces in this file. Expected {sample_id, traces:[…]} from `annotate bundle`.');
+  if (!Array.isArray(d) && !d.sample_id)
+    return fail('Bundle has no sample_id. Every annotation record needs one, so this page will not guess.');
+
+  S.bundle = Array.isArray(d) ? { sample_id: 'ad-hoc', traces } : d;
+  S.traces = traces;
+  S.started = Date.now();
+  const resumed = restore(S.bundle.sample_id);
+
+  $('#loader').hidden = true;
+  $('#topbar').hidden = false;
+  $('#sampleLabel').textContent =
+    `${S.bundle.sample_id} · ${traces.length} traces` +
+    (S.bundle.annotator ? ` · ${S.bundle.annotator}` : '');
+  buildFilters();
+  applyFilters();
+  setStage(1);
+  if (resumed) toast(`Resumed — ${S.records.size} already coded`);
+  setInterval(tickElapsed, 1000);
+  return true;
+
+  function fail(msg) {
+    const el = $('#loaderr'); el.textContent = msg; el.hidden = false; return false;
+  }
+}
+
+function buildFilters() {
+  const uniq = k => Array.from(new Set(S.traces.map(t => t[k]).filter(Boolean))).sort();
+  const fill = (sel, vals) => {
+    const el = $(sel);
+    vals.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; el.appendChild(o);
+    });
+  };
+  fill('#fBackend', uniq('backend'));
+  fill('#fStatus', uniq('status'));
+  fill('#fScenario', uniq('scenario_id'));
+}
+
+function traceDuration(t) {
+  if (typeof t.duration_s === 'number') return t.duration_s;
+  if (t.started_at && t.ended_at) {
+    const a = Date.parse(t.started_at), b = Date.parse(t.ended_at);
+    if (!isNaN(a) && !isNaN(b)) return (b - a) / 1000;
+  }
+  return null;
+}
+
+function applyFilters() {
+  const q = $('#fSearch').value.trim().toLowerCase();
+  const be = $('#fBackend').value, st = $('#fStatus').value;
+  const sc = $('#fScenario').value, dn = $('#fDone').value;
+  let rows = S.traces.filter(t => {
+    if (q && !String(t.trace_id).toLowerCase().includes(q)) return false;
+    if (be && t.backend !== be) return false;
+    if (st && t.status !== st) return false;
+    if (sc && t.scenario_id !== sc) return false;
+    const done = S.records.has(t.trace_id);
+    if (dn === 'todo' && done) return false;
+    if (dn === 'done' && !done) return false;
+    return true;
+  });
+  const sort = $('#fSort').value;
+  const cmp = {
+    duration_desc: (a, b) => (traceDuration(b) ?? -1) - (traceDuration(a) ?? -1),
+    duration_asc:  (a, b) => (traceDuration(a) ?? 1e12) - (traceDuration(b) ?? 1e12),
+    started_desc:  (a, b) => String(b.started_at||'').localeCompare(String(a.started_at||'')),
+    started_asc:   (a, b) => String(a.started_at||'').localeCompare(String(b.started_at||'')),
+  }[sort];
+  if (cmp) rows = rows.slice().sort(cmp);
+  S.order = rows.map(t => t.trace_id);
+  if (S.idx >= S.order.length) S.idx = Math.max(0, S.order.length - 1);
+  renderList();
+  renderCard();
+  renderMetrics();
+}
+
+const traceById = id => S.traces.find(t => t.trace_id === id);
+
+function renderList() {
+  const host = $('#traceList');
+  if (!S.order.length) {
+    host.innerHTML = '<div class="pad empty">No traces match these filters.</div>';
+    return;
+  }
+  host.innerHTML = S.order.map((id, i) => {
+    const t = traceById(id) || {};
+    const done = S.records.has(id);
+    const d = traceDuration(t);
+    return `<button class="tracerow" role="option" data-i="${i}" aria-current="${i === S.idx}">
+      <span class="tid">${done ? '<span class="done-dot">●</span> ' : ''}${esc(id)}</span>
+      <span class="meta">
+        <span>${esc(t.backend || '?')}</span>
+        <span>${esc(t.status || '?')}</span>
+        ${d != null ? `<span>${fmtDur(d)}</span>` : ''}
+      </span></button>`;
+  }).join('');
+  const cur = host.querySelector('[aria-current="true"]');
+  if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+
+function fmtDur(s) {
+  if (s == null) return '—';
+  if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
+  const m = Math.floor(s / 60);
+  return m < 60 ? `${m}m ${Math.round(s % 60)}s` : `${Math.floor(m/60)}h ${m % 60}m`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The trace card (R13.4): timeline, divergence, files, test output — not JSON.
+   Deliberately omits LLM message bodies (R3.7).
+   ═══════════════════════════════════════════════════════════════════════════ */
+function renderCard() {
+  const id = S.order[S.idx];
+  const t = id ? traceById(id) : null;
+  if (!t) { $('#cTid').textContent = '—'; $('#cMeta').innerHTML = ''; $('#cardBody').innerHTML = ''; return; }
+
+  $('#cTid').textContent = t.trace_id;
+  const cost = t.cost || {};
+  const statusClass = t.status === 'complete' ? 'pass'
+    : (t.status === 'failed' || t.status === 'killed' || t.status === 'budget_abort') ? 'fail' : 'na';
+  $('#cMeta').innerHTML = [
+    `<span class="pill ${statusClass}">${esc(t.status || '?')}</span>`,
+    `<span><b>${esc(t.backend || '?')}</b> backend</span>`,
+    `<span>scenario <b>${esc(t.scenario_id || 'unknown')}</b></span>`,
+    t.arm_id ? `<span>arm <b>${esc(t.arm_id)}</b></span>` : '',
+    `<span>${fmtDur(traceDuration(t))}</span>`,
+    cost.usd != null ? `<span>$${Number(cost.usd).toFixed(4)}</span>` : '<span class="pill plain">no cost recorded</span>',
+  ].filter(Boolean).join('');
+
+  const spans = Array.isArray(t.spans) ? t.spans : [];
+  const arts = Array.isArray(t.artifacts) ? t.artifacts : [];
+  const out = [];
+
+  /* Starvation is a finding, not an empty state — say so plainly. */
+  if (!spans.length) {
+    out.push(`<div class="section"><div class="starved">
+      <b>No spans.</b> This trace is run-level only — status, timing and artifacts, no trajectory.
+      Nothing here can tell you which phase diverged. That absence is itself worth coding.
+    </div></div>`);
+  }
+
+  if (spans.length) out.push(`<div class="section"><h2>Phase timeline</h2>${renderTimeline(spans)}</div>`);
+
+  const errors = spans.filter(s => s.type === 'error');
+  const retries = spans.filter(s => s.type === 'retry');
+  if (errors.length || retries.length) {
+    out.push(`<div class="section"><h2>Divergence — ${retries.length} retries, ${errors.length} errors</h2>
+      <div class="evlist">${[...retries, ...errors].slice(0, 24).map(s => {
+        const p = s.payload || {};
+        const txt = p.reason || p.error || p.message || s.phase || '';
+        return `<div class="ev"><span class="n">${esc(s.type)}</span>
+          <span class="pill plain">${esc(s.phase || '—')}</span>
+          <span class="txt">${esc(String(txt).slice(0, 220))}</span></div>`;
+      }).join('')}</div></div>`);
+  }
+
+  const guards = spans.filter(s => s.type === 'guardrail_check');
+  if (guards.length) {
+    out.push(`<div class="section"><h2>Guardrails (${guards.length})</h2><div class="evlist">
+      ${guards.slice(0, 24).map(s => {
+        const p = s.payload || {};
+        const o = String(p.outcome || p.status || '?');
+        const cls = o.includes('pass') ? 'pass' : o.includes('fail') ? 'fail' : 'na';
+        return `<div class="ev"><span class="pill ${cls}">${esc(o)}</span>
+          <span class="n">${esc(p.name || p.guardrail || 'guardrail')}</span>
+          <span class="txt">${esc([p.score, p.threshold].filter(v => v != null)
+            .map((v, i) => (i ? 'threshold ' : 'score ') + v).join(' · '))}</span></div>`;
+      }).join('')}</div></div>`);
+  }
+
+  if (arts.length) {
+    const src = arts.filter(a => a.kind === 'source' || a.kind === 'test');
+    out.push(`<div class="section"><h2>Generated files (${arts.length})</h2><div class="files">
+      ${(src.length ? src : arts).slice(0, 60).map(a =>
+        `<div><span class="k">${esc(a.kind || '—')}</span><span>${esc(a.path)}</span>
+         <span style="color:var(--ink-3)">${a.size_bytes ?? '?'} B</span></div>`).join('')}
+      ${arts.length > 60 ? `<div class="empty">… ${arts.length - 60} more</div>` : ''}
+    </div></div>`);
+  } else {
+    out.push(`<div class="section"><h2>Generated files</h2>
+      <div class="empty">No artifacts recorded for this trace.</div></div>`);
+  }
+
+  const testOut = t.raw_result?.test_output || t.raw_result?.pytest || t.raw_result?.stdout;
+  if (testOut) out.push(`<div class="section"><h2>Test output</h2>
+    <pre class="out">${esc(String(testOut).slice(0, 4000))}</pre></div>`);
+
+  if (spans.length) {
+    out.push(`<div class="section"><h2>Spans — click to mark the first divergence</h2>
+      <div class="evlist">${spans.slice(0, 40).map((s, i) => {
+        const picked = S.draft.ff === s.span_id;
+        return `<div class="ev selectable ${picked ? 'chosen' : ''}" data-span="${esc(s.span_id)}">
+          <span class="n">${i < 9 ? `<kbd>${i + 1}</kbd>` : i + 1}</span>
+          <span class="pill plain">${esc(s.type)}</span>
+          <span class="txt">${esc(s.phase || '—')}${s.agent_role ? ' · ' + esc(s.agent_role) : ''}</span>
+        </div>`;
+      }).join('')}
+      ${spans.length > 40 ? `<div class="empty">… ${spans.length - 40} more spans</div>` : ''}
+      </div></div>`);
+  }
+
+  if (Array.isArray(t.warnings) && t.warnings.length) {
+    out.push(`<div class="section"><h2>Build warnings (${t.warnings.length})</h2><div class="evlist">
+      ${t.warnings.slice(0, 15).map(w => `<div class="ev"><span class="n">!</span>
+        <span></span><span class="txt">${esc(w)}</span></div>`).join('')}</div></div>`);
+  }
+
+  $('#cardBody').innerHTML = out.join('');
+  $$('#cardBody .ev.selectable').forEach(el =>
+    el.addEventListener('click', () => setFF(el.dataset.span)));
+
+  loadDraft(t.trace_id);
+}
+
+function renderTimeline(spans) {
+  const phases = spans.filter(s => s.type === 'phase_start' || s.type === 'phase_end');
+  if (!phases.length) return '<div class="empty">No phase spans.</div>';
+  const seen = new Map();
+  const rows = [];
+  for (const s of phases) {
+    if (s.type !== 'phase_start') continue;
+    const name = s.phase || '?';
+    const n = (seen.get(name) || 0) + 1;
+    seen.set(name, n);
+    const end = phases.find(e => e.type === 'phase_end' && e.phase === s.phase);
+    const dur = s.duration_s ?? (s.t_start && end?.t_end
+      ? (Date.parse(end.t_end) - Date.parse(s.t_start)) / 1000 : null);
+    const status = String(end?.payload?.end_status || end?.payload?.status || '');
+    rows.push({ name, n, dur, err: /fail|error/i.test(status), agent: s.agent_role });
+  }
+  const max = Math.max(...rows.map(r => r.dur || 0), 1);
+  return `<div class="timeline">${rows.map(r => {
+    const w = Math.max(3, ((r.dur || 0) / max) * 100);
+    const cls = r.err ? 'err' : r.n > 1 ? 'repeat' : '';
+    return `<div class="tl-row">
+      <span class="tl-name">${esc(r.name)}${r.n > 1 ? ` <span style="color:var(--na)">×${r.n}</span>` : ''}</span>
+      <span class="tl-bar ${cls}" style="width:${w}%" title="${esc(r.agent || '')}"></span>
+      <span class="tl-dur">${fmtDur(r.dur)}</span></div>`;
+  }).join('')}
+  ${rows.some(r => r.n > 1) ? '<small class="hint" style="margin-top:5px">Amber marks a phase entered more than once.</small>' : ''}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Stage 1 — draft, codes, saving
+   ═══════════════════════════════════════════════════════════════════════════ */
+function loadDraft(id) {
+  const r = S.records.get(id);
+  S.draft = r
+    ? { tags: (r.tags || []).slice(), note: r.note || '', ff: r.first_failure_span_id || null }
+    : { tags: [], note: '', ff: null };
+  $('#noteInput').value = S.draft.note;
+  renderTags(); renderFF();
+}
+
+function renderTags() {
+  const box = $('#tagbox'), input = $('#tagInput');
+  box.querySelectorAll('.chip').forEach(c => c.remove());
+  S.draft.tags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `${esc(tag)}<button aria-label="Remove ${esc(tag)}">×</button>`;
+    chip.querySelector('button').addEventListener('click', () => {
+      S.draft.tags = S.draft.tags.filter(t => t !== tag); renderTags();
+    });
+    box.insertBefore(chip, input);
+  });
+  renderRecent();
+}
+
+/* Reuse comes only from codes the annotator has already invented. Never a
+   taxonomy slug, never a model suggestion (R3.7 / R7.3). */
+function renderRecent() {
+  const counts = new Map();
+  codedInOrder().forEach(r => (r.tags || []).forEach(t =>
+    counts.set(t, (counts.get(t) || 0) + 1)));
+  const mine = Array.from(counts.entries())
+    .filter(([t]) => !S.draft.tags.includes(t))
+    .sort((a, b) => b[1] - a[1]).slice(0, 14);
+  const host = $('#recentTags');
+  host.innerHTML = mine.length
+    ? mine.map(([t, n]) => `<button data-tag="${esc(t)}">${esc(t)} <span style="opacity:.55">${n}</span></button>`).join('')
+    : '<span class="hint">Codes you invent will collect here for reuse.</span>';
+  host.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => addTag(b.dataset.tag)));
+}
+
+function addTag(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return;
+  t.split(',').map(x => x.trim()).filter(Boolean).forEach(one => {
+    if (!S.draft.tags.includes(one)) S.draft.tags.push(one);
+  });
+  $('#tagInput').value = '';
+  renderTags();
+}
+
+function setFF(spanId) {
+  S.draft.ff = S.draft.ff === spanId ? null : spanId;
+  renderFF();
+  $$('#cardBody .ev.selectable').forEach(el =>
+    el.classList.toggle('chosen', el.dataset.span === S.draft.ff));
+}
+function renderFF() {
+  const el = $('#ffPicked');
+  el.innerHTML = S.draft.ff
+    ? `<code>${esc(S.draft.ff)}</code>`
+    : 'None selected — click a span in the card, or press a number.';
+}
+
+function saveCurrent(advance = true) {
+  const id = S.order[S.idx];
+  if (!id) return;
+  const note = $('#noteInput').value.trim();
+  const pending = $('#tagInput').value.trim();
+  if (pending) addTag(pending);
+  if (!S.draft.tags.length && !note) {
+    toast('Nothing to save — add a code or a note, or press s to skip');
+    return;
+  }
+  S.records.set(id, {
+    trace_id: id,
+    note,
+    tags: S.draft.tags.slice(),
+    first_failure_span_id: S.draft.ff,
+    coded_at: Date.now(),
+    unaided: true,   // this page shows no model output; carried for R7.4
+  });
+  persist();
+  renderList(); renderMetrics(); refreshGates();
+  if (advance) next();
+}
+
+const next = () => { if (S.idx < S.order.length - 1) { S.idx++; renderCard(); renderList(); } else toast('End of sample'); };
+const prev = () => { if (S.idx > 0) { S.idx--; renderCard(); renderList(); } };
+
+function renderMetrics() {
+  const coded = codedInOrder();
+  $('#mProgress').textContent = `${S.records.size} / ${S.traces.length}`;
+  $('#mTags').textContent = distinctCodes().size;
+  const streak = saturationStreak(coded);
+  $('#mStreak').textContent = streak;
+  const pct = Math.min(100, (streak / SATURATION_TARGET) * 100);
+  $('#satFill').style.width = pct + '%';
+  const reached = streak >= SATURATION_TARGET;
+  $('#satWrap').classList.toggle('reached', reached);
+  $('#satText').textContent = reached
+    ? `Saturation reached — ${streak} consecutive traces with no new code`
+    : `${streak} of ${SATURATION_TARGET} consecutive traces with no new code`;
+}
+function tickElapsed() {
+  const s = Math.floor((Date.now() - S.started) / 1000);
+  $('#mElapsed').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Export / restore. Lines match run_batch_annotate's accepted shape, so
+   `annotate --sample <id> --batch-file <file>` ingests this unchanged.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function download(name, text, type = 'application/json') {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportJsonl() {
+  const recs = codedInOrder();
+  if (!recs.length) return toast('Nothing coded yet');
+  const lines = recs.map(r => JSON.stringify({
+    trace_id: r.trace_id,
+    note: r.note || '',
+    tags: r.tags || [],
+    first_failure_span_id: r.first_failure_span_id ?? null,
+    unaided: r.unaided !== false,
+  }));
+  download('annotations.jsonl', lines.join('\n') + '\n', 'application/x-ndjson');
+  toast(`Exported ${recs.length} records — ingest with annotate --batch-file`);
+}
+function restoreExport(text) {
+  let n = 0;
+  text.split('\n').forEach(line => {
+    const s = line.trim(); if (!s) return;
+    try {
+      const d = JSON.parse(s);
+      if (!d.trace_id) return;
+      S.records.set(d.trace_id, {
+        trace_id: d.trace_id, note: d.note || '', tags: d.tags || [],
+        first_failure_span_id: d.first_failure_span_id ?? null,
+        coded_at: Date.now() + n, unaided: d.unaided !== false,
+      });
+      n++;
+    } catch (e) { /* skip malformed line */ }
+  });
+  persist(); applyFilters(); refreshGates();
+  toast(n ? `Restored ${n} records` : 'No usable records in that file');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Stages and gates. The discipline lives in the affordances, not in prose.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function unaidedCount() {
+  return Array.from(S.records.values()).filter(r => r.unaided !== false).length;
+}
+function gateState() {
+  const n = unaidedCount();
+  const accepted = Array.from(S.categories.values()).filter(c => c.decision === 'accept').length;
+  const drafted = S.taxDrafts.size;
+  return {
+    s2: { open: n >= UNAIDED_MIN, n, need: UNAIDED_MIN },
+    s3: { open: accepted > 0, n: accepted },
+    s4: { open: false, n: 0, need: LABELS_MIN, drafted },
+  };
+}
+function refreshGates() {
+  const g = gateState();
+  $$('.stage-tab').forEach(tab => {
+    const k = 's' + tab.dataset.stage;
+    tab.disabled = k !== 's1' && !g[k].open;
+    if (tab.disabled) tab.title = 'Locked — see the stage for what unlocks it';
+  });
+  renderGate2(g); renderGate3(g); renderGate4(g);
+}
+function setStage(n) {
+  const g = gateState();
+  if (n !== 1 && !g['s' + n].open) { /* still render the gate explanation */ }
+  S.stage = n;
+  $$('.stage').forEach(el => el.classList.remove('active'));
+  $('#stage' + n).classList.add('active');
+  $$('.stage-tab').forEach(t => t.setAttribute('aria-selected', String(+t.dataset.stage === n)));
+  if (n === 2) renderAxial();
+  if (n === 3) renderTaxonomy();
+  if (n === 4) renderJudge();
+}
+
+function gateBox(title, body, prog) {
+  return `<div class="gate"><h3><span class="lock">🔒</span> ${title}</h3>${body}
+    ${prog || ''}</div>`;
+}
+function progBar(now, need, label) {
+  const pct = Math.min(100, (now / need) * 100);
+  return `<div class="gateprog">
+    <div class="satbar"><i style="width:${pct}%;background:${now >= need ? 'var(--pass)' : 'var(--accent)'}"></i></div>
+    <small class="hint">${label}</small></div>`;
+}
+
+function renderGate2(g) {
+  const host = $('#gate2'), body = $('#axialBody');
+  if (g.s2.open) { host.innerHTML = ''; host.hidden = true; body.hidden = false; return; }
+  host.hidden = false; body.hidden = true;
+  host.innerHTML = gateBox('Axial coding is locked',
+    `<p>You have coded <b>${g.s2.n}</b> traces unaided. Clustering unlocks at <b>${g.s2.need}</b>.</p>
+     <p>This is not ceremony. Clustering too early lets the first few traces you happened to read
+     define the categories, and the shape of the taxonomy then follows your reading order rather
+     than the data.</p>
+     <p class="req">eval-methodology-alignment R7.4 — taxonomy propose refuses below 30 unaided records</p>`,
+    progBar(g.s2.n, g.s2.need, `${g.s2.n} of ${g.s2.need} unaided records`));
+}
+function renderGate3(g) {
+  const host = $('#gate3'), body = $('#taxBody');
+  if (g.s3.open) { host.innerHTML = ''; host.hidden = true; body.hidden = false; return; }
+  host.hidden = false; body.hidden = true;
+  host.innerHTML = gateBox('Taxonomy drafting is locked',
+    `<p>Accept at least one category in stage 2 first. A failure mode needs a category with
+     counted evidence behind it — that is what separates <code>origin: open_coding</code> from
+     <code>origin: hypothesis</code>.</p>
+     <p class="req">eval-methodology-alignment R9.2 — an open_coding mode carries the annotation ids it came from</p>`);
+}
+function renderGate4(g) {
+  const host = $('#gate4'), body = $('#judgeBody');
+  host.hidden = false; body.hidden = true;
+  host.innerHTML = gateBox('Judges must be earned',
+    `<p>A judge is for a failure mode that a cheap check <em>cannot</em> decide, that has been
+     confirmed by open coding, and that survived at least one prompt or harness fix. All three,
+     and then <b>${LABELS_MIN}</b> human labels before it may be validated.</p>
+     <p>You have <b>${g.s4.drafted}</b> drafted modes and <b>0</b> golden labels. Nothing here is
+     eligible yet, and the honest state of this stage is empty.</p>
+     <p>Until a judge clears TPR ≥ 0.90, TNR ≥ 0.90, κ ≥ 0.70 at n ≥ 100 on the test split it is
+     <b>advisory</b> and must not gate.</p>
+     <p class="req">eval-methodology-alignment R11.1, R12.3, R12.4 · label with: evals.cli golden label</p>`,
+    progBar(0, LABELS_MIN, `0 of ${LABELS_MIN} golden labels`));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Stage 2 — axial coding: accept / merge / reject, with counted frequencies
+   ═══════════════════════════════════════════════════════════════════════════ */
+function clusterCodes() {
+  const counts = new Map(), variants = new Map(), examples = new Map();
+  codedInOrder().forEach(r => {
+    (r.tags || []).forEach(tag => {
+      const key = normalizeTag(tag);
+      counts.set(key, (counts.get(key) || 0) + 1);
+      if (!variants.has(key)) variants.set(key, new Set());
+      variants.get(key).add(tag);
+      if (!examples.has(key)) examples.set(key, []);
+      const ex = examples.get(key);
+      if (!ex.includes(r.trace_id) && ex.length < 5) ex.push(r.trace_id);
+    });
+  });
+  // Tie-break: Python's Counter.most_common leaves equal counts in insertion order.
+  // Sorting ties by name instead makes the table stable across sittings. Same
+  // canonicals, counts and variants either way — display order only.
+  return Array.from(counts.entries())
+    .map(([canonical, count]) => ({
+      canonical, count,
+      variants: Array.from(variants.get(canonical)).sort(),
+      examples: examples.get(canonical) || [],
+    }))
+    .sort((a, b) => b.count - a.count || a.canonical.localeCompare(b.canonical));
+}
+
+function renderAxial() {
+  const clusters = clusterCodes();
+  const n = S.records.size;
+  $('#axN').textContent = n;
+  $('#axCodes').textContent = clusters.length;
+  const accepted = clusters.filter(c => (S.categories.get(c.canonical)?.decision) === 'accept');
+  $('#axAccepted').textContent = accepted.length;
+  const tgt = $('#axTarget');
+  tgt.textContent = accepted.length >= 5 && accepted.length <= 8 ? 'on target'
+    : accepted.length < 5 ? `${5 - accepted.length} short` : `${accepted.length - 8} over`;
+  tgt.style.color = accepted.length >= 5 && accepted.length <= 8 ? 'var(--pass)' : 'var(--ink-3)';
+
+  const tbody = $('#axTable tbody');
+  tbody.innerHTML = clusters.map(c => {
+    const st = S.categories.get(c.canonical) || {};
+    const [lo, hi] = wilson(c.count, n);
+    const label = st.renamed || c.canonical;
+    const rowCls = st.decision === 'accept' ? 'accepted' : st.decision === 'reject' ? 'rejected' : '';
+    return `<tr class="${rowCls}" data-k="${esc(c.canonical)}">
+      <td><b>${esc(label)}</b>${st.renamed ? `<br><span class="hint mono">was ${esc(c.canonical)}</span>` : ''}
+          ${st.mergedInto ? `<br><span class="hint">merged into ${esc(st.mergedInto)}</span>` : ''}</td>
+      <td class="num">${c.count}</td>
+      <td class="num">${(100 * c.count / n).toFixed(0)}%</td>
+      <td class="ci">${(100*lo).toFixed(0)}–${(100*hi).toFixed(0)}%</td>
+      <td class="mono" style="font-size:11.5px">${c.variants.map(esc).join(', ')}</td>
+      <td class="mono" style="font-size:11px">${c.examples.slice(0,3).map(esc).join('<br>')}</td>
+      <td><div class="actions">
+        <button class="btn sm" data-act="accept">accept</button>
+        <button class="btn sm" data-act="rename">rename</button>
+        <button class="btn sm" data-act="reject">reject</button>
+      </div></td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No codes yet.</td></tr>';
+
+  tbody.querySelectorAll('button[data-act]').forEach(b => {
+    b.addEventListener('click', () => {
+      const key = b.closest('tr').dataset.k;
+      const st = S.categories.get(key) || {};
+      if (b.dataset.act === 'rename') {
+        const v = prompt('Category name (snake_case):', st.renamed || key);
+        if (v) st.renamed = normalizeTag(v);
+      } else {
+        st.decision = st.decision === b.dataset.act ? undefined : b.dataset.act;
+      }
+      S.categories.set(key, st);
+      persist(); renderAxial(); refreshGates();
+    });
+  });
+}
+
+function exportCategories() {
+  const clusters = clusterCodes(), n = S.records.size;
+  const payload = {
+    sample_id: S.bundle?.sample_id,
+    n_annotated: n,
+    generated_at: new Date().toISOString(),
+    note: 'Axial categories accepted by a human. Frequencies are over the annotated sample only.',
+    categories: clusters.map(c => {
+      const st = S.categories.get(c.canonical) || {};
+      const [lo, hi] = wilson(c.count, n);
+      return {
+        canonical: c.canonical, label: st.renamed || c.canonical,
+        decision: st.decision || 'undecided',
+        count: c.count, share: n ? c.count / n : 0,
+        wilson_95: [lo, hi], variants: c.variants, example_trace_ids: c.examples,
+      };
+    }),
+  };
+  download('axial-categories.json', JSON.stringify(payload, null, 2));
+  toast('Exported categories');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Stage 3 — taxonomy draft. Emits YAML for review; never writes the file.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const LAYERS = ['model', 'framework', 'harness', 'provider'];
+const HARNESS_LAYERS = ['', 'tools', 'guardrails', 'observability', 'verification', 'context', 'feedback'];
+const SEVERITIES = ['blocker', 'major', 'minor'];
+
+function acceptedCategories() {
+  return clusterCodes().filter(c => (S.categories.get(c.canonical)?.decision) === 'accept');
+}
+
+function renderTaxonomy() {
+  const cats = acceptedCategories();
+  const host = $('#taxForms');
+  host.innerHTML = cats.map((c, i) => {
+    const st = S.categories.get(c.canonical) || {};
+    const slug = st.renamed || c.canonical;
+    const d = S.taxDrafts.get(c.canonical) || {};
+    const nextId = String(19 + i).padStart(3, '0');   // FM-019+ — FM-001…018 are taken
+    return `<div class="section" style="border:1px solid var(--line);border-radius:6px;background:var(--panel);margin-bottom:14px"
+                data-k="${esc(c.canonical)}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <h3>FM-${nextId} <code>${esc(slug)}</code></h3>
+        <span class="hint">n=${c.count} · ${c.examples.length} evidence traces</span>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <label class="field"><span>Title</span>
+          <input data-f="title" value="${esc(d.title || '')}" placeholder="One line: what goes wrong"></label>
+        <label class="field"><span>Layer</span>
+          <select data-f="layer">${LAYERS.map(l =>
+            `<option ${d.layer === l ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Harness layer</span>
+          <select data-f="harness_layer">${HARNESS_LAYERS.map(l =>
+            `<option value="${l}" ${d.harness_layer === l ? 'selected' : ''}>${l || '—'}</option>`).join('')}</select></label>
+        <label class="field"><span>Severity</span>
+          <select data-f="severity">${SEVERITIES.map(l =>
+            `<option ${d.severity === l ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <label class="field"><span>Definition — what must be true for this to have happened</span>
+        <textarea data-f="definition" placeholder="Precise enough that a second reader applies it the same way.">${esc(d.definition || '')}</textarea></label>
+      <label class="field"><span>Why a deterministic check cannot decide it — leave blank if one can</span>
+        <textarea data-f="judge_rationale" style="min-height:52px"
+          placeholder="Blank means detection: check, which is the default and the cheap path.">${esc(d.judge_rationale || '')}</textarea></label>
+    </div>`;
+  }).join('') || '<div class="empty">No accepted categories.</div>';
+
+  host.querySelectorAll('[data-f]').forEach(el => {
+    el.addEventListener('input', () => {
+      const key = el.closest('[data-k]').dataset.k;
+      const d = S.taxDrafts.get(key) || {};
+      d[el.dataset.f] = el.value;
+      S.taxDrafts.set(key, d);
+      persist(); renderYaml();
+    });
+  });
+  renderYaml();
+}
+
+function renderYaml() { $('#taxYaml').textContent = buildYaml(); }
+
+function buildYaml() {
+  const cats = acceptedCategories();
+  if (!cats.length) return '# No accepted categories.';
+  const sample = S.bundle?.sample_id || 'unknown';
+  const lines = [
+    '# Draft — append to evals/taxonomy/failure_modes.yaml after review.',
+    '# origin: open_coding requires >=1 annotation record per mode (R9.2).',
+    `# Derived from sample ${sample}, ${S.records.size} traces coded unaided.`,
+    '# Bump the file\'s version: field when you accept these.',
+    '',
+  ];
+  cats.forEach((c, i) => {
+    const st = S.categories.get(c.canonical) || {};
+    const d = S.taxDrafts.get(c.canonical) || {};
+    const slug = st.renamed || c.canonical;
+    const id = `FM-${String(19 + i).padStart(3, '0')}`;
+    const wrap = (s, ind) => String(s || '').trim().replace(/\s+/g, ' ')
+      .replace(/(.{1,76})(\s|$)/g, `${ind}$1\n`).trimEnd() || `${ind}TODO`;
+    lines.push(`  - id: ${id}`);
+    lines.push(`    slug: ${slug}`);
+    lines.push(`    title: ${d.title || 'TODO — one line'}`);
+    lines.push('    definition: >');
+    lines.push(wrap(d.definition, '      '));
+    lines.push(`    layer: ${d.layer || 'harness'}`);
+    if (d.harness_layer) lines.push(`    harness_layer: ${d.harness_layer}`);
+    lines.push(`    severity: ${d.severity || 'major'}`);
+    lines.push(`    detection: ${d.judge_rationale?.trim() ? 'judge' : 'check'}`);
+    if (d.judge_rationale?.trim()) {
+      lines.push('    judge_rationale: >');
+      lines.push(wrap(d.judge_rationale, '      '));
+    }
+    lines.push('    implemented_by: []   # TODO — name the CHK-* that decides this');
+    lines.push('    origin: open_coding');
+    lines.push('    evidence_annotations:');
+    c.examples.forEach(t => lines.push(`      - {trace_id: ${t}}`));
+    lines.push(`    observed_count: ${c.count}   # over sample ${sample}, n=${S.records.size}`);
+    lines.push('    positive_examples: []   # TODO — after a check exists');
+    lines.push('    negative_examples: []');
+    lines.push('    status: active');
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+function renderJudge() { /* gate only until an FM is eligible — see renderGate4 */ }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Wiring
+   ═══════════════════════════════════════════════════════════════════════════ */
+const drop = $('#drop'), fileEl = $('#file');
+drop.addEventListener('click', () => fileEl.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileEl.click(); });
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('over');
+}));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
+drop.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer?.files?.[0];
+  if (f) f.text().then(loadBundle);
+});
+fileEl.addEventListener('change', () => {
+  const f = fileEl.files?.[0];
+  if (f) f.text().then(loadBundle);
+});
+$('#fileRestore').addEventListener('change', e => {
+  const f = e.target.files?.[0];
+  if (f) f.text().then(restoreExport);
+});
+$('#btnImport').addEventListener('click', () => $('#fileRestore').click());
+
+['#fSearch', '#fBackend', '#fStatus', '#fScenario', '#fDone', '#fSort'].forEach(sel =>
+  $(sel).addEventListener('input', applyFilters));
+$('#traceList').addEventListener('click', e => {
+  const row = e.target.closest('.tracerow');
+  if (row) { S.idx = +row.dataset.i; renderCard(); renderList(); }
+});
+$('#tagInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (e.target.value.trim()) addTag(e.target.value);
+    else saveCurrent();
+  } else if (e.key === 'Backspace' && !e.target.value && S.draft.tags.length) {
+    S.draft.tags.pop(); renderTags();
+  } else if (e.key === 'Escape') e.target.blur();
+});
+$('#noteInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveCurrent(); }
+  if (e.key === 'Escape') e.target.blur();
+});
+$('#btnSave').addEventListener('click', () => saveCurrent());
+$('#btnSkip').addEventListener('click', next);
+$('#btnClearFF').addEventListener('click', () => { S.draft.ff = null; renderCard(); });
+$('#btnExport').addEventListener('click', exportJsonl);
+$('#btnAxExport').addEventListener('click', exportCategories);
+$('#btnTaxExport').addEventListener('click', () =>
+  download('failure-modes-draft.yaml', buildYaml(), 'text/yaml'));
+$('#btnTaxCopy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(buildYaml()); toast('YAML copied'); }
+  catch (e) { toast('Copy blocked — use Download instead'); }
+});
+$('#btnHelp').addEventListener('click', () => $('#help').hidden = false);
+$('#help').addEventListener('click', e => { if (e.target.id === 'help') $('#help').hidden = true; });
+$('#btnTheme').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const isDark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+});
+$$('.stage-tab').forEach(t => t.addEventListener('click', () => {
+  if (!t.disabled) setStage(+t.dataset.stage);
+}));
+
+document.addEventListener('keydown', e => {
+  if (!$('#help').hidden && e.key === 'Escape') { $('#help').hidden = true; return; }
+  if (e.key === '?') { $('#help').hidden = false; return; }
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (S.stage !== 1) return;
+  if (e.key === 'j') { e.preventDefault(); next(); }
+  else if (e.key === 'k') { e.preventDefault(); prev(); }
+  else if (e.key === 't') { e.preventDefault(); $('#tagInput').focus(); }
+  else if (e.key === 'n') { e.preventDefault(); $('#noteInput').focus(); }
+  else if (e.key === 's') { e.preventDefault(); next(); }
+  else if (e.key === 'e') { e.preventDefault(); exportJsonl(); }
+  else if (e.key === 'Enter') { e.preventDefault(); saveCurrent(); }
+  else if (/^[1-9]$/.test(e.key)) {
+    const el = $$('#cardBody .ev.selectable')[+e.key - 1];
+    if (el) { e.preventDefault(); setFF(el.dataset.span); }
+  }
+});
+window.addEventListener('beforeunload', e => {
+  const unsaved = S.records.size && !window.__exported;
+  if (unsaved) { e.preventDefault(); e.returnValue = ''; }
+});
+$('#btnExport').addEventListener('click', () => { window.__exported = true; });
+
+/* Expose the pure helpers so a test runner can check them against the Python. */
+window.__wb = { normalizeTag, wilson, saturationStreak, clusterCodes, buildYaml };
+</script>
+</body>
+</html>

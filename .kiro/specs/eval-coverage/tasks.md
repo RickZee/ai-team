@@ -3,8 +3,9 @@
 **Spec ID:** `eval-coverage`
 **Requirements:** [`requirements.md`](./requirements.md) · **Design:** [`design.md`](./design.md)
 
-8 phases, 39 tasks. Task 1.1 is **done** (shipped 2026-09-13, `evals/coverage.py`); everything
-else is unexecuted.
+11 phases, 54 tasks. Phase 1 tasks 1.1–1.2 and all of Phase 1b are **done** (shipped 2026-09-13/14:
+`evals/coverage.py`, `evals/ui/workbench.html`, `annotate bundle`); everything else is
+unexecuted.
 
 ---
 
@@ -49,7 +50,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     trace store.
   - _Requirements: R2.7, R2.8, R4.6, R12.6_
 
-- [ ] **1.3 Record the baseline liveness artifact**
+- [x] **1.3 Record the baseline liveness artifact**
   - `docs/eval-runs/2026-09-13-check-liveness/README.md` — the fixture-vs-corpus table, the
     1435/1880 abstention split, the two unreachable checks, the five orphan signals. Corpus kind
     stamped; no rate without `n`.
@@ -65,10 +66,67 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     alone; both files name the two unreachable checks.
   - _Requirements: R11.4, R11.5, R11.6_
 
-- [ ] **1.5 Journal entry**
-  - `docs/journal/2026-09-13-check-liveness.md` — layer 1 / 2 / 3 framing, the numbers, what it
-    changes. House conventions; `journey.md` updated.
+- [x] **1.5 Journal entry**
+  - [`docs/journal/2026-09-14-check-liveness.md`](../../../docs/journal/2026-09-14-check-liveness.md)
+    — the findings, what was built, what did not change, the live next-steps list, and the
+    open questions. `docs/journal/README.md` index row and a `journey.md` chapter added.
+  - Dated the 14th, not the 13th: the sitting ran past midnight and the handoff chain is
+    dated by when it was written, never by when the work started.
   - _Requirements: R11.4_
+
+## Phase 1b — The annotation workbench (R13 of eval-methodology-alignment)
+
+Shipped 2026-09-13/14. This phase exists because `eval-methodology-alignment` R13 names
+annotation friction as the reason open coding never happened, and R8.3 requires a human
+accept/merge/reject surface between the clusterer and the taxonomy that did not exist anywhere.
+
+- [x] **1b.1 `evals/ui/workbench.html` — four stages, gated in the loop's order**
+  - Stage 1 open coding (keyboard-driven, no `$EDITOR`), stage 2 axial coding
+    (accept/rename/reject + Wilson intervals), stage 3 taxonomy YAML draft, stage 4 judge gate.
+  - Self-contained: no dependency, no network, no build step, opens from `file://`.
+  - **Definition of done:** stage 1 surfaces no model output and no taxonomy vocabulary; gates
+    lock at 30 unaided records, ≥1 accepted category, and 100 labels respectively; a locked
+    stage states what it is waiting for.
+  - _Requirements: alignment R7.3, R7.4, R7.5, R8.1, R8.3, R8.4, R9.2, R11.1, R12.3, R13.1–R13.5_
+
+- [x] **1b.2 `annotate bundle` — export a sample for the page**
+  - `--skip-annotated` resumes a sitting; missing traces are recorded, never fatal.
+  - **Definition of done:** bundling the existing real sample yields 50 traces, 0 missing.
+  - _Requirements: alignment R13.3_
+
+- [x] **1b.3 Export ingests through the command that already exists**
+  - The page's JSONL matches `run_batch_annotate`'s accepted shape, so
+    `annotate --sample <id> --batch-file <file>` ingests it with no new code.
+  - **Definition of done:** round trip verified end to end into a temp annotations root,
+    producing valid `AnnotationRecord` lines with `saturation_streak` computed.
+  - _Requirements: alignment R7.1, R13.1_
+
+- [x] **1b.4 Mirror parity with the Python originals**
+  - `normalizeTag` / `wilson` / `saturationStreak` verified against
+    `propose.normalize_tag`, `reliability.wilson_ci`, `annotate.saturation_streak`.
+  - **Definition of done:** identical on 20 normalisation cases, Wilson to 6 decimal places,
+    saturation across 7 sequences; pinned in `test_annotate_bundle.py` so drift fails a test.
+  - _Requirements: R12.5_
+
+- [x] **1b.5 Headless render smoke test**
+  - `tests/unit/evals/workbench/smoke.js` + `test_workbench_smoke.py`; 23 assertions over a
+    fixture bundle mixing traces with and without spans. Skips without node.
+  - **Definition of done:** asserts the refusal paths, both card shapes, all four gates, and
+    that no FM id or taxonomy slug is embedded in the page.
+  - _Requirements: R12.2, R12.4_
+
+- [ ] **1b.6 Decide whether the node smoke test joins CI**
+  - The repo already has node for the frontend. Not wired in — a deliberate open question, not
+    an oversight.
+  - _Requirements: R12.4_
+
+- [ ] **1b.7 Carry `unaided` into `AnnotationRecord`**
+  - The page emits it and the ingest path currently drops it, because the field does not exist
+    yet. It is alignment R7.4, and until it lands the unaided count is inferred rather than
+    recorded.
+  - **Definition of done:** `AnnotationRecord.unaided` exists; `apply_batch_item` preserves it;
+    `taxonomy propose` counts it rather than assuming.
+  - _Requirements: alignment R7.4_
 
 ## Phase 2 — Evidence declarations
 
@@ -108,7 +166,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
     missing evidence.
   - _Requirements: R1.5, R12.2_
 
-## Phase 3 — Signal chain and the one gate
+## Phase 3 — Signal chain and the parser gate
 
 - [ ] **3.1 Producer table**
   - `evals/trace/producers.py` — span type → harness writer modules → log files. Hand-maintained,
@@ -169,6 +227,55 @@ Do not start any other task. Stop when its Definition of done is satisfied and
 
 - [ ] **4.6 CI prints the liveness table every run; never gates on it**
   - _Requirements: R2.6_
+
+## Phase 4c — Per-run check evidence (R13)
+
+- [ ] **4c.1 Write `<run_record>/reports/check_results.json`**
+  - Harness-owned, `writer: "harness"`, one entry per Tier A check with `na_reason`.
+  - **Definition of done:** a failed write warns and the run completes; no file when no checks are
+    registered.
+  - _Requirements: R13.1, R13.2, R13.6_
+
+- [ ] **4c.2 Render it as evidence, not a score**
+  - **Definition of done:** no pass rate, percentage or ratio anywhere in the per-run view; pass
+    counts always shown beside abstention counts; a test asserts a per-run percentage never renders.
+  - _Requirements: R13.3_
+
+- [ ] **4c.3 `coverage liveness --from-run-records`**
+  - Fold per-run files into corpus liveness.
+  - **Definition of done:** folding the run-record tree reproduces the same table as scoring the
+    traces directly, for runs where both exist.
+  - _Requirements: R13.5_
+
+- [ ] **4c.4 Run-UI eval panel**
+  - Follows `TestResultsPanel` / `GuardrailsPanel` conventions; abstentions visible by default.
+  - **Definition of done:** the 2026-09-13 smoke run displays
+    `CHK-guardrail-fp-budget: na — no guardrail_check spans` without opening a log.
+  - _Requirements: R13.4, R13.7_
+
+## Phase 4d — Feed-forward discipline (R14)
+
+- [ ] **4d.1 CI gate: eval vocabulary must not reach an agent prompt**
+  - Scans prompt-construction paths for check ids, FM ids, liveness vocabulary.
+  - **Definition of done:** gate fails on a deliberately planted `FM-005` in a prompt template;
+    passes on the current tree; product gate results untouched.
+  - _Requirements: R14.1, R14.2, R14.3_
+
+- [ ] **4d.2 Assert no eval verdict is written into a lesson**
+  - **Definition of done:** a test asserts `memory/lessons.py` records carry no check or FM ids;
+    FM-013 remains the lessons detector.
+  - _Requirements: R14.7_
+
+- [ ] **4d.3 Corpus coverage as run selection**
+  - `never measured` dimension cells readable as a run-selection input.
+  - **Definition of done:** selection changes which scenario contracts run; a test asserts the
+    emitted contract is byte-identical to the same contract selected any other way.
+  - _Requirements: R14.5, R14.6_
+
+- [ ] **4d.4 Record configuration changes as human decisions**
+  - A timeout, threshold or retry ceiling changed on eval evidence is recorded with the finding
+    that motivated it, and never applied automatically.
+  - _Requirements: R14.8_
 
 ## Phase 5 — Guardrail and interrupt telemetry — BLOCKED on alignment Phase 1
 

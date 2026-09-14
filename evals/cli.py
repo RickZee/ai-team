@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -154,6 +155,10 @@ def _cmd_taxonomy_propose(args: argparse.Namespace) -> int:
 
 def _cmd_annotate(args: argparse.Namespace) -> int:
     from evals.annotate import run_annotate_session
+
+    if not args.sample:
+        print("annotate requires --sample (or use: annotate bundle)", file=sys.stderr)
+        return 2
 
     annotator = args.annotator or os.environ.get("USER") or os.environ.get("LOGNAME") or "anon"
     store = TraceStore(root=Path(args.traces_root) if args.traces_root else None)
@@ -596,14 +601,38 @@ def build_parser() -> argparse.ArgumentParser:
     sample_p.set_defaults(func=_cmd_sample)
 
     annotate = sub.add_parser("annotate", help="open-coding annotation TUI (R3)")
-    annotate.add_argument("--sample", required=True, help="sample_id from evals/samples/")
+    annotate.add_argument("--sample", help="sample_id from evals/samples/")
     annotate.add_argument("--annotator", default=None)
-    annotate.add_argument("--batch-file", default=None, help="JSONL for non-interactive tests")
+    annotate.add_argument(
+        "--batch-file",
+        default=None,
+        help="JSONL of {trace_id, note?, tags?, first_failure_span_id?} — the workbench's "
+        "export, or a non-interactive test fixture",
+    )
     annotate.add_argument("--traces-root", default=None)
     annotate.add_argument("--samples-root", default=None)
     annotate.add_argument("--annotations-root", default=None)
     annotate.add_argument("--fixtures-root", default=None)
     annotate.set_defaults(func=_cmd_annotate)
+
+    annotate_sub = annotate.add_subparsers(dest="annotate_command")
+    a_bundle = annotate_sub.add_parser(
+        "bundle",
+        help="export a sample's traces as one JSON for evals/ui/workbench.html",
+    )
+    a_bundle.add_argument("--sample", required=True, help="sample_id from evals/samples/")
+    a_bundle.add_argument("--out", default="bundle.json")
+    a_bundle.add_argument("--annotator", default=None)
+    a_bundle.add_argument("--traces-root", default=None)
+    a_bundle.add_argument("--samples-root", default=None)
+    a_bundle.add_argument("--annotations-root", default=None)
+    a_bundle.add_argument("--fixtures-root", default=None)
+    a_bundle.add_argument(
+        "--skip-annotated",
+        action="store_true",
+        help="omit traces this annotator has already coded (resume a sitting)",
+    )
+    a_bundle.set_defaults(func=_cmd_annotate_bundle)
 
     taxonomy = sub.add_parser("taxonomy", help="failure taxonomy commands")
     taxonomy_sub = taxonomy.add_subparsers(dest="taxonomy_command", required=True)
@@ -910,6 +939,78 @@ def _emit_coverage(text: str, out: str | None) -> None:
         print(f"wrote {path}")
     else:
         print(text)
+
+
+def _cmd_annotate_bundle(args: argparse.Namespace) -> int:
+    """Export a sample's traces as one JSON the workbench loads (eval-coverage R13)."""
+    from evals.annotate import (
+        annotated_trace_ids,
+        annotations_path,
+        load_sample_manifest,
+        resolve_trace,
+    )
+
+    annotator = args.annotator or os.environ.get("USER") or os.environ.get("LOGNAME") or "anon"
+    manifest = load_sample_manifest(
+        args.sample,
+        samples_root=Path(args.samples_root) if args.samples_root else None,
+    )
+    store = TraceStore(root=Path(args.traces_root) if args.traces_root else None)
+    fixtures = Path(args.fixtures_root) if args.fixtures_root else None
+
+    already: set[str] = set()
+    if args.skip_annotated:
+        already = annotated_trace_ids(
+            annotations_path(
+                annotator,
+                annotations_root=Path(args.annotations_root) if args.annotations_root else None,
+            )
+        )
+
+    traces: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for trace_id in manifest.selection:
+        if trace_id in already:
+            continue
+        try:
+            trace = resolve_trace(trace_id, store=store, fixtures_root=fixtures)
+        except FileNotFoundError:
+            missing.append(trace_id)
+            continue
+        traces.append(json.loads(trace.model_dump_json()))
+
+    bundle = {
+        "sample_id": manifest.sample_id,
+        "annotator": annotator,
+        "generated_at": datetime.now(tz=UTC).isoformat(),
+        "strategy": manifest.strategy,
+        "seed": manifest.seed,
+        "corpus_state_hash": manifest.corpus_state_hash,
+        "n_selected": len(manifest.selection),
+        "n_bundled": len(traces),
+        "n_skipped_annotated": len(already & set(manifest.selection)),
+        "missing_trace_ids": missing,
+        "traces": traces,
+    }
+
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(bundle, indent=2), encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "out": str(out),
+                "sample_id": manifest.sample_id,
+                "bundled": len(traces),
+                "skipped_annotated": bundle["n_skipped_annotated"],
+                "missing": len(missing),
+            },
+            indent=2,
+        )
+    )
+    if missing:
+        print(f"warn: {len(missing)} trace(s) in the sample are not on disk", file=sys.stderr)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
