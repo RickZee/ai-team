@@ -24,6 +24,7 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-09-13 (LangGraph smoke)](2026-09-13-langgraph-smoke-eval.md) | First live eval case: path-sandbox crash + lexical guardrail retry storm; traces still starved; 9.1 not published. |
 | [2026-09-13 (UI refinement)](2026-09-13-ui-refinement.md) | Token/CSS split, frozen testids, Playwright heading-level miss, migrator residue; after-state screenshots (0.1 reconstructable from `87600d2`). |
 | [2026-09-14 (check liveness)](2026-09-14-check-liveness.md) | 76% of the check suite abstains and nothing reported it; two span types have no producer at all; a four-stage workbench for the human half of the loop. |
+| [2026-09-15 (course and testbed)](2026-09-15-course-and-testbed.md) | The course could not be written because the loop cannot be run here — 7 breaks on the stranger's path, 4 before the first eval; two specs and an execution order; FM-021 confirmed at n=308. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
 
 The July rigor arc (Jul 21–24) has no standalone entry — it lives in

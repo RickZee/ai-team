@@ -777,3 +777,58 @@ I am honest, the actual deliverable today.
 Full entry: [2026-09-14](2026-09-14-check-liveness.md).
 
 ---
+
+## Sep 15 — the course I could not write
+
+I set out to write a short course. Six sessions, plain language, for people who own quality
+but not AI — which is most of the people I work with. The idea was that seven months of
+receipts should be worth something to someone other than me.
+
+It went well until the part where the reader does something. Every path I tried to write
+ended the same way: *and now install this 250-line file I wrote for you, and run it on your
+own logs instead.* I shipped that, published a page, and felt the thing you feel when a
+deliverable is finished and slightly wrong.
+
+It was wrong because **the reader cannot run the loop on this project.** I audited the path
+a stranger takes and it breaks in seven places, four of them before they reach an eval. The
+first one is the worst: step three of `GETTING_STARTED` is get an OpenRouter key and put
+money on it. There is no keyless path. So the funnel asks for a credit card before showing
+anything this repo is good at, and everything after that is academic.
+
+The others: backfill still points at the wrong tree in the quickstart I never corrected.
+The right tree still leaves 229 of 324 runs with no spans. There is no trace viewer — the
+React app has not one reference to a trace, a check or a failure mode. Annotation is five
+commands from a cold start. The report hides 76% abstention. And the extension point of a
+13,000-line eval harness is **undocumented** — no scaffold, no worked example, nothing.
+
+A course that routes people away from the testbed is an admission the testbed is not
+usable. That is not a writing problem and I cannot write around it.
+
+The page had a second defect, and this one I should have caught before publishing rather
+than after. It opened with *"a 13,000-line eval system that had never measured anything."*
+My own campaign notes contain a two-column table — **reads as confession** / **reads as
+expertise** — and a rule that the personal material moves from headline to evidence, never
+the hero. I put it in the left column of a table I wrote. The audit is the most interesting
+thing I have, and leading with it turns a credential into an apology.
+
+So: two specs instead of a launch. One for the surfaces a number passes through on its way
+to a reader, one for making this a testbed someone else can run. And an execution order
+across all six specs, because ~165 open tasks organised by what is broken is the right way
+to write a spec and a useless way to decide what to do on a Tuesday.
+
+The pattern from [Sep 14](#sep-14--the-instruments-not-the-data) held one more time, and
+this time it was mine on the same afternoon. I ran the toy harness against my own
+`output/runs/` and it reported 308 of 308 records missing a status field, every diversity
+floor unmet. Damning, publishable, and false — the field was one level down inside an
+`extra` wrapper my reader never opened. Four lines later: all floors met, 214 failures,
+same 324 files. **When a measurement indicts everything, suspect the measurement.** I
+wrote that sentence into the course about ninety minutes after earning it.
+
+The carry-forward is now three sessions old and I am going to stop dressing it up. Re-index
+the right tree, then read thirty traces. Everything else I have built this week — the
+workbench, the liveness fold, two specs, a course, a page — is infrastructure around an
+afternoon I have not spent.
+
+Full entry: [2026-09-15](2026-09-15-course-and-testbed.md).
+
+---
