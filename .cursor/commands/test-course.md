@@ -7,7 +7,7 @@ Parameters (edit before sending, or leave the defaults):
 
 - scope: all
 - mode: stranger
-- budget_usd: 0
+- budget_usd: 10   (see the spend plan in the skill, §2a)
 - fix: no
 
 Run every step as a learner, record observations, assess each week against the rubric, and

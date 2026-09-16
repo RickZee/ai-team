@@ -2,11 +2,11 @@
 
 | | |
 | --- | --- |
-| **Scope / mode / budget / fix** | all · stranger · $0 · no |
+| **Scope / mode / budget / fix** | all · stranger · $10 · no |
 | **Git SHA** | |
 | **Environment** | OS · uv · Python |
 | **Tester** | Cursor agent (model) · date |
-| **Spend** | $0.00 |
+| **Spend** | $0.00 of $<budget> · per step: W1 $ · W2 $ · W6 $ · projected vs actual |
 | **Wall time** | |
 
 ## Verdict

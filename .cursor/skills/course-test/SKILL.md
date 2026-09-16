@@ -28,7 +28,7 @@ Your output is a **report**, not a fixed course. Do not edit `course/` unless th
 | --- | --- | --- |
 | `scope` | `all`, `week-N`, or a step id like `W3.S2` | `all` |
 | `mode` | `stranger` (fresh clone, no data, no keys) · `maintainer` (this checkout, its data) | `stranger` |
-| `budget_usd` | a number; `0` means no paid steps | `0` |
+| `budget_usd` | a number; `0` means no paid steps | `10` (from `/test-course`); `0` if the task names none |
 | `fix` | `no` · `yes` (apply P0/P1 doc fixes after the report, on a branch) | `no` |
 
 State the four values at the top of the report. If the task doesn't say, use the defaults
@@ -41,6 +41,8 @@ and say so.
    allows. Paid steps (week 1 step 3, week 2 step 1, week 6 step 3) get
    `AI_TEAM_RUN_BUDGET_USD=<remaining budget>` and are logged with their cost. Otherwise mark
    them `SKIPPED-PAID` and continue.
+   Track every paid run in `$REPORT/spend.jsonl` (see §2a) and stop paid work before the
+   budget would be exceeded.
 2. **Never do the human part.** Week 4 is reading thirty runs *by a human*. You must not
    write open-coding notes, labels or categories as if you were the reader, and must never
    write to `evals/annotations/` or `evals/golden/`. Test the *mechanics* only, with at most
@@ -55,6 +57,44 @@ and say so.
 5. **Week 5 step 4 changes code.** Do it on a throwaway branch in the test checkout
    (`git checkout -b course-test/w5`), run it fully, then leave it there — never merge it.
 6. **Time-box.** No single command over 15 minutes (use `timeout 900`). A hang is a finding.
+
+## 2a. Spend plan
+
+Costs come from past runs of the smoke brief: LangGraph and CrewAI on the default DeepSeek
+tier cost **pennies**; the Claude Agent SDK costs **$0.48–$0.95** a run; the `smoke-claude`
+profile puts every backend on Claude, so budget ~$1 per run there.
+
+Run the paid steps in this order, and only while `remaining ≥ projected + $0.50` (reserve):
+
+| Order | Step | Command as written | Projected | Running total |
+| --- | --- | --- | --- | --- |
+| 1 | W1.S3 | one LangGraph run | ~$0.05 | ~$0.05 |
+| 2 | W2.S1 | one run each: langgraph, crewai, claude-agent-sdk | ~$1.10 | ~$1.15 |
+| 3 | W6.S3 c1 | `run_smoke_batch.py --n 5` (15 runs, 5 on Claude) | ~$4.50 | ~$5.65 |
+| 4 | W6.S3 c1b | `run_smoke_batch.py --n 5 --team smoke-claude` (15 Claude runs) | ~$12 | **over** |
+
+Week 6 asks the learner to fix something first. You don't change system code, so run the
+batches as a **baseline** and say so; you're testing that the commands work and that their
+output supports the step's *Explain* (intervals, overlap), not that a fix worked.
+
+Step 4 doesn't fit $10 as written. Run it as `--n 1` (~$3) and record the result as
+`DEVIATION-BUDGET` with the exact command you ran; do not scale up to spend what's left.
+With a smaller budget, stop at the last row that fits and mark the rest `SKIPPED-PAID`
+with their projected cost.
+
+Rules for every paid command:
+
+- Prefix `AI_TEAM_ENV=dev AI_TEAM_RUN_BUDGET_USD=1` (the labs' own cap) unless the step
+  sets its own.
+- After it finishes, read the actual cost from each new run's `state.json`
+  (`actual_cost_usd`) or `logs/costs.jsonl`, and append one line per run:
+  `{"step": "W2.S1", "backend": "claude-agent-sdk", "run_id": "...", "usd": 0.71, "source": "state.json"}`.
+  If no cost was recorded, log `"usd": null` and count the **projected** cost against the
+  budget — a missing cost is itself a finding (week 1's lesson).
+- A run the spend guard aborts (`budget_abort`) is a result, not a test failure. If a Claude
+  run hits the $1 lab cap, that is a **P1 finding** against the labs' cap, not a reason to
+  raise it.
+- Report total spend, spend per step, and projected vs actual in the report header.
 
 ## 3. Prepare
 

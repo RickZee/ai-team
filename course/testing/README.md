@@ -14,7 +14,7 @@ parameters, and send. Or write your own task, for example:
 | --- | --- |
 | `scope` | `all`, `week-3`, or one step like `W3.S2` |
 | `mode` | `stranger` = fresh clone, no data, no keys (the real test) · `maintainer` = this checkout and its runs |
-| `budget_usd` | `0` skips the paid steps; a number allows them up to that cap |
+| `budget_usd` | `/test-course` defaults to **$10**; `0` skips the paid steps. $10 covers weeks 1–2 and the first week 6 batch; the Claude-only batch runs at `--n 1` (spend plan: skill §2a) |
 | `fix` | `yes` applies documentation fixes for P0/P1 findings on a branch, after the report |
 
 The full procedure the agent follows is [`.cursor/skills/course-test/SKILL.md`](../../.cursor/skills/course-test/SKILL.md).
@@ -25,6 +25,7 @@ The full procedure the agent follows is [`.cursor/skills/course-test/SKILL.md`](
 course/testing/runs/<date>-<mode>/
   report.md            verdict, scorecard, findings with fixes, top 5 improvements
   observations.jsonl   one line per step block: expected, actual, result, severity, suggestion
+  spend.jsonl          one line per paid run: step, backend, run id, actual cost
   logs/                raw output of every command
 ```
 
