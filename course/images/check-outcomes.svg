@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="620" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">WEEK 5 · WHAT A CHECK CAN SAY</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">Pass, fail — or quietly abstain</text>
+<text x="70" y="156" font-size="20" fill="#5f5e5a">A check that says "not applicable" every time looks calm and decides nothing.</text>
+<rect x="70" y="190" width="330" height="130" rx="12" fill="#e8f5ef" stroke="#1d9e75" stroke-width="1.5"/><rect x="70" y="190" width="6" height="130" rx="3" fill="#1d9e75"/>
+<text x="100" y="236" font-size="24" font-weight="700" fill="#1d9e75" text-anchor="start" font-family="Menlo, Consolas, monospace">pass</text>
+<text x="100" y="270" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >the evidence is there</text>
+<text x="100" y="294" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >and it's fine</text>
+<rect x="430" y="190" width="330" height="130" rx="12" fill="#fbeeea" stroke="#b8432f" stroke-width="1.5"/><rect x="430" y="190" width="6" height="130" rx="3" fill="#b8432f"/>
+<text x="460" y="236" font-size="24" font-weight="700" fill="#b8432f" text-anchor="start" font-family="Menlo, Consolas, monospace">fail</text>
+<text x="460" y="270" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >the evidence is there</text>
+<text x="460" y="294" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >and it's wrong</text>
+<rect x="790" y="190" width="330" height="130" rx="12" fill="#f0eee8" stroke="#8a877e" stroke-width="1.5"/><rect x="790" y="190" width="6" height="130" rx="3" fill="#8a877e"/>
+<text x="820" y="236" font-size="24" font-weight="700" fill="#8a877e" text-anchor="start" font-family="Menlo, Consolas, monospace">not applicable</text>
+<text x="820" y="270" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >nothing to look at —</text>
+<text x="820" y="294" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >silent in most reports</text>
+<text x="70" y="378" font-size="19" font-weight="700" fill="#1a1a2e" text-anchor="start" >This repo's 20 checks over 334 real run records</text>
+<rect x="70" y="398" width="47" height="54" rx="6" fill="#1d9e75"/>
+<rect x="123" y="398" width="47" height="54" rx="6" fill="#1d9e75"/>
+<rect x="176" y="398" width="47" height="54" rx="6" fill="#1d9e75"/>
+<rect x="229" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="282" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="335" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="388" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="441" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="494" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="547" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="600" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="653" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="706" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="759" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="812" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="865" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="918" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="971" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="1024" y="398" width="47" height="54" rx="6" fill="#b9b6ab"/>
+<rect x="1077" y="398" width="47" height="54" rx="6" fill="#b8432f"/>
+<text x="70" y="484" font-size="17" font-weight="700" fill="#1d9e75" text-anchor="start" >3 live</text>
+<text x="229" y="484" font-size="17" font-weight="700" fill="#6e6c66" text-anchor="start" >16 blind</text>
+<text x="1124" y="484" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" >1 unreachable</text>
+<text x="70" y="540" font-size="18" font-weight="600" fill="#1a1a2e" text-anchor="start" >89% of all results were "not applicable". Most for one reason: no step-level spans were recorded.</text>
+<text x="70" y="586" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" >Measured 2026-09-16 · evals.cli coverage liveness · corpus kind: CORPUS</text>
+</svg>

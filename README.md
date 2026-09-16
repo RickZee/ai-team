@@ -35,6 +35,9 @@ recorded with commit references in the [engineering journal](docs/journal/README
 
 ## Quick start
 
+> **New here? Take the course.** [`course/`](course/README.md) — *Agents That Actually Work*:
+> six hands-on weeks of real commands against this repo, and the first run costs $0.
+
 > **Arrived from the essay?** Open the web Compare tab (`/compare`) after the commands
 > below, then read [evals/README.md](evals/README.md) for the $0 Tier A replay. The
 > [failure taxonomy](docs/posts/failure-taxonomy.md) is the narrative; the receipt and

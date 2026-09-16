@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="630" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">A SIX-WEEK HANDS-ON COURSE</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">Agents that actually work</text>
+<text x="70" y="156" font-size="20" fill="#5f5e5a">Building an agent team is easy. Making sure it actually works is not.</text>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#96938a"/></marker>
+<marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1d9e75"/></marker>
+</defs>
+<rect x="70" y="250" width="160" height="170" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<circle cx="106" cy="290" r="18" fill="#1a1a2e"/>
+<text x="106" y="296" font-size="17" font-weight="700" fill="#fff" text-anchor="middle" >1</text>
+<text x="90" y="350" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Build</text>
+<text x="90" y="382" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >run the team</text>
+<line x1="233" y1="335" x2="253" y2="335" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="256" y="250" width="160" height="170" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<circle cx="292" cy="290" r="18" fill="#1a1a2e"/>
+<text x="292" y="296" font-size="17" font-weight="700" fill="#fff" text-anchor="middle" >2</text>
+<text x="276" y="350" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Fail</text>
+<text x="276" y="382" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >watch it break</text>
+<line x1="419" y1="335" x2="439" y2="335" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="442" y="250" width="160" height="170" rx="12" fill="#e8f5ef" stroke="#1d9e75" stroke-width="1.5"/>
+<circle cx="478" cy="290" r="18" fill="#1d9e75"/>
+<text x="478" y="296" font-size="17" font-weight="700" fill="#fff" text-anchor="middle" >3</text>
+<text x="462" y="350" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Observe</text>
+<text x="462" y="382" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >can monitoring see?</text>
+<line x1="605" y1="335" x2="625" y2="335" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="628" y="250" width="160" height="170" rx="12" fill="#e8f5ef" stroke="#1d9e75" stroke-width="1.5"/>
+<circle cx="664" cy="290" r="18" fill="#1d9e75"/>
+<text x="664" y="296" font-size="17" font-weight="700" fill="#fff" text-anchor="middle" >4</text>
+<text x="648" y="350" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Read</text>
+<text x="648" y="382" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >thirty runs, by hand</text>
+<line x1="791" y1="335" x2="811" y2="335" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="814" y="250" width="160" height="170" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<circle cx="850" cy="290" r="18" fill="#1a1a2e"/>
+<text x="850" y="296" font-size="17" font-weight="700" fill="#fff" text-anchor="middle" >5</text>
+<text x="834" y="350" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Evaluate</text>
+<text x="834" y="382" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >checks, then judges</text>
+<line x1="977" y1="335" x2="997" y2="335" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="1000" y="250" width="160" height="170" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<circle cx="1036" cy="290" r="18" fill="#1a1a2e"/>
+<text x="1036" y="296" font-size="17" font-weight="700" fill="#fff" text-anchor="middle" >6</text>
+<text x="1020" y="350" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Improve</text>
+<text x="1020" y="382" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >prove it with n</text>
+<path d="M1080.0,422 L1080.0,475 L522.0,475 L522.0,430" fill="none" stroke="#1d9e75" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#a1)"/>
+<text x="801.0" y="465" font-size="15" font-weight="600" fill="#0f6e56" text-anchor="middle" >then repeat 3 → 6 every week</text>
+<text x="70" y="560" font-size="18" font-weight="600" fill="#1a1a2e" text-anchor="start" >Weeks 3, 4 and 5 are the ones most teams skip. They need no API key.</text>
+<text x="70" y="596" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" >Nine agents · three frameworks (LangGraph, CrewAI, Claude Agent SDK) · one goal · github.com/RickZee/ai-team</text>
+</svg>

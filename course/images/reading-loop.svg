@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="600" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">WEEK 4 · OPEN CODING</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">Read first. Categories come last.</text>
+<text x="70" y="156" font-size="20" fill="#5f5e5a">The one step you can't automate, and the one that decides what you build next.</text>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#96938a"/></marker>
+</defs>
+<rect x="70" y="200" width="232" height="160" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<text x="94" y="248" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Sample</text>
+<text x="94" y="284" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >30 runs, spread</text>
+<text x="94" y="306" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >across the corpus</text>
+<line x1="306" y1="280" x2="334" y2="280" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="338" y="200" width="232" height="160" rx="12" fill="#e8f5ef" stroke="#1d9e75" stroke-width="1.5"/>
+<text x="362" y="248" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Read</text>
+<text x="362" y="284" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >each run yourself,</text>
+<text x="362" y="306" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >start to finish</text>
+<line x1="574" y1="280" x2="602" y2="280" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="606" y="200" width="232" height="160" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<text x="630" y="248" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Note</text>
+<text x="630" y="284" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >the first thing that</text>
+<text x="630" y="306" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >went wrong, your words</text>
+<line x1="842" y1="280" x2="870" y2="280" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="874" y="200" width="232" height="160" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/>
+<text x="898" y="248" font-size="26" font-weight="700" fill="#1a1a2e" text-anchor="start" >Cluster</text>
+<text x="898" y="284" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >notes into categories</text>
+<text x="898" y="306" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >only now</text>
+<text x="70" y="410" font-size="18" font-weight="700" fill="#0f6e56" text-anchor="start" >Do</text>
+<text x="630" y="410" font-size="18" font-weight="700" fill="#b8432f" text-anchor="start" >Don't</text>
+<text x="70" y="446" font-size="17" font-weight="400" fill="#1a1a2e" text-anchor="start" >✓  read it yourself — you are the instrument</text>
+<text x="70" y="478" font-size="17" font-weight="400" fill="#1a1a2e" text-anchor="start" >✓  write only the first failure, not every symptom</text>
+<text x="70" y="510" font-size="17" font-weight="400" fill="#1a1a2e" text-anchor="start" >✓  stop when new runs stop surprising you</text>
+<text x="630" y="446" font-size="17" font-weight="400" fill="#1a1a2e" text-anchor="start" >✕  let a model pre-label the runs</text>
+<text x="630" y="478" font-size="17" font-weight="400" fill="#1a1a2e" text-anchor="start" >✕  start from an existing failure list</text>
+<text x="630" y="510" font-size="17" font-weight="400" fill="#1a1a2e" text-anchor="start" >✕  count a run you skimmed as read</text>
+<text x="70" y="566" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" >Method: Hamel Husain &amp; Shreya Shankar · tool: evals/ui/workbench.html (local, no server)</text>
+</svg>

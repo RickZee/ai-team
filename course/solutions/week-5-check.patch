@@ -1,0 +1,219 @@
+--- a/evals/checks/registry.py
++++ b/evals/checks/registry.py
+@@ -150,6 +150,7 @@
+     import evals.checks.feedback  # noqa: F401
+     import evals.checks.guardrails  # noqa: F401
+     import evals.checks.isolation  # noqa: F401
++    import evals.checks.mine  # noqa: F401
+     import evals.checks.observability  # noqa: F401
+     import evals.checks.provider  # noqa: F401
+     import evals.checks.spend  # noqa: F401
+--- a/evals/coverage.py
++++ b/evals/coverage.py
+@@ -178,6 +178,7 @@
+ #: ``test_coverage.py`` asserts they stay in step with the registry.
+ _CHECK_SPAN_READS: dict[str, tuple[str, ...]] = {
+     "CHK-acceptance-monotonic": (),
++    "CHK-trace-has-spans": (),
+     "CHK-constraint-survival": ("phase_start",),
+     "CHK-draft-commit": ("phase_end", "tool_result", "tool_use"),
+     "CHK-evaluator-capitulation": (),
+--- a/tests/unit/evals/trace_fixtures.py
++++ b/tests/unit/evals/trace_fixtures.py
+@@ -118,6 +118,7 @@
+         "CHK-premature-termination": _premature,
+         "CHK-verifier-independence": _verifier_ind,
+         "CHK-evaluator-capitulation": _capitulation,
++        "CHK-trace-has-spans": _has_spans,
+     }
+     return builders[check_id](outcome)
+ 
+@@ -744,6 +745,15 @@
+     )
+ 
+ 
++def _has_spans(outcome: OutcomeWanted) -> Trace:
++    cid = "CHK-trace-has-spans"
++    if outcome == "na":
++        return base_trace(check_id=cid, outcome=outcome, status="killed")
++    if outcome == "fail":
++        return base_trace(check_id=cid, outcome=outcome, spans=[])
++    return base_trace(check_id=cid, outcome=outcome, spans=[_span(0, "phase_start", phase="planning")])
++
++
+ ALL_CHECK_IDS = [
+     "CHK-tool-call-emitted",
+     "CHK-phase-repeat-bounded",
+@@ -765,6 +775,7 @@
+     "CHK-premature-termination",
+     "CHK-verifier-independence",
+     "CHK-evaluator-capitulation",
++    "CHK-trace-has-spans",
+ ]
+ 
+ 
+--- a/tests/unit/evals/test_check_sensitivity.py
++++ b/tests/unit/evals/test_check_sensitivity.py
+@@ -189,6 +189,10 @@
+         }
+         return trace
+ 
++    if check_id == "CHK-trace-has-spans":
++        trace.spans = []
++        return trace
++
+     if check_id == "CHK-lesson-effectiveness":
+         trace.raw_result = {
+             **trace.raw_result,
+--- /dev/null
++++ b/evals/checks/mine.py
+@@ -0,0 +1,18 @@
++"""My first check: does this trace contain anything a check can read?"""
++
++from __future__ import annotations
++
++from evals.checks.base import CheckResult, failed, na, passed
++from evals.checks.registry import check
++from evals.trace.models import Trace
++
++
++@check(id="CHK-trace-has-spans", failure_mode_id=None, tier="A")
++def trace_has_spans(trace: Trace) -> CheckResult:
++    """Fail when a trace has no spans: every other check will abstain on it."""
++    cid = "CHK-trace-has-spans"
++    if trace.status == "killed":
++        return na(cid, trace, "run was killed externally; missing spans are expected")
++    if not trace.spans:
++        return failed(cid, trace, evidence_text="0 spans; nothing downstream can read this run")
++    return passed(cid, trace, evidence_text=f"{len(trace.spans)} spans")
+--- /dev/null
++++ b/evals/fixtures/traces/CHK-trace-has-spans__fail.json
+@@ -0,0 +1,37 @@
++{
++  "schema_version": 2,
++  "trace_id": "CHK-trace-has-spans__fail__fixture",
++  "scenario_id": "smoke-test",
++  "backend": "crewai",
++  "arm_id": null,
++  "status": "complete",
++  "started_at": "2026-08-01T12:00:00Z",
++  "ended_at": "2026-08-01T12:05:00Z",
++  "spans": [],
++  "artifacts": [],
++  "cost": {
++    "usd": 0.01,
++    "input_tokens": 100,
++    "output_tokens": 50,
++    "source": "provider_usage",
++    "per_model": {}
++  },
++  "provenance": {
++    "git_sha": "deadbeef",
++    "git_dirty": false,
++    "python_version": "3.12.0",
++    "platform": "test",
++    "harness_version": "0.1.0",
++    "taxonomy_version": "1.0.0",
++    "pricing_table_version": "unset",
++    "seed": null,
++    "tier": "A",
++    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++    "model_ids": {
++      "fullstack_developer": "test-model"
++    }
++  },
++  "warnings": [],
++  "raw_result": {},
++  "workspace_dir": null
++}
+--- /dev/null
++++ b/evals/fixtures/traces/CHK-trace-has-spans__pass.json
+@@ -0,0 +1,48 @@
++{
++  "schema_version": 2,
++  "trace_id": "CHK-trace-has-spans__pass__fixture",
++  "scenario_id": "smoke-test",
++  "backend": "crewai",
++  "arm_id": null,
++  "status": "complete",
++  "started_at": "2026-08-01T12:00:00Z",
++  "ended_at": "2026-08-01T12:05:00Z",
++  "spans": [
++    {
++      "span_id": "span_0000",
++      "parent_span_id": null,
++      "type": "phase_start",
++      "t_start": "2026-08-01T12:00:00Z",
++      "t_end": "2026-08-01T12:00:00Z",
++      "agent_role": null,
++      "phase": "planning",
++      "payload": {}
++    }
++  ],
++  "artifacts": [],
++  "cost": {
++    "usd": 0.01,
++    "input_tokens": 100,
++    "output_tokens": 50,
++    "source": "provider_usage",
++    "per_model": {}
++  },
++  "provenance": {
++    "git_sha": "deadbeef",
++    "git_dirty": false,
++    "python_version": "3.12.0",
++    "platform": "test",
++    "harness_version": "0.1.0",
++    "taxonomy_version": "1.0.0",
++    "pricing_table_version": "unset",
++    "seed": null,
++    "tier": "A",
++    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++    "model_ids": {
++      "fullstack_developer": "test-model"
++    }
++  },
++  "warnings": [],
++  "raw_result": {},
++  "workspace_dir": null
++}
+--- /dev/null
++++ b/evals/fixtures/traces/CHK-trace-has-spans__na.json
+@@ -0,0 +1,37 @@
++{
++  "schema_version": 2,
++  "trace_id": "CHK-trace-has-spans__na__fixture",
++  "scenario_id": "smoke-test",
++  "backend": "crewai",
++  "arm_id": null,
++  "status": "killed",
++  "started_at": "2026-08-01T12:00:00Z",
++  "ended_at": "2026-08-01T12:05:00Z",
++  "spans": [],
++  "artifacts": [],
++  "cost": {
++    "usd": 0.01,
++    "input_tokens": 100,
++    "output_tokens": 50,
++    "source": "provider_usage",
++    "per_model": {}
++  },
++  "provenance": {
++    "git_sha": "deadbeef",
++    "git_dirty": false,
++    "python_version": "3.12.0",
++    "platform": "test",
++    "harness_version": "0.1.0",
++    "taxonomy_version": "1.0.0",
++    "pricing_table_version": "unset",
++    "seed": null,
++    "tier": "A",
++    "scenario_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
++    "model_ids": {
++      "fullstack_developer": "test-model"
++    }
++  },
++  "warnings": [],
++  "raw_result": {},
++  "workspace_dir": null
++}

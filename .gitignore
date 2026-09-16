@@ -245,3 +245,6 @@ docs/benchmark_results.json
 
 # Files delivered into the chat by Claude land here; canonical copies live in docs/
 Claude outputs/
+
+# Course working files (traces, samples, reports) — see course/README.md
+course/.work/

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="640" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">WEEK 2 · SAME BRIEF: add(a, b) AND ONE TEST</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">1.5 seconds, or 26 minutes</text>
+<text x="70" y="156" font-size="20" fill="#5f5e5a">One model call versus a nine-role harness on the same tiny task. One run each (n=1).</text>
+<text x="70" y="215" font-size="18" font-weight="700" fill="#1a1a2e" text-anchor="start" >One model call</text>
+<text x="1130" y="215" font-size="17" font-weight="700" fill="#0f6e56" text-anchor="end" >1.5 s · $0.00007 · done</text>
+<rect x="70" y="228" width="6" height="26" rx="2" fill="#1d9e75"/>
+<text x="70" y="305" font-size="18" font-weight="700" fill="#1a1a2e" text-anchor="start" >LangGraph team (prototype profile: architect → developer → QA)</text>
+<text x="1130" y="305" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" >1,600 s · ended in human review</text>
+<rect x="70" y="318" width="1060" height="26" rx="4" fill="#efe9dc"/>
+<rect x="70" y="318" width="76" height="26" rx="4" fill="#1d9e75"/>
+<line x1="83" y1="344" x2="83" y2="408" stroke="#0f6e56" stroke-width="1.5"/>
+<text x="87.25" y="424" font-size="14" font-weight="600" fill="#0f6e56" text-anchor="start" >0:20  code drafted</text>
+<line x1="146" y1="344" x2="146" y2="364" stroke="#0f6e56" stroke-width="1.5"/>
+<text x="149.52499999999998" y="380" font-size="14" font-weight="600" fill="#0f6e56" text-anchor="start" >1:54  files on disk</text>
+<line x1="289" y1="344" x2="289" y2="408" stroke="#b8432f" stroke-width="1.5"/>
+<text x="292.625" y="424" font-size="14" font-weight="600" fill="#b8432f" text-anchor="start" >5:30  guardrail: relevance 5% → retry</text>
+<line x1="420" y1="344" x2="420" y2="364" stroke="#b8432f" stroke-width="1.5"/>
+<text x="424.4625" y="380" font-size="14" font-weight="600" fill="#b8432f" text-anchor="start" >8:49  0% → retry</text>
+<line x1="601" y1="344" x2="601" y2="408" stroke="#b8432f" stroke-width="1.5"/>
+<text x="605.3249999999999" y="424" font-size="14" font-weight="600" fill="#b8432f" text-anchor="start" >13:22  9% → retry</text>
+<line x1="850" y1="344" x2="850" y2="364" stroke="#b8432f" stroke-width="1.5"/>
+<text x="853.7624999999999" y="380" font-size="14" font-weight="600" fill="#b8432f" text-anchor="start" >19:37  0% → retry again</text>
+<line x1="1127" y1="344" x2="1127" y2="408" stroke="#b8432f" stroke-width="1.5"/>
+<text x="1123.35" y="424" font-size="14" font-weight="600" fill="#b8432f" text-anchor="end" >26:36  human review</text>
+<rect x="70" y="490" width="1060" height="80" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/><rect x="70" y="490" width="6" height="80" rx="3" fill="#1a1a2e"/>
+<text x="100" y="522" font-size="17" font-weight="700" fill="#1a1a2e" text-anchor="start" >The model was fine. The harness kept going:</text>
+<text x="100" y="550" font-size="15" font-weight="400" fill="#5f5e5a" text-anchor="start" >the guardrail scored the last 12 chat messages, not the files — and every testing failure was routed back to development.</text>
+<text x="70" y="606" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" >Source: docs/eval-runs/2026-09-13-langgraph-smoke/ · a harness-overhead anecdote, not a benchmark</text>
+</svg>

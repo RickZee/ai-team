@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="700" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">WEEK 3 · SAME FILES, TWO INSTRUMENTS</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">Two readers, one dataset, two answers</text>
+<text x="70" y="156" font-size="20" fill="#5f5e5a">Which frameworks did these runs come from? Ask two tools and compare.</text>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#96938a"/></marker>
+</defs>
+<rect x="420" y="190" width="360" height="70" rx="12" fill="#1a1a2e" stroke="#1a1a2e" stroke-width="1.5"/>
+<text x="600" y="222" font-size="20" font-weight="700" fill="#fff" text-anchor="middle" font-family="Menlo, Consolas, monospace">output/runs/</text>
+<text x="600" y="246" font-size="15" font-weight="400" fill="#cfd2dc" text-anchor="middle" >334 run records</text>
+<line x1="500" y1="262" x2="300" y2="318" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<line x1="700" y1="262" x2="900" y2="318" stroke="#96938a" stroke-width="2.5" marker-end="url(#a)"/>
+<rect x="70" y="322" width="500" height="250" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/><rect x="70" y="322" width="6" height="250" rx="3" fill="#b8432f"/>
+<text x="100" y="360" font-size="21" font-weight="700" fill="#1a1a2e" text-anchor="start" >The project's trace builder (before the fix)</text>
+<text x="100" y="384" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" font-family="Menlo, Consolas, monospace">evals.cli trace backfill</text>
+<text x="100" y="424" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >backend</text>
+<text x="540" y="424" font-size="16" font-weight="700" fill="#1a1a2e" text-anchor="end" font-family="Menlo, Consolas, monospace">crewai ×334</text>
+<text x="100" y="456" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >status</text>
+<text x="540" y="456" font-size="16" font-weight="700" fill="#1a1a2e" text-anchor="end" font-family="Menlo, Consolas, monospace">failed ×334</text>
+<text x="100" y="488" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >traces with zero spans</text>
+<text x="540" y="488" font-size="16" font-weight="700" fill="#1a1a2e" text-anchor="end" font-family="Menlo, Consolas, monospace">236</text>
+<rect x="100" y="522" width="440" height="34" rx="6" fill="#fbeeea"/>
+<text x="114" y="545" font-size="15" font-weight="700" fill="#b8432f" text-anchor="start" >Backend was hard-coded. Every run looked the same.</text>
+<rect x="630" y="322" width="500" height="250" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/><rect x="630" y="322" width="6" height="250" rx="3" fill="#9a6a12"/>
+<text x="660" y="360" font-size="21" font-weight="700" fill="#1a1a2e" text-anchor="start" >An independent reader</text>
+<text x="660" y="384" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" font-family="Menlo, Consolas, monospace">minieval.py</text>
+<text x="660" y="424" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >sources</text>
+<text x="1100" y="424" font-size="16" font-weight="700" fill="#1a1a2e" text-anchor="end" font-family="Menlo, Consolas, monospace">langgraph 219 · unset 113</text>
+<text x="660" y="456" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" ></text>
+<text x="1100" y="456" font-size="16" font-weight="700" fill="#1a1a2e" text-anchor="end" font-family="Menlo, Consolas, monospace">crewai 1 · sdk 1</text>
+<text x="660" y="488" font-size="16" font-weight="400" fill="#5f5e5a" text-anchor="start" >diversity floors</text>
+<text x="1100" y="488" font-size="16" font-weight="700" fill="#1a1a2e" text-anchor="end" font-family="Menlo, Consolas, monospace">"all met"</text>
+<rect x="660" y="522" width="440" height="34" rx="6" fill="#fbf3e2"/>
+<text x="674" y="545" font-size="15" font-weight="700" fill="#9a6a12" text-anchor="start" >Closer — but counts 'unset' as a backend.</text>
+<text x="70" y="622" font-size="18" font-weight="600" fill="#1a1a2e" text-anchor="start" >The disagreement was the finding. The fix: read the run record, and say "unknown" when it's silent.</text>
+<text x="70" y="650" font-size="16" font-weight="700" fill="#0f6e56" text-anchor="start" font-family="Menlo, Consolas, monospace">After the fix (338 runs): langgraph 223 · unknown 113 · crewai 1 · claude-agent-sdk 1</text>
+<text x="1130" y="676" font-size="13" font-weight="400" fill="#96938a" text-anchor="end" >Measured 2026-09-16 · week 3 lab</text>
+</svg>

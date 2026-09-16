@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="600" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">WEEK 1 · A $0 DRY RUN, MODEL SWITCHED OFF</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">The run finished. The record says it never ended.</text>
+<text x="70" y="156" font-size="20" fill="#5f5e5a">Five seconds, no model calls. Compare what happened with what was written down.</text>
+<rect x="70" y="200" width="480" height="300" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/><rect x="70" y="200" width="6" height="300" rx="3" fill="#1d9e75"/>
+<text x="100" y="242" font-size="22" font-weight="700" fill="#1a1a2e" text-anchor="start" >What happened</text>
+<text x="100" y="268" font-size="15" font-weight="400" fill="#96938a" text-anchor="start" font-family="Menlo, Consolas, monospace">state.json</text>
+<text x="100" y="320" font-size="18" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">current_phase</text>
+<text x="520" y="320" font-size="18" font-weight="700" fill="#0f6e56" text-anchor="end" font-family="Menlo, Consolas, monospace">complete</text>
+<text x="100" y="368" font-size="18" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">errors</text>
+<text x="520" y="368" font-size="18" font-weight="700" fill="#0f6e56" text-anchor="end" font-family="Menlo, Consolas, monospace">0</text>
+<text x="100" y="416" font-size="18" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">retries</text>
+<text x="520" y="416" font-size="18" font-weight="700" fill="#0f6e56" text-anchor="end" font-family="Menlo, Consolas, monospace">0</text>
+<rect x="630" y="200" width="500" height="300" rx="12" fill="#fbeeea" stroke="#e7c3b9" stroke-width="1.5"/><rect x="630" y="200" width="6" height="300" rx="3" fill="#b8432f"/>
+<text x="660" y="242" font-size="22" font-weight="700" fill="#1a1a2e" text-anchor="start" >What was recorded</text>
+<text x="660" y="268" font-size="15" font-weight="400" fill="#96938a" text-anchor="start" >the files every eval reads</text>
+<text x="660" y="315" font-size="17" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">run.json · completed_at</text>
+<text x="1100" y="315" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" font-family="Menlo, Consolas, monospace">null</text>
+<text x="660" y="355" font-size="17" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">run.json · final_status</text>
+<text x="1100" y="355" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" font-family="Menlo, Consolas, monospace">not written</text>
+<text x="660" y="395" font-size="17" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">logs/phases.jsonl</text>
+<text x="1100" y="395" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" font-family="Menlo, Consolas, monospace">missing</text>
+<text x="660" y="435" font-size="17" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">logs/costs.jsonl</text>
+<text x="1100" y="435" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" font-family="Menlo, Consolas, monospace">missing</text>
+<text x="660" y="475" font-size="17" font-weight="400" fill="#5f5e5a" text-anchor="start" font-family="Menlo, Consolas, monospace">logs/audit.jsonl</text>
+<text x="1100" y="475" font-size="17" font-weight="700" fill="#b8432f" text-anchor="end" font-family="Menlo, Consolas, monospace">missing</text>
+<text x="70" y="540" font-size="19" font-weight="600" fill="#1a1a2e" text-anchor="start" >Nothing errored. Every dashboard and eval downstream reads the right-hand panel.</text>
+<text x="70" y="566" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" >Reproduce: the week 1 lab · LangGraph backend, --graph-mode placeholder · measured 2026-09-16</text>
+</svg>

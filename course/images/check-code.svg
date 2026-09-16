@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" font-family="Helvetica, Arial, sans-serif"><rect width="1200" height="780" fill="#faf9f5"/>
+<rect width="1200" height="6" fill="#1d9e75"/>
+<text x="70" y="64" font-size="17" font-weight="600" fill="#0f6e56" letter-spacing="2">WEEK 5 · YOUR FIRST EVAL CHECK</text>
+<text x="70" y="120" font-size="42" font-weight="700" fill="#1a1a2e">Fifteen lines. Checks the instrument first.</text>
+<rect x="70" y="170" width="1060" height="374" rx="12" fill="#1a1a2e"/>
+<text x="100" y="210" font-size="19" font-weight="400" fill="#7fd1b2" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">@check(id="CHK-trace-has-spans", failure_mode_id=None, tier="A")</text>
+<text x="100" y="246" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">def trace_has_spans(trace: Trace) -&gt; CheckResult:</text>
+<text x="100" y="282" font-size="19" font-weight="400" fill="#9aa0b4" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">    """Fail when a trace has no spans: every other check will abstain."""</text>
+<text x="100" y="318" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">    cid = "CHK-trace-has-spans"</text>
+<text x="100" y="354" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">    if trace.status == "killed":</text>
+<text x="100" y="390" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">        return na(cid, trace, "run was killed; missing spans expected")</text>
+<text x="100" y="426" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">    if not trace.spans:</text>
+<text x="100" y="462" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">        return failed(cid, trace, evidence_text="0 spans")</text>
+<text x="100" y="498" font-size="19" font-weight="400" fill="#e8e6df" text-anchor="start" font-family="Menlo, Consolas, monospace" xml:space="preserve">    return passed(cid, trace, evidence_text=f"{len(trace.spans)} spans")</text>
+<rect x="70" y="574" width="1060" height="110" rx="12" fill="#ffffff" stroke="#ddd9cc" stroke-width="1.5"/><rect x="70" y="574" width="6" height="110" rx="3" fill="#1d9e75"/>
+<text x="100" y="616" font-size="24" font-weight="700" fill="#1a1a2e" text-anchor="start" >On 334 real run records it fails 236.</text>
+<text x="100" y="650" font-size="18" font-weight="400" fill="#5f5e5a" text-anchor="start" >That's not a quality score. It says 236 runs are invisible to every other check.</text>
+<text x="70" y="746" font-size="14" font-weight="400" fill="#96938a" text-anchor="start" >Full wiring and tests: course/week-5-evals.md · course/solutions/week-5-check.patch</text>
+</svg>
