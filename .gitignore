@@ -248,3 +248,6 @@ Claude outputs/
 
 # Course working files (traces, samples, reports) — see course/README.md
 course/.work/
+
+# Course test run logs (reports and observations are kept)
+course/testing/runs/*/logs/

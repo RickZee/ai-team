@@ -37,6 +37,11 @@ before the test plan.
 
 Uses the corpus you built in week 3 (`course/.work/traces`).
 
+> **You need at least 30 real runs.** A fresh clone doesn't have them, and dry runs are all
+> identical. Either do real runs in weeks 1–2 (about $1 each, capped), read the recorded case
+> in `docs/eval-runs/` instead, or use a checkout that already has a run history. A shipped
+> teaching corpus is planned (`.kiro/specs/eval-testbed/`) but doesn't exist yet.
+
 **Predict.** Thirty random runs from your corpus. How many do you expect to be informative?
 
 **Run.**

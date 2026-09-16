@@ -20,10 +20,15 @@ Every command this week writes to a scratch folder:
 mkdir -p course/.work
 ```
 
+> **Fresh clone?** Your numbers will be tiny — one trace per run you did in weeks 1–2. The
+> *Observe* blocks below come from the maintainer's checkout with ~340 runs. Compare the
+> **shape** (which backend, which status, spans or none), not the counts. A few more dry runs
+> won't help: they're identical and carry no spans.
+
 ## Step 1 — Build a corpus the default way (10 min)
 
-**Predict.** You have hundreds of runs. How many traces and spans will the eval harness find
-if you use its defaults?
+**Predict.** You've run the team at least once, and week 1 showed you where the run record
+went. How many traces and spans will the eval harness find if you use its defaults?
 
 **Run.**
 
@@ -33,12 +38,14 @@ uv run python -m evals.cli index rebuild  --traces-root course/.work/t-default
 uv run python -m evals.cli index stats    --traces-root course/.work/t-default
 ```
 
-**Observe.** On this repo:
+**Observe.** On the maintainer's checkout (hundreds of runs):
 
 ```
 backend   scenario   status   n
-crewai    unknown    failed   50
+unknown   unknown    failed   50
 ```
+
+On a fresh clone with one dry run, the same shape with `n = 1`.
 
 Now count spans:
 
