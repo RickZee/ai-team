@@ -52,3 +52,58 @@ def test_from_workspace_warns_without_audit(tmp_path: Path) -> None:
     assert any(
         w == "no audit log for backend=crewai; tool-level checks skipped" for w in trace.warnings
     )
+
+
+def _run_dir(tmp_path: Path, run: dict | None = None, state: dict | None = None) -> Path:
+    import json
+
+    rd = tmp_path / "runs" / "r1"
+    (rd / "logs").mkdir(parents=True)
+    if run is not None:
+        (rd / "run.json").write_text(json.dumps(run), encoding="utf-8")
+    if state is not None:
+        (rd / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    return rd
+
+
+def test_backfill_reads_backend_status_and_clock_from_run_record(tmp_path: Path) -> None:
+    """Regression: backfill once stamped every run ``crewai / failed`` at build time."""
+    rd = _run_dir(
+        tmp_path,
+        run={
+            "backend": "langgraph",
+            "started_at": "2026-09-13T18:26:50Z",
+            "completed_at": "2026-09-13T18:53:26+00:00",
+            "extra": {"final_status": "complete"},
+        },
+    )
+    trace = TraceBuilder(backend=None, store=TraceStore(root=tmp_path / "t")).from_workspace(rd)
+    assert trace.backend == "langgraph"
+    assert trace.status == "complete"
+    assert trace.started_at.isoformat() == "2026-09-13T18:26:50+00:00"
+    assert trace.ended_at is not None and trace.ended_at.minute == 53
+
+
+def test_backfill_unrecorded_backend_is_unknown_not_crewai(tmp_path: Path) -> None:
+    rd = _run_dir(tmp_path, run={"started_at": None, "completed_at": None})
+    trace = TraceBuilder(backend=None, store=TraceStore(root=tmp_path / "t")).from_workspace(rd)
+    assert trace.backend == "unknown"
+    assert trace.status == "failed"
+    assert any("backend not recorded" in w for w in trace.warnings)
+    assert any("no final status recorded" in w for w in trace.warnings)
+
+
+def test_backfill_status_falls_back_to_state_json_phase(tmp_path: Path) -> None:
+    rd = _run_dir(
+        tmp_path,
+        run={"backend": "langgraph", "completed_at": None},
+        state={"state": {"current_phase": "complete"}},
+    )
+    trace = TraceBuilder(backend=None, store=TraceStore(root=tmp_path / "t")).from_workspace(rd)
+    assert trace.status == "complete"
+
+
+def test_explicit_backend_still_wins_over_run_record(tmp_path: Path) -> None:
+    rd = _run_dir(tmp_path, run={"backend": "langgraph"})
+    trace = TraceBuilder(backend="crewai", store=TraceStore(root=tmp_path / "t")).from_workspace(rd)
+    assert trace.backend == "crewai"

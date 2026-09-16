@@ -192,6 +192,7 @@ class RunState:
             bundle.finalize(
                 final_status=status,
                 spend=dict(spend) if spend else None,
+                backend=run.get("backend"),
             )
             monitor = self.monitors.get(run_id)
             if monitor is not None:

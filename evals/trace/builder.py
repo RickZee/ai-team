@@ -41,7 +41,8 @@ def make_trace_id(scenario_id: str, backend: str, when: datetime | None = None) 
     return f"{scenario_id}__{backend}__{compact}__{short}"
 
 
-def _normalize_backend(backend: str) -> BackendName:
+def _normalize_backend(backend: str | None) -> BackendName:
+    """Map a backend label to :data:`BackendName`; anything unrecognised is ``unknown``."""
     mapping: dict[str, BackendName] = {
         "crewai": "crewai",
         "langgraph": "langgraph",
@@ -49,7 +50,54 @@ def _normalize_backend(backend: str) -> BackendName:
         "claude_agent_sdk": "claude-agent-sdk",
         "claude": "claude-agent-sdk",
     }
-    return mapping.get(backend.strip().lower(), "crewai")
+    if not backend:
+        return "unknown"
+    return mapping.get(backend.strip().lower(), "unknown")
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    """Return a JSON object from *path*, or ``{}`` when absent or unreadable."""
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    """*value* when it is a dict, else an empty dict."""
+    return value if isinstance(value, dict) else {}
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    """Parse an ISO timestamp from a run record; ``None`` when absent or malformed."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        ts = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return ts if ts.tzinfo else ts.replace(tzinfo=UTC)
+
+
+def _run_record_status(run: dict[str, Any], state: dict[str, Any]) -> str | None:
+    """Final status as the harness recorded it in ``run.json`` / ``state.json``.
+
+    ``run.json`` nests it under ``extra`` (see ``ResultsBundle.finalize``); readers that
+    only look at the top level see nothing — the 2026-09-14 finding.
+    """
+    extra = _as_dict(run.get("extra"))
+    for value in (run.get("final_status"), extra.get("final_status")):
+        if isinstance(value, str) and value:
+            return value
+    inner = _as_dict(state.get("state")) or state
+    monitor = _as_dict(state.get("monitor_snapshot"))
+    for value in (inner.get("current_phase"), monitor.get("phase")):
+        if value in ("complete", "completed"):
+            return "complete"
+    return None
 
 
 def _normalize_status(raw: str | None) -> TraceStatus:
@@ -132,9 +180,20 @@ def _infer_scenario_id(workspace: Path, explicit: str | None) -> tuple[str, list
     return "unknown", warnings
 
 
-def _infer_backend(workspace: Path, explicit: str | None) -> str:
+def _infer_backend(workspace: Path, explicit: str | None) -> str | None:
+    """Backend from what the run recorded; ``None`` when nothing says.
+
+    Order: explicit → ``run.json`` (top level, then ``extra``) → ``logs/session.json``
+    → directory name. No default: a guess here labels every unlabelled run as one
+    backend, which is how a 334-run corpus once read ``crewai ×334``.
+    """
     if explicit:
         return explicit
+    run = _read_json(workspace / "run.json")
+    extra = _as_dict(run.get("extra"))
+    for value in (run.get("backend"), extra.get("backend")):
+        if isinstance(value, str) and value:
+            return value
     session = workspace / "logs" / "session.json"
     if session.is_file():
         try:
@@ -149,7 +208,53 @@ def _infer_backend(workspace: Path, explicit: str | None) -> str:
     for candidate in ("crewai", "langgraph", "claude-agent-sdk", "claude"):
         if candidate in name:
             return candidate
-    return "crewai"
+    return None
+
+
+def _resolve_clock(
+    spans: list[Span],
+    run_record: dict[str, Any],
+    wall_time_s: float | None,
+    warnings: list[str],
+) -> tuple[datetime, datetime | None]:
+    """Trace start/end: spans first, then the run record's own clock, never build time."""
+    if spans:
+        return spans[0].t_start, max(s.t_end or s.t_start for s in spans)
+    rec_start = _parse_ts(run_record.get("started_at"))
+    rec_end = _parse_ts(run_record.get("completed_at"))
+    if rec_start is None and rec_end is None:
+        warnings.append("no spans and no run-record timestamps; started_at is build time")
+    started_at = rec_start or rec_end or datetime.now(UTC)
+    ended_at = rec_end
+    if wall_time_s is not None and ended_at is None:
+        ended_at = started_at
+    return started_at, ended_at
+
+
+def _resolve_status(
+    explicit: str | None,
+    session_meta: dict[str, Any],
+    raw_result: dict[str, Any],
+    run_record: dict[str, Any],
+    state_record: dict[str, Any],
+    *,
+    phases_file: bool,
+    has_phase_spans: bool,
+    warnings: list[str],
+) -> str | None:
+    """Prefer explicit status, then session, then the run record, then heuristics."""
+    status_raw = (
+        explicit
+        or session_meta.get("status")
+        or session_meta.get("final_status")
+        or raw_result.get("status")
+        or _run_record_status(run_record, state_record)
+    )
+    if not status_raw and phases_file:
+        status_raw = "complete" if has_phase_spans else "failed"
+    if not status_raw:
+        warnings.append("no final status recorded; status defaulted to 'failed'")
+    return str(status_raw) if status_raw else None
 
 
 class TraceBuilder:
@@ -159,12 +264,19 @@ class TraceBuilder:
         self,
         *,
         scenario: dict[str, Any] | None = None,
-        backend: str = "crewai",
+        backend: str | None = "crewai",
         tier: str = "B",
         seed: int | None = None,
         store: TraceStore | None = None,
         scenario_path: Path | None = None,
     ) -> None:
+        """Create a builder.
+
+        Args:
+            backend: Backend to stamp on every trace. Pass ``None`` to read it from each
+                run's own record instead (what ``trace backfill`` does); runs that never
+                recorded one become ``unknown``.
+        """
         self.scenario = scenario or {}
         self.backend = backend
         self.tier = tier
@@ -195,7 +307,7 @@ class TraceBuilder:
         return self.from_workspace(
             workspace,
             scenario_id=str(self.scenario.get("id") or self.scenario.get("scenario_id") or ""),
-            backend=self.backend,
+            backend=self.backend or None,
             raw_result=raw,
             status=str(inferred_status) if inferred_status else None,
             wall_time_s=wall_time_s,
@@ -221,9 +333,14 @@ class TraceBuilder:
             sid = str(self.scenario["id"])
         warnings.extend(sid_warnings)
 
+        run_record = _read_json(workspace / "run.json")
+        state_record = _read_json(workspace / "state.json")
+
         backend_name = _normalize_backend(
             backend or self.backend or _infer_backend(workspace, None)
         )
+        if backend_name == "unknown":
+            warnings.append("backend not recorded in run.json or session.json; set to 'unknown'")
 
         logs = workspace / "logs"
         phase_spans, w = parse_phases_jsonl(logs / "phases.jsonl")
@@ -289,23 +406,17 @@ class TraceBuilder:
             + lg_spans
         )
 
-        started_at = all_spans[0].t_start if all_spans else datetime.now(UTC)
-        ended_at = None
-        if all_spans:
-            ends = [s.t_end or s.t_start for s in all_spans]
-            ended_at = max(ends)
-        if wall_time_s is not None and ended_at is None:
-            ended_at = started_at
-
-        # Prefer explicit status, then session, then heuristics
-        status_raw = (
-            status
-            or session_meta.get("status")
-            or session_meta.get("final_status")
-            or raw_result.get("status")
+        started_at, ended_at = _resolve_clock(all_spans, run_record, wall_time_s, warnings)
+        status_raw = _resolve_status(
+            status,
+            session_meta,
+            raw_result,
+            run_record,
+            state_record,
+            phases_file=(logs / "phases.jsonl").is_file(),
+            has_phase_spans=bool(phase_spans),
+            warnings=warnings,
         )
-        if not status_raw and (logs / "phases.jsonl").is_file():
-            status_raw = "complete" if phase_spans else "failed"
         norm_status = _normalize_status(str(status_raw) if status_raw else None)
 
         scenario_sha = _scenario_sha(self.scenario or None, self.scenario_path)

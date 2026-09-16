@@ -37,7 +37,7 @@ def _cmd_trace_backfill(args: argparse.Namespace) -> int:
         # Skip obvious non-run dirs
         if ws.name in {".git", "__pycache__", "docs", "node_modules"}:
             continue
-        builder = TraceBuilder(backend="crewai", tier="C", store=store)
+        builder = TraceBuilder(backend=args.backend, tier="C", store=store)
         try:
             trace = builder.from_workspace(ws)
             store.write(trace)
@@ -574,6 +574,11 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--workspace-root", default="./workspace")
     backfill.add_argument("--traces-root", default=None)
     backfill.add_argument("--limit", type=int, default=None)
+    backfill.add_argument(
+        "--backend",
+        default=None,
+        help="stamp this backend on every trace (default: read each run's own record)",
+    )
     backfill.set_defaults(func=_cmd_trace_backfill)
 
     index = sub.add_parser("index", help="SQLite index commands")

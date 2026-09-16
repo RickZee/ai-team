@@ -173,11 +173,14 @@ class ResultsBundle:
         completed_at: datetime | None = None,
         final_status: str | None = None,
         spend: dict[str, Any] | None = None,
+        backend: str | None = None,
     ) -> Path:
         """Stamp run completion onto the bundle.
 
         Updates ``run.json`` with ``completed_at`` (and ``extra.final_status``
-        when given), appends a summary spend row to ``logs/costs.jsonl``, and
+        when given, and ``backend`` when the record does not already name one — the
+        web path never wrote it, so trace readers could not tell backends apart),
+        appends a summary spend row to ``logs/costs.jsonl``, and
         refreshes the registry. Safe to call more than once — last call wins.
         """
         self.init_dirs()
@@ -192,6 +195,8 @@ class ResultsBundle:
                 "output_dir": str(self.output_dir),
             }
         data["completed_at"] = (completed_at or _utcnow()).isoformat()
+        if backend and not data.get("backend"):
+            data["backend"] = backend
         if final_status is not None:
             extra = data.get("extra") or {}
             extra["final_status"] = final_status

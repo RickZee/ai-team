@@ -187,3 +187,17 @@ def test_finalize_is_idempotent_last_call_wins(isolated_dirs: tuple[Path, Path])
     b.finalize(final_status="complete", spend={"spent_usd": 0.01})
     data = json.loads((out_root / "runs" / "p6" / "run.json").read_text(encoding="utf-8"))
     assert data["extra"]["final_status"] == "complete"
+
+
+def test_finalize_records_backend_only_when_missing(isolated_dirs: tuple[Path, Path]) -> None:
+    """The web path wrote run.json without a backend, so trace readers had to guess.
+    finalize(backend=...) fills the gap and never overwrites what the run wrote."""
+    out_root, _ = isolated_dirs
+    bare = ResultsBundle("p-web")
+    bare.finalize(final_status="complete", backend="langgraph")
+    data = json.loads((out_root / "runs" / "p-web" / "run.json").read_text(encoding="utf-8"))
+    assert data["backend"] == "langgraph"
+
+    bare.finalize(final_status="complete", backend="crewai")
+    data = json.loads((out_root / "runs" / "p-web" / "run.json").read_text(encoding="utf-8"))
+    assert data["backend"] == "langgraph"
