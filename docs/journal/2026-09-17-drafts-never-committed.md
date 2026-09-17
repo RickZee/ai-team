@@ -5,8 +5,9 @@
 **Preceded by** [2026-09-16 (course v2)](2026-09-16-course-v2.md) §8.
 
 Morning (§1–5): agent writes never reached the workspace. Afternoon (§6–9): the first live
-LangGraph run finished — and showed three more harness layers underneath. Evening (§10–12):
-those three fixed, verified live, and the reporting bugs behind the numbers closed.
+LangGraph run finished — and showed three more harness layers underneath. Evening (§10–13):
+those three fixed, verified live, the reporting bugs behind the numbers closed, and the Cursor
+test skill taught to build rather than only walk.
 
 ## 1. Where it came from
 
@@ -215,9 +216,55 @@ format, mypy clean.
   Step 5 keeps the pollution story as a lesson and notes the suite no longer causes it.
 - **Week 1** explains the empty-key semantics at step 2 and the recovery at step 3.
 
-## 12. Start next session with
+## 12. The Cursor test skill now builds, not just walks
 
-1. **Cursor validates `8db7448`+ (this commit).** Expect: LangGraph retry 0 under 5 min;
+The first four `/test-course` runs typed commands and checked output. Every step that asked
+the learner to *make* something was skipped: week 5 step 4 ("write your own check") was
+satisfied by applying `course/solutions/week-5-check.patch`, and week 6 step 3 ("fix and
+re-run") only ever took the free replay path. So the two steps where the course stops being a
+tour were the two steps nobody had tested.
+
+`.cursor/skills/course-test/SKILL.md` gained a fifth parameter, `depth` (`walk` | `build`,
+default **build**), and a build track, §5:
+
+| | Task | Tests |
+| --- | --- | --- |
+| B1 | Write `evals/checks/mine.py` and find the six wiring points *without* the solution patch | W5.S4's claim that "pytest tells you which" — attempts logged per wiring point |
+| B2 | Sabotage the check so it can never fail; confirm the sensitivity test catches it | whether the eval harness has teeth (a mutation test the course never asks for) |
+| B3 | Change what the check *means*; predict the new numbers, then re-measure | `FIXTURE-ONLY` vs `CORPUS` — a change visible in no number is the finding |
+| B4 | Re-accept the baseline, then try to sneak a regression past the gate | whether the gate blocks, and whether the message is readable |
+| B5 | Take the check to live traces; one fresh run; rate and `n` before and after | that the learner's own work meets real data |
+| B6 | ruff · mypy · `pytest tests/unit` · Tier A · `tests/unit/repo` | that the check is part of the system, not a file in a folder |
+
+Every change re-runs at three scopes (§5a): the step, the gate, the pipeline. A wider scope
+catching what a narrower one missed is called out as the most valuable finding a run can
+produce.
+
+Two more things the report now has to carry:
+
+- **§4a coverage.** Every step id from `extract_steps.py` gets a disposition from a closed
+  list (`RUN`, `RUN-PARTIAL`, `JUDGED`, or a named skip). Coverage is reported per week and
+  overall; under 80% on a full run needs an explanation. "No runnable blocks" stopped being a
+  reason to skip — a step with only prose still has a *Predict* and an *Explain* to judge.
+- **§4b concept ledger.** Twelve ideas about agentic systems (draft-then-commit, guardrails
+  failing correct work, retries as a cost multiplier, writer-vs-reader telemetry, abstention,
+  corpus kinds, intervals, monitoring as an eval on a cadence), each marked **taught**,
+  **asserted** or **missing**. A headline lesson marked *asserted* is a P1.
+
+Observations are now written in the first person before the reviewer verdict, with
+`predicted`, `surprised_me`, `still_dont_understand` and `could_i_explain_it`. A step where
+nothing surprised the learner and they could already explain it taught nothing, and scores
+`Teaches` accordingly. The rubric gained **Buildable** and **Feeds back** for weeks 5–6.
+
+`course/testing/report-template.md` and `.cursor/commands/test-course.md` match. Verified
+before shipping: `git apply --check course/solutions/week-5-check.patch` still applies, so B1
+can end by diffing against the published solution.
+
+## 13. Start next session with
+
+1. **Cursor validates with `depth: build`** (`/test-course`, stranger, $10). This is the first
+   run that exercises B1–B6, so expect the report to be longer and to find things in week 5
+   and week 6 that four previous runs could not. Also expect: LangGraph retry 0 under 5 min;
    CrewAI `costs.jsonl` `spent_usd` now matching `actual_cost_usd` with
    `source: crewai_token_tracker`; Claude `run.json` showing a real duration; week 6 step 5
    ingesting only the learner's own runs; the paid steps refusing to start on an empty key.
