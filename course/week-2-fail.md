@@ -8,8 +8,9 @@ model, framework, harness or provider — next to every failure.
 
 ## Step 1 — The race (30 min)
 
-**Optional, and slower than it looks.** On a fresh clone (2026-09-16) only the Claude SDK run
-finished (170 s, $0.71); LangGraph and CrewAI were still going at 15 minutes. If you skip
+**Optional, and slower than it looks.** On a fresh clone (2026-09-16, before the loop fix in
+step 2) only the Claude SDK run finished (170 s, $0.71); LangGraph and CrewAI were still going
+at 15 minutes. If you skip
 this step, do step 2 — it's the same brief, fully recorded, and it's where the lesson is.
 
 **Predict.** Same brief, same tools, same guardrails. Which framework finishes fastest? Which
@@ -75,14 +76,33 @@ ls docs/eval-runs/2026-09-13-langgraph-smoke/evidence/
 
 A better model would not have helped.
 
-**Change.** Open the guardrail and the router and find the lines responsible:
+**Change.** Before reading on, write down what you'd change to stop the loop. Then read what
+was actually changed (2026-09-16):
 
 ```bash
-grep -n "def _concat_recent_ai_content" -A20 src/ai_team/backends/langgraph_backend/graphs/guardrail_hooks.py
-grep -n "def route_after_testing" -A25 src/ai_team/backends/langgraph_backend/graphs/routing.py
+LOOPFIX=$(git log --format=%h -1 --grep="stop the LangGraph guardrail loop")
+git show --stat $LOOPFIX
+git show $LOOPFIX -- src/ai_team/backends/langgraph_backend/graphs/guardrail_hooks.py src/ai_team/backends/langgraph_backend/graphs/routing.py
 ```
 
-What one-line change would stop the loop? Don't make it yet — that's week 6.
+Four small changes, none of them to a prompt or a model:
+
+1. **Score the current turn.** Guardrails now read only what this phase's agents said —
+   everything after the phase's own task message — not the whole run history.
+2. **A single agent isn't a supervisor.** Single-agent planning and development were
+   filtering on a supervisor that didn't exist, so their guardrail never checked anything.
+3. **A guardrail complaint about QA goes to a human,** not back to development.
+4. **Use the run's own folder.** The QA agent was told the parent `./workspace` path, which
+   is where the sandbox error and the nested folders came from.
+
+How close was your guess? The regression test rebuilds the exact 09-13 situation and shows the
+old scoring failing correct test code at 8%:
+
+```bash
+uv run pytest tests/unit/backends/langgraph_backend/test_guardrail_loop_regression.py -v
+```
+
+The fix is proven by unit tests, not yet by live runs. Showing it with a number is week 6.
 
 ## Step 3 — Whose failure is it? (30 min)
 

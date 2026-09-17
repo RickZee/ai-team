@@ -111,7 +111,8 @@ which is the same brief with every log kept.
 
 **Explain.** It may succeed, hang, or end asking a human for review. **All three are useful.**
 Don't re-run it yet — whatever happened is next week's material. (On 2026-09-16 a fresh-clone
-LangGraph run had correct files within minutes and was still retrying a guardrail at 15.)
+LangGraph run had correct files within minutes and was still retrying a guardrail at 15. That
+loop was fixed later the same day — week 2 shows how.)
 
 ## Where things went
 

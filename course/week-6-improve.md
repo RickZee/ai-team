@@ -18,12 +18,17 @@ From your week 4 categories, choose one that is **frequent**, **detectable by co
 | Failure | Where you saw it | Kind of fix |
 | --- | --- | --- |
 | LangGraph runs write no phase or cost log | weeks 1 and 3, `logs/` | instrument |
-| The trace builder labels every run `crewai` | week 3, `evals/cli.py` | instrument |
-| The guardrail scores chat history, not files | week 2, `guardrail_hooks.py` | system |
-| Every testing error routes back to development | week 2, `routing.py` | system |
+| Runs that never recorded a status are counted as `failed` | week 3, trace `warnings` | instrument |
+| A category from your own week 4 notes | week 4 | yours |
 
 **Instrument fixes** don't make the agents better; they make every later number true. If
 unsure, start with one of those.
+
+**Or prove someone else's fix.** The LangGraph guardrail loop from week 2 was fixed on
+2026-09-16 with unit tests only. Nobody has shown with live runs that it's gone. "Before" is
+the recorded case (and any LangGraph runs in your history from before that date); "after" is
+fresh runs. That's a complete week 6 on its own — and the honest answer may be "not enough
+runs to say".
 
 ## Step 2 — Measure before you fix (30 min)
 

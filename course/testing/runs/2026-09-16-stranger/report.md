@@ -177,7 +177,7 @@ Findings were checked against the code before fixing. Commits are on `feat/cours
 | F10 | fixed (code) | See R4 |
 | R1 | fixed | `DemoTimeoutError` is now a `BaseException`; a second alarm 30 s later finalizes the record as `timeout` and hard-exits 124 |
 | R2 / R5 | fixed | `run_demo.py` finalizes its own run record on every exit path (`complete` / `failed` / `awaiting_human` / `timeout` / `error`), with backend and spend |
-| R3 | open | LangGraph guardrail/routing loop — it's the week 2 lesson and week 6 candidate fix |
+| R3 | fixed (unit-tested, not yet live) | Current-turn guardrail scoring; testing `GuardrailError` → human review; single-agent subgraphs really checked; run-scoped workspace in the testing prompt and file inventory. Regression test rebuilds the 09-13 case |
 | R4 | fixed | Claude SDK ceiling now honours `AI_TEAM_RUN_BUDGET_USD` (min of cap and phase sum) |
 | R6 | by design | The `./workspace` default is the week 3 lesson |
 
