@@ -122,8 +122,11 @@ Rules for every paid command:
 python3 course/testing/extract_steps.py
 python3 course/testing/extract_steps.py --json > /tmp/course-steps.json
 
-RUN_ID=$(date -u +%Y-%m-%d)-<mode>          # e.g. 2026-09-20-stranger
+MODE=stranger                               # or maintainer
+RUN_ID=$(date -u +%Y-%m-%d)-$MODE
+n=2; while [ -e course/testing/runs/$RUN_ID ]; do RUN_ID=$(date -u +%Y-%m-%d)-$MODE-$n; n=$((n+1)); done
 REPORT=course/testing/runs/$RUN_ID          # always in the ORIGINAL checkout
+PREV=$(ls -d course/testing/runs/*-$MODE* 2>/dev/null | grep -v "$RUN_ID" | tail -1)  # last run to compare with
 mkdir -p $REPORT/logs
 ```
 
@@ -134,6 +137,10 @@ TEST=$(mktemp -d)/ai-team
 git clone --quiet "$(git rev-parse --show-toplevel)" "$TEST"
 cd "$TEST"            # everything below runs here
 ```
+
+This clones the branch that is **checked out here**, so unpushed fixes are tested. Record the
+branch and SHA. `course/README.md` → *Start* clones GitHub instead; until the course is on
+`main`, treat that as the known finding **F1** (don't re-derive it) and continue in this clone.
 
 Do **not** copy `.env`, `output/` or `workspace/` into it. (If `budget_usd > 0`, copy only
 `.env`.) Then follow `course/README.md` → *Start* exactly.
@@ -241,6 +248,13 @@ for f in glob.glob("course/*.md"):
 print(bad or "links ok")
 PY
 ```
+
+## 7a. Compare with the previous run
+
+If `$PREV` exists, add a **Since last run** section to the report: for every block id in both
+`observations.jsonl` files, list result changes (e.g. `W1.S3.c1 BROKEN → MATCH`), findings from
+`$PREV/report.md`'s resolution table that are marked fixed but still reproduce (**regressions —
+P0**), and new findings. Spend and wall time side by side.
 
 ## 8. Known context (don't re-report as new)
 
