@@ -21,21 +21,37 @@ import json
 import os
 import signal
 import sys
+import time
 from pathlib import Path
+from typing import Any
 
 from ai_team.config.demo_input import load_demo_input, resolve_team_profile
 
 # Default wall-clock budget for a single demo run. The pipeline has no internal
 # watchdog, so a hung LLM/tool call can otherwise block indefinitely.
 DEFAULT_TIMEOUT_S = 900
+# After the first alarm, how long the run gets to unwind before the process exits hard.
+TIMEOUT_GRACE_S = 30
+
+_RUN_CONTEXT: dict[str, Any] = {}
 
 
-class DemoTimeoutError(Exception):
-    """Raised when a demo run exceeds the wall-clock budget."""
+class DemoTimeoutError(BaseException):
+    """Raised when a demo run exceeds the wall-clock budget.
+
+    Subclasses ``BaseException`` (like ``BudgetExceededError``) so the phase and subgraph
+    ``except Exception`` handlers cannot swallow it and retry — they did, and a 900 s
+    watchdog let a LangGraph run go on for 1,600 s (2026-09-13) and past 15 min (2026-09-16).
+    """
 
 
 def _install_timeout(seconds: int) -> bool:
-    """Arm a SIGALRM watchdog that raises DemoTimeoutError. Returns True if armed.
+    """Arm a two-stage SIGALRM watchdog. Returns True if armed.
+
+    Stage 1 raises :class:`DemoTimeoutError` so the run can unwind. If the process is still
+    alive ``TIMEOUT_GRACE_S`` later (a handler swallowed it, or the main thread is blocked),
+    stage 2 finalizes the run record as ``timeout`` and hard-exits with 124, so a timed-out
+    run cannot keep spending.
 
     SIGALRM is Unix-only and only fires on the main thread; both hold here
     (run_demo.py runs the flow synchronously on the main thread). On platforms
@@ -43,9 +59,22 @@ def _install_timeout(seconds: int) -> bool:
     """
     if seconds <= 0 or not hasattr(signal, "SIGALRM"):
         return False
+    fired = {"n": 0}
 
     def _handler(_signum: int, _frame: object) -> None:
-        raise DemoTimeoutError(f"Run exceeded {seconds}s wall-clock budget")
+        fired["n"] += 1
+        if fired["n"] == 1:
+            signal.alarm(TIMEOUT_GRACE_S)
+            raise DemoTimeoutError(f"Run exceeded {seconds}s wall-clock budget")
+        print(
+            f"Error: run still alive {TIMEOUT_GRACE_S}s after the {seconds}s watchdog; "
+            "exiting hard.",
+            file=sys.stderr,
+        )
+        _finalize_run("timeout")
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(124)
 
     signal.signal(signal.SIGALRM, _handler)
     signal.alarm(seconds)
@@ -56,6 +85,43 @@ def _cancel_timeout() -> None:
     """Disarm the SIGALRM watchdog if armed."""
     if hasattr(signal, "SIGALRM"):
         signal.alarm(0)
+
+
+def _finalize_run(status: str) -> None:
+    """Close the run record this invocation created (best-effort, never raises).
+
+    CLI runs never called ``ResultsBundle.finalize()``, so their ``run.json`` kept
+    ``completed_at: null`` and no spend row — two thirds of the corpus on 2026-09-16.
+    Picks run folders created after this process started whose record is still open
+    (a backend that finalizes itself, like the Claude SDK, is left alone).
+    """
+    if _RUN_CONTEXT.get("finalized"):
+        return
+    _RUN_CONTEXT["finalized"] = True
+    try:
+        from ai_team.config.settings import get_settings
+        from ai_team.core.results.writer import RUNS_SUBDIR, ResultsBundle
+        from ai_team.core.spend_guard import current_spend
+
+        started = float(_RUN_CONTEXT.get("started", 0.0))
+        runs = Path(get_settings().project.output_dir) / RUNS_SUBDIR
+        for run_dir in sorted(runs.glob("*/run.json"), key=lambda p: p.stat().st_mtime):
+            if run_dir.stat().st_mtime < started:
+                continue
+            data = json.loads(run_dir.read_text(encoding="utf-8"))
+            if data.get("completed_at"):
+                continue
+            run_id = run_dir.parent.name
+            spend = current_spend(run_id=run_id)
+            if not spend.get("calls"):
+                spend = current_spend()
+            ResultsBundle(run_id).finalize(
+                final_status=status,
+                spend=dict(spend) if spend.get("calls") else None,
+                backend=_RUN_CONTEXT.get("backend"),
+            )
+    except Exception as e:  # noqa: BLE001 - finalizing must never mask the run's outcome
+        print(f"Warning: could not finalize run record: {e}", file=sys.stderr)
 
 
 def _repo_root() -> Path:
@@ -228,6 +294,7 @@ def main() -> int:
     project_name = args.project_name or demo_dir.name
     monitor = TeamMonitor(project_name=project_name) if use_tui else None
 
+    _RUN_CONTEXT.update(started=time.time() - 1, backend=args.backend)
     armed = _install_timeout(args.timeout)
     if armed:
         print(f"Watchdog armed: {args.timeout}s wall-clock budget.", file=sys.stderr)
@@ -248,10 +315,16 @@ def main() -> int:
                 skip_estimate=args.skip_estimate,
                 graph_mode=args.graph_mode,
             )
+        _cancel_timeout()
+        ok = _run_success(result)
+        phase = str((result.get("state") or {}).get("current_phase") or "")
+        _finalize_run("complete" if ok else (phase if phase == "awaiting_human" else "failed"))
         _print_error_summary(result, file=sys.stderr)
         print(json.dumps(result, indent=2, default=str))
-        return 0 if _run_success(result) else 1
+        return 0 if ok else 1
     except DemoTimeoutError as e:
+        _cancel_timeout()
+        _finalize_run("timeout")
         print(
             f"Error: {e}. The run was aborted by the watchdog "
             f"(--timeout {args.timeout}). Re-run with a larger --timeout, "
@@ -263,6 +336,8 @@ def main() -> int:
     except Exception as e:
         import traceback
 
+        _cancel_timeout()
+        _finalize_run("error")
         traceback.print_exc(file=sys.stderr)
         print(f"Error: {e}", file=sys.stderr)
         sys.stderr.flush()

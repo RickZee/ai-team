@@ -33,6 +33,7 @@ def _run_demo_main(argv: list[str]):
         run_demo = _load_run_demo_module()
         with (
             patch.object(run_demo, "_install_timeout", return_value=False),
+            patch.object(run_demo, "_finalize_run"),
             patch("sys.argv", argv),
             patch.dict("os.environ", {"AI_TEAM_ENV": "dev"}, clear=False),
         ):
@@ -107,3 +108,70 @@ class TestRunDemoLoadDescription:
         desc = load_project_description(demo_dir)
         assert "Flask" in desc
         assert "REST API" in desc
+
+
+class TestTimeoutAndFinalize:
+    """The watchdog must not be swallowable, and CLI runs must close their run record."""
+
+    def test_timeout_error_escapes_except_exception(self) -> None:
+        run_demo = _load_run_demo_module()
+        assert not issubclass(run_demo.DemoTimeoutError, Exception)
+        with pytest.raises(run_demo.DemoTimeoutError):
+            try:
+                raise run_demo.DemoTimeoutError("t")
+            except Exception:  # the pattern subgraphs use; must not catch it
+                pytest.fail("DemoTimeoutError was swallowed by except Exception")
+
+    @pytest.fixture()
+    def out_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        from ai_team.config.settings import reload_settings
+
+        monkeypatch.setenv("PROJECT_OUTPUT_DIR", str(tmp_path / "out"))
+        monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path / "ws"))
+        reload_settings()
+        yield tmp_path / "out"
+        monkeypatch.delenv("PROJECT_OUTPUT_DIR")
+        monkeypatch.delenv("PROJECT_WORKSPACE_DIR")
+        reload_settings()
+
+    @staticmethod
+    def _run_json(root: Path, run_id: str, **fields: object) -> Path:
+        import json
+
+        d = root / "runs" / run_id
+        d.mkdir(parents=True)
+        path = d / "run.json"
+        path.write_text(json.dumps({"project_id": run_id, **fields}), encoding="utf-8")
+        return path
+
+    def test_finalize_closes_only_this_invocations_open_record(self, out_root: Path) -> None:
+        import json
+        import os
+        import time
+
+        run_demo = _load_run_demo_module()
+        old = self._run_json(out_root, "old", completed_at=None)
+        os.utime(old, (time.time() - 3600, time.time() - 3600))
+        done = self._run_json(out_root, "done", completed_at="2026-09-16T00:00:00+00:00")
+        new = self._run_json(out_root, "new", completed_at=None)
+        run_demo._RUN_CONTEXT.update(started=time.time() - 60, backend="langgraph")
+
+        run_demo._finalize_run("timeout")
+
+        new_data = json.loads(new.read_text(encoding="utf-8"))
+        assert new_data["completed_at"]
+        assert new_data["extra"]["final_status"] == "timeout"
+        assert new_data["backend"] == "langgraph"
+        assert json.loads(old.read_text(encoding="utf-8"))["completed_at"] is None
+        assert json.loads(done.read_text(encoding="utf-8"))["completed_at"].startswith("2026-09-16")
+
+    def test_main_returns_124_and_finalizes_on_timeout(self) -> None:
+        run_demo = _load_run_demo_module()
+        with (
+            patch.object(run_demo, "_install_timeout", return_value=False),
+            patch.object(run_demo, "_finalize_run") as fin,
+            patch.object(run_demo, "_run_backend", side_effect=run_demo.DemoTimeoutError("t")),
+            patch("sys.argv", ["run_demo.py", "demos/00_smoke_test", "--backend", "langgraph"]),
+        ):
+            assert run_demo.main() == 124
+        fin.assert_called_once_with("timeout")

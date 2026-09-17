@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,9 +16,24 @@ PHASE_BUDGETS_USD: dict[str, float] = {
 }
 
 
+RUN_BUDGET_ENV = "AI_TEAM_RUN_BUDGET_USD"
+
+
 def default_total_budget_usd() -> float:
-    """Sum of default per-phase budgets (orchestrator ceiling)."""
-    return float(sum(PHASE_BUDGETS_USD.values()))
+    """Orchestrator ceiling: the per-phase budget sum, capped by ``AI_TEAM_RUN_BUDGET_USD``.
+
+    The other backends enforce ``AI_TEAM_RUN_BUDGET_USD`` through the spend guard; this
+    backend spends through the SDK, so the run cap has to reach the SDK's own budget or a
+    lab that says "capped at $1" runs with an $18 ceiling. Unset, empty, ``0`` or invalid
+    values keep the phase-sum default (``0`` means "no harness ceiling", as in the guard).
+    """
+    phase_sum = float(sum(PHASE_BUDGETS_USD.values()))
+    raw = (os.environ.get(RUN_BUDGET_ENV) or "").strip()
+    try:
+        cap = float(raw) if raw else 0.0
+    except ValueError:
+        return phase_sum
+    return min(cap, phase_sum) if cap > 0 else phase_sum
 
 
 def append_cost_log(

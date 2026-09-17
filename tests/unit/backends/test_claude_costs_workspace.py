@@ -44,3 +44,22 @@ def test_write_profile_claude_context_creates_file(tmp_path: Path) -> None:
     assert "p1" in text
     assert "qa_engineer" in text
     assert "pytest" in text
+
+
+def test_default_total_budget_respects_run_budget_env(monkeypatch) -> None:
+    """A lab that sets AI_TEAM_RUN_BUDGET_USD=1 must not run Claude with an $18 ceiling."""
+    from ai_team.backends.claude_agent_sdk_backend.costs import (
+        PHASE_BUDGETS_USD,
+        default_total_budget_usd,
+    )
+
+    phase_sum = float(sum(PHASE_BUDGETS_USD.values()))
+    monkeypatch.setenv("AI_TEAM_RUN_BUDGET_USD", "1")
+    assert default_total_budget_usd() == 1.0
+    monkeypatch.setenv("AI_TEAM_RUN_BUDGET_USD", "500")
+    assert default_total_budget_usd() == phase_sum
+    for value in ("0", "", "nope"):
+        monkeypatch.setenv("AI_TEAM_RUN_BUDGET_USD", value)
+        assert default_total_budget_usd() == phase_sum
+    monkeypatch.delenv("AI_TEAM_RUN_BUDGET_USD")
+    assert default_total_budget_usd() == phase_sum
