@@ -51,6 +51,10 @@ def _safe_intended_path(workspace: Path, intended_path: str) -> Path:
     raw = intended_path.strip()
     if not raw or ".." in Path(raw).parts or Path(raw).is_absolute():
         raise ValueError(f"Invalid draft path: {intended_path!r}")
+    if Path(raw).parts[0] == ".harness":
+        # Agents that see a draft ref sometimes try to write *to* it; harness files are
+        # never an agent's target.
+        raise ValueError(f"Invalid draft path (harness area): {intended_path!r}")
     dest = (workspace.resolve() / raw).resolve()
     try:
         dest.relative_to(workspace.resolve())
@@ -128,6 +132,69 @@ def commit_draft(workspace: Path, draft_id: str) -> str:
     (root / f"{draft_id}.{MANIFEST_NAME}").unlink(missing_ok=True)
     logger.info("draft_committed", draft_id=draft_id, path=record.intended_path)
     return record.intended_path
+
+
+def discard_draft(workspace: Path, draft_id: str) -> None:
+    """Remove a staged draft without committing it."""
+    root = _drafts_root(workspace)
+    (root / draft_id).unlink(missing_ok=True)
+    (root / f"{draft_id}.{MANIFEST_NAME}").unlink(missing_ok=True)
+
+
+def commit_pending_drafts(*, phase: str | None = None) -> CommitResult:
+    """Promote every staged draft in the active run workspace (harness-owned commit).
+
+    Draft-then-commit (seven-layer-harness R5.3) says drafts are promoted *after policy
+    checks*. No backend gave agents ``commit_write``, and nothing else called it, so from
+    2026-08-28 every agent write stayed a draft: tests were never collected and LangGraph /
+    CrewAI runs looped (found by the 2026-09-16 course test). Callers invoke this once a
+    phase's checks have passed. Each promotion goes through the bus as ``commit_write`` with
+    ``agent_role="_harness"``, so it is audited like any other write.
+
+    When one path was drafted several times, the newest draft wins and older ones are
+    discarded.
+    """
+    from ai_team.config.settings import get_workspace_dir
+    from ai_team.tools.bus import get_bus
+    from ai_team.tools.kinds import ToolObservation, ToolRequest
+
+    workspace = Path(get_workspace_dir())
+    latest: dict[str, DraftRecord] = {}
+    stale: list[DraftRecord] = []
+    for record in sorted(list_drafts(workspace), key=lambda r: r.created_at):
+        prev = latest.get(record.intended_path)
+        if prev is not None:
+            stale.append(prev)
+        latest[record.intended_path] = record
+
+    result = CommitResult(ok=True)
+    for record in stale:
+        discard_draft(workspace, record.draft_id)
+    for record in latest.values():
+        obs = get_bus().invoke(
+            ToolRequest(
+                tool="commit_write",
+                args={"draft_id": record.draft_id},
+                agent_role="_harness",
+                phase=phase,
+            )
+        )
+        assert isinstance(obs, ToolObservation)
+        if obs.ok:
+            result.committed.append(record.intended_path)
+        else:
+            result.ok = False
+            result.rejected.append(record.intended_path)
+            result.errors.append(obs.summary)
+    if result.committed or result.rejected:
+        logger.info(
+            "drafts_committed",
+            phase=phase,
+            committed=len(result.committed),
+            rejected=len(result.rejected),
+            superseded=len(stale),
+        )
+    return result
 
 
 def list_drafts(workspace: Path) -> list[DraftRecord]:

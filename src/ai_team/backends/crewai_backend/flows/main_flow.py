@@ -181,6 +181,20 @@ def _persist_state(state: ProjectState) -> None:
         logger.warning("state_persistence_failed", error=str(e))
 
 
+def _commit_phase_drafts(phase: str) -> None:
+    """Promote staged writes once a crew's task guardrails have passed (never raises).
+
+    Without this, testing finds an empty workspace: draft-then-commit had no committer
+    for CrewAI or LangGraph runs (2026-09-16 fix).
+    """
+    try:
+        from ai_team.tools.draft import commit_pending_drafts
+
+        commit_pending_drafts(phase=phase)
+    except Exception as e:  # noqa: BLE001 - a commit failure must not fail the phase
+        logger.warning("phase_draft_commit_failed", phase=phase, error=str(e))
+
+
 def _parse_planning_output(
     crew_result: Any,
 ) -> tuple[RequirementsDocument | None, ArchitectureDocument | None, bool]:
@@ -732,6 +746,7 @@ class AITeamFlow(Flow[ProjectState]):
                 b.write_code_manifest(entries)
             except Exception:
                 pass
+            _commit_phase_drafts("development")
             self.state.add_phase_transition(
                 ProjectPhase.DEVELOPMENT, ProjectPhase.TESTING, "Code generated"
             )

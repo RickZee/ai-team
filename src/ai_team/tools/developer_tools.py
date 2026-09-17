@@ -182,6 +182,10 @@ class FileWriterTool(BaseTool):
         # recover (e.g., move tests under tests/ rather than crashing the whole subgraph).
         try:
             safe_write_file(path, content)
+            from ai_team.tools.draft import draft_writes_enabled
+
+            if draft_writes_enabled():
+                return "OK (staged; saved to the workspace when this phase passes its checks)"
             return "OK"
         except Exception as e:
             logger.warning("file_writer_rejected", path=path, error=str(e))

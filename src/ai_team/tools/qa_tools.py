@@ -236,8 +236,17 @@ def lint_runner(path: str = ".") -> str:
 
 
 def get_qa_tools() -> list[Any]:
-    """Return the list of QA tools for the QA Engineer agent."""
+    """Return the list of QA tools for the QA Engineer agent.
+
+    ``file_writer`` is included because every QA prompt (``agents.yaml`` and the
+    LangGraph testing phase) tells the agent to write tests with it; without it the
+    model's calls failed with "file_writer is not a valid tool" (2026-09-17). It writes
+    through the ToolBus, so tests are drafted and committed like any other write.
+    """
+    from ai_team.tools.developer_tools import FileWriterTool
+
     return [
+        FileWriterTool(),
         test_generator,
         test_runner,
         coverage_analyzer,

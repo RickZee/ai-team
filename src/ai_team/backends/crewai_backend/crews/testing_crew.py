@@ -110,6 +110,16 @@ def _parse_code_files_from_task_raw(raw: str) -> list[CodeFile]:
     return files
 
 
+def _commit_drafts(phase: str) -> None:
+    """Promote staged writes so pytest sees them (draft-then-commit; never raises)."""
+    try:
+        from ai_team.tools.draft import commit_pending_drafts
+
+        commit_pending_drafts(phase=phase)
+    except Exception as exc:  # noqa: BLE001 - never break the testing crew on commit
+        logger.warning("testing_crew_draft_commit_failed", error=str(exc))
+
+
 def _persist_test_files_from_code_files(code_files: list[CodeFile]) -> int:
     """Write test files from Development Crew output before QA runs."""
     written = 0
@@ -127,6 +137,7 @@ def _persist_test_files_from_code_files(code_files: list[CodeFile]) -> int:
             )
     if written:
         logger.info("testing_crew_dev_tests_persisted", count=written)
+    _commit_drafts("testing")
     return written
 
 
@@ -143,6 +154,7 @@ def _persist_test_files_from_generation(raw: str) -> int:
             logger.warning("testing_crew_test_write_failed", path=cf.path, error=str(exc))
     if written:
         logger.info("testing_crew_tests_persisted", count=written)
+    _commit_drafts("testing")
     return written
 
 

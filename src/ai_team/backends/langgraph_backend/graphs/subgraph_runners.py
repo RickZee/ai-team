@@ -258,7 +258,7 @@ def _snapshot_workspace_files() -> list[dict[str, Any]]:
         return []
     out: list[dict[str, Any]] = []
     for fp in p.rglob("*"):
-        if fp.is_file():
+        if fp.is_file() and ".harness" not in fp.relative_to(p).parts:
             try:
                 rel = fp.relative_to(p).as_posix()
             except ValueError:
@@ -359,6 +359,19 @@ def _extract_and_write_code_blocks(messages: list[BaseMessage]) -> list[dict[str
     return written
 
 
+def _commit_phase_drafts(phase: str) -> None:
+    """Promote the phase's staged writes once its guardrails have passed (never raises)."""
+    from ai_team.tools.draft import commit_pending_drafts
+
+    try:
+        res = commit_pending_drafts(phase=phase)
+    except Exception as e:  # noqa: BLE001 - a commit failure must not crash the phase
+        logger.warning("phase_draft_commit_failed", phase=phase, error=str(e))
+        return
+    if res.rejected:
+        logger.warning("phase_draft_commit_rejected", phase=phase, errors=res.errors[:5])
+
+
 def _guardrail_error_dict(out: dict[str, Any], phase: str) -> dict[str, Any] | None:
     if not out.get("guardrail_terminal"):
         return None
@@ -417,6 +430,7 @@ def planning_subgraph_node(
             "errors": [ge],
             "current_phase": "planning",
         }
+    _commit_phase_drafts("planning")
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
     extracted_req: dict[str, Any] = {}
@@ -509,6 +523,7 @@ def development_subgraph_node(
             "errors": [ge],
             "current_phase": "development",
         }
+    _commit_phase_drafts("development")
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
     # Always attempt prose-block salvage from the dev delta — not only when the
@@ -600,6 +615,7 @@ def testing_subgraph_node(
             "errors": [ge],
             "current_phase": "testing",
         }
+    _commit_phase_drafts("testing")
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
     # Salvage: if the QA model emitted test code as markdown prose instead of
@@ -636,6 +652,7 @@ def testing_subgraph_node(
             )
             ge2 = _guardrail_error_dict(out2, "testing")
             if not ge2:
+                _commit_phase_drafts("testing")
                 out2_msgs = [m for m in (out2.get("messages") or []) if isinstance(m, BaseMessage)]
                 delta = _message_delta(seed, out2_msgs)
                 if not _workspace_has_tests():
@@ -694,6 +711,7 @@ def deployment_subgraph_node(
             "errors": [ge],
             "current_phase": "deployment",
         }
+    _commit_phase_drafts("deployment")
     out_msgs = [m for m in (out.get("messages") or []) if isinstance(m, BaseMessage)]
     delta = _message_delta(seed, out_msgs)
     return {

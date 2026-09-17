@@ -109,10 +109,11 @@ class TestLintRunner:
 
 
 class TestGetQaTools:
-    def test_returns_five_named_tools(self) -> None:
+    def test_returns_six_named_tools(self) -> None:
         tools = get_qa_tools()
-        assert len(tools) == 5
+        assert len(tools) == 6
         expected = [
+            "file_writer",
             "Generate and persist a test file from path and content",
             "Run pytest in a directory or on specific paths",
             "Run coverage (pytest-cov) and return line/branch report",

@@ -207,7 +207,7 @@ class ToolBus:
         return _observation(
             ok=True,
             code="drafted",
-            summary=f"Drafted {path}; call commit_write to promote.",
+            summary=f"Drafted {path}; the harness saves it when this phase passes its checks.",
             tool=spec.name,
             kind="write",
             risk_class=spec.risk_class,
