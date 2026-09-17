@@ -15,7 +15,8 @@ green? And what would green mean?
 
 ```bash
 uv run python -m evals.cli run --tier A --warn-only --out course/.work/tier-a
-head -3 course/.work/tier-a/summary.txt
+head -1 course/.work/tier-a/summary.txt
+grep layer course/.work/tier-a/summary.txt
 ```
 
 **Observe.** Two seconds, zero dollars, no network. On 2026-09-16:
@@ -76,8 +77,8 @@ sed -n 1,40p evals/checks/spend.py
 
 ## Step 4 — Write your own check (60 min)
 
-**Predict.** A check that fails any trace with no spans. Out of your ~330 real traces, how many
-will fail it?
+**Predict.** A check that fails any trace with no spans. Out of the traces you built in week 3,
+how many will fail it?
 
 **Write** `evals/checks/mine.py` — the check that would have caught week 3 on day one:
 
@@ -130,7 +131,7 @@ uv run python -m evals.cli baseline accept --tier A --reason "add CHK-trace-has-
   --report course/.work/tier-a/report.json
 git commit -am "Accept Tier A baseline with CHK-trace-has-spans"
 uv run pytest tests/unit/repo -q           # the repo-wide guards agree
-head -3 course/.work/tier-a/summary.txt                                        # FIXTURE-ONLY
+head -1 course/.work/tier-a/summary.txt                                        # FIXTURE-ONLY
 uv run python -m evals.cli coverage liveness --traces-root course/.work/traces \
   --out course/.work/liveness.md && grep trace-has-spans course/.work/liveness.md   # CORPUS
 ```
@@ -144,8 +145,10 @@ the `baseline accept` command above — it stamps your own commit, so it can't b
 - In Tier A your check now **fails on other checks' fixtures**, because many of them have no
   spans. Tier A runs every check over every fixture — one more reason its total `fail`
   count tells you little.
-- On this repo's 334 real traces it fails **236**. That's your first `CORPUS` number — and it
-  measures the instrument, not the agents. That's fine. Instrument first.
+- On your own corpus it fails every trace with no spans. On a fresh clone that's a handful
+  of traces (n≈5 after weeks 1–2: say so when you quote it); on the maintainer's 334 traces it
+  failed **236**. Either way that's your first `CORPUS` number — and it measures the
+  instrument, not the agents. That's fine. Instrument first.
 
 ![Your first check, and what it found](./images/check-code.png)
 

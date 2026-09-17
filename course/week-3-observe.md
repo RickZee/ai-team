@@ -38,14 +38,13 @@ uv run python -m evals.cli index rebuild  --traces-root course/.work/t-default
 uv run python -m evals.cli index stats    --traces-root course/.work/t-default
 ```
 
-**Observe.** On the maintainer's checkout (hundreds of runs):
+**Observe.** It depends on what you ran in weeks 1–2:
 
-```
-backend   scenario   status   n
-unknown   unknown    failed   50
-```
-
-On a fresh clone with one dry run, the same shape with `n = 1`.
+| You ran | What the default finds |
+| --- | --- |
+| only dry runs | one trace per run, `unknown · failed`, **zero spans** |
+| real runs too | a few traces, *some* spans (the agents' own logs), still `unknown` backend |
+| the maintainer's ~340 runs | `unknown · failed · 50` (with `--limit 50`), zero spans |
 
 Now count spans:
 
@@ -53,16 +52,17 @@ Now count spans:
 grep -ho '"span_id"' course/.work/t-default/*.json | wc -l
 ```
 
-Zero.
+Zero if you only did dry runs; a handful if you did real ones.
 
-**Explain.** Look at the backfill defaults: `grep -n "workspace-root" evals/cli.py`. It reads
+**Explain.** Either way, look at the backfill defaults: `grep -n "workspace-root" evals/cli.py`. It reads
 `./workspace` — the **code the agents wrote** — not `output/runs/`, where the harness keeps
 its records. You saw both folders in week 1.
 
 ![Two trees, one reader: the corpus builder read the wrong folder](../docs/images/eval-two-trees.svg)
 
-One default argument. Two folders. No test between them. Nothing errors; the corpus just
-comes back empty.
+One default argument. Two folders. No test between them. Nothing errors; the corpus comes
+back empty (dry runs) or **mislabelled** (real runs) — and no row says which framework ran,
+because the harness's run record isn't in that folder.
 
 ## Step 2 — Point it at the right folder (15 min)
 
@@ -101,8 +101,8 @@ The command created its trace builder with `backend="crewai"` and never read the
 Read the fix — it's small:
 
 ```bash
-git log --oneline -- evals/trace/builder.py | head -3
-git show <that commit> -- evals/trace/builder.py evals/cli.py
+FIX=$(git log --format=%h -1 --grep="read backend, status and clock" -- evals/trace/builder.py)
+git show $FIX -- evals/trace/builder.py evals/cli.py
 ```
 
 Two things changed, and both are worth copying into your own tools:
@@ -178,7 +178,7 @@ calm while deciding almost nothing. More on that in week 5.
 **Run.**
 
 ```bash
-grep -rn "phases.jsonl" src/ai_team --include=*.py
+grep -rn --include='*.py' "phases.jsonl" src/ai_team
 ```
 
 **Observe.** One line is in `agents/prompts.py`:

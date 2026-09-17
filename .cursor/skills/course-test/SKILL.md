@@ -56,7 +56,16 @@ and say so.
    find, and record that too. Never silently "correct" a command.
 5. **Week 5 step 4 changes code.** Do it on a throwaway branch in the test checkout
    (`git checkout -b course-test/w5`), run it fully, then leave it there — never merge it.
-6. **Time-box.** No single command over 15 minutes (use `timeout 900`). A hang is a finding.
+6. **Time-box with `course/testing/run_step.py`, never plain `timeout`** (macOS has none, and
+   killing only the shell leaves `run_demo.py` children running and spending). It runs the
+   command in the learner's shell (`$SHELL`, zsh on macOS), kills the whole process group at
+   the limit, and lists leftover course processes in `<log>.meta`. Any leftover is a **P0**
+   finding and must be killed before you continue. A hang is a finding too.
+
+   ```bash
+   python3 course/testing/run_step.py --cwd "$TEST" --timeout 900 \
+     --log "$REPORT/logs/W1.S3.c1.txt" -- '<the command exactly as the page shows it>'
+   ```
 
 ## 2a. Spend plan
 
@@ -70,15 +79,20 @@ Run the paid steps in this order, and only while `remaining ≥ projected + $0.5
 | --- | --- | --- | --- | --- |
 | 1 | W1.S3 | one LangGraph run | ~$0.05 | ~$0.05 |
 | 2 | W2.S1 | one run each: langgraph, crewai, claude-agent-sdk | ~$1.10 | ~$1.15 |
-| 3 | W6.S3 c1 | `run_smoke_batch.py --n 5` (15 runs, 5 on Claude) | ~$4.50 | ~$5.65 |
-| 4 | W6.S3 c1b | `run_smoke_batch.py --n 5 --team smoke-claude` (15 Claude runs) | ~$12 | **over** |
+| 3 | W6.S3 (optional) | `run_smoke_batch.py --n 3 --backends langgraph` | pennies, ~1 h | ~$1.20 |
+| 4 | W6.S3 (optional) | `run_smoke_batch.py --n 3 --team smoke-claude` (9 Claude runs) | ~$9 | **over** |
+
+The Claude SDK backend does **not** read `AI_TEAM_RUN_BUDGET_USD` unless the fix from
+2026-09-16 is in your checkout (`grep -n AI_TEAM_RUN_BUDGET_USD
+src/ai_team/backends/claude_agent_sdk_backend/backend.py`); without it, a Claude run's ceiling
+is the backend's own ~$18. Budget Claude runs at $1 each regardless.
 
 Week 6 asks the learner to fix something first. You don't change system code, so run the
 batches as a **baseline** and say so; you're testing that the commands work and that their
 output supports the step's *Explain* (intervals, overlap), not that a fix worked.
 
-Step 4 doesn't fit $10 as written. Run it as `--n 1` (~$3) and record the result as
-`DEVIATION-BUDGET` with the exact command you ran; do not scale up to spend what's left.
+Step 4 doesn't fit $10. Run it as `--n 1` (~$3) only if time allows, and record the result
+as `DEVIATION-BUDGET` with the exact command you ran; do not scale up to spend what's left.
 With a smaller budget, stop at the last row that fits and mark the rest `SKIPPED-PAID`
 with their projected cost.
 
@@ -95,6 +109,11 @@ Rules for every paid command:
   run hits the $1 lab cap, that is a **P1 finding** against the labs' cap, not a reason to
   raise it.
 - Report total spend, spend per step, and projected vs actual in the report header.
+- Week 6's live batches are optional in the lab (the replay is the default). Run them only if
+  the budget and a 2-hour time box allow; otherwise `SKIPPED-PAID` with the projection.
+- Before writing the report, check nothing is still running:
+  `ps -axo pid,etime,command | grep -E 'run_demo|run_smoke_batch|ai-team-web' | grep -v grep`.
+  Kill leftovers and record them.
 
 ## 3. Prepare
 
@@ -132,8 +151,8 @@ Work through the steps from the plan in order. For every step:
 2. **Predict** — if the step has a *Predict* beat, write down the answer a newcomer would
    plausibly give, *before* running. This tests whether the prediction is answerable and
    whether the lesson lands.
-3. **Run** each runnable block verbatim. Save output to `$REPORT/logs/<block-id>.txt`
-   (`cmd 2>&1 | tee …`). Record exit code and wall time.
+3. **Run** each runnable block verbatim through `run_step.py` (rule 6), log to
+   `$REPORT/logs/<block-id>.txt`. Exit code and wall time land in `<log>.meta`.
 4. **Compare** with the step's *Observe* section and assign one result per block:
 
    | Result | Meaning |

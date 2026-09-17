@@ -64,7 +64,8 @@ Open `evals/ui/workbench.html` in a browser (it's one local file — no server) 
 Most traces are thin (week 3), so keep the raw record open next to the workbench:
 
 ```bash
-ID=<run id from the trace>        # e.g. 2026-09-13_182650_write-a-single-python-module_01
+# the run folder for the trace you're reading (the workbench shows its workspace path)
+ID=$(ls -t output/runs | head -1)   # newest run; replace with the one you're reading
 python3 -m json.tool output/runs/$ID/run.json
 grep -E '"(current_phase|retry_count|errors)"' output/runs/$ID/state.json
 ls output/runs/$ID/logs workspace/$ID
@@ -84,7 +85,9 @@ with your prediction.
 **Run.**
 
 ```bash
-uv run python -m evals.cli annotate --sample $SAMPLE --batch-file ~/Downloads/annotations.jsonl \
+NOTES=~/Downloads/annotations.jsonl       # wherever your browser saved the export
+ls -l $NOTES || echo "export your notes from the workbench first"
+uv run python -m evals.cli annotate --sample $SAMPLE --batch-file $NOTES \
   --traces-root course/.work/traces --samples-root course/.work/samples \
   --annotations-root course/.work/annotations
 uv run python -m evals.cli taxonomy propose --from-annotations \

@@ -14,7 +14,7 @@ parameters, and send. Or write your own task, for example:
 | --- | --- |
 | `scope` | `all`, `week-3`, or one step like `W3.S2` |
 | `mode` | `stranger` = fresh clone, no data, no keys (the real test) · `maintainer` = this checkout and its runs |
-| `budget_usd` | `/test-course` defaults to **$10**; `0` skips the paid steps. $10 covers weeks 1–2 and the first week 6 batch; the Claude-only batch runs at `--n 1` (spend plan: skill §2a) |
+| `budget_usd` | `/test-course` defaults to **$10**; `0` skips the paid steps. $10 covers weeks 1–2 and an optional small week 6 batch (spend plan: skill §2a) |
 | `fix` | `yes` applies documentation fixes for P0/P1 findings on a branch, after the report |
 
 The full procedure the agent follows is [`.cursor/skills/course-test/SKILL.md`](../../.cursor/skills/course-test/SKILL.md).
@@ -39,6 +39,13 @@ come from [`extract_steps.py`](./extract_steps.py).
   tools work, with notes marked `SIMULATED`.
 - Edit the course, unless you pass `fix: yes` — and then only documentation, on a branch,
   never pushed.
+
+## Helpers
+
+| File | Does |
+| --- | --- |
+| [`extract_steps.py`](./extract_steps.py) | Lists steps with stable ids and missing beats |
+| [`run_step.py`](./run_step.py) | Runs one lab command in the learner's shell with a real time limit; kills the whole process group and reports leftovers (macOS has no `timeout`) |
 
 ## Quick structural check (no agent)
 

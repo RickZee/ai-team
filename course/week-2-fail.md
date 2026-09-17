@@ -8,10 +8,16 @@ model, framework, harness or provider — next to every failure.
 
 ## Step 1 — The race (30 min)
 
+**Optional, and slower than it looks.** On a fresh clone (2026-09-16) only the Claude SDK run
+finished (170 s, $0.71); LangGraph and CrewAI were still going at 15 minutes. If you skip
+this step, do step 2 — it's the same brief, fully recorded, and it's where the lesson is.
+
 **Predict.** Same brief, same tools, same guardrails. Which framework finishes fastest? Which
 one fails? Write it down.
 
-**Run** — one line per backend you have a key for:
+**Run** — one line per backend you have a key for. Same **stop rule** as week 1: Ctrl-C at
+minute 15, then `ps aux | grep run_demo` and kill leftovers. Note: the `$1` cap is enforced by
+the harness for LangGraph and CrewAI; Claude runs cost ≈ $0.50–$1.
 
 ```bash
 for B in langgraph crewai claude-agent-sdk; do

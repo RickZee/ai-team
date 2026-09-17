@@ -2,7 +2,7 @@
 
 **By the end:** you've closed the loop once — one failure fixed, re-run, and reported as a
 number that carries its corpus kind and its `n` — and you have a cadence to keep it honest.
-**Time:** ~3 hours · **Cost:** ≈ $1–5 · [← Course home](./README.md)
+**Time:** ~3 hours with the replay (live batches: an evening) · **Cost:** $0 with the replay · [← Course home](./README.md)
 
 ---
 
@@ -17,7 +17,7 @@ From your week 4 categories, choose one that is **frequent**, **detectable by co
 
 | Failure | Where you saw it | Kind of fix |
 | --- | --- | --- |
-| Run records never get an end time on command-line runs | week 1, `finalize()` | instrument |
+| LangGraph runs write no phase or cost log | weeks 1 and 3, `logs/` | instrument |
 | The trace builder labels every run `crewai` | week 3, `evals/cli.py` | instrument |
 | The guardrail scores chat history, not files | week 2, `guardrail_hooks.py` | system |
 | Every testing error routes back to development | week 2, `routing.py` | system |
@@ -34,7 +34,8 @@ unsure, start with one of those.
 ```bash
 uv run python -m evals.cli trace backfill --workspace-root output/runs --traces-root course/.work/traces
 uv run python -m evals.cli coverage liveness --traces-root course/.work/traces --out course/.work/before.md
-grep "<your check id>" course/.work/before.md
+CHECK=CHK-trace-has-spans          # your check's id from week 5
+grep "$CHECK" course/.work/before.md
 ```
 
 **Observe.** Write the baseline as one line: **`CORPUS`, n = ___, failing = ___.**
@@ -47,14 +48,25 @@ Make the change, then run the tests:
 uv run pytest tests/unit -q
 ```
 
-Produce fresh evidence — more than one run:
+Now you need fresh evidence — more than one run. First see what a batch report looks like,
+for free, from a recorded batch:
 
 ```bash
-uv run python scripts/run_smoke_batch.py --n 5                      # 5 runs per backend
-uv run python scripts/run_smoke_batch.py --n 5 --team smoke-claude  # same model on every backend
+uv run python scripts/run_smoke_batch.py --replay example_mixed_model_n5
 ```
 
-The second command holds the model constant, which is what makes a *framework* comparison
+It prints 5/5 vs 1/5 green, the 95% intervals, and "no significant difference at this n" —
+the whole point of step 4.
+
+**Optional — a real batch is an evening, not an afternoon.** Each run may take up to 15–30
+minutes, and Claude runs cost ≈ $0.50–$1 each:
+
+```bash
+uv run python scripts/run_smoke_batch.py --n 3 --backends langgraph           # pennies, ~1 hour
+uv run python scripts/run_smoke_batch.py --n 3 --team smoke-claude            # ≈ $10, hours
+```
+
+`--team smoke-claude` holds the model constant, which is what makes a *framework* comparison
 fair (week 2).
 
 Rebuild traces and measure again, writing to `after.md`.
@@ -120,7 +132,8 @@ which almost certainly has a week 3 problem nobody has looked for.
 Run the audit on **your own** logs without adopting this repo:
 
 ```bash
-python3 docs/course/minieval.py ingest --logs /path/to/your/runs --out ./traces
+RUNS=output/runs        # replace with the folder where your own system writes its runs
+python3 docs/course/minieval.py ingest --logs "$RUNS" --out ./traces
 python3 docs/course/minieval.py audit  --traces ./traces
 ```
 

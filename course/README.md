@@ -27,11 +27,11 @@ Then open [Week 1](./week-1-build.md).
 | Week | You will… | Cost |
 | --- | --- | --- |
 | **[1 · Build](./week-1-build.md)** | Meet the team, run it with the model switched off, then for real | $0, then cents |
-| **[2 · Fail](./week-2-fail.md)** | Give three frameworks the same brief; decide whose failure each one is | ≈ $1, or $0 with the recorded case |
+| **[2 · Fail](./week-2-fail.md)** | Give three frameworks the same brief; decide whose failure each one is | ≈ $1 live (optional), $0 with the recorded case |
 | **[3 · Observe](./week-3-observe.md)** | Find out whether your monitoring saw anything at all | $0 |
 | **[4 · Read](./week-4-read.md)** | Read thirty runs yourself — the step nobody does | $0, one afternoon |
 | **[5 · Evaluate](./week-5-evals.md)** | Learn what a green run proves, then write your own check | $0 |
-| **[6 · Improve](./week-6-improve.md)** | Fix one failure and prove it with a number that carries its `n` | ≈ $1–5 |
+| **[6 · Improve](./week-6-improve.md)** | Fix one failure and prove it with a number that carries its `n` | $0 with the recorded batch; live batches optional |
 
 About two hours a week. **Weeks 3–5 need no API key.**
 

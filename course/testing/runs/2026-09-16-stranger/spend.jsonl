@@ -1,0 +1,4 @@
+{"step": "W1.S3", "backend": "langgraph", "run_id": "2026-09-16_164248_write-a-single-python-module_01", "usd": null, "source": "missing", "note": "no state.json, no costs.jsonl; timeout 900 killed; projected 0.05 counted"}
+{"step": "W2.S1", "backend": "crewai", "run_id": "2026-09-16_165958_write-a-single-python-module_01", "usd": null, "source": "missing", "note": "timed_out 900s; phase=testing; tests/test_calc.py present; pytest collect error; projected ~0.05 counted"}
+{"step": "W2.S1", "backend": "claude-agent-sdk", "run_id": "2026-09-16_171549_write-a-single-python-module_01", "usd": 0.7095548, "source": "logs/costs.jsonl:spent_usd"}
+{"step": "W6.S3", "backend": "claude-agent-sdk", "run_id": "2026-09-16_172733_write-a-single-python-module_01", "usd": 0.8264011, "source": "smoke_batch.spent_usd", "n": 1, "deviation": "--n 1 --backends claude-agent-sdk (not --n 5)"}

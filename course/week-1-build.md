@@ -2,7 +2,7 @@
 
 **By the end:** you've run a nine-agent team twice — once with no model, once for real — and
 you know where everything it did was written down.
-**Time:** ~90 min · **Cost:** $0, then cents · [← Course home](./README.md)
+**Time:** ~90 min · **Cost:** $0, then cents (Claude runs ≈ $0.50–$1) · [← Course home](./README.md)
 
 ---
 
@@ -56,24 +56,27 @@ Fill in this card from what you see:
 
 On this repo it looked like this:
 
-![The run finished; the record says it never ended](./images/run-card.png)
+![The run finished; nothing recorded what happened](./images/run-card.png)
 
-**Explain.** The run finished — `state.json` says `complete` — but the run record never got an
-end time or a final status, and no phase, cost or audit log exists. Nothing errored.
+**Explain.** The run finished, and the record knows it ended — but `logs/` is empty. No phase
+log, no cost log, no audit log. Nothing errored.
 
-Every dashboard, eval and report reads the right-hand side. A run with no end time silently
-drops out of "average duration"; a run with no phase log gives every path-based check nothing
-to look at. **Missing data doesn't fail loudly. It makes every number above it a bit fictional.**
+Every dashboard, eval and report reads those logs. A run with no phase log gives every
+path-based check nothing to look at; a run with no cost log drops out of every spend chart.
+**Missing data doesn't fail loudly. It makes every number above it a bit fictional.**
 
-**Change.** Find out who is supposed to close the run record. The method is `finalize()`:
+**Change.** Until 2026-09-16 command-line runs didn't even record an end time — only the web
+server and the Claude SDK backend called `finalize()`. Find who calls it now, then count how
+many *old* records are still open:
 
 ```bash
-grep -rn "finalize(" src/ai_team scripts --include=*.py
+grep -rn --include='*.py' "finalize(" src/ai_team scripts
+python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('output/runs/*/run.json')]; print(sum(not x.get('completed_at') for x in r), 'of', len(r), 'records have no end time')"
 ```
 
-On this repo it's defined in `core/results/writer.py` and called from the web server and the
-Claude Agent SDK backend — **not** from the command-line path you just used. Which of your
-runs will ever get an end time? Keep the answer; it's a candidate fix for week 6.
+On the maintainer's checkout that printed **220 of 318**. Fixing the writer didn't repair
+history: every old record is still open, and anything that averages over them still
+inherits the gap. Keep that in mind for week 3.
 
 ## Step 3 — Run it for real (30 min, cents)
 
@@ -95,12 +98,20 @@ AI_TEAM_ENV=dev AI_TEAM_RUN_BUDGET_USD=1 \
 
 ```bash
 RUN=output/runs/$(cat output/latest); ID=$(cat output/latest)
-grep -E '"(current_phase|retry_count)"' $RUN/state.json | head
+ls $RUN                                   # is there a state.json at all?
+grep -E '"(current_phase|retry_count)"' $RUN/state.json 2>/dev/null || echo "no state.json"
 ls workspace/$ID
 ```
 
+**Stop rule.** If it's still running at **minute 15**, press **Ctrl-C** and check nothing is
+left behind: `ps aux | grep run_demo` (kill any leftovers — they keep spending). A hung run
+may have no `state.json` at all; that's a finding, write it on your card. Then use the
+recorded case in [week 2, step 2](./week-2-fail.md#step-2--study-a-recorded-failure-45-min-0),
+which is the same brief with every log kept.
+
 **Explain.** It may succeed, hang, or end asking a human for review. **All three are useful.**
-Don't re-run it yet — whatever happened is next week's material.
+Don't re-run it yet — whatever happened is next week's material. (On 2026-09-16 a fresh-clone
+LangGraph run had correct files within minutes and was still retrying a guardrail at 15.)
 
 ## Where things went
 
@@ -115,7 +126,7 @@ Remember this table. In week 3 it's the whole story.
 
 - [ ] Two filled-in cards: dry run and real run
 - [ ] One sentence on why the dry-run card is suspicious
-- [ ] Your answer to "which runs ever get an end time?"
+- [ ] How many of your run records have no end time, and why fixing the code didn't change that
 
 **For testers:** a dry run with the model mocked is a smoke test of your *test
 infrastructure*. Before trusting a report, check the harness wrote one.
