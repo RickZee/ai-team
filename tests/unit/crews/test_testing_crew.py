@@ -19,9 +19,14 @@ def _clear_pytest_registry() -> None:
 
 
 class TestPersistDevTestFiles:
-    def test_writes_root_level_test_to_tests_dir(
+    def test_writes_the_test_file_where_the_agent_asked(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """Root-level ``test_*.py`` used to be relocated into ``tests/``.
+
+        The relocation was silent and only happened on one of two write paths, so the
+        same suite landed twice and pytest hit an import-file mismatch (2026-09-17).
+        """
         monkeypatch.setenv("PROJECT_WORKSPACE_DIR", str(tmp_path))
         from ai_team.config.settings import reload_settings
 
@@ -44,7 +49,8 @@ class TestPersistDevTestFiles:
         ]
         count = tc._persist_test_files_from_code_files(files)
         assert count == 1
-        assert (tmp_path / "tests" / "test_calc.py").is_file()
+        assert (tmp_path / "test_calc.py").is_file()
+        assert not (tmp_path / "tests").exists()
 
 
 class TestOrchestratedPytestSalvage:

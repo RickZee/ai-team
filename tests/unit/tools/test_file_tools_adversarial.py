@@ -43,6 +43,9 @@ class TestFileToolsAdversarialTraversal:
 
 
 class TestFileToolsPytestGuard:
-    def test_write_relocates_root_level_test_py(self, tmp_workspace: Path) -> None:
+    def test_write_keeps_root_level_test_py_where_it_was_asked_for(
+        self, tmp_workspace: Path
+    ) -> None:
         write_file("test_collect_me.py", "# not a real test")
-        assert (tmp_workspace / "tests" / "test_collect_me.py").is_file()
+        assert (tmp_workspace / "test_collect_me.py").is_file()
+        assert not (tmp_workspace / "tests").exists()

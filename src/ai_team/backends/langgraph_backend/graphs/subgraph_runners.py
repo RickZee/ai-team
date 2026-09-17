@@ -192,6 +192,58 @@ def _ensure_workspace_conftest(root: Path) -> None:
     )
 
 
+# The per-run workspace lives *inside* the repo (``workspace/<run_id>/``). pytest
+# discovers its config file by walking up from the invocation directory, so without
+# an ini of its own the workspace run inherits this repo's ``[tool.pytest.ini_options]``
+# — including ``testpaths = ["tests"]``, which is resolved against ``--rootdir`` and
+# therefore points at ``workspace/<run_id>/tests``. An agent that writes a perfectly
+# good ``test_calc.py`` at the workspace root then gets "collected 0 items" (exit 5),
+# the gate reports ``passed=False``, and the graph burns a retry on correct code.
+# Give the workspace its own ini so the gate judges what the agent actually wrote.
+WORKSPACE_PYTEST_INI = """[pytest]
+testpaths = .
+norecursedirs = .* build dist node_modules __pycache__ .harness .venv venv
+addopts = -p no:cacheprovider
+"""
+
+
+def _ensure_workspace_pytest_ini(root: Path) -> Path:
+    """Write (once) a minimal pytest.ini so the workspace run ignores the repo's config."""
+    ini = root / "pytest.ini"
+    if not ini.exists():
+        ini.write_text(WORKSPACE_PYTEST_INI, encoding="utf-8")
+    return ini
+
+
+# Same reasoning for ruff: without a config of its own the workspace inherits ai-team's
+# house style (``select = [... "N", "UP", "B", "C4", "SIM"]``). On 2026-09-17 a generated
+# ``calc.py`` using ``Union[int, float]`` failed the gate on UP007 — a rule the brief never
+# mentioned, whose fix ruff considers unsafe (the alias is evaluated at runtime), and which
+# the agent could not watch itself fix, because its writes were pending drafts while its
+# ruff tool read the committed file. The workspace profile keeps the checks that catch real
+# defects (E/F/B) plus the hygiene ruff can fix on its own (I/W), and leaves style
+# modernization to the project that wants it.
+WORKSPACE_RUFF_TOML = """line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "W", "B"]
+ignore = ["E501"]
+"""
+
+# Everything in the profile above that ruff can fix on its own is fixed before the check,
+# so the gate fails only on things a human would also have to fix by hand.
+WORKSPACE_RUFF_AUTOFIX = ["E", "F", "I", "W", "B"]
+
+
+def _ensure_workspace_ruff_config(root: Path) -> Path:
+    """Write (once) a ruff.toml so the workspace is linted on its own terms."""
+    cfg = root / "ruff.toml"
+    if not cfg.exists():
+        cfg.write_text(WORKSPACE_RUFF_TOML, encoding="utf-8")
+    return cfg
+
+
 def _run_real_quality_gate() -> dict[str, Any]:
     """
     Run real lint + tests in the workspace and return a structured QA result.
@@ -201,14 +253,30 @@ def _run_real_quality_gate() -> dict[str, Any]:
     root = _workspace_root()
     # Write conftest.py to add workspace root to sys.path so tests can import src files
     _ensure_workspace_conftest(root)
-    # Auto-fix trivial style issues (imports, trailing newlines) before checking
+    # Auto-fix everything ruff can fix under the workspace profile before checking.
+    ruff_cfg = _ensure_workspace_ruff_config(root)
     _run_cmd(
-        ["ruff", "check", "--fix", "--select", "I,W292", "--preview", "."], timeout_s=30, cwd=root
+        [
+            "ruff",
+            "check",
+            "--fix",
+            "--config",
+            str(ruff_cfg),
+            "--select",
+            ",".join(WORKSPACE_RUFF_AUTOFIX),
+            "--preview",
+            ".",
+        ],
+        timeout_s=30,
+        cwd=root,
     )
-    ruff = _run_cmd(["ruff", "check", "."], timeout_s=60, cwd=root)
-    # Run pytest with --rootdir=workspace so it ignores the parent pyproject.toml
+    ruff = _run_cmd(["ruff", "check", "--config", str(ruff_cfg), "."], timeout_s=60, cwd=root)
+    # Run pytest against the workspace's own ini (``--rootdir`` alone does NOT stop
+    # config discovery) and pass "." explicitly, so tests are collected wherever the
+    # agent put them — root level or under tests/.
+    ini = _ensure_workspace_pytest_ini(root)
     pytest = _run_cmd(
-        ["pytest", "-q", f"--rootdir={root}", "--no-header", "--tb=short"],
+        ["pytest", "-q", "-c", str(ini), f"--rootdir={root}", "--no-header", "--tb=short", "."],
         timeout_s=300,
         cwd=root,
     )
@@ -226,7 +294,7 @@ def _run_real_quality_gate() -> dict[str, Any]:
         result["no_tests_collected"] = True
         result["reason"] = (
             "No tests were collected (pytest exit 5). QA must write test files "
-            "with file_writer (e.g. tests/test_*.py), not emit them as prose."
+            "with file_writer (e.g. test_*.py or tests/test_*.py), not emit them as prose."
         )
     return result
 
@@ -565,7 +633,7 @@ def testing_subgraph_node(
         "Generated files available for testing:\n"
         f"{json.dumps(files, default=str)[:12000]}\n\n"
         "Your task: write pytest tests for the project using file_writer tool. "
-        "Use read_file to inspect source files in the workspace. "
+        "Use the read-file tool to inspect source files in the workspace. "
         "Write each test file with file_writer (e.g. tests/test_main.py). "
         "Call file_writer — do not output test code as plain text."
     )

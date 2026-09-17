@@ -242,10 +242,13 @@ def get_qa_tools() -> list[Any]:
     LangGraph testing phase) tells the agent to write tests with it; without it the
     model's calls failed with "file_writer is not a valid tool" (2026-09-17). It writes
     through the ToolBus, so tests are drafted and committed like any other write.
+    ``read_file_tool`` is included for the same reason: the prompt tells QA to inspect the
+    source it is testing.
     """
     from ai_team.tools.developer_tools import FileWriterTool
+    from ai_team.tools.file_tools import read_file_tool
 
-    return [
+    tools: list[Any] = [
         FileWriterTool(),
         test_generator,
         test_runner,
@@ -253,3 +256,9 @@ def get_qa_tools() -> list[Any]:
         bug_reporter,
         lint_runner,
     ]
+    # QA was told to "inspect source files" but had no way to read one: on 2026-09-17 it
+    # called read_file three times, got "read_file is not a valid tool", and rewrote
+    # calc.py from memory instead. read_file_tool is None only when CrewAI is absent.
+    if read_file_tool is not None:
+        tools.append(read_file_tool)
+    return tools

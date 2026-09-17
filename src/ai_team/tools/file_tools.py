@@ -172,16 +172,6 @@ def _read_file_impl(path: str) -> str:
     return text
 
 
-def normalize_pytest_path(path: str) -> str:
-    """Relocate root-level ``test_*.py`` files into ``tests/`` for pytest discovery."""
-    if ".." in path:
-        return path
-    p = Path(path)
-    if p.suffix == ".py" and p.name.startswith("test_") and len(p.parts) == 1:
-        return str(Path("tests") / p.name)
-    return path
-
-
 def _write_file_impl(path: str, content: str) -> bool:
     """
     Write file with directory whitelist and dangerous-pattern scanning.
@@ -200,24 +190,14 @@ def _write_file_impl(path: str, content: str) -> bool:
     if dangerous:
         raise ValueError(f"Content contains dangerous pattern: {dangerous}")
     _scan_pii_warn(content)
-    path = normalize_pytest_path(path)
+    # NO SILENT RELOCATION. Until 2026-09-17 a root-level ``test_*.py`` was rewritten
+    # to ``tests/test_*.py`` here, while the draft/commit path wrote it where the agent
+    # asked. An agent following the smoke brief ("Output calc.py and test_calc.py only")
+    # therefore ended up with the same suite in two places, pytest hit an import-file
+    # mismatch on the duplicate module name, the quality gate failed, and the graph
+    # spent retries on correct code. The workspace now carries its own pytest.ini, so a
+    # root-level test file is collected where the agent put it. Write what was asked.
     resolved = _resolve_and_validate_path(path, allow_new_file=True)
-    # Prevent accidental creation of pytest-collected scratch files at workspace root.
-    # Root-level files named "test_*.py" will be collected by pytest and can break runs.
-    ws_root = Path(get_workspace_dir()).resolve()
-    try:
-        rel = resolved.relative_to(ws_root)
-    except ValueError:
-        rel = None
-    if (
-        rel is not None
-        and resolved.suffix == ".py"
-        and resolved.name.startswith("test_")
-        and len(rel.parts) == 1
-    ):
-        raise ValueError(
-            "Refusing to write root-level pytest file. Put tests under tests/ (e.g. tests/test_*.py)."
-        )
     if resolved.exists() and resolved.is_dir():
         _audit_log("write_file", str(resolved), False, "path is a directory")
         raise ValueError(f"Path is a directory: {resolved}")

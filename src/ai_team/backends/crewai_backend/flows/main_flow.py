@@ -57,7 +57,6 @@ from ai_team.core.run_naming import resolve_run_id
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.monitor import MonitorCallback, TeamMonitor
-from ai_team.tools.file_tools import normalize_pytest_path
 from ai_team.tools.file_tools import write_file as safe_write_file
 from crewai import Flow
 from crewai.flow.flow import listen, router, start
@@ -728,7 +727,7 @@ class AITeamFlow(Flow[ProjectState]):
                 entries = []
                 for cf in code_files:
                     try:
-                        safe_write_file(normalize_pytest_path(cf.path), cf.content)
+                        safe_write_file(cf.path, cf.content)
                     except Exception as write_err:
                         self.logger.warning(
                             "development_file_write_failed",

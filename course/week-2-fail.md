@@ -49,6 +49,12 @@ uv run ai-team-web &                                        # API on :8421
 ls -t output/runs | head -3          # your three newest run ids
 ```
 
+A failed row is a result, not a broken lab. On 2026-09-17 CrewAI ran this brief for 14 minutes
+and stopped on three deployment guardrail failures (`DeploymentConfig`: no Dockerfile, no
+CI/CD) without ever writing a test — the brief asks for two Python files, the prototype profile
+insists on a deployable service. Fill the row with what you see and move on; step 2 is the
+required path.
+
 ## Step 2 — Study a recorded failure (45 min, $0)
 
 No key? This step is for you too. It's the same brief, run on 2026-09-13, with every log kept:
@@ -116,11 +122,39 @@ uv run pytest tests/unit/backends/langgraph_backend/test_pipeline_writes_reach_d
 ```
 
 That last test runs the whole pipeline offline, drafts on, with scripted agents: it completes
-with passing tests and no retries. Both fixes are proven by tests and an offline run, not yet
-by a live one. Showing that with a number is week 6.
+with passing tests and no retries.
 
-> **The pattern:** fixing the loudest failure uncovers the quiet one behind it. And a test
-> suite that runs with a production switch flipped off is testing a different program.
+**Then a live run finished.** 2026-09-17: twelve and a half minutes, five cents, tests
+passing — the first LangGraph smoke in this repo's history to complete on its own. Read the
+next sentence before you celebrate. It retried the entire development phase **three times out
+of a maximum of three**, on code that was already correct on the first attempt. One more bad
+round and it would have been another failure.
+
+The log says why, and it is a third layer. The brief asks for `calc.py` and `test_calc.py`
+only. The agent wrote exactly that. The harness had **two write paths that disagreed**: one
+silently rewrote a root-level `test_calc.py` to `tests/test_calc.py`, the other wrote it where
+the agent asked. Both files existed, with the same module name, so pytest refused to collect
+either. The agent spent four rounds deleting a file it had never created. Its closing message:
+*"All 74 tests pass (37 from root `test_calc.py` + 37 from `tests/test_calc.py`)."*
+
+Two smaller ones underneath. The gate linted the generated project with **ai-team's own house
+style**, failing it on a rule the brief never mentioned. And the QA agent, whose prompt tells
+it to "inspect source files", had no tool that could read one — it called `read_file` three
+times, was told that is not a valid tool, and rewrote the source from memory.
+
+```bash
+PATHFIX=$(git log --format=%h -1 --grep="write what was asked")
+git show --stat $PATHFIX
+uv run pytest tests/unit/tools/test_write_path_fidelity.py -v
+```
+
+> **The pattern:** fixing the loudest failure uncovers the quiet one behind it. A test suite
+> that runs with a production switch flipped off is testing a different program. And a harness
+> that silently "helps" — relocating a file, renaming a path — makes the agent spend its turns
+> fighting a ghost.
+
+**One live run is not a rate.** n=1, and it used every retry it had. Turning that into a
+number with an interval is week 6.
 
 ## Step 3 — Whose failure is it? (30 min)
 

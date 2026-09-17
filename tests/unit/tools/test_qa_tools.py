@@ -109,9 +109,11 @@ class TestLintRunner:
 
 
 class TestGetQaTools:
-    def test_returns_six_named_tools(self) -> None:
+    def test_returns_seven_named_tools(self) -> None:
         tools = get_qa_tools()
-        assert len(tools) == 6
+        assert len(tools) == 7
+        # "Read file contents" closes the gap that had QA calling read_file and being
+        # told it is not a valid tool, then rewriting source from memory (2026-09-17).
         expected = [
             "file_writer",
             "Generate and persist a test file from path and content",
@@ -119,6 +121,7 @@ class TestGetQaTools:
             "Run coverage (pytest-cov) and return line/branch report",
             "Record a bug report with severity and reproduction steps",
             "Run linter (ruff) on a path and return issues",
+            "Read file contents",
         ]
         assert [t.name for t in tools] == expected
         assert all(callable(getattr(t, "run", None)) for t in tools)

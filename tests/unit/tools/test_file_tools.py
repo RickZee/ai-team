@@ -109,10 +109,12 @@ class TestWriteFile:
         assert write_file("new.txt", "content") is True
         assert (tmp_workspace / "new.txt").read_text() == "content"
 
-    def test_write_file_relocates_root_level_pytest_file(self, tmp_workspace):
+    def test_write_file_keeps_a_root_level_pytest_file_at_the_root(self, tmp_workspace):
+        # Until 2026-09-17 this was silently relocated into tests/, on one of two
+        # write paths, which duplicated the suite and broke pytest collection.
         assert write_file("test_scratch.py", "assert True\n") is True
-        assert (tmp_workspace / "tests" / "test_scratch.py").read_text() == "assert True\n"
-        assert not (tmp_workspace / "test_scratch.py").exists()
+        assert (tmp_workspace / "test_scratch.py").read_text() == "assert True\n"
+        assert not (tmp_workspace / "tests").exists()
 
     def test_write_file_path_traversal_rejected(self, tmp_workspace):
         with pytest.raises(ValueError, match="Path traversal"):

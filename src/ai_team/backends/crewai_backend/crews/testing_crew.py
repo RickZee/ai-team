@@ -23,7 +23,6 @@ from ai_team.config.llm_factory import get_embedder_config
 from ai_team.config.settings import get_settings
 from ai_team.models.development import CodeFile
 from ai_team.models.qa_models import CodeReviewReport
-from ai_team.tools.file_tools import normalize_pytest_path
 from ai_team.tools.file_tools import write_file as safe_write_file
 from ai_team.tools.test_tools import (
     TestRunResult,
@@ -127,7 +126,7 @@ def _persist_test_files_from_code_files(code_files: list[CodeFile]) -> int:
         if "test" not in cf.path.lower():
             continue
         try:
-            safe_write_file(normalize_pytest_path(cf.path), cf.content)
+            safe_write_file(cf.path, cf.content)
             written += 1
         except Exception as exc:
             logger.warning(
@@ -148,7 +147,7 @@ def _persist_test_files_from_generation(raw: str) -> int:
         if "test" not in cf.path.lower():
             continue
         try:
-            safe_write_file(normalize_pytest_path(cf.path), cf.content)
+            safe_write_file(cf.path, cf.content)
             written += 1
         except Exception as exc:
             logger.warning("testing_crew_test_write_failed", path=cf.path, error=str(exc))
