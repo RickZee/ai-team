@@ -1,0 +1,3 @@
+{"step": "W1.S3", "backend": "langgraph", "run_id": "2026-09-16_200333_write-a-single-python-module_01", "usd": null, "source": "missing", "note": "timed_out 900s; no state.json/costs.jsonl; loop-fix: 0 behavioral fail; nested workspace false; completed_at null; projected 0.05 counted"}
+{"step": "W2.S1", "backend": "crewai", "run_id": "2026-09-16_201959_write-a-single-python-module_01", "usd": null, "source": "missing", "note": "exit 139 SIGSEGV in 110s during development crew; projected 0.05"}
+{"step": "W2.S1", "backend": "claude-agent-sdk", "run_id": "2026-09-16_202210_write-a-single-python-module_01", "usd": 0.7548889999999998, "source": "logs/costs.jsonl:spent_usd", "max_budget_usd_log": 1.0}

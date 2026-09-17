@@ -102,7 +102,25 @@ old scoring failing correct test code at 8%:
 uv run pytest tests/unit/backends/langgraph_backend/test_guardrail_loop_regression.py -v
 ```
 
-The fix is proven by unit tests, not yet by live runs. Showing it with a number is week 6.
+**Then the next layer showed up.** The first live run after that fix had no guardrail
+failures — and still didn't finish in 15 minutes. The log showed why: every file the agents
+wrote was only a *draft* ("call commit_write to promote"), and no agent was ever given
+`commit_write`. Nothing was saved, so pytest never saw a test. On top of that, the QA agent's
+prompt told it to use `file_writer`, a tool it didn't have. The unit tests never noticed,
+because the test setup switches drafts off.
+
+```bash
+DRAFTFIX=$(git log --format=%h -1 --grep="save agent writes")
+git show --stat $DRAFTFIX
+uv run pytest tests/unit/backends/langgraph_backend/test_pipeline_writes_reach_disk.py -v
+```
+
+That last test runs the whole pipeline offline, drafts on, with scripted agents: it completes
+with passing tests and no retries. Both fixes are proven by tests and an offline run, not yet
+by a live one. Showing that with a number is week 6.
+
+> **The pattern:** fixing the loudest failure uncovers the quiet one behind it. And a test
+> suite that runs with a production switch flipped off is testing a different program.
 
 ## Step 3 — Whose failure is it? (30 min)
 

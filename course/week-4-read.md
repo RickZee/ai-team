@@ -86,10 +86,13 @@ with your prediction.
 
 ```bash
 NOTES=~/Downloads/annotations.jsonl       # wherever your browser saved the export
-ls -l $NOTES || echo "export your notes from the workbench first"
-uv run python -m evals.cli annotate --sample $SAMPLE --batch-file $NOTES \
-  --traces-root course/.work/traces --samples-root course/.work/samples \
-  --annotations-root course/.work/annotations
+if [ -f "$NOTES" ]; then
+  uv run python -m evals.cli annotate --sample $SAMPLE --batch-file "$NOTES" \
+    --traces-root course/.work/traces --samples-root course/.work/samples \
+    --annotations-root course/.work/annotations
+else
+  echo "No export at $NOTES — export your notes from the workbench first"
+fi
 uv run python -m evals.cli taxonomy propose --from-annotations \
   --annotations-root course/.work/annotations
 ```

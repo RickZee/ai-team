@@ -59,11 +59,14 @@ and say so.
 6. **Time-box with `course/testing/run_step.py`, never plain `timeout`** (macOS has none, and
    killing only the shell leaves `run_demo.py` children running and spending). It runs the
    command in the learner's shell (`$SHELL`, zsh on macOS), kills the whole process group at
-   the limit, and lists leftover course processes in `<log>.meta`. Any leftover is a **P0**
+   the limit, and lists leftover course processes in `<log>.meta`. For a lab command that
+   sets its own `--timeout N`, give `run_step.py` **N + 60** (the default 960 covers
+   `--timeout 900`), so you observe whether the harness watchdog stops the run — record
+   `exit=124` from the run itself vs. `timed_out=True` from `run_step.py` separately. Any leftover is a **P0**
    finding and must be killed before you continue. A hang is a finding too.
 
    ```bash
-   python3 course/testing/run_step.py --cwd "$TEST" --timeout 900 \
+   python3 course/testing/run_step.py --cwd "$TEST" --timeout 960 \
      --log "$REPORT/logs/W1.S3.c1.txt" -- '<the command exactly as the page shows it>'
    ```
 

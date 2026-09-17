@@ -24,8 +24,10 @@ From your week 4 categories, choose one that is **frequent**, **detectable by co
 **Instrument fixes** don't make the agents better; they make every later number true. If
 unsure, start with one of those.
 
-**Or prove someone else's fix.** The LangGraph guardrail loop from week 2 was fixed on
-2026-09-16 with unit tests only. Nobody has shown with live runs that it's gone. "Before" is
+**Or prove someone else's fix.** The LangGraph loop from week 2 had two layers — the
+guardrail (fixed 2026-09-16) and agent files that were never saved (fixed 2026-09-17). Both
+are proven by tests and an offline end-to-end run. Nobody has shown with live runs that a
+LangGraph run now finishes. "Before" is
 the recorded case (and any LangGraph runs in your history from before that date); "after" is
 fresh runs. That's a complete week 6 on its own — and the honest answer may be "not enough
 runs to say".

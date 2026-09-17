@@ -17,6 +17,7 @@ Exit code 124 means the limit was hit. Standard library only.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import signal
 import subprocess
@@ -47,20 +48,65 @@ def _leftovers() -> list[str]:
     ]
 
 
-def _kill_group(pid: int) -> None:
-    for sig in (signal.SIGTERM, signal.SIGKILL):
+def _descendants(pid: int) -> list[int]:
+    """PIDs of every process below *pid* (children first-found order)."""
+    try:
+        out = subprocess.run(
+            ["ps", "-axo", "pid=,ppid="], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return []
+    children: dict[int, list[int]] = {}
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            children.setdefault(int(parts[1]), []).append(int(parts[0]))
+    found: list[int] = []
+    stack = [pid]
+    while stack:
+        for child in children.get(stack.pop(), []):
+            found.append(child)
+            stack.append(child)
+    return found
+
+
+def _signal(pid: int, sig: int) -> None:
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.kill(pid, sig)
+
+
+def _kill_tree(pid: int) -> list[str]:
+    """Stop *pid* and everything under it. Returns notes for the meta file.
+
+    Tries the process group first; macOS can refuse ``killpg`` with EPERM (seen
+    2026-09-16), so it always also walks the process tree and signals each PID.
+    """
+    notes: list[str] = []
+    for sig, wait in ((signal.SIGTERM, 8), (signal.SIGKILL, 1)):
+        tree = _descendants(pid)
         try:
             os.killpg(pid, sig)
         except ProcessLookupError:
-            return
-        time.sleep(8 if sig == signal.SIGTERM else 1)
+            pass
+        except PermissionError as e:
+            notes.append(f"killpg {sig.name} refused ({e}); signalled the tree instead")
+        for child in [*tree, pid]:
+            _signal(child, sig)
+        time.sleep(wait)
+    return notes
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--cwd", required=True, help="the test checkout")
     ap.add_argument("--log", required=True, help="where to write combined output")
-    ap.add_argument("--timeout", type=int, default=900, help="seconds (default 900)")
+    ap.add_argument(
+        "--timeout",
+        type=int,
+        default=960,
+        help="seconds (default 960: a lab's own --timeout 900 plus a minute, so the "
+        "harness watchdog gets to act first)",
+    )
     ap.add_argument(
         "--shell",
         default=os.environ.get("SHELL", "/bin/bash"),
@@ -74,6 +120,8 @@ def main() -> None:
     log.parent.mkdir(parents=True, exist_ok=True)
     start = time.time()
     timed_out = False
+    notes: list[str] = []
+    rc = -1
     with log.open("w", encoding="utf-8") as f:
         f.write(f"$ {cmd}\n")
         f.flush()
@@ -88,12 +136,20 @@ def main() -> None:
             rc = proc.wait(timeout=args.timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
-            _kill_group(proc.pid)
-            proc.wait()
+            try:
+                notes = _kill_tree(proc.pid)
+                proc.wait(timeout=10)
+            except Exception as e:  # noqa: BLE001 - the meta file must still be written
+                notes.append(f"kill failed: {e!r}")
             rc = 124
+        except BaseException as e:  # noqa: BLE001 - e.g. Ctrl-C: record, then re-raise
+            notes.append(f"interrupted: {e!r}")
+            _kill_tree(proc.pid)
+            raise
     seconds = round(time.time() - start, 1)
     left = _leftovers()
     meta = [f"exit={rc}", f"seconds={seconds}", f"timed_out={timed_out}", f"shell={args.shell}"]
+    meta.extend(f"note={n}" for n in notes)
     if left:
         meta.append("LEFTOVER PROCESSES (still running, may be spending):")
         meta.extend(left)
