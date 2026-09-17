@@ -14,11 +14,20 @@ A third class is process-global state. ``reset_bus(empty=True)`` and
 ``reload_settings()`` leak into later tests under a shuffled run — file-tool
 tests then fail with ``Unknown tool: read_file``. The per-test teardown below
 puts the bus catalog and the settings cache back.
+
+A fourth, found on 2026-09-17: tests that build a ``ResultsBundle`` wrote real run
+directories into the repo's own ``output/runs/``. That folder is the corpus the eval
+harness and the course's week 6 audit read, so a learner who ran ``pytest tests/unit``
+before the audit ingested 14 runs instead of the 5 they had made — a corpus nobody
+curated, which is exactly what week 3 warns about. ``_isolate_run_output`` below points
+the whole suite at a temp directory and fails the session if anything lands in the real
+one anyway.
 """
 
 from __future__ import annotations
 
 import hashlib
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -71,6 +80,40 @@ def _tracked_inputs_stay_immutable() -> Iterator[None]:
         + "; ".join(problems)
         + ". Redirect the write to tmp_path (monkeypatch the module's directory constant, "
         "e.g. evals.alignment.ALIGNMENT_DIR and VALIDATION_LOG) rather than relaxing this guard."
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_run_output(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """Send every run artifact the suite produces to a temp dir, not the repo's corpus.
+
+    ``PROJECT_OUTPUT_DIR`` is read through ``ProjectSettings``, and the per-test
+    ``reload_settings()`` teardown re-reads the environment, so setting it once here holds
+    for the whole session. A test that needs its own output root still monkeypatches it.
+    """
+    real_runs = REPO_ROOT / "output" / "runs"
+    before = {p.name for p in real_runs.iterdir()} if real_runs.is_dir() else set()
+
+    previous = os.environ.get("PROJECT_OUTPUT_DIR")
+    os.environ["PROJECT_OUTPUT_DIR"] = str(tmp_path_factory.mktemp("run-output"))
+    from ai_team.config.settings import reload_settings
+
+    reload_settings()
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("PROJECT_OUTPUT_DIR", None)
+        else:
+            os.environ["PROJECT_OUTPUT_DIR"] = previous
+        reload_settings()
+
+    after = {p.name for p in real_runs.iterdir()} if real_runs.is_dir() else set()
+    leaked = sorted(after - before)
+    assert not leaked, (
+        "the test suite wrote run directories into the repo's output/runs: "
+        f"{leaked}. That folder is the eval corpus and the week 6 audit reads it. "
+        "Point the write at tmp_path instead of relaxing this guard."
     )
 
 

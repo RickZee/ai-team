@@ -1,0 +1,24 @@
+W1.S1   course/week-1-build.md:9    Meet the team (20 min)  [0 runnable]  missing beats: Predict, Run, Observe, Explain
+W1.S2   course/week-1-build.md:25   Run it with the model switched off (15 min, $0)  [3 runnable]
+W1.S3   course/week-1-build.md:81   Run it for real (30 min, cents)  [2 runnable]
+W2.S1   course/week-2-fail.md:9    The race (30 min)  [3 runnable]  missing beats: Explain
+W2.S2   course/week-2-fail.md:58   Study a recorded failure (45 min, $0)  [5 runnable]  missing beats: Run
+W2.S3   course/week-2-fail.md:159  Whose failure is it? (30 min)  [0 runnable]  missing beats: Predict, Run, Observe, Explain
+W2.S4   course/week-2-fail.md:177  Don't rank anything yet (15 min)  [0 runnable]  missing beats: Run
+W3.S1   course/week-3-observe.md:28   Build a corpus the default way (10 min)  [2 runnable]
+W3.S2   course/week-3-observe.md:67   Point it at the right folder (15 min)  [4 runnable]
+W3.S3   course/week-3-observe.md:129  Get a second opinion (15 min)  [1 runnable]
+W3.S4   course/week-3-observe.md:158  Which checks can see? (15 min)  [1 runnable]
+W3.S5   course/week-3-observe.md:176  Who writes the telemetry? (15 min)  [1 runnable]  missing beats: Predict
+W4.S1   course/week-4-read.md:36   Pick thirty (10 min)  [1 runnable]  missing beats: Observe, Explain
+W4.S2   course/week-4-read.md:62   Read (2–3 hours)  [1 runnable]  missing beats: Predict, Run, Explain
+W4.S3   course/week-4-read.md:83   Save and cluster (20 min)  [1 runnable]  missing beats: Predict
+W5.S1   course/week-5-evals.md:9    Run the suite (15 min)  [1 runnable]  missing beats: Explain
+W5.S2   course/week-5-evals.md:31   What did it pass against? (30 min)  [1 runnable]  missing beats: Predict
+W5.S3   course/week-5-evals.md:56   Checks before judges (20 min)  [1 runnable]  missing beats: Predict
+W5.S4   course/week-5-evals.md:78   Write your own check (60 min)  [1 runnable]  missing beats: Explain
+W6.S1   course/week-6-improve.md:13   Pick one failure (20 min)  [0 runnable]  missing beats: Predict, Run, Observe, Explain
+W6.S2   course/week-6-improve.md:36   Measure before you fix (30 min)  [1 runnable]  missing beats: Explain
+W6.S3   course/week-6-improve.md:51   Fix and re-run (90 min)  [3 runnable]  missing beats: Predict, Run, Observe, Explain
+W6.S4   course/week-6-improve.md:82   Say only what you can prove (30 min)  [1 runnable]  missing beats: Run
+W6.S5   course/week-6-improve.md:107  Keep watching (30 min)  [1 runnable]  missing beats: Predict, Run, Observe, Explain

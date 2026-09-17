@@ -489,6 +489,17 @@ class AITeamFlow(Flow[ProjectState]):
             estimated_cost_usd=estimated,
             actual_cost_usd=actual_cost,
         )
+        if actual_cost is not None:
+            # The guard only counts calls that pass through this process. Crews run under
+            # subprocess isolation, so without this the run record reported $0.000236 for a
+            # run that actually cost $0.0247 (2026-09-17).
+            from ai_team.core.spend_guard import reconcile_spend
+
+            reconcile_spend(
+                float(actual_cost),
+                source="crewai_token_tracker",
+                run_id=self.state.project_id,
+            )
         return result
 
     def _bundle(self) -> ResultsBundle:

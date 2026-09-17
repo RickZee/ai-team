@@ -73,6 +73,8 @@ class _SpendState:
     total_tokens: int = 0
     calls: int = 0
     run_id: str | None = None
+    reconciled_usd: float | None = None
+    reconciled_source: str | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -172,6 +174,39 @@ def record_usage(cost_usd: float, total_tokens: int = 0) -> None:
         )
 
 
+def reconcile_spend(cost_usd: float, *, source: str, run_id: str | None = None) -> None:
+    """Record a backend's own end-of-run total, which the guard could not see.
+
+    The guard counts what passes through this process's LLM callbacks. CrewAI runs its
+    crews under subprocess isolation, so on 2026-09-17 a run whose token tracker reported
+    ``$0.0247`` wrote ``spent_usd: 0.000236`` to ``logs/costs.jsonl`` — an 89x under-report
+    in the file the eval harness and the course read for "what did this cost".
+
+    This does **not** move the budget ceiling: the guard still enforces on what it observes
+    in-process, because a number that arrives after the run cannot stop it. It only makes
+    the reported total true, and says where it came from.
+    """
+    if cost_usd < 0:
+        return
+    if run_id is not None:
+        with _registry_lock:
+            state = _registry.get(run_id)
+    else:
+        state = _active_state()
+    if state is None:
+        return
+    with state._lock:
+        state.reconciled_usd = float(cost_usd)
+        state.reconciled_source = source
+    logger.info(
+        "spend_reconciled",
+        source=source,
+        reported_usd=round(cost_usd, 6),
+        observed_usd=round(state.spent_usd, 6),
+        run_id=state.run_id,
+    )
+
+
 def current_spend(run_id: str | None = None) -> dict[str, float | int | str | None]:
     """Snapshot of a run's spend.
 
@@ -193,10 +228,16 @@ def current_spend(run_id: str | None = None) -> dict[str, float | int | str | No
     else:
         state = _active_state()
     with state._lock:
-        return {
+        snapshot: dict[str, float | int | str | None] = {
             "budget_usd": state.budget_usd,
             "spent_usd": round(state.spent_usd, 6),
             "total_tokens": state.total_tokens,
             "calls": state.calls,
             "run_id": state.run_id,
+            "source": "spend_guard",
         }
+        if state.reconciled_usd is not None:
+            snapshot["spent_usd"] = round(state.reconciled_usd, 6)
+            snapshot["observed_usd"] = round(state.spent_usd, 6)
+            snapshot["source"] = state.reconciled_source
+    return snapshot

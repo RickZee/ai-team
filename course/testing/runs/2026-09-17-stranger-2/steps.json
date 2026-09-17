@@ -1,0 +1,582 @@
+[
+  {
+    "id": "W1.S1",
+    "file": "course/week-1-build.md",
+    "line": 9,
+    "title": "Meet the team (20 min)",
+    "beats": [],
+    "blocks": []
+  },
+  {
+    "id": "W1.S2",
+    "file": "course/week-1-build.md",
+    "line": 25,
+    "title": "Run it with the model switched off (15 min, $0)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W1.S2.c1",
+        "lang": "bash",
+        "line": 32,
+        "runnable": true,
+        "text": "OPENROUTER_API_KEY= ANTHROPIC_API_KEY= \\\n  uv run python scripts/run_demo.py demos/00_smoke_test \\\n  --backend langgraph --graph-mode placeholder --skip-estimate --timeout 120"
+      },
+      {
+        "id": "W1.S2.c2",
+        "lang": "bash",
+        "line": 40,
+        "runnable": true,
+        "text": "RUN=output/runs/$(cat output/latest)\nls $RUN $RUN/logs\npython3 -m json.tool $RUN/run.json\ngrep -m1 '\"current_phase\"' $RUN/state.json"
+      },
+      {
+        "id": "W1.S2.c3",
+        "lang": "bash",
+        "line": 72,
+        "runnable": true,
+        "text": "grep -rn --include='*.py' \"finalize(\" src/ai_team scripts\npython3 -c \"import json,glob; r=[json.load(open(f)) for f in glob.glob('output/runs/*/run.json')]; print(sum(not x.get('completed_at') for x in r), 'of', len(r), 'records have no end time')\""
+      }
+    ]
+  },
+  {
+    "id": "W1.S3",
+    "file": "course/week-1-build.md",
+    "line": 81,
+    "title": "Run it for real (30 min, cents)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe",
+      "Explain"
+    ],
+    "blocks": [
+      {
+        "id": "W1.S3.c1",
+        "lang": "bash",
+        "line": 90,
+        "runnable": true,
+        "text": "AI_TEAM_ENV=dev AI_TEAM_RUN_BUDGET_USD=1 \\\n  uv run python scripts/run_demo.py demos/00_smoke_test \\\n  --backend langgraph --skip-estimate --timeout 900"
+      },
+      {
+        "id": "W1.S3.c2",
+        "lang": "bash",
+        "line": 99,
+        "runnable": true,
+        "text": "RUN=output/runs/$(cat output/latest); ID=$(cat output/latest)\nls $RUN                                   # is there a state.json at all?\ngrep -E '\"(current_phase|retry_count)\"' $RUN/state.json 2>/dev/null || echo \"no state.json\"\nls workspace/$ID"
+      }
+    ]
+  },
+  {
+    "id": "W2.S1",
+    "file": "course/week-2-fail.md",
+    "line": 9,
+    "title": "The race (30 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe"
+    ],
+    "blocks": [
+      {
+        "id": "W2.S1.c1",
+        "lang": "bash",
+        "line": 23,
+        "runnable": true,
+        "text": "for B in langgraph crewai claude-agent-sdk; do\n  AI_TEAM_ENV=dev AI_TEAM_RUN_BUDGET_USD=1 \\\n    uv run python scripts/run_demo.py demos/00_smoke_test \\\n    --backend $B --skip-estimate --timeout 900\ndone"
+      },
+      {
+        "id": "W2.S1.c2",
+        "lang": "bash",
+        "line": 33,
+        "runnable": true,
+        "text": "uv run ai-team-web &                                        # API on :8421\n(cd src/ai_team/ui/web/frontend && npm install && npm run dev)  # open localhost:5173/compare"
+      },
+      {
+        "id": "W2.S1.c3",
+        "lang": "bash",
+        "line": 48,
+        "runnable": true,
+        "text": "ls -t output/runs | head -3          # your three newest run ids"
+      }
+    ]
+  },
+  {
+    "id": "W2.S2",
+    "file": "course/week-2-fail.md",
+    "line": 58,
+    "title": "Study a recorded failure (45 min, $0)",
+    "beats": [
+      "Predict",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W2.S2.c1",
+        "lang": "bash",
+        "line": 72,
+        "runnable": true,
+        "text": "ls docs/eval-runs/2026-09-13-langgraph-smoke/evidence/"
+      },
+      {
+        "id": "W2.S2.c2",
+        "lang": "bash",
+        "line": 88,
+        "runnable": true,
+        "text": "LOOPFIX=$(git log --format=%h -1 --grep=\"stop the LangGraph guardrail loop\")\ngit show --stat $LOOPFIX\ngit show $LOOPFIX -- src/ai_team/backends/langgraph_backend/graphs/guardrail_hooks.py src/ai_team/backends/langgraph_backend/graphs/routing.py"
+      },
+      {
+        "id": "W2.S2.c3",
+        "lang": "bash",
+        "line": 107,
+        "runnable": true,
+        "text": "uv run pytest tests/unit/backends/langgraph_backend/test_guardrail_loop_regression.py -v"
+      },
+      {
+        "id": "W2.S2.c4",
+        "lang": "bash",
+        "line": 118,
+        "runnable": true,
+        "text": "DRAFTFIX=$(git log --format=%h -1 --grep=\"save agent writes\")\ngit show --stat $DRAFTFIX\nuv run pytest tests/unit/backends/langgraph_backend/test_pipeline_writes_reach_disk.py -v"
+      },
+      {
+        "id": "W2.S2.c5",
+        "lang": "bash",
+        "line": 145,
+        "runnable": true,
+        "text": "PATHFIX=$(git log --format=%h -1 --grep=\"write what was asked\")\ngit show --stat $PATHFIX\nuv run pytest tests/unit/tools/test_write_path_fidelity.py -v"
+      }
+    ]
+  },
+  {
+    "id": "W2.S3",
+    "file": "course/week-2-fail.md",
+    "line": 159,
+    "title": "Whose failure is it? (30 min)",
+    "beats": [],
+    "blocks": []
+  },
+  {
+    "id": "W2.S4",
+    "file": "course/week-2-fail.md",
+    "line": 177,
+    "title": "Don't rank anything yet (15 min)",
+    "beats": [
+      "Predict",
+      "Observe",
+      "Explain"
+    ],
+    "blocks": []
+  },
+  {
+    "id": "W3.S1",
+    "file": "course/week-3-observe.md",
+    "line": 28,
+    "title": "Build a corpus the default way (10 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe",
+      "Explain"
+    ],
+    "blocks": [
+      {
+        "id": "W3.S1.c1",
+        "lang": "bash",
+        "line": 35,
+        "runnable": true,
+        "text": "uv run python -m evals.cli trace backfill --traces-root course/.work/t-default --limit 50\nuv run python -m evals.cli index rebuild  --traces-root course/.work/t-default\nuv run python -m evals.cli index stats    --traces-root course/.work/t-default"
+      },
+      {
+        "id": "W3.S1.c2",
+        "lang": "bash",
+        "line": 51,
+        "runnable": true,
+        "text": "grep -ho '\"span_id\"' course/.work/t-default/*.json | wc -l"
+      }
+    ]
+  },
+  {
+    "id": "W3.S2",
+    "file": "course/week-3-observe.md",
+    "line": 67,
+    "title": "Point it at the right folder (15 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W3.S2.c1",
+        "lang": "bash",
+        "line": 74,
+        "runnable": true,
+        "text": "uv run python -m evals.cli trace backfill --workspace-root output/runs --traces-root course/.work/traces\nuv run python -m evals.cli index rebuild --traces-root course/.work/traces\nuv run python -m evals.cli index stats   --traces-root course/.work/traces"
+      },
+      {
+        "id": "W3.S2.c2",
+        "lang": "text",
+        "line": 82,
+        "runnable": false,
+        "text": "backend            status     n\nlanggraph          complete   111\nlanggraph          failed     112\nunknown            complete    97\nunknown            failed      16\ncrewai             failed       1\nclaude-agent-sdk   complete     1"
+      },
+      {
+        "id": "W3.S2.c3",
+        "lang": "bash",
+        "line": 95,
+        "runnable": true,
+        "text": "ls -t course/.work/traces/*.json | head -1 | xargs python3 -m json.tool | grep -A8 '\"warnings\"'"
+      },
+      {
+        "id": "W3.S2.c4",
+        "lang": "bash",
+        "line": 103,
+        "runnable": true,
+        "text": "FIX=$(git log --format=%h -1 --grep=\"read backend, status and clock\" -- evals/trace/builder.py)\ngit show $FIX -- evals/trace/builder.py evals/cli.py"
+      },
+      {
+        "id": "W3.S2.c5",
+        "lang": "bash",
+        "line": 122,
+        "runnable": true,
+        "text": "uv run python -m evals.cli trace backfill --workspace-root output/runs --backend crewai \\\n  --traces-root course/.work/t-forced --limit 20\nuv run python -m evals.cli index rebuild --traces-root course/.work/t-forced\nuv run python -m evals.cli index stats   --traces-root course/.work/t-forced"
+      }
+    ]
+  },
+  {
+    "id": "W3.S3",
+    "file": "course/week-3-observe.md",
+    "line": 129,
+    "title": "Get a second opinion (15 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe",
+      "Explain"
+    ],
+    "blocks": [
+      {
+        "id": "W3.S3.c1",
+        "lang": "bash",
+        "line": 135,
+        "runnable": true,
+        "text": "uv run python docs/course/minieval.py ingest --logs output/runs --out course/.work/mini\nuv run python docs/course/minieval.py stats  --traces course/.work/mini"
+      },
+      {
+        "id": "W3.S3.c2",
+        "lang": "text",
+        "line": 142,
+        "runnable": false,
+        "text": "sources   {'langgraph': 219, 'unset': 113, 'crewai': 1, 'claude-agent-sdk': 1}\nstatuses  {'unknown': 236, 'complete': 98}\nfloors    all met"
+      }
+    ]
+  },
+  {
+    "id": "W3.S4",
+    "file": "course/week-3-observe.md",
+    "line": 158,
+    "title": "Which checks can see? (15 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe",
+      "Explain"
+    ],
+    "blocks": [
+      {
+        "id": "W3.S4.c1",
+        "lang": "bash",
+        "line": 165,
+        "runnable": true,
+        "text": "uv run python -m evals.cli coverage liveness --traces-root course/.work/traces --out course/.work/liveness.md\nhead -5 course/.work/liveness.md"
+      }
+    ]
+  },
+  {
+    "id": "W3.S5",
+    "file": "course/week-3-observe.md",
+    "line": 176,
+    "title": "Who writes the telemetry? (15 min)",
+    "beats": [
+      "Run",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W3.S5.c1",
+        "lang": "bash",
+        "line": 180,
+        "runnable": true,
+        "text": "grep -rn --include='*.py' \"phases.jsonl\" src/ai_team"
+      }
+    ]
+  },
+  {
+    "id": "W4.S1",
+    "file": "course/week-4-read.md",
+    "line": 36,
+    "title": "Pick thirty (10 min)",
+    "beats": [
+      "Predict",
+      "Run"
+    ],
+    "blocks": [
+      {
+        "id": "W4.S1.c1",
+        "lang": "bash",
+        "line": 49,
+        "runnable": true,
+        "text": "uv run python -m evals.cli sample --strategy stratified -n 30 --seed 1 \\\n  --traces-root course/.work/traces --samples-root course/.work/samples\nSAMPLE=$(ls -t course/.work/samples | head -1 | sed 's/\\.json$//'); echo $SAMPLE\n\nuv run python -m evals.cli annotate bundle --sample $SAMPLE --out course/.work/bundle.json \\\n  --traces-root course/.work/traces --samples-root course/.work/samples \\\n  --annotations-root course/.work/annotations"
+      }
+    ]
+  },
+  {
+    "id": "W4.S2",
+    "file": "course/week-4-read.md",
+    "line": 62,
+    "title": "Read (2\u20133 hours)",
+    "beats": [
+      "Observe"
+    ],
+    "blocks": [
+      {
+        "id": "W4.S2.c1",
+        "lang": "bash",
+        "line": 66,
+        "runnable": true,
+        "text": "# the run folder for the trace you're reading (the workbench shows its workspace path)\nID=$(ls -t output/runs | head -1)   # newest run; replace with the one you're reading\npython3 -m json.tool output/runs/$ID/run.json\ngrep -E '\"(current_phase|retry_count|errors)\"' output/runs/$ID/state.json\nls output/runs/$ID/logs workspace/$ID"
+      }
+    ]
+  },
+  {
+    "id": "W4.S3",
+    "file": "course/week-4-read.md",
+    "line": 83,
+    "title": "Save and cluster (20 min)",
+    "beats": [
+      "Run",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W4.S3.c1",
+        "lang": "bash",
+        "line": 87,
+        "runnable": true,
+        "text": "NOTES=~/Downloads/annotations.jsonl       # wherever your browser saved the export\nif [ -f \"$NOTES\" ]; then\n  uv run python -m evals.cli annotate --sample $SAMPLE --batch-file \"$NOTES\" \\\n    --traces-root course/.work/traces --samples-root course/.work/samples \\\n    --annotations-root course/.work/annotations\nelse\n  echo \"No export at $NOTES \u2014 export your notes from the workbench first\"\nfi\nuv run python -m evals.cli taxonomy propose --from-annotations \\\n  --annotations-root course/.work/annotations"
+      },
+      {
+        "id": "W4.S3.c2",
+        "lang": "text",
+        "line": 102,
+        "runnable": false,
+        "text": "canonical              n  in_tax  variants\nmislabeled_backend     2  no      mislabeled-backend"
+      }
+    ]
+  },
+  {
+    "id": "W5.S1",
+    "file": "course/week-5-evals.md",
+    "line": 9,
+    "title": "Run the suite (15 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe"
+    ],
+    "blocks": [
+      {
+        "id": "W5.S1.c1",
+        "lang": "bash",
+        "line": 16,
+        "runnable": true,
+        "text": "uv run python -m evals.cli run --tier A --warn-only --out course/.work/tier-a\nhead -1 course/.work/tier-a/summary.txt\ngrep layer course/.work/tier-a/summary.txt"
+      },
+      {
+        "id": "W5.S1.c2",
+        "lang": "text",
+        "line": 24,
+        "runnable": false,
+        "text": "eval[A] fail: FAIL \u2014 182 failed check(s) across suite\n  layer[harness] fails=102 0.479 (n=213, 95% CI [0.413, 0.546])"
+      }
+    ]
+  },
+  {
+    "id": "W5.S2",
+    "file": "course/week-5-evals.md",
+    "line": 31,
+    "title": "What did it pass against? (30 min)",
+    "beats": [
+      "Run",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W5.S2.c1",
+        "lang": "bash",
+        "line": 35,
+        "runnable": true,
+        "text": "ls evals/fixtures/traces | head\nls evals/fixtures/traces | wc -l"
+      }
+    ]
+  },
+  {
+    "id": "W5.S3",
+    "file": "course/week-5-evals.md",
+    "line": 56,
+    "title": "Checks before judges (20 min)",
+    "beats": [
+      "Run",
+      "Observe",
+      "Explain"
+    ],
+    "blocks": [
+      {
+        "id": "W5.S3.c1",
+        "lang": "bash",
+        "line": 68,
+        "runnable": true,
+        "text": "sed -n 1,40p evals/checks/spend.py"
+      }
+    ]
+  },
+  {
+    "id": "W5.S4",
+    "file": "course/week-5-evals.md",
+    "line": 78,
+    "title": "Write your own check (60 min)",
+    "beats": [
+      "Predict",
+      "Write",
+      "Run",
+      "Observe",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W5.S4.c1",
+        "lang": "python",
+        "line": 85,
+        "runnable": false,
+        "text": "\"\"\"My first check: does this trace contain anything a check can read?\"\"\"\n\nfrom __future__ import annotations\n\nfrom evals.checks.base import CheckResult, failed, na, passed\nfrom evals.checks.registry import check\nfrom evals.trace.models import Trace\n\n\n@check(id=\"CHK-trace-has-spans\", failure_mode_id=None, tier=\"A\")\ndef trace_has_spans(trace: Trace) -> CheckResult:\n    \"\"\"Fail when a trace has no spans: every other check will abstain on it.\"\"\"\n    cid = \"CHK-trace-has-spans\"\n    if trace.status == \"killed\":\n        return na(cid, trace, \"run was killed externally; missing spans are expected\")\n    if not trace.spans:\n        return failed(cid, trace, evidence_text=\"0 spans; nothing downstream can read this run\")\n    return passed(cid, trace, evidence_text=f\"{len(trace.spans)} spans\")"
+      },
+      {
+        "id": "W5.S4.c2",
+        "lang": "bash",
+        "line": 120,
+        "runnable": true,
+        "text": "# generate the fixtures from your builder, then copy them where Tier A reads them\nuv run python -c \"from tests.unit.evals.trace_fixtures import dump_all_fixtures; dump_all_fixtures()\"\ncp tests/fixtures/traces/CHK-trace-has-spans__*.json evals/fixtures/traces/\n\nuv run pytest tests/unit/evals -q          # the wiring is correct\n\n# record the check in the gate's baseline (refuses on a dirty tree, so commit first)\ngit checkout -b my-first-check && git add evals tests && git commit -m \"Add CHK-trace-has-spans\"\nuv run python -m evals.cli run --tier A --warn-only --out course/.work/tier-a\nuv run python -m evals.cli baseline accept --tier A --reason \"add CHK-trace-has-spans\" \\\n  --report course/.work/tier-a/report.json\ngit commit -am \"Accept Tier A baseline with CHK-trace-has-spans\"\nuv run pytest tests/unit/repo -q           # the repo-wide guards agree\nhead -1 course/.work/tier-a/summary.txt                                        # FIXTURE-ONLY\nuv run python -m evals.cli coverage liveness --traces-root course/.work/traces \\\n  --out course/.work/liveness.md && grep trace-has-spans course/.work/liveness.md   # CORPUS"
+      }
+    ]
+  },
+  {
+    "id": "W6.S1",
+    "file": "course/week-6-improve.md",
+    "line": 13,
+    "title": "Pick one failure (20 min)",
+    "beats": [],
+    "blocks": []
+  },
+  {
+    "id": "W6.S2",
+    "file": "course/week-6-improve.md",
+    "line": 36,
+    "title": "Measure before you fix (30 min)",
+    "beats": [
+      "Predict",
+      "Run",
+      "Observe"
+    ],
+    "blocks": [
+      {
+        "id": "W6.S2.c1",
+        "lang": "bash",
+        "line": 42,
+        "runnable": true,
+        "text": "uv run python -m evals.cli trace backfill --workspace-root output/runs --traces-root course/.work/traces\nuv run python -m evals.cli coverage liveness --traces-root course/.work/traces --out course/.work/before.md\nCHECK=CHK-trace-has-spans          # your check's id from week 5\ngrep \"$CHECK\" course/.work/before.md"
+      }
+    ]
+  },
+  {
+    "id": "W6.S3",
+    "file": "course/week-6-improve.md",
+    "line": 51,
+    "title": "Fix and re-run (90 min)",
+    "beats": [],
+    "blocks": [
+      {
+        "id": "W6.S3.c1",
+        "lang": "bash",
+        "line": 55,
+        "runnable": true,
+        "text": "uv run pytest tests/unit -q"
+      },
+      {
+        "id": "W6.S3.c2",
+        "lang": "bash",
+        "line": 62,
+        "runnable": true,
+        "text": "uv run python scripts/run_smoke_batch.py --replay example_mixed_model_n5"
+      },
+      {
+        "id": "W6.S3.c3",
+        "lang": "bash",
+        "line": 72,
+        "runnable": true,
+        "text": "uv run python scripts/run_smoke_batch.py --n 3 --backends langgraph           # pennies, ~1 hour\nuv run python scripts/run_smoke_batch.py --n 3 --team smoke-claude            # \u2248 $10, hours"
+      }
+    ]
+  },
+  {
+    "id": "W6.S4",
+    "file": "course/week-6-improve.md",
+    "line": 82,
+    "title": "Say only what you can prove (30 min)",
+    "beats": [
+      "Predict",
+      "Observe",
+      "Explain",
+      "Change"
+    ],
+    "blocks": [
+      {
+        "id": "W6.S4.c1",
+        "lang": "bash",
+        "line": 103,
+        "runnable": true,
+        "text": "uv run python -c \"from evals.reliability import wilson_ci; print(wilson_ci(0, 12))\"   # (0.0, 0.243)"
+      }
+    ]
+  },
+  {
+    "id": "W6.S5",
+    "file": "course/week-6-improve.md",
+    "line": 107,
+    "title": "Keep watching (30 min)",
+    "beats": [],
+    "blocks": [
+      {
+        "id": "W6.S5.c1",
+        "lang": "bash",
+        "line": 142,
+        "runnable": true,
+        "text": "ls output/runs          # your runs from weeks 1-2 \u2014 and anything the test suite left behind\nRUNS=output/runs        # replace with the folder where your own system writes its runs\npython3 docs/course/minieval.py ingest --logs \"$RUNS\" --out ./traces\npython3 docs/course/minieval.py audit  --traces ./traces"
+      }
+    ]
+  }
+]

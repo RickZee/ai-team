@@ -113,11 +113,14 @@ def _finalize_run(status: str) -> None:
                 continue
             run_id = run_dir.parent.name
             spend = current_spend(run_id=run_id)
-            if not spend.get("calls"):
+            if not spend.get("calls") and spend.get("observed_usd") is None:
                 spend = current_spend()
+            # A backend that reports its own total (CrewAI's token tracker) is worth
+            # writing even when this process's callbacks saw no calls at all.
+            has_spend = bool(spend.get("calls")) or spend.get("observed_usd") is not None
             ResultsBundle(run_id).finalize(
                 final_status=status,
-                spend=dict(spend) if spend.get("calls") else None,
+                spend=dict(spend) if has_spend else None,
                 backend=_RUN_CONTEXT.get("backend"),
             )
     except Exception as e:  # noqa: BLE001 - finalizing must never mask the run's outcome
@@ -150,6 +153,48 @@ def _print_error_summary(result: dict, *, file: object) -> None:
             lines.append(f"  ... and {len(errors) - 5} more.")
         lines.append("-------------------")
         print("\n".join(lines), file=file)
+
+
+KEY_VAR_FOR_BACKEND = {
+    "langgraph": "OPENROUTER_API_KEY",
+    "crewai": "OPENROUTER_API_KEY",
+    "claude-agent-sdk": "ANTHROPIC_API_KEY",
+}
+
+
+def _missing_api_key(backend: str, graph_mode: str) -> str | None:
+    """
+    Say plainly, before anything spends or stalls, that the run has no key.
+
+    An empty ``OPENROUTER_API_KEY=`` in the environment deliberately beats ``.env`` — that is
+    how the $0 placeholder run guarantees it cannot spend. But when the same empty value is
+    still around for a real run, the failure surfaces ~3 s in as litellm's "Missing
+    credentials ... set the OPENAI_API_KEY environment variable", naming a variable this
+    project does not use (2026-09-17, course/testing/runs/2026-09-17-stranger-2, F22).
+    Name the right variable, and say which of the two situations this is.
+    """
+    if graph_mode == "placeholder":
+        return None
+    var = KEY_VAR_FOR_BACKEND.get(backend)
+    if var is None:
+        return None
+    if os.environ.get(var):
+        return None
+    if var in os.environ:
+        return (
+            f"{var} is set but empty in this shell, which overrides .env and means "
+            f"'do not spend'. Run `unset {var}` and try again."
+        )
+    from ai_team.config.models import OpenRouterSettings
+
+    if var == "OPENROUTER_API_KEY" and OpenRouterSettings().openrouter_api_key:
+        return None
+    if var == "ANTHROPIC_API_KEY":
+        from ai_team.config.settings import get_settings
+
+        if getattr(get_settings().anthropic, "api_key", ""):
+            return None
+    return f"{var} is not set. Put it in .env or export it, or use --graph-mode placeholder."
 
 
 def _run_success(result: dict) -> bool:
@@ -287,6 +332,11 @@ def main() -> int:
         return 1
 
     os.environ["AI_TEAM_ENV"] = "dev"
+
+    key_problem = _missing_api_key(args.backend, args.graph_mode)
+    if key_problem:
+        print(f"Error: {key_problem}", file=sys.stderr)
+        return 1
 
     from ai_team.monitor import TeamMonitor
 

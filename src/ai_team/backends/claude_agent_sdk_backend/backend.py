@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -93,6 +94,7 @@ class ClaudeAgentBackend:
         workspace: Path,
         kwargs: dict[str, Any],
     ) -> ProjectResult:
+        started_at = datetime.now(UTC)
         ensure_workspace_layout(workspace, description)
         write_profile_claude_context(workspace, profile)
 
@@ -214,7 +216,7 @@ class ClaudeAgentBackend:
                 },
             )
 
-        self._write_results_bundle(workspace, profile, raw, success)
+        self._write_results_bundle(workspace, profile, raw, success, started_at=started_at)
 
         return ProjectResult(
             backend_name=self.name,
@@ -230,8 +232,14 @@ class ClaudeAgentBackend:
         profile: TeamProfile,
         raw: dict[str, Any],
         success: bool,
+        started_at: datetime | None = None,
     ) -> None:
         """Write the canonical output bundle for this run.
+
+        ``started_at`` matters: this bundle is written *after* the orchestrator returns, so
+        without it ``default_run_metadata`` stamps "now" and the record shows a 217-second
+        run as 6 milliseconds long (2026-09-17, R9). Anything reading run.json for duration
+        — the trace builder, the course's week 1 card — then reads a lie.
 
         The other backends write ``output/runs/<id>/`` through their flows;
         without this the SDK's runs are invisible to the disk registry and the
@@ -248,6 +256,7 @@ class ClaudeAgentBackend:
                     team_profile=profile.name,
                     env=None,
                     extra={"session_id": raw.get("session_id")},
+                    started_at=started_at,
                 )
             )
             b.write_state(
@@ -344,6 +353,7 @@ class ClaudeAgentBackend:
         workspace: Path,
         kwargs: dict[str, Any],
     ) -> AsyncIterator[dict[str, Any]]:
+        started_at = datetime.now(UTC)
         ensure_workspace_layout(workspace, description)
         write_profile_claude_context(workspace, profile)
         monitor = kwargs.get("monitor")
@@ -410,7 +420,11 @@ class ClaudeAgentBackend:
         raw = self._collect_raw(workspace, last)
         raw["team_profile"] = profile.name
         self._write_results_bundle(
-            workspace, profile, raw, success=last is not None and not last.is_error
+            workspace,
+            profile,
+            raw,
+            success=last is not None and not last.is_error,
+            started_at=started_at,
         )
         yield {
             "type": "run_finished",

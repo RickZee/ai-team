@@ -1,20 +1,24 @@
 # Week 2 · Fail — run it fresh, see it break
 
 **By the end:** you've watched the same brief break on different frameworks and put a layer —
-model, framework, harness or provider — next to every failure.
+model, framework, harness or provider — next to every failure. Most of the breaking now lives
+in the recorded case and the git history rather than in your own live run — which is what
+"we fixed it" is supposed to look like, and why every claim here carries its date and its `n`.
 **Time:** ~2 hours · **Cost:** ≈ $1 with keys, $0 with the recorded case · [← Course home](./README.md)
 
 ---
 
 ## Step 1 — The race (30 min)
 
-**Optional, and slower than it looks.** On a fresh clone (2026-09-16, before the loop fix in
-step 2) only the Claude SDK run finished (170 s, $0.71); LangGraph and CrewAI were still going
-at 15 minutes. If you skip
-this step, do step 2 — it's the same brief, fully recorded, and it's where the lesson is.
+**Optional, and it will probably work.** That is the point. Four days ago this step was the
+centrepiece: on a fresh clone (2026-09-16) only the Claude SDK run finished — 170 s, $0.71 —
+while LangGraph and CrewAI were still going at 15 minutes. Four harness fixes later, all three
+finish. You are running the *after*; step 2 is the *before*, fully recorded, and it is still
+where the lesson is. If you have no keys, skip straight there.
 
 **Predict.** Same brief, same tools, same guardrails. Which framework finishes fastest? Which
-one fails? Write it down.
+one fails? Write it down **before** you look at the table below — the interesting part is
+where your intuition about "fastest" is wrong.
 
 **Run** — one line per backend you have a key for. Same **stop rule** as week 1: Ctrl-C at
 minute 15, then `ps aux | grep run_demo` and kill leftovers. Note: the `$1` cap is enforced by
@@ -49,11 +53,19 @@ uv run ai-team-web &                                        # API on :8421
 ls -t output/runs | head -3          # your three newest run ids
 ```
 
-A failed row is a result, not a broken lab. On 2026-09-17 CrewAI ran this brief for 14 minutes
-and stopped on three deployment guardrail failures (`DeploymentConfig`: no Dockerfile, no
-CI/CD) without ever writing a test — the brief asks for two Python files, the prototype profile
-insists on a deployable service. Fill the row with what you see and move on; step 2 is the
-required path.
+**What this looked like on 2026-09-17**, same brief, same day, four commits apart:
+
+| | langgraph | crewai | claude-agent-sdk |
+| --- | --- | --- | --- |
+| Morning (`396a348`) | complete, 12.4 min, `$0.054`, **retry 3 of 3** | **failed** at 14 min on deployment guardrails, no tests | complete, 3.6 min, `$0.90` |
+| Evening (`8db7448`) | complete, **3.8 min**, `$0.008`, **retry 0** | complete, 9.8 min, 5 tests pass | complete, 3.8 min, `$0.86` |
+
+Two things to take from that. The morning LangGraph run *finished* and still burned every
+retry it had on code that was correct the first time — "it completed" is not the same as "it
+worked". And one fix moved two backends, because both shared the same piece of glue.
+
+A failed row is still a result, not a broken lab. Fill in what you actually see; your row may
+differ from both of these, and that is data.
 
 ## Step 2 — Study a recorded failure (45 min, $0)
 
@@ -124,7 +136,7 @@ uv run pytest tests/unit/backends/langgraph_backend/test_pipeline_writes_reach_d
 That last test runs the whole pipeline offline, drafts on, with scripted agents: it completes
 with passing tests and no retries.
 
-**Then a live run finished.** 2026-09-17: twelve and a half minutes, five cents, tests
+**Then a live run finished.** 2026-09-17 morning: twelve and a half minutes, five cents, tests
 passing — the first LangGraph smoke in this repo's history to complete on its own. Read the
 next sentence before you celebrate. It retried the entire development phase **three times out
 of a maximum of three**, on code that was already correct on the first attempt. One more bad
@@ -153,8 +165,13 @@ uv run pytest tests/unit/tools/test_write_path_fidelity.py -v
 > that silently "helps" — relocating a file, renaming a path — makes the agent spend its turns
 > fighting a ghost.
 
-**One live run is not a rate.** n=1, and it used every retry it had. Turning that into a
-number with an interval is week 6.
+Fixing those three took an afternoon. The same brief that evening: **3.8 minutes, $0.008,
+`retry_count: 0`**, two files at the paths the brief asked for — and CrewAI, which shared the
+same write path, went from failing at 14 minutes to passing in 9.8.
+
+**Two live runs are not a rate.** n=1 before, n=1 after. Every number in this section is a
+single observation, and the interval around a single observation is enormous. Turning "it's
+faster now" into a claim you could defend is week 6.
 
 ## Step 3 — Whose failure is it? (30 min)
 

@@ -27,7 +27,9 @@ team: architect → developer → QA.
 **Predict.** The pipeline will "run" with every model call stubbed. When it finishes, which
 of these will exist? An end time in the run record · a final status · a phase log · a cost log.
 
-**Run.** The empty key variables guarantee this can't spend, even if `.env` has keys.
+**Run.** The empty key variables guarantee this can't spend, even if `.env` has keys — an
+explicitly empty variable beats `.env` on purpose. Keep them on this one line: if you `export`
+them instead, the paid run in step 3 refuses to start until you `unset` them.
 
 ```bash
 OPENROUTER_API_KEY= ANTHROPIC_API_KEY= \
@@ -80,7 +82,9 @@ inherits the gap. Keep that in mind for week 3.
 
 ## Step 3 — Run it for real (30 min, cents)
 
-Needs `OPENROUTER_API_KEY` in `.env` (or `ANTHROPIC_API_KEY` for `claude-agent-sdk`).
+Needs `OPENROUTER_API_KEY` in `.env` (or `ANTHROPIC_API_KEY` for `claude-agent-sdk`). If the
+run stops immediately saying the variable is set but empty, that's step 2's safety catch still
+in your shell: `unset OPENROUTER_API_KEY ANTHROPIC_API_KEY` and run it again.
 
 **Predict.** The brief: *write `add(a, b)` and one pytest.* A single model call does this in
 about two seconds. How long will the team take? Will it pass?

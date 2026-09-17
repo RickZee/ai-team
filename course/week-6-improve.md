@@ -27,11 +27,19 @@ unsure, start with one of those.
 **Or prove someone else's fix.** The LangGraph loop from week 2 had four layers — the
 guardrail (2026-09-16), agent files that were never saved (2026-09-17), two write paths that
 disagreed about where a test file goes, and a gate that linted generated code by this repo's
-house style (both 2026-09-17). One live run has finished since: **n=1**, 12.4 min, `$0.05`,
-`retry_count=3` of a maximum of 3. That is a data point, not a rate, and the last two fixes
-have no live run behind them at all. "Before" is the recorded case (and any LangGraph runs in
-your history from before those dates); "after" is fresh runs. That's a complete week 6 on its
-own — and the honest answer may be "not enough runs to say".
+house style (both 2026-09-17). Here is every live LangGraph smoke on this brief since:
+
+| SHA | Wall | Spend | `retry_count` |
+| --- | --- | --- | --- |
+| `396a348` (after fix 2) | 741.8 s | `$0.054` | 3 of 3 |
+| `8db7448` (after fix 4) | 226.1 s | `$0.008` | 0 |
+
+That looks like a 3× speedup and a 6× cost drop. It is **n=1 against n=1**. Put those two
+numbers through step 4 below and see what the interval does to them — this is the cheapest
+possible demonstration of why a before/after with no `n` is not evidence. "Before" is the
+recorded case and any LangGraph runs in your history from before those dates; "after" is
+fresh runs you make yourself. That's a complete week 6 on its own — and the honest answer may
+be "not enough runs to say".
 
 ## Step 2 — Measure before you fix (30 min)
 
@@ -140,16 +148,17 @@ which almost certainly has a week 3 problem nobody has looked for.
 Run the audit on **your own** logs without adopting this repo:
 
 ```bash
-ls output/runs          # your runs from weeks 1-2 — and anything the test suite left behind
+ls output/runs          # your own runs — check this list before you trust the count
 RUNS=output/runs        # replace with the folder where your own system writes its runs
 python3 docs/course/minieval.py ingest --logs "$RUNS" --out ./traces
 python3 docs/course/minieval.py audit  --traces ./traces
 ```
 
-Check the count it ingests against the number of runs you actually made. If you ran
-`uv run pytest tests/unit` at step 3, this folder also holds throwaway runs the suite wrote
-(`h1`, `h2`, `can-2`, `desc_01`, …) and the audit will happily count them. A corpus you did
-not curate is the week 3 lesson arriving one more time.
+Check the number it ingests against the number of runs you actually made. Until 2026-09-17
+`uv run pytest tests/unit` wrote its own throwaway runs into this folder (`h1`, `h2`, `can-2`,
+`desc_01`, …) and the audit counted them: 14 traces for a learner who had made 5. The suite
+now writes to a temp directory and fails if anything lands here — but the habit is the lesson,
+not the fix. A corpus you did not curate is week 3 arriving one more time.
 
 One file, standard library, Python 3.11+. It answers what a tool can answer and says plainly
 which questions it can't — the ones you have to do yourself. (Remember week 3: check it

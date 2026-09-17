@@ -5,7 +5,8 @@
 **Preceded by** [2026-09-16 (course v2)](2026-09-16-course-v2.md) §8.
 
 Morning (§1–5): agent writes never reached the workspace. Afternoon (§6–9): the first live
-LangGraph run finished — and showed three more harness layers underneath.
+LangGraph run finished — and showed three more harness layers underneath. Evening (§10–12):
+those three fixed, verified live, and the reporting bugs behind the numbers closed.
 
 ## 1. Where it came from
 
@@ -146,22 +147,89 @@ Full `tests/unit`: 1649 passed. Ruff, format, mypy clean.
   the learner to `ls output/runs` first, because `pytest tests/unit` leaves throwaway runs
   there and the audit counted 13 instead of 4 (F17).
 
-## 9. Start next session with
+## 9. Evening — the fourth `/test-course` run
 
-1. **Live check on the Mac** (pennies), now the real one to run:
-   `AI_TEAM_ENV=dev AI_TEAM_RUN_BUDGET_USD=0.5 uv run python scripts/run_demo.py demos/00_smoke_test --backend langgraph --skip-estimate --timeout 900`
-   Expect `retry_count=0` or 1, one `test_calc.py` and no `tests/` directory, and a finish
-   well under 12 minutes. If `retry_count` is still 3, read the gate's `test_results`, not
-   the agent's summary.
-2. **Re-run `/test-course`** (stranger, $10) → `2026-09-18-stranger`, and get live `n` above 1.
-3. **F1 — the launch blocker:** push/merge `feat/course-v2` so `course/` exists on `main`.
-4. **R9:** Claude SDK `started_at` ≈ `completed_at` (6 ms apart on a 217 s run) — finalize
-   clock, not wall clock. **R8:** CrewAI `costs.jsonl` recorded `$0.000259` against an actual
-   `$0.0247` (~95× under). Reporting only — the spend guard uses in-memory LiteLLM costs.
-5. **Trace attribution:** agent-side `toolbus_span` rows carry
+`course/testing/runs/2026-09-17-stranger-2/` (`$0.89` of `$10`, ~50 min, SHA `8db7448`).
+**All three backends completed live in one session for the first time.**
+
+| | `396a348` (morning) | `8db7448` (evening) |
+| --- | --- | --- |
+| LangGraph | complete, 741.8 s, `$0.054`, retry **3 of 3** | complete, **226.1 s**, `$0.008`, retry **0** |
+| CrewAI | **failed** at 850 s on `DeploymentConfig` guardrails, no tests | complete, 588 s, 5 tests pass |
+| Claude SDK | complete, 217 s, `$0.899` | complete, 227 s, `$0.860` |
+
+Verified in `logs/W1.S3.c1-retry.txt`: `phase_history` is planning → development → testing
+(passed) → deployment with **no retry**; the workspace holds exactly `calc.py` and
+`test_calc.py` and **no `tests/` directory**; six paths in the inventory instead of sixty (the
+`.pytest_cache` noise went with `-p no:cacheprovider`); zero `read_file is not a valid tool`.
+
+CrewAI was fixed by the same commit, which was not predicted: it shared the
+`normalize_pytest_path` call site in `_persist_test_files_from_code_files`. So the sentence
+added that morning saying CrewAI may fail this brief was stale within eight hours — the third
+time in two days the course text went stale inside a day. That is now a stated property of the
+material, not an accident: every live number in weeks 2 and 6 carries its SHA and its `n`.
+
+## 10. Fix (evening)
+
+**F22 — the key preflight.** An empty `OPENROUTER_API_KEY` beats `.env` *on purpose*: that is
+how week 1's placeholder run guarantees `$0`. But when it was still in the shell for a paid
+run, the failure arrived ~3 s in as litellm's "Missing credentials … set the `OPENAI_API_KEY`
+environment variable" — a variable this project does not use. `run_demo._missing_api_key()`
+now refuses before anything starts and distinguishes the two cases: *set but empty in this
+shell* (→ `unset`) versus *not set anywhere* (→ put it in `.env`, or use
+`--graph-mode placeholder`). The empty-means-do-not-spend semantics are deliberately kept.
+
+**F17 — the audit corpus.** Tests that built a `ResultsBundle` wrote real run directories into
+the repo's `output/runs/`, which is the eval corpus and what week 6 step 5 ingests; a learner
+who ran `pytest tests/unit` first audited 14 runs instead of their 5. `tests/conftest.py`
+gained `_isolate_run_output`: the session points `PROJECT_OUTPUT_DIR` at a temp dir and fails
+if anything lands in the real one anyway. `output/runs` held 356 entries before the suite and
+356 after.
+
+**R8 — CrewAI spend.** Crews run under subprocess isolation, so the spend guard saw
+`$0.000236` of a run its own token tracker measured at `$0.0247` (89× under) and that is the
+number `logs/costs.jsonl` carried. New `spend_guard.reconcile_spend(usd, source=…)`: a backend
+hands over its own end-of-run total, `current_spend()` reports it with `observed_usd` and
+`source` alongside, and `run_demo._finalize_run` writes the row even when this process saw no
+calls. It deliberately does **not** move the ceiling — a total that arrives after the run
+cannot stop it, and pretending otherwise would be the same class of lie.
+
+**R9 — the Claude clock.** The SDK backend writes its bundle after the orchestrator returns,
+so `default_run_metadata` stamped "now" and a 217-second run recorded `started_at` and
+`completed_at` 6 ms apart. Both call sites now capture a start time and pass it through.
+
+Tests: `tests/unit/test_run_record_truth.py` — 10 tests across the three; fails at import on
+`8db7448` (`cannot import name 'reconcile_spend'`). `tests/unit`: **1662 passed**. Ruff,
+format, mypy clean.
+
+## 11. Course changes (evening)
+
+- **Week 2 step 1** is reframed: "optional, and it will probably work — that is the point."
+  It carries a morning/evening table for all three backends on the same day, four commits
+  apart, and two readings: a run that *finished* while burning every retry it had is not a
+  run that worked, and one fix moved two backends because they shared a piece of glue.
+- **Week 2 header** now says most of the breaking lives in the recorded case and the git
+  history, which is what "we fixed it" is supposed to look like.
+- **Week 6** replaces the prose before/after with the two-row table (741.8 s retry 3 →
+  226.1 s retry 0) and sends the learner to put **n=1 against n=1** through the interval step.
+  Step 5 keeps the pollution story as a lesson and notes the suite no longer causes it.
+- **Week 1** explains the empty-key semantics at step 2 and the recovery at step 3.
+
+## 12. Start next session with
+
+1. **Cursor validates `8db7448`+ (this commit).** Expect: LangGraph retry 0 under 5 min;
+   CrewAI `costs.jsonl` `spent_usd` now matching `actual_cost_usd` with
+   `source: crewai_token_tracker`; Claude `run.json` showing a real duration; week 6 step 5
+   ingesting only the learner's own runs; the paid steps refusing to start on an empty key.
+2. **F1 — the launch blocker:** push/merge `feat/course-v2` so `course/` exists on `main`.
+   Everything else on this branch is ready to share.
+3. **Get live `n` above 1.** Every number in weeks 2 and 6 is a single observation. The
+   optional `--n 3` batch in week 6 is the cheapest way to start.
+4. **Trace attribution:** agent-side `toolbus_span` rows still carry
    `agent_role=None backend=None phase=None run_id=None` while `_harness` commits carry all
-   four. Likely the source of the `unknown` rows in week 3.
-6. **Consider flipping the unit-suite default** to drafts **on** — the current default is how
+   four; trace ids still get the `unknown__` prefix even though `by_backend` and `by_status`
+   are now right.
+5. **Consider flipping the unit-suite default** to drafts **on** — the current default is how
    the draft bug hid for three weeks.
-7. Carried: CrewAI SIGSEGV with `PYTHONFAULTHANDLER=1` (did not reproduce on 09-17),
-   teaching corpus for week 4, Rick's own thirty-trace reading pass.
+6. Carried: teaching corpus for week 4, Rick's own thirty-trace reading pass, CrewAI SIGSEGV
+   (has not reproduced since 09-16).
