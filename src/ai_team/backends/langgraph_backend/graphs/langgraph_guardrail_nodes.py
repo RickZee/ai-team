@@ -13,6 +13,7 @@ from typing import Any, Literal
 import structlog
 from ai_team.backends.langgraph_backend.graphs.guardrail_hooks import (
     concat_recent_ai_content,
+    current_turn,
 )
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphSubgraphState
 from ai_team.guardrails.behavioral import (
@@ -150,7 +151,7 @@ def make_behavioral_guardrail_node(
     def behavioral_guardrail_node(state: LangGraphSubgraphState) -> dict[str, Any]:
         messages = state.get("messages") or []
         text = concat_recent_ai_content(
-            list(messages), only_message_names=behavioral_only_message_names
+            current_turn(list(messages)), only_message_names=behavioral_only_message_names
         )
         if not text.strip():
             gr = BehavioralGR(
@@ -174,7 +175,7 @@ def make_behavioral_guardrail_node(
 
 def security_guardrail_node(state: LangGraphSubgraphState) -> dict[str, Any]:
     messages = state.get("messages") or []
-    text = concat_recent_ai_content(list(messages))
+    text = concat_recent_ai_content(current_turn(list(messages)))
     if not text.strip():
         gr = SecurityGR(
             status="pass",
@@ -214,7 +215,7 @@ def _extract_fenced_code(text: str) -> str:
 
 def quality_guardrail_node(state: LangGraphSubgraphState) -> dict[str, Any]:
     messages = state.get("messages") or []
-    text = concat_recent_ai_content(list(messages))
+    text = concat_recent_ai_content(current_turn(list(messages)))
     if not text.strip():
         q = QualityGR(
             passed=True,

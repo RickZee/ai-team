@@ -106,9 +106,13 @@ def compile_planning_subgraph(
         llm_map = {"product_owner": product_owner_llm, "architect": architect_llm}
         worker_agents.append(_make_worker(role, role, _llm_for(role, llm_map.get(role))))
 
+    supervisor_names: frozenset[str] | None
     if len(worker_agents) == 1:
         core = worker_agents[0]
         behavioral_role = active_workers[0]
+        # No supervisor exists here: filtering on its name matched nothing and the
+        # behavioral guardrail passed vacuously on every single-agent run.
+        supervisor_names = None
         logger.info("planning_subgraph_compiled", workers=active_workers, mode="single_agent")
     else:
         m_llm = _llm_for("manager", manager_llm)
@@ -125,10 +129,11 @@ def compile_planning_subgraph(
         )
         core = workflow.compile()
         behavioral_role = "manager"
+        supervisor_names = frozenset({PLANNING_SUPERVISOR_NAME})
         logger.info("planning_subgraph_compiled", workers=active_workers, mode="supervisor")
 
     return wrap_agents_with_guardrails(
         core,
         behavioral_role=behavioral_role,
-        behavioral_only_message_names=frozenset({PLANNING_SUPERVISOR_NAME}),
+        behavioral_only_message_names=supervisor_names,
     )

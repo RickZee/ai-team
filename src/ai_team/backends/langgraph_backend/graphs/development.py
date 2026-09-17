@@ -81,9 +81,13 @@ def compile_development_subgraph(
 
     worker_agents = [_make_worker(role, role, _llm_for(role)) for role in active_workers]
 
+    supervisor_names: frozenset[str] | None
     if len(worker_agents) == 1:
         core = worker_agents[0]
         behavioral_role = active_workers[0]
+        # No supervisor exists here: filtering on its name matched nothing and the
+        # behavioral guardrail passed vacuously on every single-agent run.
+        supervisor_names = None
         logger.info("development_subgraph_compiled", workers=active_workers, mode="single_agent")
     else:
         m_llm = manager_llm or create_chat_model_for_role(
@@ -100,10 +104,11 @@ def compile_development_subgraph(
         )
         core = workflow.compile()
         behavioral_role = "manager"
+        supervisor_names = frozenset({DEVELOPMENT_SUPERVISOR_NAME})
         logger.info("development_subgraph_compiled", workers=active_workers, mode="supervisor")
 
     return wrap_agents_with_guardrails(
         core,
         behavioral_role=behavioral_role,
-        behavioral_only_message_names=frozenset({DEVELOPMENT_SUPERVISOR_NAME}),
+        behavioral_only_message_names=supervisor_names,
     )

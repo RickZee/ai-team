@@ -6,9 +6,25 @@ from typing import Any
 
 import structlog
 from ai_team.guardrails.security import GuardrailResult, code_safety_guardrail
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 logger = structlog.get_logger(__name__)
+
+
+def current_turn(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Messages produced after the last human turn — what this phase's agents said.
+
+    Every phase subgraph is seeded with the whole run history plus one ``HumanMessage``
+    carrying the phase task. Scoring the last N messages of that list scored *earlier
+    phases* (architect ADRs, developer chatter) as if the QA agent had written them, and
+    a relevance guardrail failed correct output at 0–9% (2026-09-13 LangGraph smoke).
+    Retries re-enter without a new human turn, so earlier attempts of the same phase stay
+    in scope. With no human message at all, the whole list is the turn.
+    """
+    for i in range(len(messages) - 1, -1, -1):
+        if isinstance(messages[i], HumanMessage):
+            return list(messages[i + 1 :])
+    return list(messages)
 
 
 def _concat_recent_ai_content(
@@ -46,7 +62,7 @@ concat_recent_ai_content = _concat_recent_ai_content
 def planning_guardrail_result(state: dict[str, Any]) -> GuardrailResult:
     """Run code-safety scan on recent planning subgraph messages."""
     messages = state.get("messages") or []
-    text = _concat_recent_ai_content(list(messages))
+    text = _concat_recent_ai_content(current_turn(list(messages)))
     if not text.strip():
         return GuardrailResult(status="pass", message="No assistant content to scan.")
     return code_safety_guardrail(text)

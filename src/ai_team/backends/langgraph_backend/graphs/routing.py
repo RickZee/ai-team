@@ -73,6 +73,11 @@ def route_after_testing(
     subgraph) is treated as retryable: route back to development up to
     ``max_retries``, then escalate to a human. Only errors from *other* phases
     are terminal here — a hard fault we cannot recover by re-running QA.
+
+    A ``GuardrailError`` from testing is different: the subgraph already spent its own
+    guardrail retries on the QA agent's output, and re-running *development* cannot change
+    that verdict. It goes straight to a human. (Routing it to ``retry_development`` turned
+    one QA complaint into three full dev+test cycles on 2026-09-13.)
     """
     errs = state.get("errors") or []
     rc = int(state.get("retry_count") or 0)
@@ -80,6 +85,8 @@ def route_after_testing(
     if errs:
         latest = errs[-1] if isinstance(errs[-1], dict) else {}
         if latest.get("phase") == "testing":
+            if latest.get("type") == "GuardrailError":
+                return "human_review"
             # Recoverable: re-run development (which re-triggers testing) until
             # we exhaust retries, then hand off to a human rather than dying.
             if rc < mx:

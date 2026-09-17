@@ -20,7 +20,6 @@ from typing import Any
 import structlog
 from ai_team.backends.langgraph_backend.graphs.langgraph_chat import _fix_tool_call_args
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
-from ai_team.config.settings import get_settings
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
@@ -250,8 +249,11 @@ def _snapshot_workspace_files() -> list[dict[str, Any]]:
     return a structured file list. Downstream phases (QA/DevOps) require a real
     file set to operate like an engineering organization.
     """
-    root = get_settings().project.workspace_dir
-    p = Path(root).resolve()
+    from ai_team.config.settings import get_workspace_dir
+
+    # The run-scoped workspace; settings.workspace_dir is the parent tree of all runs
+    # (inventoried 260 unrelated files on 2026-09-13).
+    p = Path(get_workspace_dir()).resolve()
     if not p.exists():
         return []
     out: list[dict[str, Any]] = []
@@ -536,7 +538,11 @@ def testing_subgraph_node(
 ) -> dict[str, Any]:
     """Run QA ReAct agent."""
     files = state.get("generated_files") or []
-    workspace_dir = get_settings().project.workspace_dir or "./workspace"
+    from ai_team.config.settings import get_workspace_dir
+
+    # Run-scoped: the parent tree made QA write outside the sandbox ("Path must be under
+    # workspace") and nest workspace/<id>/workspace/<id>/ (2026-09-13).
+    workspace_dir = get_workspace_dir() or "./workspace"
     desc = (state.get("project_description") or "").strip()
     ctx = (
         f"Project description: {desc}\n\n"
