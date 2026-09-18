@@ -56,24 +56,39 @@ uv run python -m evals.cli sample --strategy stratified -n 30 --seed 1 \
 ```
 
 **Observe the sampler's own output before you open anything.** It prints `n_corpus`,
-`n_eligible` and `n_selected`. Then ask what is actually *inside* the thirty it picked — the
-manifest is in `course/.work/samples/`, and each `selection` entry names a trace file:
+`n_eligible` and `n_selected`. Then name the manifest you just made, once, and use that name
+for the rest of the step:
+
+```bash
+SAMPLE=$(ls -t course/.work/samples/*.json | head -1); echo "$SAMPLE"
+```
+
+Now ask what is actually *inside* the thirty it picked:
 
 ```bash
 python3 -c "
-import json, glob
-m = json.load(open(sorted(glob.glob('course/.work/samples/*.json'))[-1]))
+import json, sys
+m = json.load(open(sys.argv[1]))
 c = sorted(len(json.load(open('course/.work/traces/%s.json' % t)).get('spans') or [])
            for t in m['selection'])
 print('spans per trace:', c)
 print('empty:', c.count(0), 'of', len(c))
-"
+" "$SAMPLE"
 ```
+
+> Pass the path in rather than letting the snippet guess. The first version of this step
+> picked the file with `sorted(glob(...))[-1]`, which is alphabetical — and sample filenames
+> end in a content hash, so "last alphabetically" is not "the one I just made". It reported
+> `empty: 0 of 0` for a sample of four. It was found on 2026-09-18 by someone running this
+> step, after I had run it myself and seen the right answer, because in my directory the two
+> hashes happened to sort the right way. Instruments that are correct by coincidence are the
+> subject of week 3.
 
 **Explain.** Stratification balances on backend x scenario x status. None of those notice that
 a run recorded *nothing*. On 2026-09-18 this repo's own corpus — 355 real traces — produced a
 stratified thirty in which **24 had zero spans**. The full distribution: 257 empty, 95 with
-exactly one span, and **3** with enough in them to read.
+exactly one span, and **3** with enough in them to read. On a fresh clone you will see
+something much smaller and probably all zeros; the shape is the lesson, not the counts.
 
 A sampler will always hand you thirty. Whether thirty readable runs exist is a different
 question, and it is the one worth asking first.
@@ -87,21 +102,35 @@ if the corpus were fine.
 ```bash
 uv run python -m evals.cli sample --strategy stratified -n 30 --seed 1 --min-spans 1 \
   --traces-root course/.work/traces --samples-root course/.work/samples
+SAMPLE=$(ls -t course/.work/samples/*.json | head -1); echo "$SAMPLE"
 ```
 
-`n_eligible` is now the size of your readable pool. If it is under thirty you do not have a
-reading problem, you have a corpus problem, and no amount of careful reading will fix it. Go
-make runs — week 1 step 3, or `uv run python scripts/run_smoke_batch.py --n 10 --backends
-langgraph` (pennies each, roughly an hour) — and come back. Reading thirty stubs teaches you
+`n_eligible` is now the size of your readable pool, and `n_selected` is what you got.
+`$SAMPLE` now points at this second manifest — re-run the inspect snippet above to see the
+difference, and note that it is the same command reading a different file rather than a
+different command.
+
+**If `n_selected` is 0, stop here — that is the finding.** You have no runs worth reading, so
+there is nothing to open in the workbench and nothing to annotate. Keep the sample id from
+before if you want to compare, go make runs, and come back:
+
+```bash
+AI_TEAM_ENV=dev AI_TEAM_RUN_BUDGET_USD=1 \
+  uv run python scripts/run_demo.py demos/00_smoke_test \
+  --backend langgraph --skip-estimate --timeout 900   # one run, ~5-15 min, cents
+
+uv run python scripts/run_smoke_batch.py --n 10 --backends langgraph  # ten, ~1 hour
+```
+
+Then rebuild the corpus (week 3, step 2) and sample again. Reading thirty stubs teaches you
 nothing and convinces you otherwise, which is worse than not reading at all.
 
 The check you write in week 5 — *fail any trace with no spans* — is this same question asked
 by a machine, on every run, forever. That is not a coincidence. It is what the course is for.
 
 ```bash
-SAMPLE=$(ls -t course/.work/samples | head -1 | sed 's/\.json$//'); echo $SAMPLE
-
-uv run python -m evals.cli annotate bundle --sample $SAMPLE --out course/.work/bundle.json \
+SAMPLE_ID=$(basename "$SAMPLE" .json); echo "$SAMPLE_ID"
+uv run python -m evals.cli annotate bundle --sample $SAMPLE_ID --out course/.work/bundle.json \
   --traces-root course/.work/traces --samples-root course/.work/samples \
   --annotations-root course/.work/annotations
 ```
