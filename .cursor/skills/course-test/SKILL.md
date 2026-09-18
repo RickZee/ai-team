@@ -518,7 +518,43 @@ If `$PREV` exists, add a **Since last run** section to the report: for every blo
 `$PREV/report.md`'s resolution table that are marked fixed but still reproduce (**regressions —
 P0**), and new findings. Spend and wall time side by side.
 
-## 9. Known context (don't re-report as new)
+## 9. What changed since the last run (target these)
+
+As of `3f5f585` on `feat/course-v2`, three commits landed after `-stranger-4`. Everything
+below is untested by a stranger; the rest of the course has now been walked five times.
+
+**Week 4 step 1 was rewritten and is the newest, least-tested text in the course.** It gained
+an Observe block that opens the sample manifest and counts spans per trace, and a Change beat
+that re-samples with a new `--min-spans` flag. The commands were verified verbatim against a
+355-trace corpus. **They have never been run on a fresh clone**, where the corpus is about
+four traces and several of them are dry runs. Specifically worth finding out:
+
+- does the inline `python3 -c` block produce something sensible at n=4, or something that
+  reads like a bug?
+- the page quotes this repo's numbers (355 traces, 24 of 30 empty, 257/95/3). At n=4 those
+  numbers will look nothing like the learner's. Is the page clear that they are *this repo's*
+  corpus, or does it read as a promise about theirs?
+- the Change beat sends a learner with a thin corpus off to `run_smoke_batch.py`. Is that an
+  honest off-ramp or a dead end mid-lab?
+
+**Week 5's first pytest changed.** `test_check_discovery.py` moved from `tests/unit/repo/`
+into `tests/unit/evals/`, so `uv run pytest tests/unit/evals -q` with only `mine.py` written
+should now go red and name the file. Last run it was 423 green. Re-run B1 from scratch and
+confirm the first command talks.
+
+**The Tier A gate can now fail** (`evals/fixture_contract.py`). B4 confirmed the headline —
+delete a pass fixture, exit 1 — but nobody has walked the *whole* of W5.S4 with the new gate
+in place. A new check with no fixtures yet should now fail completeness; make sure the page's
+command order still produces a green gate at the end, and that a learner who runs Tier A
+mid-wiring gets an error they can act on rather than a wall.
+
+**The solution patch was reformatted** so `ruff format --check` passes on the learner's
+builder. `git apply --check` was verified; applying it for real inside the lab was not.
+
+Suggested scope if time is short: `week-4,week-5`, `depth: build`, `mode: stranger`. The $0
+spine in weeks 1–3 and 6 has been stable across three runs.
+
+## 10. Known context (don't re-report as new)
 
 - Counts in *Observe* blocks come from the maintainer checkout on 2026-09-16 and will drift.
   Report `DRIFT`, not `MISMATCH`, unless the conclusion changes.
@@ -530,3 +566,12 @@ P0**), and new findings. Spend and wall time side by side.
   `DRIFT`, and the interesting question is whether the *shape* of the lesson survives at n=1.
 - The build track deliberately leaves a branch behind in the test checkout. That is not a
   leftover to report.
+- **F1** (Start clones GitHub `main`, which has no `course/`) is open and known. The branch is
+  not pushed, so a stranger still cannot run the real Start command — clone locally as §3 says
+  and do not re-derive it.
+- **22 uniqueness warnings** from the Tier A gate are expected and are an open decision about
+  deleting duplicate fixture files, not a new finding.
+- **R13**: `trace backfill` mints a new trace id per invocation, so re-running it inflates `n`
+  with duplicates of the same run. Known, unfixed. Wipe the traces root between before/after.
+- **R10**: LangGraph wall time on the smoke brief has been 226 s, 518 s and a 900 s timeout on
+  the same brief. Variance is the finding, not a regression — record the number and move on.
