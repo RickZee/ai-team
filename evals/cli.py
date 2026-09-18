@@ -96,6 +96,16 @@ def _cmd_sample(args: argparse.Namespace) -> int:
         filters["status"] = args.status
 
     rows = store.query(**filters)
+    corpus_size = len(rows)
+    # A trace with no spans has nothing in it to read. Stratification is on
+    # backend x scenario x status, none of which notice that a run recorded
+    # nothing, so a corpus with old or silent runs in it will happily fill a
+    # manifest with empty shells: on 2026-09-18 a stratified n=30 over 355 real
+    # traces drew 24 traces with zero spans. Sampling for human reading should
+    # ask for traces that contain something.
+    if args.min_spans:
+        rows = [r for r in rows if r.span_count >= args.min_spans]
+        filters["min_spans"] = args.min_spans
     strategy = cast(StrategyName, args.strategy)
     manifest = sample(rows, strategy, args.n, args.seed, filters=filters)
     samples_root = Path(args.samples_root) if args.samples_root else None
@@ -109,6 +119,8 @@ def _cmd_sample(args: argparse.Namespace) -> int:
                 "seed": manifest.seed,
                 "n_requested": manifest.n,
                 "n_selected": len(manifest.selection),
+                "n_eligible": len(rows),
+                "n_corpus": corpus_size,
                 "corpus_state_hash": manifest.corpus_state_hash,
                 "imbalances": len(manifest.imbalances),
             },
@@ -603,6 +615,12 @@ def build_parser() -> argparse.ArgumentParser:
     sample_p.add_argument("--backend", default=None)
     sample_p.add_argument("--scenario-id", default=None)
     sample_p.add_argument("--status", default=None)
+    sample_p.add_argument(
+        "--min-spans",
+        type=int,
+        default=0,
+        help="only sample traces with at least this many spans (1 = has something to read)",
+    )
     sample_p.set_defaults(func=_cmd_sample)
 
     annotate = sub.add_parser("annotate", help="open-coding annotation TUI (R3)")

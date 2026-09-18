@@ -37,18 +37,68 @@ before the test plan.
 
 Uses the corpus you built in week 3 (`course/.work/traces`).
 
-> **You need at least 30 real runs.** A fresh clone doesn't have them, and dry runs are all
-> identical. Either do real runs in weeks 1–2 (about $1 each, capped), read the recorded case
+> **You need at least 30 runs with something in them** — which is not the same as 30 runs, as
+> step 1 is about to show you. A fresh clone has neither, and dry runs are all
+> identical.
+> Either do real runs in weeks 1–2 (about $1 each, capped), read the recorded case
 > in `docs/eval-runs/` instead, or use a checkout that already has a run history. A shipped
 > teaching corpus is planned (`.kiro/specs/eval-testbed/`) but doesn't exist yet.
 
 **Predict.** Thirty random runs from your corpus. How many do you expect to be informative?
+Write down a number. Then write down how you would *check* that answer before spending three
+hours reading.
 
 **Run.**
 
 ```bash
 uv run python -m evals.cli sample --strategy stratified -n 30 --seed 1 \
   --traces-root course/.work/traces --samples-root course/.work/samples
+```
+
+**Observe the sampler's own output before you open anything.** It prints `n_corpus`,
+`n_eligible` and `n_selected`. Then ask what is actually *inside* the thirty it picked — the
+manifest is in `course/.work/samples/`, and each `selection` entry names a trace file:
+
+```bash
+python3 -c "
+import json, glob
+m = json.load(open(sorted(glob.glob('course/.work/samples/*.json'))[-1]))
+c = sorted(len(json.load(open('course/.work/traces/%s.json' % t)).get('spans') or [])
+           for t in m['selection'])
+print('spans per trace:', c)
+print('empty:', c.count(0), 'of', len(c))
+"
+```
+
+**Explain.** Stratification balances on backend x scenario x status. None of those notice that
+a run recorded *nothing*. On 2026-09-18 this repo's own corpus — 355 real traces — produced a
+stratified thirty in which **24 had zero spans**. The full distribution: 257 empty, 95 with
+exactly one span, and **3** with enough in them to read.
+
+A sampler will always hand you thirty. Whether thirty readable runs exist is a different
+question, and it is the one worth asking first.
+
+This is week 3 in a new costume. There, two readers disagreed about the data. Here, one
+reader is confident about a corpus that is mostly hollow — in exactly the tone it would use
+if the corpus were fine.
+
+**Change.** Ask for traces that contain something:
+
+```bash
+uv run python -m evals.cli sample --strategy stratified -n 30 --seed 1 --min-spans 1 \
+  --traces-root course/.work/traces --samples-root course/.work/samples
+```
+
+`n_eligible` is now the size of your readable pool. If it is under thirty you do not have a
+reading problem, you have a corpus problem, and no amount of careful reading will fix it. Go
+make runs — week 1 step 3, or `uv run python scripts/run_smoke_batch.py --n 10 --backends
+langgraph` (pennies each, roughly an hour) — and come back. Reading thirty stubs teaches you
+nothing and convinces you otherwise, which is worse than not reading at all.
+
+The check you write in week 5 — *fail any trace with no spans* — is this same question asked
+by a machine, on every run, forever. That is not a coincidence. It is what the course is for.
+
+```bash
 SAMPLE=$(ls -t course/.work/samples | head -1 | sed 's/\.json$//'); echo $SAMPLE
 
 uv run python -m evals.cli annotate bundle --sample $SAMPLE --out course/.work/bundle.json \

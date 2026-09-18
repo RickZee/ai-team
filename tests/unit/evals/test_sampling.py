@@ -35,6 +35,7 @@ def _row(
     cost_usd: float | None = 0.01,
     retry_count: int = 0,
     label_count: int = 0,
+    span_count: int = 1,
 ) -> TraceIndexRow:
     return TraceIndexRow(
         trace_id=trace_id,
@@ -46,7 +47,7 @@ def _row(
         duration_s=duration_s,
         cost_usd=cost_usd,
         cost_source="unknown",
-        span_count=1,
+        span_count=span_count,
         error_count=0,
         retry_count=retry_count,
         file_count=0,
@@ -209,3 +210,53 @@ def test_cli_sample_writes_manifest(tmp_path: Path) -> None:
 def test_unknown_strategy_raises() -> None:
     with pytest.raises(ValueError, match="unknown"):
         sample([_row("x")], "nope", n=1, seed=0)  # type: ignore[arg-type]
+
+
+class TestReadableCorpusFilter:
+    """A trace with no spans has nothing in it to read.
+
+    Stratification balances on backend x scenario x status. None of those notice that a run
+    recorded nothing, so a corpus full of silent runs still fills a manifest. On 2026-09-18 a
+    stratified n=30 over this repo's 355 real traces returned 24 traces with zero spans; the
+    corpus turned out to be 257 empty, 95 with a single span, and 3 worth reading. The
+    sampler was not wrong — it was answering a question nobody had asked it.
+
+    ``evals.cli sample --min-spans`` filters the pool before sampling and reports
+    ``n_eligible`` next to ``n_selected``, so "there are not thirty" is visible before three
+    hours of reading rather than after.
+    """
+
+    @staticmethod
+    def _corpus() -> list[TraceIndexRow]:
+        return [
+            *[_row(f"empty-{i}", span_count=0) for i in range(20)],
+            *[_row(f"thin-{i}", span_count=1) for i in range(5)],
+            *[_row(f"rich-{i}", span_count=25) for i in range(3)],
+        ]
+
+    @staticmethod
+    def _eligible(rows: list[TraceIndexRow], min_spans: int) -> list[TraceIndexRow]:
+        return [r for r in rows if r.span_count >= min_spans]
+
+    def test_without_the_filter_a_sample_is_mostly_empty_traces(self) -> None:
+        rows = self._corpus()
+        manifest = sample(rows, "stratified", 10, 0)
+        by_id = {r.trace_id: r for r in rows}
+        empty = [t for t in manifest.selection if by_id[t].span_count == 0]
+        assert empty, "the corpus is 71% empty; a blind sample should show it"
+
+    def test_the_filter_removes_every_unreadable_trace(self) -> None:
+        rows = self._eligible(self._corpus(), 1)
+        manifest = sample(rows, "stratified", 8, 0)
+        by_id = {r.trace_id: r for r in rows}
+        assert all(by_id[t].span_count >= 1 for t in manifest.selection)
+
+    def test_the_eligible_pool_is_what_tells_you_there_are_not_thirty(self) -> None:
+        rows = self._corpus()
+        assert len(rows) == 28
+        assert len(self._eligible(rows, 1)) == 8
+        assert len(self._eligible(rows, 10)) == 3
+
+    def test_a_filter_nothing_satisfies_yields_an_empty_sample_not_a_crash(self) -> None:
+        manifest = sample(self._eligible(self._corpus(), 1000), "stratified", 30, 0)
+        assert manifest.selection == []
