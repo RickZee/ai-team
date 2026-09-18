@@ -21,6 +21,7 @@ from evals.aggregate import (
 )
 from evals.checks import all_checks, ensure_checks_loaded
 from evals.checks.base import CheckResult
+from evals.fixture_contract import parse_expectation
 from evals.gate import evaluate_gate, load_baseline
 from evals.judges.exceptions import TierAMissingVerdict
 from evals.provenance import collect
@@ -75,13 +76,22 @@ def _cell_outcomes_from_checks(
     traces: list[Trace],
     results: list[CheckResult],
 ) -> dict[tuple[str, str], list[bool]]:
-    """One trial per trace: success iff no applicable check failed on that trace."""
+    """One trial per trace: success iff no applicable check failed on that trace.
+
+    Expectation fixtures are excluded. Every check ships a trace built to make it fail, so
+    counting those as trials made ``pass^k`` structurally 0.0 — a number that looked like a
+    catastrophic quality signal and in fact only said "the corpus contains the failures we
+    put in it" (2026-09-17, the second half of R12). Only traces without a declared
+    expectation describe how the system is doing.
+    """
     fails: dict[str, bool] = defaultdict(bool)
     for r in results:
         if r.outcome == "fail":
             fails[r.trace_id] = True
     cells: dict[tuple[str, str], list[bool]] = defaultdict(list)
     for t in traces:
+        if parse_expectation(t.trace_id) is not None:
+            continue
         ok = not fails[t.trace_id]
         cells[(t.backend, t.scenario_id)].append(ok)
     return dict(cells)

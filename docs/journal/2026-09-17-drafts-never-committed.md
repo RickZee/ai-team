@@ -5,7 +5,7 @@
 **Preceded by** [2026-09-16 (course v2)](2026-09-16-course-v2.md) §8.
 
 Morning (§1–5): agent writes never reached the workspace. Afternoon (§6–9): the first live
-LangGraph run finished — and showed three more harness layers underneath. Evening and night (§10–14):
+LangGraph run finished — and showed three more harness layers underneath. Evening and night (§10–15):
 those three fixed, verified live, the reporting bugs behind the numbers closed, the Cursor
 test skill taught to build rather than only walk — and that skill immediately finding two
 regressions from the same afternoon plus a gate that cannot fail.
@@ -322,11 +322,81 @@ messages name the missing file and some only name the symptom, so read the table
   `state.json`. CrewAI: 588 s complete, then a 900 s timeout with no `costs.jsonl`. The
   "3.8 min, retry 0" row is one draw, presented as an after-state.
 
-## 14. Start next session with
+## 14. R12 — the gate that could not fail
 
-1. **Decide R12's baseline shape** (counts vs per-fixture) and fix the gate. It is the
-   biggest open item: the course tells learners to trust a gate whose deterministic-check arm
-   currently cannot fail. Then R13, then week 2's variance row.
+Fixed, and the design is worth recording because the bug was conceptual rather than a slip.
+
+**The two questions.** A baseline answers *"did this change since last time?"*. The fixture
+corpus was being asked *"is this still correct?"*. Those need different machinery, and using
+the first for the second is what produced a vacuous gate: `baseline accept` records whatever
+it sees, the corpus deliberately contains a failing fixture per check, so all 20 checks were
+recorded as `"fail"` and the only rule (`baseline == "pass" and "fail" in current`) became
+dead code. It did not drift into uselessness — it was accepted into it, by a human who had no
+way to see what they were accepting.
+
+**Counts were the wrong answer.** The first proposal here was per-check outcome counts
+(`{"pass": 3, "fail": 1}`) with a regression when the pass count drops. It was rejected on
+inspection: counts do not say *which* fixture produced which outcome, so a check whose
+condition gets inverted — pass fixture now fails, fail fixture now passes — leaves the counts
+identical and slips through. That is not a corner case; it is one of the likelier ways to
+break a check. Counts also still need `baseline accept` on every corpus change, which is the
+friction that produced the bad baseline.
+
+**What shipped: `evals/fixture_contract.py`, three rules, no baseline.** A fixture whose trace
+id is `CHK-x__pass__fixture` *declares* its expected outcome, so the corpus is compared with
+its own specification:
+
+1. **Completeness** — in a report that replays the fixture corpus, every check that ran has
+   all three fixtures. The only rule that can notice a *deleted* fixture, since a table built
+   from files that exist cannot miss what is not there. Scoped to replay reports: a live
+   CORPUS run is not replaying fixtures and owes none.
+2. **Expectation** — every fixture produces the outcome its id declares, **for its own
+   check**. A fixture constrains only the check it was built for; the other 19 running over
+   it abstain and carry no promise. Fails in both directions.
+3. **Uniqueness** — no trace id loaded twice. A **warning**, not a failure: deleting Rick's
+   committed fixtures is a human decision, not the gate's.
+
+All three are computed from `SuiteReport.check_results`, so the gate stays a pure function of
+the report and touches no disk. The contract runs **before** the baseline is consulted and
+fires even when no baseline exists on disk, because ground truth does not need a past.
+`Baseline.check_outcomes` stays, documented as informational.
+
+**First run against the real corpus: zero expectation violations, zero completeness
+violations.** The checks were right all along; only the gate was broken. And 22 uniqueness
+warnings — 22 trace ids exist under two filenames each (`CHK-x__pass.json` and
+`CHK-x__pass__fixture.json`), so those traces have been counted twice in every rate the suite
+reports. Rick's call whether to delete the 22 duplicates.
+
+**The other half of the same bug.** `suite_pass_pow_k` was `0.0` because
+`_cell_outcomes_from_checks` counted every fixture as a trial, and the corpus contains a
+deliberate failure for each check — so the metric was measuring "the corpus contains the
+failures we put in it". Expectation fixtures are now excluded. The scorecard is 3 real cells
+of n=4 (the `coverage__<backend>__<status>` traces). It still reads 0.0, because three of
+those four statuses are degraded by design — but it is now a true statement that will move
+when the corpus does, instead of an artifact.
+
+Tests: `tests/unit/evals/test_fixture_contract.py`, 19 tests, including the exact R12
+scenario (delete a pass fixture → exit 1, was exit 0), the inverted-check case that counts
+would have missed, the "another check's result on this fixture is not constrained" scope rule,
+and two guards that run the real corpus on every commit. `tests/unit`: 1684 passed.
+
+Week 5 gained a short *Why row 5 is not optional* after the wiring run, ending on the line
+this whole thing turns on: **a baseline answers "did this change?", which is a different
+question from "is this right?"** Where you have ground truth, compare against the truth.
+
+### Still open
+
+- **R13** — `make_trace_id` ends in `uuid4().hex[:4]`, so re-backfilling a run mints a new
+  trace instead of replacing it (4 runs → 8 → 14). Smaller than it looked: committed fixtures
+  are named by check+outcome and existing traces keep their ids, so the only decision is what
+  backfill does when an id now collides. Recommend replace, with `--skip-existing` for the old
+  behaviour.
+- **The 22 duplicate fixture files** surfaced by rule 3.
+- **R10** — LangGraph variance (226 s / 518 s / 900 s timeout) still not reflected in week 2.
+
+## 15. Start next session with
+
+1. **R13, then week 2's variance row, then the 22 duplicate fixtures.** R12 is done (§14).
 2. **Cursor re-validates.** Expect the key preflight to pass for all three backends, the
    check-discovery guard to be exercised in B1, and week 5's wiring table to be honest. Also:
    CrewAI `costs.jsonl` `spent_usd` now matching `actual_cost_usd` with

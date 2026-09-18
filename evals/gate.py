@@ -9,6 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from evals.aggregate import SuiteReport
+from evals.fixture_contract import evaluate_fixture_contract
 from evals.provenance import Provenance, collect
 
 _BASELINES_DIR = Path(__file__).resolve().parent / "baselines"
@@ -30,7 +31,10 @@ class Baseline(BaseModel):
     accepted_at: datetime
     git_sha: str
     reason: str
-    # check_id → outcome that was accepted (typically "pass")
+    # check_id → outcome that was accepted. INFORMATIONAL ONLY since 2026-09-17: the
+    # fixture corpus contains a deliberate failing fixture for every check, so this
+    # collapses to "fail" everywhere and the pass→fail rule below can never fire. Fixture
+    # correctness is ground truth, not drift — evals/fixture_contract.py owns it now.
     check_outcomes: dict[str, str] = Field(default_factory=dict)
     # guardrail name → {recall, fpr, floors...}
     guardrails: dict[str, dict[str, float]] = Field(default_factory=dict)
@@ -198,8 +202,30 @@ class _GateAccum:
         self.suppressed = suppressed
 
 
+def _eval_fixture_contract(report: SuiteReport, acc: _GateAccum) -> None:
+    """Fixture corpus vs its own declared expectations — no baseline involved.
+
+    Runs before the baseline is consulted at all, because these are specifications rather
+    than observations: a check that fails its own pass fixture is wrong whether or not
+    anyone has accepted a baseline yet.
+    """
+    for v in evaluate_fixture_contract(report.check_results):
+        row = Regression(
+            metric=f"fixture:{v.kind}:{v.check_id or v.trace_id or '?'}",
+            severity="fail" if v.gating else "warn",
+            message=v.message,
+            baseline_value=v.expected,
+            current_value=v.actual,
+        )
+        (acc.regressions if v.gating else acc.warnings).append(row)
+
+
 def _eval_deterministic_checks(report: SuiteReport, baseline: Baseline, acc: _GateAccum) -> None:
-    """Baseline pass → current fail is a regression."""
+    """Baseline pass → current fail is a regression.
+
+    Kept for baselines that genuinely recorded a "pass" outcome; the fixture corpus makes
+    that impossible today, so :func:`_eval_fixture_contract` is what actually guards checks.
+    """
     current_by_check: dict[str, set[str]] = {}
     for r in report.check_results:
         if r.outcome == "not_applicable":
@@ -392,8 +418,11 @@ def evaluate_gate(
 ) -> GateDecision:
     """Compare *report* to *baseline* per the R12.2 table.
 
-    Decision table (in order): harness error → no baseline → deterministic
-    checks → guardrails → judges → pass^k → cost → p95 latency.
+    Decision table (in order): harness error → fixture contract → no baseline →
+    deterministic checks → guardrails → judges → pass^k → cost → p95 latency.
+
+    The fixture contract is evaluated first and without a baseline, because it compares the
+    corpus with its own declared expectations rather than with a recorded past.
 
     Exit codes: 0 pass, 1 regression, 2 harness error.
     Non-eligible judges and provisional guardrails go to ``suppressed`` only (R12.3).
@@ -413,20 +442,27 @@ def evaluate_gate(
         )
 
     if baseline is None:
+        acc = _GateAccum(list(report.suppressed))
+        _eval_fixture_contract(report, acc)
+        acc.warnings.append(
+            Regression(
+                metric="baseline",
+                severity="warn",
+                message="no baseline on disk; drift checks are advisory only",
+            )
+        )
+        passed = len(acc.regressions) == 0
         return GateDecision(
-            passed=True,
-            exit_code=0,
-            warnings=[
-                Regression(
-                    metric="baseline",
-                    severity="warn",
-                    message="no baseline on disk; gate is advisory only",
-                )
-            ],
-            suppressed=list(report.suppressed),
+            passed=passed,
+            exit_code=0 if passed else 1,
+            regressions=acc.regressions,
+            warnings=acc.warnings,
+            suppressed=acc.suppressed,
+            unchanged=acc.unchanged,
         )
 
     acc = _GateAccum(list(report.suppressed))
+    _eval_fixture_contract(report, acc)
     _eval_deterministic_checks(report, baseline, acc)
     _eval_guardrails(report, baseline, acc)
     _eval_judges(report, baseline, acc)

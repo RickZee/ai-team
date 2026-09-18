@@ -142,6 +142,22 @@ uv run python -m evals.cli coverage liveness --traces-root course/.work/traces \
   --out course/.work/liveness.md && grep trace-has-spans course/.work/liveness.md   # CORPUS
 ```
 
+**Why row 5 is not optional.** Your three fixtures are not paperwork — they are the check's
+specification, and the gate reads them as one. A fixture named `CHK-trace-has-spans__pass`
+says *this check must pass here*; if it ever stops, Tier A fails on that alone, with no
+baseline involved. Delete one and the gate fails too, because a check missing an outcome
+cannot be trusted in either direction.
+
+That is newer than it sounds. Until 2026-09-17 the gate compared each check to a *baseline* —
+a record of what it did last time — and since the corpus deliberately contains a failing
+fixture for every check, `baseline accept` had faithfully recorded "fails" for all twenty. The
+only regression rule was "used to pass, now fails", so it could never fire. A tester doing
+this exact step deleted a passing fixture and watched the `$0` gate wave it through.
+
+The lesson is worth more than the fix: **a baseline answers "did this change?", and that is a
+different question from "is this right?"** Where you have ground truth — and a fixture you
+built to fail is ground truth — compare against the truth, not against yesterday.
+
 Stuck? Edits 1–5 are in [`solutions/week-5-check.patch`](./solutions/week-5-check.patch)
 (`git apply course/solutions/week-5-check.patch`), tested against 400+ unit tests. Edit 6 is
 the `baseline accept` command above — it stamps your own commit, so it can't be a patch.
