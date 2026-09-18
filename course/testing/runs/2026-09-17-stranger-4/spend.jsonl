@@ -1,0 +1,3 @@
+{"step": "PREFLIGHT", "backend": "langgraph", "run_id": "2026-09-17_215103_write-a-single-python-module_01", "usd": null, "source": "missing", "note": "25s unset start-check, killed"}
+{"step": "PREFLIGHT", "backend": "crewai", "run_id": "2026-09-17_215132_write-a-single-python-module_01", "usd": null, "source": "missing", "note": "25s unset start-check, killed"}
+{"step": "B5", "backend": "langgraph", "run_id": "2026-09-17_215731_write-a-single-python-module_01", "usd": 0.024647, "source": "logs/costs.jsonl spent_usd", "wall_s": 448.7, "completed": true}

@@ -1,0 +1,99 @@
+diff --git a/evals/checks/mine.py b/evals/checks/mine.py
+new file mode 100644
+index 0000000..df979ab
+--- /dev/null
++++ b/evals/checks/mine.py
+@@ -0,0 +1,18 @@
++"""My first check: does this trace contain anything a check can read?"""
++
++from __future__ import annotations
++
++from evals.checks.base import CheckResult, failed, na, passed
++from evals.checks.registry import check
++from evals.trace.models import Trace
++
++
++@check(id="CHK-trace-has-spans", failure_mode_id=None, tier="A")
++def trace_has_spans(trace: Trace) -> CheckResult:
++    """Fail when a trace has no spans: every other check will abstain on it."""
++    cid = "CHK-trace-has-spans"
++    if trace.status == "killed":
++        return na(cid, trace, "run was killed externally; missing spans are expected")
++    if not trace.spans:
++        return failed(cid, trace, evidence_text="0 spans; nothing downstream can read this run")
++    return passed(cid, trace, evidence_text=f"{len(trace.spans)} spans")
+diff --git a/evals/checks/registry.py b/evals/checks/registry.py
+index 3261093..6825d77 100644
+--- a/evals/checks/registry.py
++++ b/evals/checks/registry.py
+@@ -150,6 +150,7 @@ def ensure_checks_loaded() -> None:
+     import evals.checks.feedback  # noqa: F401
+     import evals.checks.guardrails  # noqa: F401
+     import evals.checks.isolation  # noqa: F401
++    import evals.checks.mine  # noqa: F401
+     import evals.checks.observability  # noqa: F401
+     import evals.checks.provider  # noqa: F401
+     import evals.checks.spend  # noqa: F401
+diff --git a/evals/coverage.py b/evals/coverage.py
+index 9551cea..f38e76d 100644
+--- a/evals/coverage.py
++++ b/evals/coverage.py
+@@ -178,6 +178,7 @@ _PRODUCERS: dict[str, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]]
+ #: ``test_coverage.py`` asserts they stay in step with the registry.
+ _CHECK_SPAN_READS: dict[str, tuple[str, ...]] = {
+     "CHK-acceptance-monotonic": (),
++    "CHK-trace-has-spans": (),
+     "CHK-constraint-survival": ("phase_start",),
+     "CHK-draft-commit": ("phase_end", "tool_result", "tool_use"),
+     "CHK-evaluator-capitulation": (),
+diff --git a/tests/unit/evals/test_check_sensitivity.py b/tests/unit/evals/test_check_sensitivity.py
+index 578b406..9baef43 100644
+--- a/tests/unit/evals/test_check_sensitivity.py
++++ b/tests/unit/evals/test_check_sensitivity.py
+@@ -189,6 +189,10 @@ def _mutate(check_id: str):
+         }
+         return trace
+ 
++    if check_id == "CHK-trace-has-spans":
++        trace.spans = []
++        return trace
++
+     if check_id == "CHK-lesson-effectiveness":
+         trace.raw_result = {
+             **trace.raw_result,
+diff --git a/tests/unit/evals/trace_fixtures.py b/tests/unit/evals/trace_fixtures.py
+index 6259843..4f906e1 100644
+--- a/tests/unit/evals/trace_fixtures.py
++++ b/tests/unit/evals/trace_fixtures.py
+@@ -118,6 +118,7 @@ def build_for_check(check_id: str, outcome: OutcomeWanted) -> Trace:
+         "CHK-premature-termination": _premature,
+         "CHK-verifier-independence": _verifier_ind,
+         "CHK-evaluator-capitulation": _capitulation,
++        "CHK-trace-has-spans": _has_spans,
+     }
+     return builders[check_id](outcome)
+ 
+@@ -744,6 +745,15 @@ def _capitulation(outcome: OutcomeWanted) -> Trace:
+     )
+ 
+ 
++def _has_spans(outcome: OutcomeWanted) -> Trace:
++    cid = "CHK-trace-has-spans"
++    if outcome == "na":
++        return base_trace(check_id=cid, outcome=outcome, status="killed")
++    if outcome == "fail":
++        return base_trace(check_id=cid, outcome=outcome, spans=[])
++    return base_trace(check_id=cid, outcome=outcome, spans=[_span(0, "phase_start", phase="planning")])
++
++
+ ALL_CHECK_IDS = [
+     "CHK-tool-call-emitted",
+     "CHK-phase-repeat-bounded",
+@@ -765,6 +775,7 @@ ALL_CHECK_IDS = [
+     "CHK-premature-termination",
+     "CHK-verifier-independence",
+     "CHK-evaluator-capitulation",
++    "CHK-trace-has-spans",
+ ]
+ 
+ 

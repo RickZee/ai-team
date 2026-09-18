@@ -28,7 +28,7 @@
      }
      return builders[check_id](outcome)
  
-@@ -744,6 +745,15 @@
+@@ -744,6 +745,17 @@
      )
  
  
@@ -38,13 +38,15 @@
 +        return base_trace(check_id=cid, outcome=outcome, status="killed")
 +    if outcome == "fail":
 +        return base_trace(check_id=cid, outcome=outcome, spans=[])
-+    return base_trace(check_id=cid, outcome=outcome, spans=[_span(0, "phase_start", phase="planning")])
++    return base_trace(
++        check_id=cid, outcome=outcome, spans=[_span(0, "phase_start", phase="planning")]
++    )
 +
 +
  ALL_CHECK_IDS = [
      "CHK-tool-call-emitted",
      "CHK-phase-repeat-bounded",
-@@ -765,6 +775,7 @@
+@@ -765,6 +777,7 @@
      "CHK-premature-termination",
      "CHK-verifier-independence",
      "CHK-evaluator-capitulation",

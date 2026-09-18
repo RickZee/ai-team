@@ -5,7 +5,7 @@
 **Preceded by** [2026-09-16 (course v2)](2026-09-16-course-v2.md) §8.
 
 Morning (§1–5): agent writes never reached the workspace. Afternoon (§6–9): the first live
-LangGraph run finished — and showed three more harness layers underneath. Evening and night (§10–15):
+LangGraph run finished — and showed three more harness layers underneath. Evening and night (§10–16):
 those three fixed, verified live, the reporting bugs behind the numbers closed, the Cursor
 test skill taught to build rather than only walk — and that skill immediately finding two
 regressions from the same afternoon plus a gate that cannot fail.
@@ -394,7 +394,39 @@ question from "is this right?"** Where you have ground truth, compare against th
 - **The 22 duplicate fixture files** surfaced by rule 3.
 - **R10** — LangGraph variance (226 s / 518 s / 900 s timeout) still not reflected in week 2.
 
-## 15. Start next session with
+## 15. The scoped re-test (`-stranger-4`) and the residue it found
+
+`course/testing/runs/2026-09-17-stranger-4/` — weeks 5–6 only, `depth: build`, **$0.025**,
+against `3c6cee5`. The three fixes from §10 and §14 hold:
+
+| Claim | Result |
+| --- | --- |
+| B4: delete a pass fixture | **exit 1** (was exit 0) |
+| Claude after `unset` | starts |
+| Empty keys vs `pytest tests/unit` | 1688 passed |
+
+Two residues, both fixed here:
+
+**F24 was half-closed.** The discovery guard worked — but it lived in `tests/unit/repo/`, and
+week 5's Run block types `uv run pytest tests/unit/evals -q` first. A learner with only
+`mine.py` written still saw **423 passed**. The tester's phrase is the right one: *same hole,
+different folder.* A guard the learner's own command does not run is not a guard. The test now
+lives at `tests/unit/evals/test_check_discovery.py`, next to the other wiring tests, and the
+learner's first command names the file and gives the one-line fix. Verified by reverting only
+the registry import.
+
+**F27.** The `_has_spans` builder in `course/solutions/week-5-check.patch` was one character
+over the line length, so a learner who applied the solution failed `ruff format --check` at
+B6. Rewrapped. Rewrapping a line inside a unified diff changes the hunk's added-line count and
+shifts every later hunk in that file, so both headers were corrected by hand — a generic
+rewriter mangled the new-file hunks on the first attempt. `git apply --check` passes, and the
+full learner path was walked end to end: apply patch → write `mine.py` → `ruff format --check`
+clean → first pytest names the missing import.
+
+Left alone on purpose: the 22 uniqueness warnings (Rick's decision), R13, and week 2's
+variance row.
+
+## 16. Start next session with
 
 1. **R13, then week 2's variance row, then the 22 duplicate fixtures.** R12 is done (§14).
 2. **Cursor re-validates.** Expect the key preflight to pass for all three backends, the

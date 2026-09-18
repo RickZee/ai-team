@@ -108,7 +108,8 @@ row below has a test behind it, so `pytest` goes red if you skip one — but rea
 first rather than waiting for the failure to explain itself. Row 1 is why: until 2026-09-17
 a check module nobody imported was a file that quietly never ran, and the whole suite stayed
 green. A tester writing this exact check hit it. The guard that now catches it
-(`tests/unit/repo/test_check_discovery.py`) came from that run. Of the rest, some messages
+(`tests/unit/evals/test_check_discovery.py`) came from that run, and so did its home:
+it started one folder over, where this step's own `pytest` never looked. Of the rest, some messages
 name the missing piece and some only name the symptom — `KeyError: 'CHK-trace-has-spans'`
 tells you *something* is unregistered, not which of six files to open.
 
