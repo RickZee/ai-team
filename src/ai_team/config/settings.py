@@ -135,9 +135,21 @@ class CallbackSettings(BaseSettings):
 
 
 class AnthropicAgentSdkSettings(BaseSettings):
-    """Anthropic direct API (Claude Agent SDK backend); separate from OpenRouter."""
+    """Anthropic direct API (Claude Agent SDK backend); separate from OpenRouter.
 
-    model_config = SettingsConfigDict(env_prefix="ANTHROPIC_", extra="ignore")
+    ``env_file`` matters: without it this model read the process environment only, so with
+    ``ANTHROPIC_API_KEY`` in ``.env`` but not exported, ``api_key`` came back empty while
+    ``OpenRouterSettings`` (which does declare one) found its key. On 2026-09-17 that made
+    week 1's own advice — ``unset ANTHROPIC_API_KEY`` so ``.env`` wins — stop the Claude
+    backend with "not set. Put it in .env", pointing at the file the key was already in.
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="ANTHROPIC_",
+        extra="ignore",
+    )
 
     api_key: str = Field(
         default="",

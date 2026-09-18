@@ -15,7 +15,15 @@ A third class is process-global state. ``reset_bus(empty=True)`` and
 tests then fail with ``Unknown tool: read_file``. The per-test teardown below
 puts the bus catalog and the settings cache back.
 
-A fourth, found on 2026-09-17: tests that build a ``ResultsBundle`` wrote real run
+A fourth, found on 2026-09-17: the suite read whatever API keys happened to be in the
+developer's shell. With ``OPENROUTER_API_KEY=`` still set from week 1's $0 dry run, four
+``test_run_demo.py`` tests failed on the new key preflight; with a *real* key exported, the
+same tests ran against live settings. Either way the suite was testing a different program
+than CI does. ``_isolate_api_keys`` below pins both variables to a fixed fake value, so a
+test that cares about key handling sets its own (``monkeypatch.setenv`` wins) and every other
+test sees the same thing on every machine.
+
+A fifth, same day: tests that build a ``ResultsBundle`` wrote real run
 directories into the repo's own ``output/runs/``. That folder is the corpus the eval
 harness and the course's week 6 audit read, so a learner who ran ``pytest tests/unit``
 before the audit ingested 14 runs instead of the 5 they had made — a corpus nobody
@@ -81,6 +89,25 @@ def _tracked_inputs_stay_immutable() -> Iterator[None]:
         + ". Redirect the write to tmp_path (monkeypatch the module's directory constant, "
         "e.g. evals.alignment.ALIGNMENT_DIR and VALIDATION_LOG) rather than relaxing this guard."
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_api_keys() -> Iterator[None]:
+    """Pin API-key variables so the suite does not inherit the developer's shell."""
+    pinned = {
+        "OPENROUTER_API_KEY": "test-key-not-a-real-credential",
+        "ANTHROPIC_API_KEY": "test-key-not-a-real-credential",
+    }
+    previous = {k: os.environ.get(k) for k in pinned}
+    os.environ.update(pinned)
+    try:
+        yield
+    finally:
+        for k, v in previous.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 @pytest.fixture(scope="session", autouse=True)

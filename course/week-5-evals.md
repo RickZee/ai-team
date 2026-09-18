@@ -103,8 +103,14 @@ def trace_has_spans(trace: Trace) -> CheckResult:
     return passed(cid, trace, evidence_text=f"{len(trace.spans)} spans")
 ```
 
-Every check needs all three outcomes — including a reason to abstain. Now wire it in. The
-test suite enforces each of these, so if you skip one, `pytest` tells you which:
+Every check needs all three outcomes — including a reason to abstain. Now wire it in. Each
+row below has a test behind it, so `pytest` goes red if you skip one — but read the table
+first rather than waiting for the failure to explain itself. Row 1 is why: until 2026-09-17
+a check module nobody imported was a file that quietly never ran, and the whole suite stayed
+green. A tester writing this exact check hit it. The guard that now catches it
+(`tests/unit/repo/test_check_discovery.py`) came from that run. Of the rest, some messages
+name the missing piece and some only name the symptom — `KeyError: 'CHK-trace-has-spans'`
+tells you *something* is unregistered, not which of six files to open.
 
 | # | File | Add |
 | --- | --- | --- |

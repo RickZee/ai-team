@@ -5,9 +5,10 @@
 **Preceded by** [2026-09-16 (course v2)](2026-09-16-course-v2.md) §8.
 
 Morning (§1–5): agent writes never reached the workspace. Afternoon (§6–9): the first live
-LangGraph run finished — and showed three more harness layers underneath. Evening (§10–13):
-those three fixed, verified live, the reporting bugs behind the numbers closed, and the Cursor
-test skill taught to build rather than only walk.
+LangGraph run finished — and showed three more harness layers underneath. Evening and night (§10–14):
+those three fixed, verified live, the reporting bugs behind the numbers closed, the Cursor
+test skill taught to build rather than only walk — and that skill immediately finding two
+regressions from the same afternoon plus a gate that cannot fail.
 
 ## 1. Where it came from
 
@@ -260,23 +261,87 @@ nothing surprised the learner and they could already explain it taught nothing, 
 before shipping: `git apply --check course/solutions/week-5-check.patch` still applies, so B1
 can end by diffing against the published solution.
 
-## 13. Start next session with
+## 13. Night — the fifth run, the first with `depth: build`
 
-1. **Cursor validates with `depth: build`** (`/test-course`, stranger, $10). This is the first
-   run that exercises B1–B6, so expect the report to be longer and to find things in week 5
-   and week 6 that four previous runs could not. Also expect: LangGraph retry 0 under 5 min;
+`course/testing/runs/2026-09-17-stranger-3/` (`$0.78` of `$10`, ~2.5 h, SHA `ffaaa2d`,
+**100% step coverage**). The build track paid for itself on its first outing: it found three
+things four walk-throughs could not, two of which were regressions from the same afternoon.
+
+**F23 / R11 — my own preflight blocked a working Claude run.** `AnthropicAgentSdkSettings`
+declared `env_prefix="ANTHROPIC_"` and **no `env_file`**, so it read the process environment
+only. With the key in `.env` but not exported — precisely the state week 1's new `unset`
+advice creates — `get_settings().anthropic.api_key` was `""` while `OpenRouterSettings`
+(which does declare `env_file`) found its key. The §10 preflight asked the empty one and
+refused in 0.4 s with "not set. Put it in .env", pointing at the file the key was in. Fixed
+by giving the model an `env_file`; an explicitly empty variable still wins, so week 1's `$0`
+guarantee is intact. Verified both ways.
+
+**F26 — the same preflight made the suite read the developer's shell.** Four
+`test_run_demo.py` tests call `main()`; with `OPENROUTER_API_KEY=` left over from week 1 they
+failed, and with a *real* key exported they ran against live settings. Either way the suite
+tested a different program than CI does. `tests/conftest.py::_isolate_api_keys` now pins both
+variables to a fixed fake value for the session; a test that cares sets its own.
+`tests/unit` is 1665 passed with the shell clean **and** with both keys blanked.
+
+**F24 — a check nobody imports is a check that never runs.** The tester wrote `mine.py`,
+skipped the one-line registry import, and 404 tests stayed green. Week 5 claimed *"the test
+suite enforces each of these"*. It didn't, for the one wiring point the others can't cover:
+every remaining guard only inspects checks the registry already knows about.
+`tests/unit/repo/test_check_discovery.py` finds check modules by looking for `@check(` in the
+source rather than by filename, so a new module is covered the moment it exists and helpers
+like `validation.py` (which declares none) need no allowlist. Proven against a temporary
+`probe_mine.py`: it fails, names the file, and gives the one-line fix.
+
+It also found a real one immediately — `evals/checks/validation.py` is in that folder and is
+not imported — which turned out to be correct: it is the check *validator*, not a check.
+Hence the `@check(` rule instead of a filename list.
+
+Week 5's sentence is rewritten to say what is now true: every row has a test behind it, some
+messages name the missing file and some only name the symptom, so read the table first.
+
+### Still open from that run, not yet fixed
+
+- **R12 — the Tier A deterministic-check gate cannot flag a regression.** Worse than the
+  report said: `evals/baselines/tier_a.json` holds `check_outcomes` for 20 checks and
+  **every one is `"fail"`** (`suite_pass_pow_k: 0.0`), because the fixture corpus contains a
+  fail fixture per check and the baseline collapses all fixtures into one aggregate outcome.
+  `_eval_deterministic_checks` only raises on `base_outcome == "pass" and "fail" in cur`, so
+  that branch is dead across the whole suite and deleting a *pass* fixture exits 0. Week 5
+  teaches learners to add their check to this gate. Fix needs a baseline schema decision:
+  per-check outcome **counts** (regress when the pass count drops) versus per-fixture
+  outcomes keyed by trace id. Counts tolerate corpus growth; per-fixture is precise but
+  churns. Rick to pick.
+- **R13 — `trace backfill` mints duplicate traces.** `make_trace_id` ends in
+  `uuid4().hex[:4]`, and `TraceStore.write` refuses overwrites but never collides, so every
+  backfill of the same run writes a new file: 4 runs → 8 → 14. In a course whose rule is *no
+  rate without its `n`*, the instrument inflates `n`. Committed fixtures are named by
+  check+outcome so they are unaffected, and existing traces keep their ids; the only real
+  decision is what backfill does when an id now collides — skip or replace.
+- **R10 — variance is the story week 2 is missing.** LangGraph on the same brief: 226 s
+  (evening), 518 s with three `decision=fail` lines, and a 900 s watchdog timeout with no
+  `state.json`. CrewAI: 588 s complete, then a 900 s timeout with no `costs.jsonl`. The
+  "3.8 min, retry 0" row is one draw, presented as an after-state.
+
+## 14. Start next session with
+
+1. **Decide R12's baseline shape** (counts vs per-fixture) and fix the gate. It is the
+   biggest open item: the course tells learners to trust a gate whose deterministic-check arm
+   currently cannot fail. Then R13, then week 2's variance row.
+2. **Cursor re-validates.** Expect the key preflight to pass for all three backends, the
+   check-discovery guard to be exercised in B1, and week 5's wiring table to be honest. Also:
    CrewAI `costs.jsonl` `spent_usd` now matching `actual_cost_usd` with
    `source: crewai_token_tracker`; Claude `run.json` showing a real duration; week 6 step 5
    ingesting only the learner's own runs; the paid steps refusing to start on an empty key.
-2. **F1 — the launch blocker:** push/merge `feat/course-v2` so `course/` exists on `main`.
+3. **F1 — the launch blocker:** push/merge `feat/course-v2` so `course/` exists on `main`.
    Everything else on this branch is ready to share.
-3. **Get live `n` above 1.** Every number in weeks 2 and 6 is a single observation. The
+4. **Get live `n` above 1.** Every number in weeks 2 and 6 is a single observation, and the
+   09-17 night run showed how wide the spread is (226 s / 518 s / timeout on one brief). The
    optional `--n 3` batch in week 6 is the cheapest way to start.
-4. **Trace attribution:** agent-side `toolbus_span` rows still carry
+5. **Trace attribution:** agent-side `toolbus_span` rows still carry
    `agent_role=None backend=None phase=None run_id=None` while `_harness` commits carry all
-   four; trace ids still get the `unknown__` prefix even though `by_backend` and `by_status`
-   are now right.
-5. **Consider flipping the unit-suite default** to drafts **on** — the current default is how
+   four. (The `unknown__` prefix on trace ids is the *scenario* id, not the status — an
+   earlier note here had that wrong.)
+6. **Consider flipping the unit-suite default** to drafts **on** — the current default is how
    the draft bug hid for three weeks.
-6. Carried: teaching corpus for week 4, Rick's own thirty-trace reading pass, CrewAI SIGSEGV
+7. Carried: teaching corpus for week 4, Rick's own thirty-trace reading pass, CrewAI SIGSEGV
    (has not reproduced since 09-16).
