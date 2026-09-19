@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,117 @@ def make_trace_id(scenario_id: str, backend: str, when: datetime | None = None) 
     compact = ts.strftime("%Y%m%dT%H%M%SZ")
     short = uuid.uuid4().hex[:4]
     return f"{scenario_id}__{backend}__{compact}__{short}"
+
+
+@dataclass(frozen=True)
+class _Telemetry:
+    """Everything the log files of one run contribute to its trace."""
+
+    phase_spans: list[Span]
+    cost_spans: list[Span]
+    audit_spans: list[Span]
+    smoke_spans: list[Span]
+    ui_spans: list[Span]
+    qa_spans: list[Span]
+    session_spans: list[Span]
+    session_meta: dict[str, Any]
+    cost_from_log: CostRecord | None
+    cost_from_session: CostRecord | None
+    audit_missing: bool
+    warnings: list[str]
+
+
+def _read_telemetry(run_dir: Path, run_record: dict[str, Any]) -> _Telemetry:
+    """Parse every log a run wrote, across both trees it writes to.
+
+    Extracted from ``from_workspace`` because adding the second tree pushed it past the repo's
+    150-line function ratchet, which says to extract rather than raise the floor.
+    """
+    warnings: list[str] = []
+    alt_root = _agent_workspace_root(run_dir, run_record)
+    read_from_workspace: list[str] = []
+
+    def _src(rel: str) -> Path:
+        """Prefer the run directory; fall back to the agent workspace."""
+        primary = run_dir / rel
+        if primary.is_file() or alt_root is None:
+            return primary
+        alt = alt_root / rel
+        if alt.is_file():
+            read_from_workspace.append(rel)
+            return alt
+        return primary
+
+    phase_spans, w = parse_phases_jsonl(_src("logs/phases.jsonl"))
+    warnings.extend(w)
+    cost_spans, cost_from_log, w = parse_costs_jsonl(_src("logs/costs.jsonl"))
+    warnings.extend(w)
+    audit_path = _src("logs/audit.jsonl")
+    audit_spans, audit_warnings = parse_audit_jsonl(audit_path)
+    warnings.extend(audit_warnings)
+    session_meta, cost_from_session, w = parse_session_json(_src("logs/session.json"))
+    warnings.extend(w)
+    smoke_spans, w = parse_smoke_report(_src("docs/smoke_results.json"))
+    warnings.extend(w)
+    ui_spans, w = parse_ui_smoke_report(_src("docs/ui_smoke_results.json"))
+    warnings.extend(w)
+    qa_spans, w = parse_qa_verdicts_jsonl(_src("docs/qa_verdicts.jsonl"))
+    warnings.extend(w)
+    session_spans, w = parse_sessions_jsonl(_src("logs/sessions.jsonl"))
+    warnings.extend(w)
+    if read_from_workspace:
+        warnings.append(
+            "telemetry read from the agent workspace rather than the run directory: "
+            + ", ".join(sorted(set(read_from_workspace)))
+        )
+
+    audit_missing = (not audit_path.is_file()) or any(
+        "missing" in x.lower() and "audit" in x.lower() for x in audit_warnings
+    )
+    return _Telemetry(
+        phase_spans=phase_spans,
+        cost_spans=cost_spans,
+        audit_spans=audit_spans,
+        smoke_spans=smoke_spans,
+        ui_spans=ui_spans,
+        qa_spans=qa_spans,
+        session_spans=session_spans,
+        session_meta=session_meta,
+        cost_from_log=cost_from_log,
+        cost_from_session=cost_from_session,
+        audit_missing=audit_missing,
+        warnings=warnings,
+    )
+
+
+def _agent_workspace_root(run_dir: Path, run_record: dict[str, Any]) -> Path | None:
+    """Locate the agent's workspace for a run, which is a different tree from its run record.
+
+    A run writes two trees. ``output/runs/<id>/`` holds the record, the artifacts and
+    ``logs/costs.jsonl``. ``workspace/<id>/`` — where the agents actually worked — holds
+    ``logs/audit.jsonl`` (every tool call), ``docs/qa_verdicts.jsonl``, the journal and the
+    acceptance log. This builder read only the first tree, so on 2026-09-18 a corpus of 385
+    traces contained 0 phase spans and 0 tool spans: every span in it was a cost row, because
+    ``costs.jsonl`` is the one telemetry file written next to the record. Thirty fresh runs
+    added thirty more single-span traces, and ``CHK-trace-has-spans`` passed all of them.
+
+    It is week 3's lesson one level down — the writer and the reader disagree about where a run
+    lives — and the path was in ``run.json`` the whole time.
+
+    ``workspace_dir`` is absolute and recorded on the machine that ran it, so it does not
+    resolve on a different host or through a mount. Fall back to the layout convention,
+    ``<repo>/workspace/<project_id>`` beside ``<repo>/output/runs/<project_id>``.
+    """
+    recorded = run_record.get("workspace_dir")
+    if isinstance(recorded, str) and recorded:
+        candidate = Path(recorded)
+        if candidate.is_dir() and candidate.resolve() != run_dir:
+            return candidate.resolve()
+    try:
+        sibling = run_dir.parents[2] / "workspace" / run_dir.name
+    except IndexError:
+        return None
+    return sibling.resolve() if sibling.is_dir() else None
 
 
 def _normalize_backend(backend: str | None) -> BackendName:
@@ -343,31 +455,18 @@ class TraceBuilder:
             warnings.append("backend not recorded in run.json or session.json; set to 'unknown'")
 
         logs = workspace / "logs"
-        phase_spans, w = parse_phases_jsonl(logs / "phases.jsonl")
-        warnings.extend(w)
-        cost_spans, cost_from_log, w = parse_costs_jsonl(logs / "costs.jsonl")
-        warnings.extend(w)
-        audit_spans, audit_warnings = parse_audit_jsonl(logs / "audit.jsonl")
-        warnings.extend(audit_warnings)
-        session_meta, cost_from_session, w = parse_session_json(logs / "session.json")
-        warnings.extend(w)
-
-        audit_missing = (not (logs / "audit.jsonl").is_file()) or any(
-            "missing" in x.lower() and "audit" in x.lower() for x in audit_warnings
-        )
-        if audit_missing:
+        tel = _read_telemetry(workspace, run_record)
+        warnings.extend(tel.warnings)
+        phase_spans = tel.phase_spans
+        cost_spans, cost_from_log = tel.cost_spans, tel.cost_from_log
+        audit_spans = tel.audit_spans
+        session_meta, cost_from_session = tel.session_meta, tel.cost_from_session
+        smoke_spans, ui_spans = tel.smoke_spans, tel.ui_spans
+        qa_spans, session_spans = tel.qa_spans, tel.session_spans
+        if tel.audit_missing:
             msg = f"no audit log for backend={backend_name}; tool-level checks skipped"
             if msg not in warnings:
                 warnings.append(msg)
-
-        smoke_spans, w = parse_smoke_report(workspace / "docs" / "smoke_results.json")
-        warnings.extend(w)
-        ui_spans, w = parse_ui_smoke_report(workspace / "docs" / "ui_smoke_results.json")
-        warnings.extend(w)
-        qa_spans, w = parse_qa_verdicts_jsonl(workspace / "docs" / "qa_verdicts.jsonl")
-        warnings.extend(w)
-        session_spans, w = parse_sessions_jsonl(logs / "sessions.jsonl")
-        warnings.extend(w)
 
         lg_spans: list[Span] = []
         token_total: int | None = None
