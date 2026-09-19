@@ -1,0 +1,12 @@
+{
+  "sample_id": "stratified-1-664ed4a41851",
+  "path": "course/.work/samples/stratified-1-664ed4a41851.json",
+  "strategy": "stratified",
+  "seed": 1,
+  "n_requested": 30,
+  "n_selected": 30,
+  "n_eligible": 98,
+  "n_corpus": 355,
+  "corpus_state_hash": "664ed4a41851c29c0a959f8c4722651c3465ed91dec53a12ffc647f78c54fbd7",
+  "imbalances": 1
+}

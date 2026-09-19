@@ -1,0 +1,60 @@
+{
+  "corpus_state_hash": "664ed4a41851c29c0a959f8c4722651c3465ed91dec53a12ffc647f78c54fbd7",
+  "filters": {
+    "min_spans": 1
+  },
+  "imbalances": [
+    {
+      "available": 1,
+      "donor": {
+        "backend": "unknown",
+        "scenario_id": "unknown",
+        "status": "complete"
+      },
+      "filled": 14,
+      "quota": 15,
+      "shortfall": 14,
+      "stratum": {
+        "backend": "claude-agent-sdk",
+        "scenario_id": "unknown",
+        "status": "complete"
+      }
+    }
+  ],
+  "n": 30,
+  "sample_id": "stratified-1-664ed4a41851",
+  "seed": 1,
+  "selection": [
+    "unknown__claude-agent-sdk__20260707T104915Z__bddf",
+    "unknown__unknown__20260707T120658Z__a63f",
+    "unknown__unknown__20260913T151939Z__c0fc",
+    "unknown__unknown__20260707T111849Z__b8d9",
+    "unknown__unknown__20260707T210641Z__bbf2",
+    "unknown__unknown__20260707T113352Z__bfb0",
+    "unknown__unknown__20260913T142543Z__5d32",
+    "unknown__unknown__20260912T184952Z__2be5",
+    "unknown__unknown__20260913T141748Z__b162",
+    "unknown__unknown__20260913T165140Z__eeed",
+    "unknown__unknown__20260816T213117Z__d5a4",
+    "unknown__unknown__20260707T194848Z__3d67",
+    "unknown__unknown__20260707T113039Z__69ce",
+    "unknown__unknown__20260913T142512Z__c050",
+    "unknown__unknown__20260707T110827Z__0538",
+    "unknown__unknown__20260823T174033Z__cff5",
+    "unknown__unknown__20260913T151531Z__0625",
+    "unknown__unknown__20260914T153717Z__97d0",
+    "unknown__unknown__20260706T203208Z__bf78",
+    "unknown__unknown__20260913T151637Z__7fea",
+    "unknown__unknown__20260707T225653Z__f59b",
+    "unknown__unknown__20260707T222335Z__d060",
+    "unknown__unknown__20260914T153329Z__e39d",
+    "unknown__unknown__20260707T120731Z__904f",
+    "unknown__unknown__20260816T213045Z__ed95",
+    "unknown__unknown__20260707T110958Z__0e0a",
+    "unknown__unknown__20260707T110719Z__f297",
+    "unknown__unknown__20260913T174513Z__7d82",
+    "unknown__unknown__20260913T165211Z__d510",
+    "unknown__unknown__20260707T110647Z__4527"
+  ],
+  "strategy": "stratified"
+}

@@ -1,0 +1,76 @@
+{
+  "corpus_state_hash": "922ca4555d6602ad8591fedff3ff41c28a02b88d5e147bef5297466702b05c6c",
+  "filters": {
+    "min_spans": 1
+  },
+  "imbalances": [
+    {
+      "available": 1,
+      "donor": {
+        "backend": "unknown",
+        "scenario_id": "unknown",
+        "status": "complete"
+      },
+      "filled": 5,
+      "quota": 6,
+      "shortfall": 5,
+      "stratum": {
+        "backend": "claude-agent-sdk",
+        "scenario_id": "unknown",
+        "status": "complete"
+      }
+    },
+    {
+      "available": 1,
+      "donor": {
+        "backend": "unknown",
+        "scenario_id": "unknown",
+        "status": "complete"
+      },
+      "filled": 5,
+      "quota": 6,
+      "shortfall": 5,
+      "stratum": {
+        "backend": "langgraph",
+        "scenario_id": "unknown",
+        "status": "failed"
+      }
+    }
+  ],
+  "n": 30,
+  "sample_id": "stratified-1-922ca4555d66",
+  "seed": 1,
+  "selection": [
+    "unknown__claude-agent-sdk__20260707T104915Z__5e82",
+    "unknown__langgraph__20260918T180932Z__552c",
+    "unknown__langgraph__20260918T221435Z__9ec4",
+    "unknown__langgraph__20260918T174852Z__7cfb",
+    "unknown__langgraph__20260918T191935Z__2779",
+    "unknown__langgraph__20260918T180106Z__61cb",
+    "unknown__langgraph__20260918T210819Z__d1df",
+    "unknown__langgraph__20260918T220013Z__1948",
+    "unknown__langgraph__20260918T224435Z__cf16",
+    "unknown__langgraph__20260918T183932Z__d8f7",
+    "unknown__langgraph__20260918T202738Z__2d63",
+    "unknown__langgraph__20260918T195738Z__dd53",
+    "unknown__langgraph__20260918T161237Z__7540",
+    "unknown__langgraph__20260918T172821Z__a662",
+    "unknown__unknown__20260913T142512Z__b425",
+    "unknown__unknown__20260707T110827Z__1c28",
+    "unknown__unknown__20260823T174033Z__aecb",
+    "unknown__unknown__20260830T195427Z__e956",
+    "unknown__unknown__20260913T152526Z__a1c9",
+    "unknown__unknown__20260706T203208Z__891a",
+    "unknown__unknown__20260916T132550Z__82fb",
+    "unknown__unknown__20260913T141819Z__fb2e",
+    "unknown__unknown__20260707T222335Z__f0ab",
+    "unknown__unknown__20260707T203056Z__2713",
+    "unknown__unknown__20260913T160109Z__1f4a",
+    "unknown__unknown__20260707T113352Z__326f",
+    "unknown__unknown__20260707T225817Z__205f",
+    "unknown__unknown__20260707T111129Z__7669",
+    "unknown__unknown__20260707T110958Z__b43d",
+    "unknown__unknown__20260916T132055Z__5205"
+  ],
+  "strategy": "stratified"
+}
