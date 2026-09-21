@@ -20,6 +20,7 @@ from typing import Any
 import structlog
 from ai_team.backends.langgraph_backend.graphs.langgraph_chat import _fix_tool_call_args
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
+from ai_team.tools.coverage_paths import strip_parent_coverage_env
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
@@ -170,6 +171,7 @@ def _run_cmd(cmd: list[str], *, timeout_s: int, cwd: Path) -> dict[str, Any]:
             capture_output=True,
             text=True,
             timeout=timeout_s,
+            env=strip_parent_coverage_env(),
         )
         out = ((r.stdout or "") + (r.stderr or "")).strip()
         return {"ok": r.returncode == 0, "returncode": r.returncode, "output": out}

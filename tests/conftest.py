@@ -30,14 +30,22 @@ before the audit ingested 14 runs instead of the 5 they had made — a corpus no
 curated, which is exactly what week 3 warns about. ``_isolate_run_output`` below points
 the whole suite at a temp directory and fails the session if anything lands in the real
 one anyway.
+
+A sixth, 2026-09-21: nested pytest (qa tools, harness gates) inherited the parent
+``--cov`` ``COVERAGE_FILE`` and wrote statement coverage next to branch data.
+``coverage combine`` then raised ``DataError`` after 1693 passing tests, so
+``pre_push_check.sh`` failed closed. ``pytest_configure`` below strips inherited
+coverage env from child processes.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -49,6 +57,57 @@ IMMUTABLE_TREES = (
     "evals/fixtures/traces",
     "evals/taxonomy",
 )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Keep nested pytest from writing into the parent ``--cov`` data file.
+
+    Installed again from a session fixture so it wins over pytest-cov's own
+    Popen wrapper (that plugin configures after conftest).
+    """
+    _install_popen_coverage_scrub()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _scrub_nested_coverage_env() -> None:
+    _install_popen_coverage_scrub()
+
+
+def _install_popen_coverage_scrub() -> None:
+    """Strip inherited coverage env from child processes.
+
+    ``ci_unit_test.sh --cov`` sets ``COVERAGE_FILE`` and pytest-cov sets
+    ``COVERAGE_PROCESS_START``. Child pytest then writes *statement* coverage
+    into the parent's *branch* file; combine fails. Spawn sites that set their
+    own ``COVERAGE_FILE`` (via ``coverage_subprocess_env``) keep it.
+    """
+    current = subprocess.Popen
+    if getattr(current, "_ai_team_cov_scrub", False):
+        return
+
+    class _Popen(current):  # type: ignore[valid-type,misc]
+        _ai_team_cov_scrub = True
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            env = kwargs.get("env")
+            env = os.environ.copy() if env is None else dict(env)
+            parent_file = os.environ.get("COVERAGE_FILE")
+            for key in (
+                "COVERAGE_PROCESS_START",
+                "COV_CORE_SOURCE",
+                "COV_CORE_CONFIG",
+                "COV_CORE_DATAFILE",
+                "COV_CORE_BRANCH",
+                "COV_CORE_CONTEXT",
+            ):
+                env.pop(key, None)
+            if parent_file and env.get("COVERAGE_FILE") == parent_file:
+                env.pop("COVERAGE_FILE", None)
+            kwargs["env"] = env
+            super().__init__(*args, **kwargs)
+
+    _Popen._ai_team_cov_scrub = True  # type: ignore[attr-defined]
+    subprocess.Popen = _Popen  # type: ignore[misc]
 
 
 def _snapshot(root: Path) -> dict[str, str]:
