@@ -97,6 +97,28 @@ rhythm we encode in `evals/cli sample` → `annotate` → `taxonomy propose`.
 work). Same authors as the essay; this is the long-form walkthrough we point people at
 when the written piece is too dense.
 
+### [LangChain — State of Agent Engineering](https://www.langchain.com/state-of-agent-engineering)
+
+**What:** Survey of 1,340 practitioners (18 Nov–2 Dec 2025): 89% report agent
+observability, 62% detailed step-level tracing, 52% offline evals, 60% human review.
+No question for how many traces a human has actually read.
+
+**How we used it:** Industry framing in campaign L1 / v2 week 3. The percentages
+measure installation; the campaign's point is the unread traces.
+
+**Why:** A named, dated, n-bearing source. Always paste this URL in the published
+body — not a recap, not notes-only.
+
+### [Husain — AI Evals FAQ](https://hamel.dev/blog/posts/evals-faq/)
+
+**What:** Practical FAQ on error-analysis-first evals, including the 60–80% of
+development time spent on error analysis (v1 L3).
+
+**How we used it:** Method source for campaign copy; original page must travel with
+the figure.
+
+**Why:** Same rule as LangChain — the FAQ URL is the citation, not the name alone.
+
 ---
 
 ## Anthropic references (measurement arms)

@@ -63,7 +63,7 @@ None of the five is met. **Status: warn-only, indefinitely, and correctly so.**
 ## Claim rules for external material
 
 Anything published from this work — LinkedIn, X, Substack, showcase page, deck —
-follows three rules:
+follows four rules:
 
 1. **Every rate carries its corpus kind and its `n`.** A rate without `n` is a
    defect in the claim, not a rounding of it.
@@ -72,3 +72,7 @@ follows three rules:
 3. **The gap is the story.** Describing the harness as finished and fed would be a
    worse claim than describing it as built and starving — and the second one is
    the interesting half.
+4. **Every third-party statistic names source, n, and the original page URL in the
+   published body.** Recaps, notes, and first comments do not count. LangChain
+   *State of Agent Engineering* (n = 1,340):
+   https://www.langchain.com/state-of-agent-engineering

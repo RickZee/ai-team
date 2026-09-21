@@ -40,6 +40,12 @@ Agents coordinate through these paths (file-based handoff), not a shared in-memo
 
 Choose the backend explicitly (`--backend`); do not assume OpenRouter keys work for the Claude Agent SDK backend.
 
+## Campaign copy
+
+LinkedIn and Substack drafts: `campaign-v2/` and `docs/campaign/`. Every third-party
+stat names source, n, and the original page URL in the pasteable body. Skill:
+`.cursor/skills/campaign-post/`. Slash command: `/campaign-post`.
+
 ## Kiro specs
 
 Feature work specified under `.kiro/specs/<id>/` is executed from `tasks.md`.
