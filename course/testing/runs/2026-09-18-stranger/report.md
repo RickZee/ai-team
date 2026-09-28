@@ -155,7 +155,7 @@ See `concepts.md`. This pass: sampler vs readable pool **taught**; taxonomy **as
 - Could a stranger finish alone? Week 5 on this branch: yes. Week 4 mechanics: yes. Week 4 as intended (thirty informative reads): not from a fresh clone without making runs. Not from GitHub `main` (F1).
 - Single most confusing moment: the Observe one-liner lying after a second sample.
 - Lesson that landed best: a sampler will always hand you thirty; `--min-spans` asks whether thirty readable runs exist. Lesson only asserted: open-coding thirty traces.
-- Purpose (`campaign-v2`): weeks 4–5 on this branch do what they claim, with F28 in the way of the new Observe block.
+- Purpose (`course/README.md`): weeks 4–5 on this branch do what they claim, with F28 in the way of the new Observe block.
 - After the build track: **yes, I could add a check to a system I did not write.** The first pytest starts the conversation.
 - Concept I only understood after something went wrong: alphabetical `[-1]` is not "the one I just made". Also: a watchdog kill is `na` on the check I wrote, not a fail.
 

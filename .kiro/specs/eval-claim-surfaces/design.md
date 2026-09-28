@@ -172,7 +172,7 @@ A twenty-line script, not a linter plugin:
 ```python
 # scripts/audit_doc_commands.py
 EXEMPT = ("docs/journal/", "docs/eval-runs/", "docs/posts/",
-          "docs/showcase/", "docs/campaign/", ".archive/")
+          "docs/showcase/", ".archive/")
 PATTERN = re.compile(r"trace\s+backfill[^\n]*--workspace-root\s+\./workspace")
 ```
 

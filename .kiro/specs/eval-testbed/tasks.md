@@ -289,7 +289,7 @@ project cannot deliver is this repo's signature defect performed deliberately.
 
 - [ ] **7.1 Rebuild the page from the sessions**
   - Leads with what a reader can do. The audit narrative appears as evidence in one section,
-    never as the opening — the campaign's own test is *"would this still be worth reading by
+    never as the opening — the writing test is *"would this still be worth reading by
     someone who does not care whose repo it is?"*
   - **Definition of done:** the page's first screen is the loop and the command that starts
     it; the audit is one section below it; every number carries `n`, corpus kind and stamps.
@@ -301,10 +301,9 @@ project cannot deliver is this repo's signature defect performed deliberately.
     softened.
   - _Requirements: R9.5, R9.6_
 
-- [ ] **7.3 Publish, and wire the campaign**
-  - **Definition of done:** URL recorded in the campaign header and `docs/course/README.md`;
-    L3's `[link]` destination points at it; the claim rules in
-    `docs/campaign/EVAL_GATE_STATUS.md` are satisfied by every figure on the page.
+- [ ] **7.3 Publish**
+  - **Definition of done:** URL recorded in `docs/course/README.md`; the claim rules in
+    `docs/EVAL_GATE_STATUS.md` are satisfied by every figure on the page.
   - _Requirements: R9.6_
 
 - [ ] **7.4 Journal entry**

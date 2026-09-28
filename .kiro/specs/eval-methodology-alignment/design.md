@@ -294,7 +294,7 @@ to read next, never reported as quality. This is the one place the source materi
 bluntest, and the repo's existing `metrics.py` scorecard is close enough to a generic
 dashboard that the rule needs writing down.
 
-R15.6 closes the concrete instance already in the tree: `docs/campaign/EVAL_GATE_STATUS.md`
+R15.6 closes the concrete instance already in the tree: `docs/EVAL_GATE_STATUS.md`
 is referenced twice and does not exist.
 
 ## 9. Error handling

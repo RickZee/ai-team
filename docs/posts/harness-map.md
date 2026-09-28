@@ -2,7 +2,7 @@
 
 *Companion to [HARNESS.md](../HARNESS.md) and the Substack essay
 "The harness is not the plugin." Diagrams:
-[substack-harness-layers.svg](../images/substack-harness-layers.svg).*
+[harness-layers.svg](../images/harness-layers.svg).*
 
 ## Three different jobs
 
@@ -45,7 +45,7 @@ seven-layer bar in [HARNESS.md](../HARNESS.md) (status as of R19.3 / 2026-09).
 - ECC-style skill marketplace or multi-IDE plugin install.
 - teamai-style git sync of skills/rules across a team.
 - Stencil-style XML session DOM with rewind/fork parity.
-- Hard CI taxonomy gate until [campaign/EVAL_GATE_STATUS.md](../campaign/EVAL_GATE_STATUS.md)
+- Hard CI taxonomy gate until [EVAL_GATE_STATUS.md](../EVAL_GATE_STATUS.md)
   says the soak is complete (Tier A is still `--warn-only`).
 
 ## Further reading

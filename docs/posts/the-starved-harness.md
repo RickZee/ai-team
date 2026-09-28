@@ -306,7 +306,7 @@ The full audit, with the queries and the file counts, is in the engineering
 journal: [`2026-09-13-eval-methodology-audit.md`](../journal/2026-09-13-eval-methodology-audit.md).
 The remediation spec is [`.kiro/specs/eval-methodology-alignment/`](../../.kiro/specs/eval-methodology-alignment/).
 Current gate status and what may be claimed from it:
-[`campaign/EVAL_GATE_STATUS.md`](../campaign/EVAL_GATE_STATUS.md).*
+[`EVAL_GATE_STATUS.md`](../EVAL_GATE_STATUS.md).*
 
 [ep]: https://www.lennysnewsletter.com/p/why-ai-evals-are-the-hottest-new-skill
 

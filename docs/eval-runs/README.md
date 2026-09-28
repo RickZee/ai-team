@@ -2,7 +2,7 @@
 
 Receipts for eval work that actually executed (or froze mid-run). These are
 not published rates. Claim rules:
-[`campaign/EVAL_GATE_STATUS.md`](../campaign/EVAL_GATE_STATUS.md).
+[`EVAL_GATE_STATUS.md`](../EVAL_GATE_STATUS.md).
 
 | Note | Kind | What happened |
 | --- | --- | --- |

@@ -313,7 +313,7 @@ Do not start any other task. Stop when its Definition of done is satisfied and
   - _Requirements: R15.4_
 
 - [ ] **8.6 Fix the broken gate-status link**
-  - Create `docs/campaign/EVAL_GATE_STATUS.md` or remove both references to it.
+  - Create `docs/EVAL_GATE_STATUS.md` or remove both references to it.
   - **Definition of done:** no dangling link remains in `docs/`.
   - _Requirements: R15.6_
 

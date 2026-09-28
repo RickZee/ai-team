@@ -83,7 +83,7 @@ is the one that shapes what I believe the system does.
    linking the owning task, so that a reader who runs it knows what they will get. A correct
    caveat satisfies this requirement; a silent wrong command does not.
 4. Historical documents SHALL be exempt by path: `docs/journal/`, `docs/eval-runs/`,
-   `docs/posts/`, `docs/showcase/`, `docs/campaign/` and `.archive/` record what was run at
+   `docs/posts/`, `docs/showcase/` and `.archive/` record what was run at
    the time and SHALL NOT be rewritten. A defect narrative quoting the wrong command is
    evidence, not an error.
 5. CI SHALL fail WHEN a tracked document outside those paths contains a corpus-building

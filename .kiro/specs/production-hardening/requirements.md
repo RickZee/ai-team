@@ -268,7 +268,7 @@ broken relative links (R4.2). Its value is that it was written at the time.
 or directory. The audit found ~70 that do not, concentrated in
 `docs/prompts/PROMPT_TRACKING.md` (~65), plus
 `docs/EVAL_METHODOLOGY.md` and `docs/posts/harness-map.md`
-(→ `campaign/EVAL_GATE_STATUS.md`), `docs/prompts/PROMPTS.md`
+(→ `EVAL_GATE_STATUS.md`), `docs/prompts/PROMPTS.md`
 (→ `.archive/phase-7-agentcore-deployment.md`), and three journal `handoff-*.md` links.
 
 4.2 EVERY INLINE SOURCE PATH in a tracked `.md` file SHALL resolve to a tracked file,
@@ -811,7 +811,7 @@ cannot be added without either a baseline entry or an explicit exemption.
 21.3 **25 of 38 tracked images (~7 MB of the repo's 9 MB `docs/images/`) are referenced by no
 tracked file**, including `dashboard.png` (808 KB), `ai-team-work-sample-{1,2}.png` (1.4 MB),
 twelve `compare-2026-07-03-*` screenshots, `compare-verified-2026-07-06.gif` (676 KB), and the
-`substack-*` / `hero-linkedin.*` publication assets. EACH SHALL be either referenced from a
+publication assets. EACH SHALL be either referenced from a
 document, moved under a clearly named directory with a `README.md` stating it is an external
 publication asset, or deleted.
 

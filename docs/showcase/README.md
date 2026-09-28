@@ -10,7 +10,7 @@ stylesheet.
 
 ## Rules
 
-Anything published here follows [`../campaign/EVAL_GATE_STATUS.md`](../campaign/EVAL_GATE_STATUS.md):
+Anything published here follows [`../EVAL_GATE_STATUS.md`](../EVAL_GATE_STATUS.md):
 every rate carries its `n` and its corpus kind (`FIXTURE-ONLY` / `CORPUS` / `LIVE`), and
 no page states a quality rate while the corpus is stamped `NON-REPRESENTATIVE`.
 

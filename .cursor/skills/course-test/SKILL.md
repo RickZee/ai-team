@@ -458,7 +458,7 @@ Also answer, in plain sentences:
 - Could a stranger finish this week alone? If not, at which step do they give up?
 - What is the single most confusing moment?
 - Which lesson landed best, and which one is only asserted?
-- Does the course still serve its purpose (`campaign-v2/README.md` → *Purpose*)?
+- Does the course still serve its purpose (`course/README.md` (its stated purpose))?
 - **After doing the build track: could you now add a check to a system you didn't write?**
   That is the course's real promise. Answer yes or no and say what would have to change.
 - **Which concept did you only understand after something went wrong?** Those are the

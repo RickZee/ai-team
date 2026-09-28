@@ -17,7 +17,7 @@ never had, from one batch of runs:
   $0.008–$0.054 a run, so $3 is roughly 10x headroom. Stop and report if you reach it.
 - Wall time: **2–8 hours.** Each run is 4–15 min and the watchdog kills at 900 s. Start it and
   let it go; do not babysit.
-- Do **not** edit `course/`, `campaign-v2/` or anything under `src/`. This job only makes data.
+- Do **not** edit `course/` or anything under `src/`. This job only makes data.
 
 ## Run
 

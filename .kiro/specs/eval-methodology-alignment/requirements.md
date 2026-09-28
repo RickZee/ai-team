@@ -382,7 +382,7 @@ came from, so that a fixture pass rate cannot be mistaken for a quality measurem
 5. Every external-facing artifact derived from this work — posts, showcase pages, decks — SHALL
    state the corpus kind and `n` for any rate it reports. A claim without `n` is a defect in the
    claim, not a rounding of it.
-6. The broken link `docs/campaign/EVAL_GATE_STATUS.md`, referenced from
+6. The broken link `docs/EVAL_GATE_STATUS.md`, referenced from
    `docs/EVAL_METHODOLOGY.md` and `docs/posts/harness-map.md`, SHALL be created or the
    references removed. A gate-status claim pointing at a missing file is the failure mode this
    requirement exists to prevent.

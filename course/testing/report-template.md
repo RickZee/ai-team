@@ -119,7 +119,7 @@ Severity: **P0** blocks the learner · **P1** misleads · **P2** friction · **P
 - Could a stranger finish alone? Where would they give up?
 - Single most confusing moment in the course:
 - Lesson that landed best / lesson that is only asserted:
-- Does the course still serve the purpose in `campaign-v2/README.md`?
+- Does the course still serve the purpose in `course/README.md`?
 - After the build track: could you now add a check to a system you didn't write? What would
   have to change for the answer to be yes?
 - Which concept did you only understand after something went wrong?

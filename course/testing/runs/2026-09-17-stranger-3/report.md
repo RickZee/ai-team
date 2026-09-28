@@ -187,7 +187,7 @@ See `concepts.md`. Headline lessons marked **asserted** or **missing**:
 - Could a stranger finish alone? On this branch, the $0 path yes. Live Claude: not after the documented unset. Live CrewAI: maybe a 15-minute timeout. Not from GitHub `main` (F1).
 - Single most confusing moment: week 1 says unset so `.env` wins; Claude says the key is missing from `.env`.
 - Lesson that landed best: two readers disagree, and disagreement is the finding (W3.S3 + CrewAI killed vs timeout). Lesson that is only asserted: open-coding thirty traces.
-- Purpose (`campaign-v2`): a stranger can run most of it on this branch. Start still points at `main`.
+- Purpose (`course/README.md`): a stranger can run most of it on this branch. Start still points at `main`.
 - After the build track: **yes, I could add a check to a system I did not write**, if that system has a registry test that fails when a module is not imported. This one does not, until you import. I would copy the six-row table, not trust pytest to start the conversation.
 - Concept I only understood after something went wrong: empty env vars are not the same as "read `.env`". Also: `n` from backfill is not `n` from `output/runs` unless you wipe the traces folder.
 

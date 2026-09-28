@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1200" height="660" fill="#faf9f5"/>
+
+  <text x="60" y="64" font-size="30" font-weight="700" fill="#1a1a2e">The harness that survives the agent</text>
+  <text x="60" y="96" font-size="17" fill="#5f5e5a">Most of "building an agent system" is the plain, non-LLM code whose job is to survive the model when it misbehaves.</text>
+  <text x="60" y="118" font-size="17" fill="#5f5e5a">Each guard below was added after a specific failure burned a real run.</text>
+
+  <!-- 4 guard rows: guard | what it catches -->
+  <g font-size="16">
+    <!-- Runtime smoke gate -->
+    <rect x="60" y="150" width="300" height="106" rx="12" fill="#e1f5ee" stroke="#1d9e75"/>
+    <text x="82" y="188" font-size="18" font-weight="700" fill="#085041">Runtime smoke gate</text>
+    <text x="82" y="214" font-size="13.5" fill="#0f6e56">boots the real app, drives a live</text>
+    <text x="82" y="232" font-size="13.5" fill="#0f6e56">HTTP create→read→update→delete</text>
+    <line x1="360" y1="203" x2="428" y2="203" stroke="#b4b2a9" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="430" y="168" width="710" height="70" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <text x="452" y="198" font-size="15" font-weight="600" fill="#2c2c2a">"70/70 pytest green, app 500s on every request"</text>
+    <text x="452" y="220" font-size="13.5" fill="#888780">unit tests bypass the production middleware chain — nothing ever ran the app</text>
+
+    <!-- Per-run spend guard -->
+    <rect x="60" y="272" width="300" height="106" rx="12" fill="#faece7" stroke="#d85a30"/>
+    <text x="82" y="310" font-size="18" font-weight="700" fill="#712b13">Per-run spend guard</text>
+    <text x="82" y="336" font-size="13.5" fill="#993c1d">BaseException abort, scoped</text>
+    <text x="82" y="354" font-size="13.5" fill="#993c1d">per run so it can't be swallowed</text>
+    <line x1="360" y1="325" x2="428" y2="325" stroke="#b4b2a9" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="430" y="290" width="710" height="70" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <text x="452" y="320" font-size="15" font-weight="600" fill="#2c2c2a">a crash-loop that is also a billing loop</text>
+    <text x="452" y="342" font-size="13.5" fill="#888780">a plain Exception got caught by except Exception in two libraries and retried the kill</text>
+
+    <!-- Subprocess isolation -->
+    <rect x="60" y="394" width="300" height="106" rx="12" fill="#eeedfe" stroke="#7f77dd"/>
+    <text x="82" y="432" font-size="18" font-weight="700" fill="#3c3489">Subprocess isolation</text>
+    <text x="82" y="458" font-size="13.5" fill="#534ab7">untrusted runtime in its own</text>
+    <text x="82" y="476" font-size="13.5" fill="#534ab7">process, hard-killed on timeout</text>
+    <line x1="360" y1="447" x2="428" y2="447" stroke="#b4b2a9" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="430" y="412" width="710" height="70" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <text x="452" y="442" font-size="15" font-weight="600" fill="#2c2c2a">one hung thread starving the GIL for every other backend</text>
+    <text x="452" y="464" font-size="13.5" fill="#888780">a 78-minute stall I first blamed on the wrong backend</text>
+
+    <!-- Measured guardrails -->
+    <rect x="60" y="516" width="300" height="106" rx="12" fill="#fae9d5" stroke="#ba7517"/>
+    <text x="82" y="554" font-size="18" font-weight="700" fill="#633806">Measured guardrails</text>
+    <text x="82" y="580" font-size="13.5" fill="#854f0b">precision/recall on a labeled</text>
+    <text x="82" y="598" font-size="13.5" fill="#854f0b">corpus, not single-run tuning</text>
+    <line x1="360" y1="569" x2="428" y2="569" stroke="#b4b2a9" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="430" y="534" width="710" height="70" rx="10" fill="#ffffff" stroke="#d3d1c7"/>
+    <text x="452" y="564" font-size="15" font-weight="600" fill="#2c2c2a">a scope guard flagging the QA agent's correct output as "scope creep"</text>
+    <text x="452" y="586" font-size="13.5" fill="#888780">the corpus caught a "fix" that lived only in the docs, plus a recall gap</text>
+  </g>
+
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+</svg>

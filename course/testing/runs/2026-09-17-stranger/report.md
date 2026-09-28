@@ -145,7 +145,7 @@ Spend / wall: last run $0.85 of $5 in ~50 min (one 15-min hang); this run **$0.9
 - Could a stranger finish alone? On this branch, yes — $0 path and the live LangGraph smoke. Not from GitHub `main` (F1). CrewAI live is a failed row, not a stuck command.
 - Single most confusing moment: week 2 still saying the live proof does not exist after a 12-minute complete.
 - Lesson that landed best: two folders, one reader (week 3). Lesson that is only asserted: “the loop is gone” as a *rate* (n=1 complete, 3 retries).
-- Purpose (`campaign-v2`): a stranger can run it on this branch. Start still points at `main`.
+- Purpose (`course/README.md`): a stranger can run it on this branch. Start still points at `main`.
 
 ## Top 5 improvements
 

@@ -103,8 +103,8 @@ when the written piece is too dense.
 observability, 62% detailed step-level tracing, 52% offline evals, 60% human review.
 No question for how many traces a human has actually read.
 
-**How we used it:** Industry framing in campaign L1 / v2 week 3. The percentages
-measure installation; the campaign's point is the unread traces.
+**How we used it:** Industry framing for the course, week 3. The percentages
+measure installation; the point is the unread traces.
 
 **Why:** A named, dated, n-bearing source. Always paste this URL in the published
 body — not a recap, not notes-only.
@@ -114,8 +114,8 @@ body — not a recap, not notes-only.
 **What:** Practical FAQ on error-analysis-first evals, including the 60–80% of
 development time spent on error analysis (v1 L3).
 
-**How we used it:** Method source for campaign copy; original page must travel with
-the figure.
+**How we used it:** Method source for error-analysis-first evals; the original page
+travels with the figure.
 
 **Why:** Same rule as LangChain — the FAQ URL is the citation, not the name alone.
 

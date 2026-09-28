@@ -133,7 +133,7 @@ Severity: **P0** blocks the learner · **P1** misleads · **P2** friction · **P
 - Single most confusing moment: LangGraph still retrying after the files exist, while `--timeout 900` lies and `state.json` is missing.
 - Lesson that landed best: the instrument can be empty, mislabelled, or disagree with a second reader — and green FIXTURE-ONLY proves nothing about agents.
 - Lesson only asserted: “fix it, prove it with n” (week 6 live loop).
-- Does the course still serve `campaign-v2/README.md` Purpose? The $0 labs would, if they were on the default branch and the copy-paste fences ran on zsh. As Start is written, a stranger who doesn't care whose repo this is **cannot run it**.
+- Does the course still serve the purpose in `course/README.md`? The $0 labs would, if they were on the default branch and the copy-paste fences ran on zsh. As Start is written, a stranger who doesn't care whose repo this is **cannot run it**.
 
 ## Top 5 improvements
 
@@ -165,7 +165,7 @@ Findings were checked against the code before fixing. Commits are on `feat/cours
 
 | ID | Status | What changed |
 | --- | --- | --- |
-| F1 | open — launch gate | Push and merge `feat/course-v2` (campaign gate G1). Not a course-text defect. |
+| F1 | open — launch gate | Push and merge `feat/course-v2` (launch gate). Not a course-text defect. |
 | F2 | fixed | Globs quoted: `--include='*.py'` (weeks 1, 3) |
 | F3 | fixed (docs + code) | Week 1 stop rule at minute 15, `ps` check for leftovers, Observe survives a missing `state.json`; watchdog fixed (R1) |
 | F4 | fixed | Week 2 live race marked optional with the 2026-09-16 result; stop rule; recorded case is the default |

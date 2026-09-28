@@ -197,7 +197,7 @@ The audit's result by category:
   correct — but the file says nothing about it, and it is the file that defines what the
   flagship $0 gate accepts.
 - **Unclassified: 7 MB of images.** 25 of 38 are referenced by nothing. Roughly half are
-  external publication assets (`substack-*`, `hero-linkedin.*`) that have a purpose the
+  external publication assets that have a purpose the
   repository never states; the rest are run screenshots from July whose documents have moved on.
 
 `evals/golden/.validation_log.jsonl` fits none of the three: a hidden, tracked, zero-length
@@ -309,7 +309,7 @@ New package `tests/unit/repo/` — eleven assertions across eight test modules:
 | Test | Asserts | Fails with |
 | --- | --- | --- |
 | `test_reachability.py` | No orphan modules; dormant allowlist accurate | `harness/foo.py is imported only by tests. Wire it, add it to DORMANT_MODULES with its flag, or delete it.` |
-| `test_references.py` | Relative links and source paths resolve (§5.2 convention) | `docs/X.md:42 → ../campaign/EVAL_GATE_STATUS.md does not exist` |
+| `test_references.py` | Relative links and source paths resolve (§5.2 convention) | `docs/X.md:42 → ../EVAL_GATE_STATUS.md does not exist` |
 | `test_readme_structure.py` | README tree ≡ real packages | `README structure omits: harness, models, utils` |
 | `test_collection.py` | No `test_*.py` outside `testpaths` | `evals/backends/test_crewai_eval.py is never collected` |
 | `test_type_budget.py` | mypy `ignore_errors` module count ≤ ratchet | `ignore_errors covers 17 modules; budget is 16` |

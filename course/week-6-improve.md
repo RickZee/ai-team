@@ -127,7 +127,7 @@ Watch it live any time: `uv run ai-team-web` and the dashboard's **Compare** tab
 
 Before you believe any agent claim — yours or anyone's — ask:
 
-![Five questions before you trust a green check](../docs/images/publication/eval-audit-checklist.png)
+![Five questions before you trust a green check](../docs/images/eval-audit-checklist.png)
 
 > **No pass rate without its corpus kind and its `n`.** "We run a $0 eval gate on every PR" is
 > a true claim. "Our agents pass 94% of evals" isn't — until a `CORPUS` rate says so.

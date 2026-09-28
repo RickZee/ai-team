@@ -8,8 +8,8 @@ that should have finished in a couple of minutes and did not.
 
 This note is a **handoff**, not a published rate. Corpus kind stays
 `FIXTURE-ONLY` until this run is indexed, open-coded by a human, and the
-floors in [`EVAL_GATE_STATUS.md`](../../campaign/EVAL_GATE_STATUS.md) move.
-The campaign sequel — *what traces read by hand actually found* — starts here.
+floors in [`EVAL_GATE_STATUS.md`](../../EVAL_GATE_STATUS.md) move.
+The follow-up — *what traces read by hand actually found* — starts here.
 
 Frozen mid-run **2026-09-13T18:52:46Z**; the process then exited **14:53:26 EDT**
 (wall **1600 s**, CLI exit **1**). Terminal state: LangGraph
@@ -193,9 +193,8 @@ This run is a **receipt** that the live path still does it.
 
 ## What we can publish from this (and what we cannot)
 
-This is the sequel setup for
-[`posts/the-starved-harness.md`](../../posts/the-starved-harness.md) and L4
-in [`campaign/2026-09-eval-audit-campaign.md`](../../campaign/2026-09-eval-audit-campaign.md).
+This is the follow-up to
+[`posts/the-starved-harness.md`](../../posts/the-starved-harness.md).
 The method we already describe:
 
 ```
@@ -342,7 +341,7 @@ with `completed_at` set and pytest on `test_calc.py` green, 9.1 can use
 - Not proof that DeepSeek is “bad at calc.py” — files were written in ~90 s.
 - Not a reason to flip CI off `--warn-only`.
 
-Claim rules remain [`EVAL_GATE_STATUS.md`](../../campaign/EVAL_GATE_STATUS.md):
+Claim rules remain [`EVAL_GATE_STATUS.md`](../../EVAL_GATE_STATUS.md):
 every rate needs `n` and corpus kind. The publishable sentence is: **we
 finally have a live LangGraph smoke with a path-sandbox crash and a
 lexical guardrail retry storm, and the eval loop we already described

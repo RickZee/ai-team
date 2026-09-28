@@ -184,7 +184,7 @@ grep -rn --include='*.py' "phases.jsonl" src/ai_team
 **Observe.** One line is in `agents/prompts.py`:
 `7. Write phase transition entries to workspace/logs/phases.jsonl`.
 
-![One signal was asked for in a prompt instead of written by code](../docs/images/publication/eval-telemetry-writers.png)
+![One signal was asked for in a prompt instead of written by code](../docs/images/eval-telemetry-writers.png)
 
 **Explain.** That's **self-reported telemetry**: a signal you asked a model to produce instead of
 writing it yourself. It doesn't fail loudly — it just isn't there, and every check that needs

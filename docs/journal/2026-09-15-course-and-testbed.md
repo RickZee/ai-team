@@ -74,7 +74,7 @@ harness is undocumented.
 ## 4. What the page got wrong, measured against our own standard
 
 The published page opened with *"a 13,000-line eval system that had never measured
-anything."* `docs/campaign/` sets the test — *"would this still be worth reading by
+anything."* Our own writing guide sets the test — *"would this still be worth reading by
 someone who does not care whose repo it is?"* — and the rule that the personal material
 "moves from headline to evidence… never the hero."
 
@@ -89,7 +89,7 @@ table we wrote ourselves.
 | `.kiro/specs/eval-testbed/` | 12 reqs, 8 phases, 39 tasks, ≤$20 — keyless entry, teaching corpus, loop surface, extension path | committed `e40331a` |
 | `.kiro/specs/README.md` | specs index **and** the cross-spec execution order: 7 audience milestones, ownership table | committed `e40331a` |
 | `docs/course/` | 6 sessions, `lessons.md`, `minieval.py` | committed `e40331a` |
-| `docs/EVALS.md`, `docs/campaign/…` | course linked; named as L3's `[link]` destination | committed `e40331a` |
+| `docs/EVALS.md` | course linked | committed `e40331a` |
 
 `eval-claim-surfaces` is a **slice spec**: almost every fix in it already had a requirement
 home in alignment R14/R15 or coverage R3/R11, so it references and sequences rather than

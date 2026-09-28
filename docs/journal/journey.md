@@ -806,10 +806,10 @@ usable. That is not a writing problem and I cannot write around it.
 
 The page had a second defect, and this one I should have caught before publishing rather
 than after. It opened with *"a 13,000-line eval system that had never measured anything."*
-My own campaign notes contain a two-column table — **reads as confession** / **reads as
+My own writing notes contain a two-column table — **reads as confession** / **reads as
 expertise** — and a rule that the personal material moves from headline to evidence, never
 the hero. I put it in the left column of a table I wrote. The audit is the most interesting
-thing I have, and leading with it turns a credential into an apology.
+thing I have, and leading with it turns a finding into an apology.
 
 So: two specs instead of a launch. One for the surfaces a number passes through on its way
 to a reader, one for making this a testbed someone else can run. And an execution order

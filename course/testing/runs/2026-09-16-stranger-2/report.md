@@ -134,7 +134,7 @@ Fences that were P0 last time run as written. Replay is the week-6 lab and teach
 - Could a stranger finish alone? On this branch, yes for the $0 path. Not from GitHub `main` (F1). Live LangGraph/CrewAI still fail as labs.
 - Most confusing moment: files exist, guardrails pass, the process still will not end.
 - Best lesson: instrument vs agents (weeks 3 and 5). Asserted-only: “the loop is gone” as a live claim.
-- Purpose (`campaign-v2`): the $0 labs on this branch now match “a stranger can run it,” except Start still points at `main`.
+- Purpose (`course/README.md`): the $0 labs on this branch now match “a stranger can run it,” except Start still points at `main`.
 
 ## Top 5 improvements
 

@@ -125,7 +125,7 @@ Unchanged $0 spine. CHK-trace-has-spans is live on this tiny corpus. Pytest stil
 - Could a stranger finish alone? On this branch, yes — $0 path and all three live smokes. Not from GitHub `main` (F1).
 - Single most confusing moment: week 2 describing a CrewAI failure that no longer happens, next to a LangGraph “no live run” claim that this command just disproved.
 - Lesson that landed best: each harness fix uncovers the next layer (week 2). Lesson that is only asserted: any *rate* (“the loop is gone”) — n is still 1.
-- Purpose (`campaign-v2`): a stranger can run it on this branch. Start still points at `main`.
+- Purpose (`course/README.md`): a stranger can run it on this branch. Start still points at `main`.
 
 ## Top 5 improvements
 

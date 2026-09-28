@@ -4,8 +4,8 @@
 `.github/workflows/eval-nightly.yml`, `evals/traces/index.db`
 
 This file is the single source of truth for what the eval gate does and does not
-do. [`EVAL_METHODOLOGY.md`](../EVAL_METHODOLOGY.md) and
-[`posts/harness-map.md`](../posts/harness-map.md) both point here. **Do not claim
+do. [`EVAL_METHODOLOGY.md`](EVAL_METHODOLOGY.md) and
+[`posts/harness-map.md`](posts/harness-map.md) both point here. **Do not claim
 a hard gate, or a measured quality rate, in a post, README badge, deck, or
 showcase page unless the corresponding row below says you can.**
 
@@ -24,7 +24,7 @@ showcase page unless the corresponding row below says you can.**
 | Is there a human-labeled golden set? | **No.** `evals/golden/` holds no labels | `golden stats` |
 | Has any trace been open-coded? | **No.** `evals/annotations/` is empty | `ls -A evals/annotations/` |
 | Does the corpus read the run-record tree? | **No.** Backfill defaults to `./workspace`; 210 run records unread in `./output/runs/` | `evals/cli.py` `--workspace-root` default |
-| Is there a live run worth open-coding? | **Yes — unlabeled.** LangGraph smoke `2026-09-13_182650_…`: 1600 s → HITL after retry amplification. Not a `CORPUS` rate. | [`eval-runs/2026-09-13-langgraph-smoke`](../eval-runs/2026-09-13-langgraph-smoke/) |
+| Is there a live run worth open-coding? | **Yes — unlabeled.** LangGraph smoke `2026-09-13_182650_…`: 1600 s → HITL after retry amplification. Not a `CORPUS` rate. | [`eval-runs/2026-09-13-langgraph-smoke`](eval-runs/2026-09-13-langgraph-smoke/) |
 
 ## Corpus kind
 
@@ -40,7 +40,7 @@ The indexed corpus as of 2026-09-13: **50 traces, 0 spans, 1 backend (`crewai`),
 1 scenario id (`unknown`), 1 status (`failed`), created within a 1.97-second
 window** — built from `workspace/`, while 210 run records covering three backends and
 69 days sit unread in `output/runs/`. It fails every diversity floor proposed in
-[`eval-methodology-alignment` R4](../../.kiro/specs/eval-methodology-alignment/requirements.md).
+[`eval-methodology-alignment` R4](../.kiro/specs/eval-methodology-alignment/requirements.md).
 Nothing derived from it may be reported as a `CORPUS` rate.
 
 ## What has to be true before the gate flips
@@ -48,7 +48,7 @@ Nothing derived from it may be reported as a `CORPUS` rate.
 The flip removes `--warn-only` from `ci.yml:264`. Preconditions, in order:
 
 1. **The corpus reads `output/runs/`** — where the run records already are
-   ([spec task 2.4](../../.kiro/specs/eval-methodology-alignment/tasks.md), free).
+   ([spec task 2.4](../.kiro/specs/eval-methodology-alignment/tasks.md), free).
 2. **Phase telemetry is harness-owned** — `phases.jsonl` written by harness code on the
    execution path, not requested from the agent (spec Phase 1).
 3. **The corpus clears its floors** — ≥100 indexable traces, ≥3 backends,
@@ -62,7 +62,7 @@ None of the five is met. **Status: warn-only, indefinitely, and correctly so.**
 
 ## Claim rules for external material
 
-Anything published from this work — LinkedIn, X, Substack, showcase page, deck —
+Anything published from this work — an article, a showcase page, a talk or a deck —
 follows four rules:
 
 1. **Every rate carries its corpus kind and its `n`.** A rate without `n` is a

@@ -13,7 +13,7 @@ requirement for this record); the ratchet is set when task 5.3 first builds.
 | Uncollected tests | `wc -l evals/backends/test_*.py evals/test_backend_comparison.py` | 175+169+191+273 = **808** |
 | `ignore_errors` module patterns | parse `pyproject.toml` `[[tool.mypy.overrides]]` with `ignore_errors` | **18** patterns (spec intro said 16; vendor + fixtures globs included) |
 | Complexity (src/*.py excl. frontend/node_modules) | AST walk | functions >80 lines: **42**; >150: **5**; >8 params: **14** (spec intro 63/8/17 counted evals + more) |
-| `docs/**/*.md` | `find docs -name '*.md' \| wc -l` | **48** (spec intro 42; journal/campaign/showcase grew) |
+| `docs/**/*.md` | `find docs -name '*.md' \| wc -l` | **48** (spec intro 42; journal/showcase grew) |
 | Tracked images | `git ls-files docs/images/` | **33** files, `du -sh docs/images` = **9.0M**; 20 unreferenced |
 | Tracked `.archive/` | `git ls-files .archive/` | **21** files |
 | `evals/golden/.validation_log.jsonl` | `wc -c` | **0** bytes, tracked |
@@ -31,7 +31,7 @@ Commands vs the pre-Track-A parent `946f6d9`:
 | --- | --- | --- |
 | Python LOC `src/ai_team` + `evals` (excl. `node_modules`, `vendor`) | `git ls-tree -r --name-only <rev>` filtered `*.py`, `wc -l` | **46,704 → 46,049** (**−655**) |
 | Tracked `docs/images/` blob bytes | `git cat-file -s` per path | **9,329,198 → 5,289,340** (**−4.0 MB**) |
-| Tracked image files | `git ls-files docs/images/` | **34** (working-tree `du` includes untracked campaign files; ignore that) |
+| Tracked image files | `git ls-files docs/images/` | **34** (working-tree `du` includes untracked local files; ignore that) |
 | Unit tests collected | `uv run pytest tests/unit --collect-only -q` | **1534** |
 | Complexity (≤2-branch exempt) | AST walk / `ratchets.toml` | **55 / 4 / 14** |
 | `ignore_errors` LOC | `test_type_budget.py` | **12,726** / 70 files (ratchet 13,000) |

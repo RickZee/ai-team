@@ -82,7 +82,7 @@ Remediation spec:
 | Workspaces containing `logs/*.jsonl` | **0** | — |
 
 Stamp: **`NON-REPRESENTATIVE`** — every floor unmet. No rate derived from this corpus
-may be published (see [campaign/EVAL_GATE_STATUS.md](campaign/EVAL_GATE_STATUS.md)).
+may be published (see [EVAL_GATE_STATUS.md](EVAL_GATE_STATUS.md)).
 
 ### Loop state
 
@@ -152,8 +152,8 @@ The first live LangGraph case to put through that loop (unlabeled as of
 - **Tier C live validation** (≤$5) and **judge align** (≤$1) are human-triggered spend
   and were not executed in the scaffolding PR; see `docs/eval-runs/`.
 - **Gate soak:** CI runs Tier A with `--warn-only` until a week of green nightlies
-  (task 9.4). **Campaign status:** still warn-only as of 2026-09-09 — see
-  [campaign/EVAL_GATE_STATUS.md](campaign/EVAL_GATE_STATUS.md). Do not claim a hard
+  (task 9.4). **Publication status:** still warn-only as of 2026-09-09 — see
+  [EVAL_GATE_STATUS.md](EVAL_GATE_STATUS.md). Do not claim a hard
   gate in posts until that file says otherwise.
 - **UI quality rubric** ([UI_QUALITY_RUBRIC.md](UI_QUALITY_RUBRIC.md)) is advisory.
   No gate, check, or judge reads it. Deterministic UI evidence is `run_ui_smoke`

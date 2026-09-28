@@ -155,7 +155,7 @@ SKIPPED-SCOPE. Preflight only: empty-key recipe MATCH on all three backends; uns
 - Could a stranger finish alone? On this branch, weeks 5–6 yes, if they read the wiring table and run the last pytest. Not from GitHub `main` (F1).
 - Single most confusing moment: first pytest green with a check that is not in the registry.
 - Lesson that landed best: a baseline answers "did this change?"; fixtures answer "is this right?" (B4). Lesson only asserted this pass: none in-scope — uniqueness is a warning you can ignore, which is the current decision.
-- Purpose (`campaign-v2`): weeks 5–6 on this branch do what they claim, minus pytest folder order. Start still points at `main`.
+- Purpose (`course/README.md`): weeks 5–6 on this branch do what they claim, minus pytest folder order. Start still points at `main`.
 - After the build track: **yes, I could add a check to a system I did not write**, if I run the discovery test. I would still copy the six-row table. I would not trust `pytest tests/unit/evals` to start the conversation.
 - Concept I only understood after something went wrong: deleting one pass file is enough, now. Last run it was not.
 

@@ -110,7 +110,7 @@ That gap *is* the curriculum. A project that had quietly fixed everything would
 have nothing to teach, and you would have no way to check it.
 
 Claim rules for anything published from this work live in
-[`../campaign/EVAL_GATE_STATUS.md`](../campaign/EVAL_GATE_STATUS.md).
+[`../EVAL_GATE_STATUS.md`](../EVAL_GATE_STATUS.md).
 
 ---
 
