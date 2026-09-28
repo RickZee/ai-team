@@ -253,3 +253,29 @@ they are downstream of M6, and every one of them is advisory until validated any
 
 The expensive resource is not money. It is the two afternoons of reading in M6 that nobody
 else can do.
+
+
+---
+
+## Cloud-native backends (added 2026-09-28)
+
+Two new orchestration backends on each cloud's own agent stack, plus the shared foundation
+they both depend on. Separate from the eval path above. They run under the Cursor
+command `/cloud-backends`.
+
+| Spec | Owns | Budget |
+| --- | --- | --- |
+| [`cloud-backend-foundation`](./cloud-backend-foundation/) | Conformance suite, tool bridge, harness-owned acceptance, local Docker + OTel stack, OTel ingest, Terraform conventions | $0 |
+| [`azure-agent-framework`](./azure-agent-framework/) | Microsoft Agent Framework on Azure AI Foundry, Entra ID, Prompt Shields, App Insights, Container Apps Job, Terraform | ≤ $20 |
+| [`aws-strands-agentcore`](./aws-strands-agentcore/) | Strands Agents on Amazon Bedrock AgentCore, Bedrock Guardrails, AgentCore Memory, CloudWatch, Terraform | ≤ $20 |
+
+**Order:**
+
+1. Foundation Phases 0–3 (blocking).
+2. Azure Phases 0–1 and AWS Phases 0–1, both local and $0. They can interleave.
+3. Azure Phases 2–5, then AWS Phases 2–5. Azure goes first.
+4. Foundation Phases 4–7 run alongside step 2, since the local stack is needed there.
+
+Every phase is **local first**: in-process with Ollama, then the same container locally,
+then cloud models, then Terraform-deployed cloud. Each step must pass the same thin-slice
+smoke test before the next one adds a cloud dependency.
