@@ -5,12 +5,15 @@ alwaysApply: true
 
 # When creating a new agent
 
-1. Add YAML config to `config/agents.yaml` (role, goal, backstory, verbose, memory, allow_delegation, max_iter)
-2. Create Python class in `src/ai_team/backends/crewai_backend/agents/` extending `BaseAgent`
-3. Define tools as `@tool` in `tools/`
-4. Add model in `config/settings.py` `OllamaModelConfig`
-5. Register in the appropriate crew's agent list
-6. Add unit test in `tests/unit/test_agents.py`
+An agent exists once per backend; a role added to only one backend breaks the comparison.
+
+1. Add the persona to `config/agents.yaml` (role, goal, backstory, allow_delegation, max_iter)
+2. Map the role to a model in `config/models.py` (`_role(...)` entries per `AI_TEAM_ENV` tier)
+3. CrewAI: wire it in `backends/crewai_backend/agents/` via `create_agent(role_name, tools=...)`
+4. LangGraph: add prompt + tools in `backends/langgraph_backend/agents/` and a node/subgraph in `graphs/`
+5. Claude Agent SDK: add the subagent in `backends/claude_agent_sdk_backend/agents/definitions.py`
+6. Add it to the profiles that need it in `config/team_profiles.yaml`
+7. Unit test per backend; run `tests/conformance/` to confirm all three still satisfy the protocol
 
 # When creating a new tool
 
@@ -28,7 +31,7 @@ alwaysApply: true
 3. Integrate with CrewAI task `guardrail` parameter
 4. Add toggles in `GuardrailConfig` settings
 5. Add unit test (passing, failing, edge-case)
-6. Add adversarial test in `test_guardrails_adversarial.py`
+6. Add adversarial cases under `tests/unit/guardrails/adversarial/`
 
 # When creating a new crew
 

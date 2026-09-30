@@ -5,7 +5,7 @@ This file is loaded into Claude Code sessions via repository context. Keep it co
 ## Engineering standards
 
 - Python 3.11+ with type hints on public APIs and Google-style docstrings for non-trivial modules.
-- Formatting: Black; lint: Ruff (zero warnings in CI). Types: mypy on `src/ai_team` (see `pyproject.toml` overrides).
+- Format and lint: Ruff only (`ruff format`, `ruff check`; zero warnings in CI). No Black or isort. Types: mypy on `src/ai_team` (see `pyproject.toml` overrides).
 - Use **structlog** for logging; do not use bare `print()` in library code.
 - Configuration via **Pydantic Settings** / environment variables; never commit secrets (no `.env` in git).
 - Paths: validate workspace boundaries; reject `..` traversal and sensitive filenames (`.env`, credentials) for automated writes.

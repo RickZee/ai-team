@@ -20,7 +20,7 @@ alwaysApply: false
 
 # Fixtures
 
-Use `tests/conftest.py`: `mock_ollama`, `sample_project_description`, `sample_requirements_doc`, `sample_code_files`.
+`tests/conftest.py` holds the session-wide isolation guards (API keys, run output, memory DB, immutable trees). Unit fixtures (`mock_llm`, `agents_config_minimal`, `sample_project_description`) are in `tests/unit/conftest.py`; integration fixtures in `tests/integration/conftest.py`.
 
 # Test Structure
 

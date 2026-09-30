@@ -224,7 +224,7 @@ AI_TEAM_RUN_BUDGET_USD=3.00 uv run python scripts/run_demo.py demos/02_todo_app 
 ## Testing
 
 Guardrails are covered by focused unit tests and adversarial cases under `tests/unit/`
-and `tests/guardrails/`. New guardrails should include passing, failing, and edge-case
+and `tests/unit/guardrails/adversarial/`. New guardrails should include passing, failing, and edge-case
 tests, plus adversarial inputs for security-sensitive behavior.
 
 LangGraph operational guardrails live under

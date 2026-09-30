@@ -5,27 +5,27 @@ alwaysApply: true
 
 # AI-Team Project Context
 
-You are working on **ai-team**, an autonomous multi-agent software development system built with CrewAI. The system simulates a complete engineering organization with 7+ specialized AI agents (Manager, Product Owner, Architect, Backend/Frontend Developers, DevOps, Cloud Engineer, QA Engineer) that accept natural language project descriptions and autonomously deliver working, tested, deployable code.
+You are working on **ai-team**: one nine-agent software team (Manager, Product Owner,
+Architect, Backend/Frontend/Fullstack Developers, DevOps, Cloud Engineer, QA) that runs on
+three orchestration frameworks behind one `Backend` protocol, plus the harness and eval
+suite that make those runs comparable. The harness is the product; see `README.md`.
 
-This is a portfolio-grade capstone project. All code must be production-quality, well-documented, and security-conscious.
+## Technology Stack (source of truth: `pyproject.toml`, `uv.lock`)
 
-## Technology Stack
-
-- **Python** 3.11+ (minimum)
-- **CrewAI** (>=0.80.0), **CrewAI Tools** (>=0.14.0), **LangChain-Ollama** (>=0.2.0)
-- **Pydantic** (>=2.7.0), **Pydantic-Settings** (>=2.2.0)
-- **FastAPI** (>=0.115.0), **uvicorn**, **Textual** (>=0.80.0), **structlog** (>=24.1.0)
-- **ChromaDB** (>=0.5.0), **SQLAlchemy** (>=2.0.0), **GitPython** (>=3.1.0), **httpx** (>=0.27.0), **tenacity** (>=8.2.0)
-- **pytest** (>=8.0.0), **ruff** (>=0.3.0), **mypy** (>=1.9.0), **black** (>=24.3.0)
-- **uv** for dependency management (see `uv.lock`)
-
-**Ollama models**: qwen3 (management, PO), deepseek-r1 (architecture), qwen2.5-coder (frontend, devops), deepseek-coder-v2 (backend).
+- **Python** 3.11–3.13, managed with **uv**
+- **Backends:** CrewAI (`backends/crewai_backend/`), LangGraph (`backends/langgraph_backend/`),
+  Claude Agent SDK (`backends/claude_agent_sdk_backend/`)
+- **Models:** OpenRouter via LiteLLM for CrewAI/LangGraph (role → model in `config/models.py`),
+  Anthropic API for the Claude Agent SDK. No local Ollama path.
+- **Runtime:** Pydantic v2 + pydantic-settings, structlog, FastAPI + uvicorn, React/Vite UI
+- **Tooling:** pytest, Ruff (format + lint), mypy. No Black, no isort.
 
 ## Project Structure (abbreviated)
 
-- `src/ai_team/` — config, harness, tools, guardrails, memory, models, backends (`crewai_backend` holds agents/crews/tasks/flows)
-- `tests/` — unit/, integration/, e2e/, performance/, fixtures/
-- `src/ai_team/ui/` — FastAPI + Vite web dashboard (`ai-team-web`), Textual TUI (`ai-team-tui`), shared API client
-- `docs/`, `scripts/`, `demos/`, `docker/`, `.github/`
+- `src/ai_team/` — `core/` (Backend protocol), `backends/`, `harness/`, `tools/`, `guardrails/`,
+  `config/`, `memory/`, `models/`, `ui/web/`
+- `evals/` — trace store, failure taxonomy, deterministic checks, Tier A replay gate
+- `tests/` — unit/ (CI), integration/, conformance/, e2e/, performance/
+- `course/` — the six-week course; `docs/` — reference docs, journal, posts
 - `.kiro/specs/<id>/` — Kiro-style specs (`README` → `requirements` → `design` →
   `tasks`). `tasks.md` is a living checklist; see the `kiro-specs` rule.

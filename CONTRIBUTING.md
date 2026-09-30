@@ -32,7 +32,7 @@ uv run pytest   # Sanity check
 Install with dev dependencies (included in `uv sync`):
 
 - pytest, pytest-cov, pytest-asyncio, pytest-timeout, pytest-mock
-- ruff, black, isort, mypy
+- ruff (format + lint), mypy
 - pre-commit (optional)
 
 ### Optional: pre-commit
@@ -55,22 +55,16 @@ Runs the same gates as `.github/workflows/ci.yml`. Use `--quick` to skip tests/n
 
 ## Code style guide
 
-We use **black**, **ruff**, and **mypy** for consistent, type-checked code.
+We use **Ruff** for formatting and linting and **mypy** for types. Ruff's formatter
+replaces Black and its `I` rule replaces isort; running Black alongside it causes
+formatting churn, so neither is installed.
 
-### Black (formatting)
+### Ruff
 
 - Line length: 100 (configured in `pyproject.toml`).
-- Run: `uv run black src/ai_team tests/`
-
-### Ruff (linting)
-
-- Rules: E, F, I, N, W, UP, B, C4, SIM; E501 ignored (line length left to black).
-- Run: `uv run ruff check src/ai_team tests/`
-- Auto-fix: `uv run ruff check --fix src/ai_team tests/`
-
-### isort (import sorting)
-
-- Run: `uv run isort src/ai_team tests/`
+- Format: `uv run ruff format .`
+- Lint (includes import sorting): `uv run ruff check --fix .`
+- Rules: E, F, I, N, W, UP, B, C4, SIM; E501 is left to the formatter.
 
 ### mypy (type checking)
 
@@ -81,9 +75,9 @@ We use **black**, **ruff**, and **mypy** for consistent, type-checked code.
 Before opening a PR, ensure:
 
 ```bash
-uv run black src/ai_team tests/
-uv run ruff check src/ai_team tests/
-uv run mypy src/ai_team
+uv run ruff format .
+uv run ruff check .
+uv run mypy src/ evals/
 uv run pytest
 ```
 
@@ -91,7 +85,7 @@ uv run pytest
 
 1. **Branch:** Create a feature branch from `main` (e.g. `feature/add-xyz`, `fix/issue-123`). Do not commit directly to `main`.
 2. **Tests:** Add or update tests as needed; all tests must pass.
-3. **Lint/format:** Run black, ruff, and mypy as above.
+3. **Lint/format:** Run ruff and mypy as above.
 4. **Pre-push gate:** Run `./scripts/pre_push_check.sh` (add `--main` when targeting `main`). It runs the same gates as CI — a green local run is expected before you open the PR.
 5. **PR:** Open a pull request against `main` with a clear title and description. Reference any issues.
 6. **Review:** Address review comments; maintainers will merge when ready.
