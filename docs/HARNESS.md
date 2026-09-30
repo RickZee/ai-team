@@ -35,8 +35,7 @@ wired for verifiers; role models still come from `config/models.py` until every
 call site uses `resolve_route`. Session continuation (`session_loop.py`) is
 dormant behind `AI_TEAM_SESSION_LOOP`. The published live performance benchmark
 is still a human-triggered spend (docs/PERFORMANCE.md). CrewAI-private
-`agents/`/`crews/`/`tasks/`/`flows/` live under `backends/crewai_backend/`;
-top-level shims warn until 2026-12-31.
+`agents/`/`crews/`/`tasks/`/`flows/` live under `backends/crewai_backend/`.
 
 ## ToolBus
 
