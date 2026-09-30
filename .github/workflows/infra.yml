@@ -43,8 +43,8 @@ jobs:
       - name: tflint
         working-directory: infra/terraform/${{ matrix.stack }}/envs/dev
         run: |
-          tflint --init --config ../../../../.tflint.hcl || tflint --init
-          tflint --config ../../../../.tflint.hcl
+          tflint --init --config ../../../.tflint.hcl
+          tflint --config ../../../.tflint.hcl
 
       - name: checkov
         run: |
