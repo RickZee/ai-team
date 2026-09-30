@@ -11,7 +11,10 @@ a plain-language brief and build software. The same team, tools, guardrails and 
 **[LangGraph](https://docs.langchain.com/oss/python/langgraph/overview)**,
 **[CrewAI](https://docs.crewai.com/)** and the
 **[Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)** behind one `Backend`
-protocol. Only the framework changes between runs, so every failure can be pinned to a layer:
+protocol, and two cloud-native backends are being built against the same contract:
+[Strands Agents](https://strandsagents.com/) on Amazon Bedrock AgentCore and
+[Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/agent-framework-overview)
+on Microsoft Foundry. Only the framework changes between runs, so every failure can be pinned to a layer:
 model, framework, harness or provider. Most of them were the harness. That harness, and the
 eval suite that measures it, are the real deliverable.
 
@@ -103,7 +106,7 @@ Swap per run with `--backend`. The protocol is
 [`src/ai_team/core/backend.py`](src/ai_team/core/backend.py); the executable definition of
 "an ai-team backend" is the conformance suite in [`tests/conformance/`](tests/conformance/).
 
-**In progress:** Strands on Amazon Bedrock AgentCore and Microsoft Agent Framework on Azure AI
+**In progress:** Strands on Amazon Bedrock AgentCore and Microsoft Agent Framework on Microsoft
 Foundry, local first, deployed with Terraform. Neither runs yet; the status of every backend on
 every target is in [docs/CLOUD_NATIVE.md](docs/CLOUD_NATIVE.md) and the decision in
 [ADR-001](docs/adr/ADR-001-cloud-native-backends.md).

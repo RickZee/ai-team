@@ -8,7 +8,7 @@
 ai-team already runs one nine-agent team on LangGraph, CrewAI, and the Claude
 Agent SDK behind `ai_team.core.backend.Backend`. The next two backends are
 **Strands Agents on Amazon Bedrock AgentCore** and **Microsoft Agent Framework
-on Azure AI Foundry**.
+on Microsoft Foundry (formerly Azure AI Foundry)**.
 
 Hosting only the model (Bedrock or Azure OpenAI behind the existing backends)
 would not exercise the thing this repo is for: which failures belong to the

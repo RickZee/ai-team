@@ -266,7 +266,7 @@ command `/cloud-backends`.
 | Spec | Owns | Budget |
 | --- | --- | --- |
 | [`cloud-backend-foundation`](./cloud-backend-foundation/) | Conformance suite, tool bridge, harness-owned acceptance, local Docker + OTel stack, OTel ingest, Terraform conventions | $0 |
-| [`azure-agent-framework`](./azure-agent-framework/) | Microsoft Agent Framework on Azure AI Foundry, Entra ID, Prompt Shields, App Insights, Container Apps Job, Terraform | ≤ $20 |
+| [`azure-agent-framework`](./azure-agent-framework/) | Microsoft Agent Framework on Microsoft Foundry, Entra ID, Prompt Shields, App Insights, Container Apps Job, Terraform | ≤ $20 |
 | [`aws-strands-agentcore`](./aws-strands-agentcore/) | Strands Agents on Amazon Bedrock AgentCore, Bedrock Guardrails, AgentCore Memory, CloudWatch, Terraform | ≤ $20 |
 
 **Order:**

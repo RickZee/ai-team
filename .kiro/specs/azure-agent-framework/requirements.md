@@ -1,4 +1,4 @@
-# Requirements: Azure-native Backend (Microsoft Agent Framework on Azure AI Foundry)
+# Requirements: Azure-native Backend (Microsoft Agent Framework on Microsoft Foundry)
 
 **Spec ID:** `azure-agent-framework`
 **Status:** Draft for implementation
@@ -22,7 +22,7 @@ agent stack:
 | Layer | Azure-native mechanism | What it replaces or complements in ai-team |
 | --- | --- | --- |
 | Orchestration | **Microsoft Agent Framework** (Python, 1.x): agents and multi-agent **workflows** | A peer of LangGraph, CrewAI, the Claude SDK and Strands |
-| Models | **Azure AI Foundry** model deployments (Azure OpenAI GPT; Claude in Foundry if the subscription allows) | OpenRouter |
+| Models | **Microsoft Foundry** model deployments (Azure OpenAI GPT; Claude in Foundry if the subscription allows) | OpenRouter |
 | Identity | **Microsoft Entra ID**: `DefaultAzureCredential` locally, **user-assigned managed identity** in the cloud, RBAC-scoped | API keys |
 | Guardrails | **Azure AI Content Safety, Prompt Shields**, on user and tool input | Complements ai-team's security guardrails |
 | Hosting | **Azure Container Apps Job** (cloud target). **Foundry Agent Service** hosted agent as a stretch goal | Local subprocess |
@@ -72,7 +72,7 @@ Phase 5  native mechanisms compared: Prompt Shields, Foundry tracing; hosted age
 
 ## R3: Foundry models with Entra ID
 
-1. The backend SHALL switch to **Azure AI Foundry model deployments** by configuration
+1. The backend SHALL switch to **Microsoft Foundry model deployments** by configuration
    only: endpoint, deployment names per role tier, and API version.
 2. Authentication SHALL be **keyless**: `DefaultAzureCredential`, so `az login` works
    locally and managed identity works in the cloud. API-key auth SHALL be supported only
