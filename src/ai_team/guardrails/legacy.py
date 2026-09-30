@@ -1,4 +1,10 @@
-"""Legacy class-based guardrail APIs (moved out of package ``__init__``)."""
+"""Class-based guardrail API used by the CrewAI backend.
+
+The secret and prompt-injection catalogues are *not* defined here: they are the
+function API's lists in :mod:`ai_team.guardrails.security`, so CrewAI and the other
+backends reach the same verdict on the same text
+(``tests/unit/guardrails/test_secret_prefixes.py``).
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,12 @@ import os
 import re
 from collections.abc import Callable
 from typing import Any
+
+from ai_team.guardrails.security import (
+    _INJECTION_PATTERNS_HIGH,
+    _INJECTION_PATTERNS_MEDIUM,
+    _SECRET_PATTERNS,
+)
 
 # =============================================================================
 # BEHAVIORAL GUARDRAILS (legacy class-based API)
@@ -131,26 +143,10 @@ class SecurityGuardrails:
         (r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b", "PHONE"),
     ]
 
-    SECRET_PATTERNS = [
-        (r"(api[_-]?key|apikey)\s*[:=]\s*[\'\"]\S+[\'\"]", "API_KEY"),
-        (r"(password|passwd|pwd)\s*[:=]\s*[\'\"]\S+[\'\"]", "PASSWORD"),
-        (r"(secret|token|auth)\s*[:=]\s*[\'\"]\S+[\'\"]", "SECRET_TOKEN"),
-        (r"(aws_access_key_id)\s*[:=]\s*[\'\"]\S+[\'\"]", "AWS_KEY"),
-        (r"Bearer\s+[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+", "JWT_TOKEN"),
-        (r"-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----", "PRIVATE_KEY"),
-        (r"ghp_[A-Za-z0-9]{36}", "GITHUB_TOKEN"),
-        (r"sk-[A-Za-z0-9]{48}", "OPENAI_KEY"),
-    ]
+    SECRET_PATTERNS = _SECRET_PATTERNS
 
-    INJECTION_PATTERNS = [
-        r"ignore\s+(previous|all|above)\s+instructions",
-        r"disregard\s+(your|the)\s+(rules|instructions)",
-        r"you\s+are\s+now\s+(a|an)\s+",
-        r"pretend\s+(to\s+be|you\s+are)",
-        r"forget\s+(everything|your\s+training)",
-        r"jailbreak",
-        r"DAN\s+mode",
-    ]
+    # Same set as prompt_injection_guardrail(sensitivity="medium"), the default.
+    INJECTION_PATTERNS = _INJECTION_PATTERNS_HIGH + _INJECTION_PATTERNS_MEDIUM
 
     @classmethod
     def validate_code_safety(cls, content: str) -> tuple[bool, str]:
