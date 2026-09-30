@@ -1,7 +1,7 @@
 # Eval Methodology
 
 Error-analysis-first methodology for the ai-team eval harness
-([Husain & Shankar](https://eugeneyan.com/writing/eval-analysis/) style), as implemented
+([Husain & Shankar](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html) style), as implemented
 in `.kiro/specs/eval-harness/`.
 
 ## Principles

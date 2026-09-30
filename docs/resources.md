@@ -65,7 +65,7 @@ discipline we do want (single source of truth for cost/smoke/files).
 
 ## Eval methodology
 
-### [Husain & Shankar — Analyzing the Analyzers](https://eugeneyan.com/writing/eval-analysis/)
+### [Husain & Shankar — Why is error analysis so important in AI evals? (Evals FAQ)](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html)
 
 **What:** Error-analysis-first eval practice: traces → open coding → axial coding →
 taxonomy → checks / judges, with human ground truth.
