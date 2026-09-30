@@ -1,12 +1,50 @@
-# AI-Team: A Field Study of Multi-Agent Failure Modes
+# ai-team: one agent team, three frameworks, and the harness that makes it hold up
 
 [![CI](https://github.com/RickZee/ai-team/actions/workflows/ci.yml/badge.svg)](https://github.com/RickZee/ai-team/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Read first:** the shared [harness](docs/HARNESS.md), the [taxonomy](evals/taxonomy/failure_modes.yaml) (FM-001…017), and the [$0 Tier A gate](evals/README.md).
+A nine-agent software team (manager, product owner, architect, developers, DevOps, cloud,
+QA) runs on **LangGraph, CrewAI and the Claude Agent SDK** behind one `Backend` protocol,
+with the same tools, guardrails and tasks on every framework. Because only the framework
+changes, every failure can be traced to its layer: model, framework, harness or provider.
+Most of them turned out to be the harness, so the harness is the real deliverable.
 
-**Envelope:** one operator, one machine. Run state is in-process and lost on restart; see [PERFORMANCE.md](docs/PERFORMANCE.md).
+![AI-Team architecture — multi-backend agent pipeline with shared tools, guardrails, and workspace output](docs/images/architecture_diagram.svg)
+
+## What this demonstrates
+
+| Capability | Where it lives |
+| --- | --- |
+| **Multi-framework orchestration** behind one protocol | [`src/ai_team/core/backend.py`](src/ai_team/core/backend.py), [`src/ai_team/backends/`](src/ai_team/backends/) |
+| **A backend conformance suite**: the executable definition of "an ai-team backend" | [`tests/conformance/`](tests/conformance/) |
+| **Harness engineering**: one tool bus, guardrails, and draft-then-commit writes so agent side effects land only after checks pass | [`docs/HARNESS.md`](docs/HARNESS.md), [`src/ai_team/tools/draft.py`](src/ai_team/tools/draft.py) |
+| **Evals**: a 17-class failure taxonomy bound to deterministic checks, traces, and a $0 offline gate in CI | [`evals/README.md`](evals/README.md), [`evals/taxonomy/failure_modes.yaml`](evals/taxonomy/failure_modes.yaml) |
+| **Cost controls**: per-run spend guard, per-role token and cost attribution, tiered model routing | [`src/ai_team/core/spend_guard.py`](src/ai_team/core/spend_guard.py), [`src/ai_team/config/token_tracker.py`](src/ai_team/config/token_tracker.py) |
+| **Memory and self-improvement**: failures clustered into role-scoped lessons | [`src/ai_team/memory/`](src/ai_team/memory/), [`docs/SELF_IMPROVEMENT.md`](docs/SELF_IMPROVEMENT.md) |
+| **Cloud-native backends, in progress**: Microsoft Agent Framework on Azure AI Foundry and Strands on Amazon Bedrock AgentCore, local first, deployed with Terraform | [`docs/CLOUD_NATIVE.md`](docs/CLOUD_NATIVE.md), [`docs/adr/ADR-001-cloud-native-backends.md`](docs/adr/ADR-001-cloud-native-backends.md), [`infra/terraform/`](infra/terraform/) |
+| **How it was built**: specs, decisions and an engineering journal with commit-level findings | [`.kiro/specs/`](.kiro/specs/), [`docs/journal/`](docs/journal/README.md) |
+
+About 1,700 automated tests run in CI. **Envelope:** one operator, one machine; run state is
+in-process and lost on restart ([PERFORMANCE.md](docs/PERFORMANCE.md)).
+
+## Run it in 60 seconds, for $0
+
+The whole team runs with the model switched off, so nothing can spend:
+
+```bash
+git clone https://github.com/RickZee/ai-team.git && cd ai-team
+uv sync
+OPENROUTER_API_KEY= ANTHROPIC_API_KEY= \
+  uv run python scripts/run_demo.py demos/00_smoke_test \
+  --backend langgraph --graph-mode placeholder --skip-estimate --timeout 120
+```
+
+Then look at what the run recorded under `output/runs/`. The [course](course/README.md)
+starts from exactly this command and walks through running, observing and evaluating the
+team for real.
+
+## Why this exists
 
 The same nine-agent software team (Manager, Product Owner, Architect,
 Backend/Frontend/Fullstack Developers, DevOps, Cloud Engineer, QA) runs over three
@@ -30,8 +68,6 @@ recorded with commit references in the [engineering journal](docs/journal/README
 > tables cannot yet support "framework X beats Y" (see [Results](#results)). The
 > tooling now says so out loud rather than implying a winner. That honesty is the
 > point; a benchmark you can't attack isn't worth publishing.
-
-![AI-Team architecture — multi-backend agent pipeline with shared tools, guardrails, and workspace output](docs/images/architecture_diagram.svg)
 
 ## Quick start
 
