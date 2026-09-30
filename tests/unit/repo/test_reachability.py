@@ -15,6 +15,10 @@ from tests.unit.repo._paths import REPO_ROOT
 DORMANT_MODULES: dict[str, str] = {
     "src/ai_team/harness/session_loop.py": "AI_TEAM_SESSION_LOOP=1",
     "evals/ladder_report.py": "python -m evals.cli ladder report",
+    # Cloud-native backends: wired by their spec's task 1.2, stubs until then.
+    "src/ai_team/backends/strands_backend/tools.py": ".kiro/specs/aws-strands-agentcore task 1.2",
+    "src/ai_team/backends/agent_framework_backend/tools.py": ".kiro/specs/azure-agent-framework task 1.2",
+    "src/ai_team/backends/common/roles.py": "consumed by the cloud backends' agents (task 1.1)",
 }
 
 _ENTRY_POINTS = [

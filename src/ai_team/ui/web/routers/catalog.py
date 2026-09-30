@@ -18,18 +18,35 @@ _BACKEND_CATALOG = [
         "label": "CrewAI",
         "streaming": False,
         "required_key": "OPENROUTER_API_KEY",
+        "targets": ["local"],
     },
     {
         "name": "langgraph",
         "label": "LangGraph",
         "streaming": True,
         "required_key": "OPENROUTER_API_KEY",
+        "targets": ["local"],
     },
     {
         "name": "claude-agent-sdk",
         "label": "Claude Agent SDK",
         "streaming": True,
         "required_key": "ANTHROPIC_API_KEY",
+        "targets": ["local"],
+    },
+    {
+        "name": "strands",
+        "label": "Strands (AgentCore)",
+        "streaming": False,
+        "required_key": "",
+        "targets": ["local", "container", "cloud"],
+    },
+    {
+        "name": "agent-framework",
+        "label": "Agent Framework (Foundry)",
+        "streaming": False,
+        "required_key": "",
+        "targets": ["local", "container", "cloud"],
     },
 ]
 

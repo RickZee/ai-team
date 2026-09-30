@@ -1,0 +1,6 @@
+env                = "dev"
+location           = "eastus"
+owner              = "rick"
+cost_center        = "ai-team"
+monthly_budget_usd = 25
+alert_email        = "owner@example.com"

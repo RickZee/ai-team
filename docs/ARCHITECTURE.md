@@ -2,6 +2,11 @@
 
 This document describes the AI Team system architecture: flows, crews, agents, tools, guardrails, memory, and UI layers. It aligns with the multi-backend design and the `Backend` protocol.
 
+Cloud-native backends (Strands on AgentCore, Agent Framework on Foundry), the
+local/container/cloud target model, and the Terraform decision are in
+[ADR-001](adr/ADR-001-cloud-native-backends.md). Live status of each target is
+[CLOUD_NATIVE.md](CLOUD_NATIVE.md).
+
 **CrewAI packages** live under `src/ai_team/backends/crewai_backend/` (`agents/`,
 `crews/`, `tasks/`, `flows/`). Evals import `ai_team.core.flow_wiring` rather than
 the CrewAI flow package.

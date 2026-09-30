@@ -33,6 +33,7 @@ class RunOptions:
     project_name: str = "AI-Team Project"
     run_name: str = ""
     backend_name: str = "crewai"
+    target: str = "local"
     team: str = "full"
     thread_id: str = ""
     stream: bool = False
@@ -55,6 +56,7 @@ class RunOptions:
             project_name=getattr(args, "project_name", None) or "AI-Team Project",
             run_name=getattr(args, "run_name", "") or "",
             backend_name=getattr(args, "backend", None) or "crewai",
+            target=getattr(args, "target", None) or "local",
             team=getattr(args, "team", None) or "full",
             thread_id=getattr(args, "thread_id", "") or "",
             stream=bool(getattr(args, "stream", False)),
@@ -275,7 +277,7 @@ def _run_backend_sync(
 
 
 def _dispatch_run(opts: RunOptions, profile: TeamProfile, monitor: TeamMonitor | None) -> int:
-    backend = get_backend(opts.backend_name)
+    backend = get_backend(opts.backend_name, target=opts.target)
     resume_thr = (opts.resume_thread or "").strip()
     use_tui = monitor is not None
 

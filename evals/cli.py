@@ -16,6 +16,19 @@ from evals.store import TraceExistsError, TraceStore
 from evals.trace.builder import TraceBuilder
 
 
+def _cmd_import_otel(args: argparse.Namespace) -> int:
+    """Print kind counts for an OTLP file. Unknown spans are ``other``."""
+    from evals.trace.otel_import import import_otlp, kind_counts
+
+    path = Path(args.path)
+    if not path.is_file():
+        print(f"otel file not found: {path}", file=sys.stderr)
+        return 1
+    spans = import_otlp(path)
+    print(json.dumps({"spans": len(spans), "counts": kind_counts(spans)}, sort_keys=True))
+    return 0
+
+
 def _cmd_trace_backfill(args: argparse.Namespace) -> int:
     root = Path(args.workspace_root)
     store = TraceStore(root=Path(args.traces_root) if args.traces_root else None)
@@ -592,6 +605,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="stamp this backend on every trace (default: read each run's own record)",
     )
     backfill.set_defaults(func=_cmd_trace_backfill)
+    import_otel = trace_sub.add_parser(
+        "import-otel",
+        help="map an OTLP JSON/JSONL file onto ai-team span kinds",
+    )
+    import_otel.add_argument("path", help="OTLP JSON or JSONL file")
+    import_otel.set_defaults(func=_cmd_import_otel)
 
     index = sub.add_parser("index", help="SQLite index commands")
     index_sub = index.add_subparsers(dest="index_command", required=True)

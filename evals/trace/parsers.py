@@ -745,3 +745,21 @@ def parse_sessions_jsonl(path: Path) -> tuple[list[Span], list[str]]:
                 )
             )
     return spans, warnings
+
+
+def parse_qa_disagreements_jsonl(path: Path) -> tuple[list[Span], list[str]]:
+    """Parse ``logs/qa_disagreements.jsonl`` into ``qa_disagreement`` spans."""
+    rows, warnings = _read_jsonl_rows(path)
+    spans: list[Span] = []
+    for row in rows:
+        ts = _parse_ts(row.get("timestamp") or row.get("ts"), warnings)
+        spans.append(
+            Span(
+                span_id=_provisional_id("qa_disagreement", len(spans)),
+                type="qa_disagreement",
+                t_start=ts,
+                t_end=ts,
+                payload=dict(row),
+            )
+        )
+    return spans, warnings

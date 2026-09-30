@@ -82,6 +82,11 @@ uv run ai-team run "Build a REST API" --backend claude-agent-sdk
 uv run ai-team run "Build a REST API" --backend crewai
 ```
 
+Strands (AgentCore) and Agent Framework (Foundry) are named in the catalog and
+are not running yet. The status of every backend on `local`, `container`, and
+`cloud` is [docs/CLOUD_NATIVE.md](docs/CLOUD_NATIVE.md). No cloud cell there is
+`green`.
+
 CrewAI earned its way back to a full peer in the matrix. It was demoted early after a
 runtime hang on the trivial smoke brief, but the n=5 batch traced that to two harness
 bugs of mine (a workspace-scoping fallback and an environment-variable leak), not the

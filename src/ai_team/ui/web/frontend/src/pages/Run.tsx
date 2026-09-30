@@ -56,6 +56,13 @@ export function Run() {
             streaming: true,
             required_key: "ANTHROPIC_API_KEY",
           },
+          { name: "strands", label: "Strands (AgentCore)", streaming: false, targets: ["local", "container", "cloud"] },
+          {
+            name: "agent-framework",
+            label: "Agent Framework (Foundry)",
+            streaming: false,
+            targets: ["local", "container", "cloud"],
+          },
         ];
 
   useEffect(() => {

@@ -169,6 +169,11 @@ class CrewAIBackend:
         **kwargs: Any,
     ) -> ProjectResult:
         """Execute the CrewAI flow; profile is recorded on the result for observability."""
+        from ai_team.backends.common.thin_slice import scripted_result_or_none
+
+        scripted = scripted_result_or_none(self.name, description, profile, kwargs)
+        if scripted is not None:
+            return scripted
         raw_monitor = kwargs.get("monitor")
         monitor: TeamMonitor | None = raw_monitor if isinstance(raw_monitor, TeamMonitor) else None
         if raw_monitor is not None and monitor is None:

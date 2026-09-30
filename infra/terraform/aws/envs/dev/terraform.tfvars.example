@@ -1,0 +1,6 @@
+aws_region          = "us-east-1"
+env                 = "dev"
+owner               = "rick"
+cost_center         = "ai-team"
+monthly_budget_usd  = 25
+alert_email         = "owner@example.com"

@@ -251,3 +251,10 @@ course/.work/
 
 # Course test run logs (reports and observations are kept)
 course/testing/runs/*/logs/
+
+# Terraform local state and uncommitted backends. Examples stay tracked.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+infra/terraform/**/backend.hcl
+*.auto.tfvars

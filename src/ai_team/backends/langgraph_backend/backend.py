@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any, cast
 
 import structlog
+from ai_team.backends.common.acceptance import record_acceptance_from_state
+from ai_team.backends.common.thin_slice import scripted_result_or_none
 from ai_team.backends.langgraph_backend.checkpointer import (
     run_with_postgres_checkpointer,
 )
@@ -22,7 +24,7 @@ from ai_team.backends.langgraph_backend.graphs.spend_guard import (
     reset_spend_guard,
 )
 from ai_team.backends.langgraph_backend.post_run import write_langgraph_manager_report
-from ai_team.backends.langgraph_backend.run_session import RunSession
+from ai_team.backends.langgraph_backend.run_session import RunSession, current_run_session
 from ai_team.core.payload_flatten import flatten_state_payload
 from ai_team.core.result import ProjectResult
 from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
@@ -128,6 +130,9 @@ class LangGraphBackend:
         ``Command(resume=...)`` using the same thread id.
         """
         _ = env
+        scripted = scripted_result_or_none(self.name, description, profile, kwargs)
+        if scripted is not None:
+            return scripted
         resume_tid = (kwargs.get("resume_thread_id") or "").strip()
         if resume_tid:
             return self.resume(
@@ -236,6 +241,9 @@ class LangGraphBackend:
                         b.write_artifact_text("testing", "pytest.txt", test_out + "\n")
                 b.write_scorecard(scorecard_from_langgraph_state(thread_id, state_dict))
                 write_langgraph_manager_report(thread_id, state_dict)
+                session = current_run_session()
+                acceptance_root = session.workspace_dir if session else b.workspace_dir
+                record_acceptance_from_state(acceptance_root, state_dict)
             except Exception as exc:
                 logger.debug("langgraph_artifact_persist_skipped", error=str(exc))
             return ProjectResult(

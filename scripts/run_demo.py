@@ -274,7 +274,7 @@ def main() -> int:
     parser.add_argument(
         "--backend",
         default="crewai",
-        choices=("crewai", "langgraph", "claude-agent-sdk"),
+        choices=("crewai", "langgraph", "claude-agent-sdk", "strands", "agent-framework"),
         help="Orchestration backend (default: crewai). Use langgraph for profile-aware lean crews.",
     )
     parser.add_argument(

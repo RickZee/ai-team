@@ -14,6 +14,7 @@ import sys
 from typing import Literal, cast
 
 import structlog
+from ai_team.backends.registry import CLI_BACKEND_CHOICES, TARGET_CHOICES
 from ai_team.cli_run import RunOptions, execute_run
 from dotenv import load_dotenv
 
@@ -113,12 +114,18 @@ def main() -> int:
     )
     parser.add_argument(
         "--backend",
-        choices=("crewai", "langgraph", "claude-agent-sdk", "claude-sdk"),
+        choices=CLI_BACKEND_CHOICES,
         default="crewai",
         help=(
-            "Orchestration backend: crewai (default), langgraph, or claude-agent-sdk "
-            "(Anthropic Claude Agent SDK)."
+            "Orchestration backend: crewai (default), langgraph, claude-agent-sdk, "
+            "strands, or agent-framework."
         ),
+    )
+    parser.add_argument(
+        "--target",
+        choices=TARGET_CHOICES,
+        default="local",
+        help="Execution target: local (default), container, or cloud.",
     )
     parser.add_argument(
         "--team",
@@ -131,12 +138,18 @@ def main() -> int:
     run_p = subparsers.add_parser("run", help="Run the full AI team flow.")
     run_p.add_argument(
         "--backend",
-        choices=("crewai", "langgraph", "claude-agent-sdk", "claude-sdk"),
+        choices=CLI_BACKEND_CHOICES,
         default="crewai",
         help=(
-            "Orchestration backend: crewai (default), langgraph, or claude-agent-sdk "
-            "(requires ANTHROPIC_API_KEY and Claude Code CLI)."
+            "Orchestration backend: crewai (default), langgraph, claude-agent-sdk, "
+            "strands, or agent-framework."
         ),
+    )
+    run_p.add_argument(
+        "--target",
+        choices=TARGET_CHOICES,
+        default="local",
+        help="Execution target: local (default), container, or cloud.",
     )
     run_p.add_argument(
         "--team",

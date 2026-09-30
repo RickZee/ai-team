@@ -575,7 +575,8 @@ class TestWebServerBackendsCatalog:
         r = web_client.get("/api/backends")
         assert r.status_code == 200
         backends = r.json()["backends"]
-        assert len(backends) == 3
+        names = [b["name"] for b in backends]
+        assert names == ["crewai", "langgraph", "claude-agent-sdk", "strands", "agent-framework"]
         for b in backends:
             assert "required_key" in b
             assert "configured" in b

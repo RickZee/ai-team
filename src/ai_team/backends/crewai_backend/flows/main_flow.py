@@ -180,6 +180,13 @@ def _persist_state(state: ProjectState) -> None:
         logger.warning("state_persistence_failed", error=str(e))
 
 
+def _record_crewai_acceptance(test_results: Any) -> None:
+    from ai_team.backends.common.acceptance import record_acceptance_from_test_result
+    from ai_team.config.settings import get_workspace_dir
+
+    record_acceptance_from_test_result(Path(get_workspace_dir()), test_results)
+
+
 def _commit_phase_drafts(phase: str) -> None:
     """Promote staged writes once a crew's task guardrails have passed (never raises).
 
@@ -864,12 +871,14 @@ class AITeamFlow(Flow[ProjectState]):
                     passed=output.test_run_result.passed,
                     total=output.test_run_result.total,
                 )
+                _record_crewai_acceptance(self.state.test_results)
                 return {"status": "success", "results": output.test_run_result}
             self.logger.info(
                 "testing_complete",
                 quality_gate_passed=False,
                 test_run_result=output.test_run_result is not None,
             )
+            _record_crewai_acceptance(self.state.test_results)
             return {"status": "tests_failed", "results": output.test_run_result, "output": output}
         except Exception as e:
             import traceback as _tb

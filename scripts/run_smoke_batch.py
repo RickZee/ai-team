@@ -52,7 +52,13 @@ RUNS_DIR = REPO / "output" / "runs"
 # Generous per-run ceilings from measured baselines (see memory/journal):
 # claude-sdk ~3m, crewai 7-11m, langgraph 9-23m (incl. HITL wait, which the
 # CLI path answers via hitl_default_answer, so no operator stall here).
-TIMEOUTS = {"claude-agent-sdk": 900, "crewai": 1500, "langgraph": 1800}
+TIMEOUTS = {
+    "claude-agent-sdk": 900,
+    "crewai": 1500,
+    "langgraph": 1800,
+    "strands": 900,
+    "agent-framework": 900,
+}
 
 # The smoke demo (add(a,b) + pytest) is a *canary*, not a benchmark: passing it
 # says the pipeline is wired, not that a backend can build software. Framework
@@ -114,7 +120,17 @@ def _spend_from_costs(costs_path: Path) -> float | None:
     return spent
 
 
-def run_once(backend: str, index: int, team: str = "smoke", demo: str = DEMO) -> dict:
+def run_once(
+    backend: str,
+    index: int,
+    team: str = "smoke",
+    demo: str = DEMO,
+    target: str = "local",
+) -> dict:
+    from ai_team.backends.registry import get_backend
+
+    # Fail before the subprocess, which is where spend would start.
+    get_backend(backend, target=target)
     before = _existing_run_ids()
     timeout = int(TIMEOUTS[backend] * TIER_TIMEOUT_MULTIPLIER.get(demo, 1.0))
     cmd = [
@@ -242,7 +258,13 @@ def main() -> int:
     ap.add_argument(
         "--backends",
         default="claude-agent-sdk,langgraph,crewai",
-        help="Comma-separated backend list.",
+        help="Comma-separated backend list. strands and agent-framework are accepted.",
+    )
+    ap.add_argument(
+        "--target",
+        default="local",
+        choices=("local", "container", "cloud"),
+        help="Execution target. An unsupported target fails before any spend.",
     )
     ap.add_argument(
         "--team",
@@ -304,7 +326,7 @@ def main() -> int:
         for i in range(1, args.n + 1):
             print(f"[{backend} {i}/{args.n}] running…", flush=True)
             try:
-                row = run_once(backend, i, team=args.team, demo=args.demo)
+                row = run_once(backend, i, team=args.team, demo=args.demo, target=args.target)
             except subprocess.TimeoutExpired:
                 row = {
                     "backend": backend,

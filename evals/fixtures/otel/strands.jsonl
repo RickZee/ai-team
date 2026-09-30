@@ -1,0 +1,4 @@
+{"name":"chat","attributes":{"gen_ai.operation.name":"chat"},"startTimeUnixNano":"100","endTimeUnixNano":"200"}
+{"name":"execute_tool","attributes":{"gen_ai.operation.name":"execute_tool"},"startTimeUnixNano":"200","endTimeUnixNano":"300"}
+{"name":"invoke_agent","attributes":{"gen_ai.operation.name":"invoke_agent"},"startTimeUnixNano":"300","endTimeUnixNano":"400"}
+{"name":"not-a-genai-span","attributes":{},"startTimeUnixNano":"400"}

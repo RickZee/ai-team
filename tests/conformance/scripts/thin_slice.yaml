@@ -1,0 +1,28 @@
+description: Create calc.py with add(a, b) and a pytest test.
+steps:
+  - role: architect
+    kind: message
+    content: "Architecture: one module calc.py with add(a, b) and a pytest test."
+  - role: fullstack_developer
+    kind: tool
+    tool: write_file
+    args:
+      path: calc.py
+      content: |
+        def add(a: int, b: int) -> int:
+            return a + b
+  - role: qa_engineer
+    kind: tool
+    tool: write_file
+    args:
+      path: tests/test_calc.py
+      content: |
+        from calc import add
+
+
+        def test_add() -> None:
+            assert add(2, 3) == 5
+  - role: qa_engineer
+    kind: verdict
+    criterion_id: harness-tests
+    verdict: accept

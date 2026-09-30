@@ -34,6 +34,8 @@ from ai_team.backends.claude_agent_sdk_backend.workspace_snapshots import (
     restore_workspace_subtrees,
     snapshot_workspace_subtrees,
 )
+from ai_team.backends.common.acceptance import record_acceptance_from_state
+from ai_team.backends.common.thin_slice import scripted_result_or_none
 from ai_team.config.settings import get_settings, scoped_workspace_dir
 from ai_team.core.result import ProjectResult
 from ai_team.core.run_naming import resolve_run_id
@@ -74,6 +76,9 @@ class ClaudeAgentBackend:
         **kwargs: Any,
     ) -> ProjectResult:
         """Execute orchestrator ``query()``; map workspace artifacts to :class:`ProjectResult`."""
+        scripted = scripted_result_or_none(self.name, description, profile, kwargs)
+        if scripted is not None:
+            return scripted
         _ = env
         workspace = self._workspace_path(
             kwargs,
@@ -272,6 +277,7 @@ class ClaudeAgentBackend:
                 final_status="complete" if success else "error",
                 spend={"spent_usd": cost} if cost is not None else None,
             )
+            record_acceptance_from_state(workspace, raw)
         except Exception as e:  # noqa: BLE001 - bundle write must not break the run
             logger.warning("claude_sdk_bundle_write_failed", error=str(e))
 

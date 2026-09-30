@@ -29,10 +29,20 @@ SpanType = Literal[
     "session_end",
     "regression_check",
     "qa_verdict",
+    "qa_disagreement",
+    "agent",
+    "other",
 ]
 
 # "unknown" = the run record did not say which backend ran. Never guess one.
-BackendName = Literal["crewai", "langgraph", "claude-agent-sdk", "unknown"]
+BackendName = Literal[
+    "crewai",
+    "langgraph",
+    "claude-agent-sdk",
+    "strands",
+    "agent-framework",
+    "unknown",
+]
 TraceStatus = Literal[
     "complete",
     "failed",

@@ -1,0 +1,52 @@
+# Terraform checks with no cloud credentials.
+name: Infra
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+
+jobs:
+  terraform:
+    name: fmt, validate, tflint, checkov
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [aws, azure]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.9.8"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: terraform init and validate
+        working-directory: infra/terraform/${{ matrix.stack }}/envs/dev
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - uses: terraform-linters/setup-tflint@90f368291d7bd9b8a9cba900a5d0a8a0563b4b1c # v4.1.1
+        with:
+          tflint_version: v0.54.0
+
+      - name: tflint
+        working-directory: infra/terraform/${{ matrix.stack }}/envs/dev
+        run: |
+          tflint --init --config ../../../../.tflint.hcl || tflint --init
+          tflint --config ../../../../.tflint.hcl
+
+      - name: checkov
+        run: |
+          pip install checkov==3.2.470
+          checkov -d infra/terraform/${{ matrix.stack }} --quiet --compact

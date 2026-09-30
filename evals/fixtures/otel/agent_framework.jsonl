@@ -1,0 +1,5 @@
+{"name":"chat","attributes":{"gen_ai.operation.name":"chat"},"startTimeUnixNano":"100","endTimeUnixNano":"150"}
+{"name":"text_completion","attributes":{"gen_ai.operation.name":"text_completion"},"startTimeUnixNano":"150","endTimeUnixNano":"180"}
+{"name":"execute_tool","attributes":{"gen_ai.operation.name":"execute_tool"},"startTimeUnixNano":"180","endTimeUnixNano":"220"}
+{"name":"invoke_agent","attributes":{"gen_ai.operation.name":"invoke_agent"},"startTimeUnixNano":"220","endTimeUnixNano":"260"}
+{"name":"vendor-private","attributes":{},"startTimeUnixNano":"260"}

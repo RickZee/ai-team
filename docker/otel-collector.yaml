@@ -1,0 +1,21 @@
+# Contrib collector. Config path is /etc/otelcol-contrib, not the core image path.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  otlphttp/aspire:
+    endpoint: http://aspire-dashboard:18890
+  file:
+    path: /otel/traces.jsonl
+    append: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlphttp/aspire, file]

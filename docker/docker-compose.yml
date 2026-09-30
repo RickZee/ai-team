@@ -34,6 +34,58 @@ services:
     networks:
       - aiteam
 
+  otel-collector:
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ../output/otel:/otel
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - aspire-dashboard
+    networks:
+      - aiteam
+
+  aspire-dashboard:
+    profiles: ["observability"]
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.4.2
+    ports:
+      - "18888:18888"
+    environment:
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+    networks:
+      - aiteam
+
+  strands:
+    profiles: ["strands"]
+    build:
+      context: ..
+      dockerfile: docker/strands.Dockerfile
+      platforms: [linux/arm64]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OLLAMA_HOST: http://host.docker.internal:11434
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    networks:
+      - aiteam
+
+  agent-framework:
+    profiles: ["agent-framework"]
+    build:
+      context: ..
+      dockerfile: docker/agent-framework.Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OPENAI_BASE_URL: http://host.docker.internal:11434/v1
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    networks:
+      - aiteam
+
 networks:
   aiteam:
     driver: bridge

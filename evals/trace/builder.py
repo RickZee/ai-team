@@ -25,6 +25,7 @@ from evals.trace.parsers import (
     parse_costs_jsonl,
     parse_langgraph_messages,
     parse_phases_jsonl,
+    parse_qa_disagreements_jsonl,
     parse_qa_verdicts_jsonl,
     parse_session_json,
     parse_sessions_jsonl,
@@ -52,6 +53,7 @@ class _Telemetry:
     smoke_spans: list[Span]
     ui_spans: list[Span]
     qa_spans: list[Span]
+    disagreement_spans: list[Span]
     session_spans: list[Span]
     session_meta: dict[str, Any]
     cost_from_log: CostRecord | None
@@ -96,6 +98,8 @@ def _read_telemetry(run_dir: Path, run_record: dict[str, Any]) -> _Telemetry:
     warnings.extend(w)
     qa_spans, w = parse_qa_verdicts_jsonl(_src("docs/qa_verdicts.jsonl"))
     warnings.extend(w)
+    disagreement_spans, w = parse_qa_disagreements_jsonl(_src("logs/qa_disagreements.jsonl"))
+    warnings.extend(w)
     session_spans, w = parse_sessions_jsonl(_src("logs/sessions.jsonl"))
     warnings.extend(w)
     if read_from_workspace:
@@ -114,6 +118,7 @@ def _read_telemetry(run_dir: Path, run_record: dict[str, Any]) -> _Telemetry:
         smoke_spans=smoke_spans,
         ui_spans=ui_spans,
         qa_spans=qa_spans,
+        disagreement_spans=disagreement_spans,
         session_spans=session_spans,
         session_meta=session_meta,
         cost_from_log=cost_from_log,
@@ -121,6 +126,19 @@ def _read_telemetry(run_dir: Path, run_record: dict[str, Any]) -> _Telemetry:
         audit_missing=audit_missing,
         warnings=warnings,
     )
+
+
+def _otel_sidecar(workspace: Path, run_record: dict[str, Any]) -> Path:
+    """OTel JSONL next to the run, or in the agent workspace when that is where it landed."""
+    primary = workspace / "logs" / "otel.jsonl"
+    if primary.is_file():
+        return primary
+    alt = _agent_workspace_root(workspace, run_record)
+    if alt is not None:
+        candidate = alt / "logs" / "otel.jsonl"
+        if candidate.is_file():
+            return candidate
+    return primary
 
 
 def _agent_workspace_root(run_dir: Path, run_record: dict[str, Any]) -> Path | None:
@@ -161,6 +179,9 @@ def _normalize_backend(backend: str | None) -> BackendName:
         "claude-agent-sdk": "claude-agent-sdk",
         "claude_agent_sdk": "claude-agent-sdk",
         "claude": "claude-agent-sdk",
+        "strands": "strands",
+        "agent-framework": "agent-framework",
+        "agent_framework": "agent-framework",
     }
     if not backend:
         return "unknown"
@@ -463,6 +484,7 @@ class TraceBuilder:
         session_meta, cost_from_session = tel.session_meta, tel.cost_from_session
         smoke_spans, ui_spans = tel.smoke_spans, tel.ui_spans
         qa_spans, session_spans = tel.qa_spans, tel.session_spans
+        disagreement_spans = tel.disagreement_spans
         if tel.audit_missing:
             msg = f"no audit log for backend={backend_name}; tool-level checks skipped"
             if msg not in warnings:
@@ -501,6 +523,7 @@ class TraceBuilder:
             + smoke_spans
             + ui_spans
             + qa_spans
+            + disagreement_spans
             + session_spans
             + lg_spans
         )
@@ -534,7 +557,9 @@ class TraceBuilder:
             except OSError:
                 arm_id = None
 
-        return Trace(
+        from evals.trace.otel_import import note_second_reader
+
+        trace = Trace(
             schema_version=SCHEMA_VERSION,
             trace_id=make_trace_id(sid, backend_name, started_at),
             scenario_id=sid,
@@ -551,3 +576,4 @@ class TraceBuilder:
             raw_result=raw_result,
             workspace_dir=str(workspace),
         )
+        return note_second_reader(trace, _otel_sidecar(workspace, run_record))

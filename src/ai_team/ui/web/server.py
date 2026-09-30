@@ -295,6 +295,7 @@ class RunRequest(BaseModel):
     # connections it opens (crewai/langgraph/claude-agent-sdk), so those three
     # runs can be looked up together afterward via RunStore.get_comparison().
     comparison_id: str | None = None
+    target: str = "local"
 
 
 class EstimateRequest(BaseModel):
@@ -563,7 +564,7 @@ async def _execute_run(ws: WebSocket, run_id: str, req: RunRequest) -> None:
             await _send_cancelled(ws, run_id)
             return
 
-        backend = get_backend(req.backend)
+        backend = get_backend(req.backend, target=req.target)
         run_success = True
         run_error: str | None = None
 

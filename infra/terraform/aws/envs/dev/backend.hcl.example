@@ -1,0 +1,5 @@
+bucket         = "REPLACE_ME"
+key            = "ai-team/aws/dev/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "ai-team-terraform-locks"
+encrypt        = true

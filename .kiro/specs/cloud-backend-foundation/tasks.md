@@ -33,7 +33,7 @@ parallel with the cloud specs' Phase 0.
 
 ## Phase 0: The decision and the contract
 
-- [ ] **0.1 ADR: cloud-native backends**
+- [x] **0.1 ADR: cloud-native backends**
   - Write `docs/adr/ADR-00N-cloud-native-backends.md`. Cover:
     - why Strands + AgentCore and Agent Framework + Foundry, rather than models-only;
     - the execution-target model: local, container, cloud;
@@ -43,14 +43,14 @@ parallel with the cloud specs' Phase 0.
   - **Definition of done:** the ADR is merged and linked from `docs/ARCHITECTURE.md`.
   - _Requirements: R1, R7_
 
-- [ ] **0.2 Thin-slice script and fake-model contract**
+- [x] **0.2 Thin-slice script and fake-model contract**
   - Add `tests/conformance/scripts/thin_slice.yaml` and `fake_models.py`, as in design §2.
   - **Definition of done:** a unit test loads the script and replays it against a
     framework-free stub that calls `ToolBus.invoke` directly; the stub produces `calc.py`
     and a passing test in a temp workspace.
   - _Requirements: R1.1_
 
-- [ ] **0.3 Conformance suite over the three existing backends**
+- [x] **0.3 Conformance suite over the three existing backends**
   - Implement `tests/conformance/test_*.py` (design §2) parametrized over `crewai`,
     `langgraph`, `claude-agent-sdk`.
   - **Definition of done:** the suite runs in under 3 minutes offline. Every failure is
@@ -58,7 +58,7 @@ parallel with the cloud specs' Phase 0.
     this spec. Nothing is skipped silently.
   - _Requirements: R1.2, R1.3_
 
-- [ ] **0.4 Close the gaps 0.3 found**
+- [x] **0.4 Close the gaps 0.3 found**
   - One commit per gap, each with a test.
   - **Definition of done:** `KNOWN_GAPS.md` is empty, and the suite is green for all three.
   - _Requirements: R1.3_
@@ -66,40 +66,41 @@ parallel with the cloud specs' Phase 0.
 - [ ] **0.5 Conformance in CI**
   - Add a `conformance` job to `.github/workflows/ci.yml`.
   - **Definition of done:** the job is required on PRs and green on `main`.
+  - _2026-09-28: the job is in `ci.yml` and the suite is green locally (22s). It is not a required status check, and it has not run on `main`. Leave this open until a PR into `main` is green and branch protection requires `Conformance`._
   - _Requirements: R1.4_
 
 ## Phase 1: Harness-owned acceptance (the QA-acceptance fix)
 
-- [ ] **1.1 `backends/common/acceptance.py`**
+- [x] **1.1 `backends/common/acceptance.py`**
   - Build `evaluate(criteria, evidence) -> list[AcceptanceResult]`, as in design §4.
   - **Definition of done:** unit tests cover the passing, failing and unverified cases, and
     that a criterion with no evidence is never passing.
   - _Requirements: R3.1_
 
-- [ ] **1.2 Wire it after the testing phase in all three backends**
+- [x] **1.2 Wire it after the testing phase in all three backends**
   - **Definition of done:** the conformance suite asserts accepts are recorded on the thin
     slice for all three backends.
   - _Requirements: R3.1, R3.3_
 
-- [ ] **1.3 `qa_disagreement` spans**
+- [x] **1.3 `qa_disagreement` spans**
   - **Definition of done:** a fixture run where QA rejects a criterion that has passing
     evidence yields exactly one `qa_disagreement` span, and `TraceBuilder` exposes it.
   - _Requirements: R3.2_
 
-- [ ] **1.4 Regression test from the September finding**
+- [x] **1.4 Regression test from the September finding**
   - **Definition of done:** a test replays a September LangGraph trace pattern (passing
     tests, QA with no accept tool) and asserts at least one accept. It fails on the old code.
   - _Requirements: R3.4_
 
 ## Phase 2: Tool bridge and shared roles
 
-- [ ] **2.1 `backends/common/tool_bridge.py`**
+- [x] **2.1 `backends/common/tool_bridge.py`**
   - **Definition of done:** `bridged_tools_for_role(r)` returns, for every role in
     `agents.yaml`, the same tool names that role has today. A test compares against the
     existing mapping.
   - _Requirements: R2.1, R2.4_
 
-- [ ] **2.2 `backends/common/roles.py`**
+- [x] **2.2 `backends/common/roles.py`**
   - Load role goals, backstories and prompts from the existing config, so the new backends
     don't copy prompts.
   - **Definition of done:** a unit test shows the new loader and the LangGraph backend
@@ -108,14 +109,14 @@ parallel with the cloud specs' Phase 0.
 
 ## Phase 3: Execution targets, registry and CLI
 
-- [ ] **3.1 `ExecutionTarget` and the thin-client base**
+- [x] **3.1 `ExecutionTarget` and the thin-client base**
   - Add `backends/common/targets.py` with `RemoteRunClient`, an abstract class with
     `start`, `status` and `fetch_artifacts` (design §5).
   - **Definition of done:** a fake remote client passes the conformance suite as its own
     parametrized case, `fake-remote`.
   - _Requirements: R6.2_
 
-- [ ] **3.2 Register `strands` and `agent-framework` as stubs**
+- [x] **3.2 Register `strands` and `agent-framework` as stubs**
   - Update `BackendName`, `registry.py`, the CLI, `run_smoke_batch.py` and the web catalog.
     Each stub raises a clear "not implemented yet: see .kiro/specs/<spec>" error.
   - **Definition of done:** `--backend strands --target cloud` fails before any spend,
@@ -124,7 +125,7 @@ parallel with the cloud specs' Phase 0.
 
 ## Phase 4: Local runtime
 
-- [ ] **4.1 Spike: pin images and the local model**
+- [x] **4.1 Spike: pin images and the local model**
   - Pin the OTel Collector and Aspire dashboard image tags.
   - Choose and pin the Ollama model: tool-calling capable, and able to run on a 16 GB+
     Apple Silicon Mac.
@@ -138,9 +139,10 @@ parallel with the cloud specs' Phase 0.
   - **Definition of done:** `docker compose --profile observability up` shows the Aspire
     dashboard at `localhost:18888`, and a test span sent with `otel-cli` or a Python
     snippet appears in the dashboard and in `output/otel/traces.jsonl`.
+  - _2026-09-28: compose file, collector config, and stub Dockerfiles are in the tree. The Docker daemon was not running (`unix:///Users/rickzakharov/.docker/run/docker.sock`), so the dashboard was not checked._
   - _Requirements: R4.1_
 
-- [ ] **4.3 `local-smoke` command**
+- [x] **4.3 `local-smoke` command**
   - **Definition of done:** `make local-smoke BACKEND=langgraph` runs the thin slice against
     Ollama and prints pass/fail per step. It's recorded as `model_tier: local`, and the
     documented total is $0.
@@ -148,13 +150,13 @@ parallel with the cloud specs' Phase 0.
 
 ## Phase 5: OTel ingest
 
-- [ ] **5.1 `evals trace import-otel`**
+- [x] **5.1 `evals trace import-otel`**
   - Implement `evals/trace/otel_import.py` with the mapping table (design §7).
   - **Definition of done:** it imports a hand-written OTLP fixture with known kind counts.
     Unknown spans are counted as `other`.
   - _Requirements: R5.1, R5.2_
 
-- [ ] **5.2 Two-reader rule**
+- [x] **5.2 Two-reader rule**
   - **Definition of done:** when harness spans and OTel spans both exist for a run, the
     builder uses the harness spans and records the OTel count as a second reader. A test
     covers a deliberate mismatch.
@@ -162,7 +164,7 @@ parallel with the cloud specs' Phase 0.
 
 ## Phase 6: Terraform conventions and CI
 
-- [ ] **6.1 `infra/` skeleton, both clouds**
+- [x] **6.1 `infra/` skeleton, both clouds**
   - Create the layout in design §8, with empty modules that have `versions.tf` pinned,
     tags wired and `README.md` generated by `terraform-docs`.
   - **Definition of done:** `terraform init -backend=false && terraform validate` passes
@@ -174,15 +176,17 @@ parallel with the cloud specs' Phase 0.
     Alerts at 50% and 100% of `monthly_budget_usd`, default 25.
   - **Definition of done:** both validate, and `terraform plan` in each env lists the
     budget. Rick runs `plan` once with credentials and pastes the summary into the task notes.
+  - _2026-09-28: both `envs/dev` `terraform validate` (after `init -backend=false`). `plan` was not run; it needs credentials, and apply stays with Rick._
   - _Requirements: R7.3_
 
 - [ ] **6.3 `infra.yml` workflow**
   - fmt, validate, tflint (with the aws and azurerm rulesets) and checkov, all without
     credentials.
   - **Definition of done:** green on the PR, with every checkov skip carrying a reason.
+  - _2026-09-28: `.github/workflows/infra.yml` is written. Local checkov 3.2.470 reported 0 failed checks and 0 skips on both trees. Not green on a PR yet._
   - _Requirements: R7.6_
 
-- [ ] **6.4 `teardown_check.sh`**
+- [x] **6.4 `teardown_check.sh`**
   - List resources tagged `project=ai-team` in each cloud (AWS Resource Groups Tagging
     API; Azure `az resource list --tag`).
   - **Definition of done:** with nothing deployed, the script prints "0 billable resources"
@@ -191,7 +195,7 @@ parallel with the cloud specs' Phase 0.
 
 ## Phase 7: Surfaces
 
-- [ ] **7.1 `docs/CLOUD_NATIVE.md`**
+- [x] **7.1 `docs/CLOUD_NATIVE.md`**
   - Status table per R8, with every cell `not yet` at the start. Link it from the README.
   - **Definition of done:** a repo test fails if any cell is blank or if the README claims
     a cell that isn't `green`.
