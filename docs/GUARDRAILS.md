@@ -12,7 +12,7 @@ FM-005 in the [failure taxonomy](posts/failure-taxonomy.md). The eval harness sc
 guardrails as classifiers (precision / recall / FPR) via
 `uv run python -m evals.cli guardrail eval` — corpus under
 `evals/corpora/guardrails/`, metrics from `corpus_metrics.py` (do not reimplement).
-See [EVALS.md](EVALS.md) and [evals/README.md](../evals/README.md).
+See [evals/README.md](../evals/README.md).
 
 ## Behavioral guardrails
 

@@ -448,7 +448,7 @@ Single runs are anecdotes (same backend can swing minutes). Before calling a mod
 - [ ] Record wall-clock, cost, green/red, and failure class in [COMPARISON_RESULTS.md](COMPARISON_RESULTS.md) (or a PR note).
 ### 7. Gate D — product evals (optional, when evals cover the scenario)
 
-Our harness evaluates *runs*, not leaderboards — see [EVALS.md](EVALS.md):
+Our harness evaluates *runs*, not leaderboards — see [evals/README.md](../evals/README.md):
 
 ```bash
 AI_TEAM_USE_REAL_LLM=1 uv run python -m evals.run_evals --backend langgraph --scenario <name>
@@ -506,5 +506,5 @@ Useful starting points:
 - [TEAM_PROFILES.md](TEAM_PROFILES.md) — which agents run per profile
 - [GETTING_STARTED.md](GETTING_STARTED.md) — setup and 402 troubleshooting
 - [COMPARISON_RESULTS.md](COMPARISON_RESULTS.md) — measured backend outcomes
-- [EVALS.md](EVALS.md) — run/scenario eval harness (complements this checklist; does not replace Gates A–C)
+- [evals/README.md](../evals/README.md) — run/scenario eval harness (complements this checklist; does not replace Gates A–C)
 - [claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md) — SDK backend ops

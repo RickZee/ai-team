@@ -80,7 +80,7 @@ alongside `audit.jsonl` / `phases.jsonl`.
 
 **Not a session DOM:** rewind, fork, and interactive resume from the journal are
 out of scope. Durable replay for CI is eval fixture traces + the change receipt
-(see [EVALS.md](EVALS.md)), not journal replay.
+(see [evals/README.md](../evals/README.md)), not journal replay.
 
 ## Env flags
 

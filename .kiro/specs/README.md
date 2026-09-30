@@ -1,6 +1,6 @@
 # Eval specs — what they are, and the order to execute them
 
-Six specs now describe the eval system. Together they hold roughly 250 tasks, and they are
+Seven specs now describe the eval system. Together they hold roughly 250 tasks, and they are
 organised by **what is broken**, which is the right way to write a spec and the wrong way to
 plan a quarter. This file is the missing half: one execution order, sequenced by **what the
 audience can do after each milestone**.
@@ -9,7 +9,7 @@ Read a spec for *why* and *what*. Read this for *next*.
 
 ---
 
-## The six specs
+## The seven specs
 
 | Spec | Owns | State |
 | --- | --- | --- |
@@ -147,7 +147,7 @@ their edit.
 
 **Smallest version:** testbed **2.1** — write `docs/EXTENDING_EVALS.md`. The extension point
 of a 13,000-line eval harness is currently undocumented, and this is the single cheapest
-item in any of the six specs.
+item in any of the seven specs.
 
 Pair it with coverage **6.3** (`CHK-run-record-complete`): it is the worked example that
 document needs, and it fires on 214 of 308 records today, so the reader's first check produces

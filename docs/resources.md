@@ -164,6 +164,6 @@ sources for the harness itself. Full checklist and citations live in
 | [HARNESS.md](HARNESS.md) | Seven-layer instrumentation bar |
 | [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md) | Error-analysis-first eval loop |
 | [eval-runs/2026-09-13-langgraph-smoke](eval-runs/2026-09-13-langgraph-smoke/README.md) | First live case for that loop (unlabeled; not a published rate) |
-| [EVALS.md](EVALS.md) / [EVALS_ROADMAP.md](EVALS_ROADMAP.md) | Suite tiers; future role-eval calibrations (e.g. DPIaC-Eval, RealVuln) |
+| [evals/README.md](../evals/README.md) / [spec index](../.kiro/specs/README.md) | Suite tiers; future role-eval calibrations (e.g. DPIaC-Eval, RealVuln) |
 | [posts/failure-taxonomy.md](posts/failure-taxonomy.md) | Observed failure classes with receipts |
 | [posts/harness-map.md](posts/harness-map.md) | Stencil → AI-Team layer mapping |
