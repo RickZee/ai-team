@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from claude_agent_sdk import AgentDefinition
+
 from ai_team.backends.claude_agent_sdk_backend.agents import prompts
 from ai_team.backends.claude_agent_sdk_backend.tools.permissions import (
     architect_allowed_tools,
@@ -12,7 +14,6 @@ from ai_team.backends.claude_agent_sdk_backend.tools.permissions import (
     qa_allowed_tools,
     specialist_writer_tools,
 )
-from claude_agent_sdk import AgentDefinition
 
 
 def make_product_owner(*, model: str, effort: str | None = "medium") -> AgentDefinition:

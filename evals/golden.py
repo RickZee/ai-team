@@ -191,7 +191,7 @@ def golden_stats_table(*, golden_root: Path | None = None) -> str:
     """Format a stats table for ``golden stats`` CLI."""
     fms = list_golden_fms(golden_root=golden_root)
     lines = [
-        f"{'FM':<10} {'n':>5} {'present':>8} {'absent':>8} " f"{'dev':>5} {'test':>5} {'strat':>6}",
+        f"{'FM':<10} {'n':>5} {'present':>8} {'absent':>8} {'dev':>5} {'test':>5} {'strat':>6}",
     ]
     if not fms:
         lines.append("(no golden JSONL files — judge FMs only; check FMs use fixtures)")

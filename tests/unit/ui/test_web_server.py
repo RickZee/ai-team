@@ -627,11 +627,12 @@ class TestLanggraphHitlStatus:
         calls interrupt()) instead of driving the full LLM pipeline — isolates
         the checkpointer-sharing mechanism without needing API keys.
         """
+        from langgraph.graph import END, START, StateGraph
+
         from ai_team.backends.langgraph_backend.checkpointer import resolve_sqlite_checkpointer
         from ai_team.backends.langgraph_backend.graphs.main_graph import _node_human_review_full
         from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
         from ai_team.backends.langgraph_backend.state_inspection import get_thread_state_snapshot
-        from langgraph.graph import END, START, StateGraph
 
         db_path = str(tmp_path / "checkpoints.sqlite")
         monkeypatch.setenv("AI_TEAM_LANGGRAPH_SQLITE_PATH", db_path)

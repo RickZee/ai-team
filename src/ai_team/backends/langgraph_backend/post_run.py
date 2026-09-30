@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 import structlog
+
 from ai_team.backends.langgraph_backend.run_session import current_run_session
 from ai_team.core.results.writer import ResultsBundle
 from ai_team.reports.manager_self_improvement import write_manager_self_improvement_report

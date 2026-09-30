@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from crewai.tools import BaseTool
+
 from ai_team.tools.developer_tools import (
     ApiClientGeneratorTool,
     ApiImplementationTool,
@@ -22,7 +24,6 @@ from ai_team.tools.developer_tools import (
     get_frontend_developer_tools,
     get_fullstack_developer_tools,
 )
-from crewai.tools import BaseTool
 
 
 @pytest.fixture

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from ai_team.config.settings import reload_settings
 from ai_team.memory.lessons import (
     FAILURE_PATTERN_TYPE,

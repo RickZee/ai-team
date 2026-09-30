@@ -7,6 +7,8 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
+
 from ai_team.config.settings import (
     GuardrailSettings,
     MemorySettings,
@@ -16,7 +18,6 @@ from ai_team.config.settings import (
     reload_settings,
     scoped_workspace_dir,
 )
-from pydantic import ValidationError
 
 # -----------------------------------------------------------------------------
 # Pydantic settings loading from env

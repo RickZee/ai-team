@@ -7,11 +7,12 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from claude_agent_sdk import create_sdk_mcp_server, tool
+
 from ai_team.backends.claude_agent_sdk_backend.tools.permissions import MCP_SERVER_KEY
 from ai_team.guardrails import code_safety_guardrail
 from ai_team.guardrails.security import path_security_guardrail
 from ai_team.tools.test_tools import run_pytest
-from claude_agent_sdk import create_sdk_mcp_server, tool
 
 logger = structlog.get_logger(__name__)
 

@@ -48,6 +48,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
+
 from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 
 logger = structlog.get_logger()

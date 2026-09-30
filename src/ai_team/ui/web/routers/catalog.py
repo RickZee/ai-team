@@ -5,9 +5,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from fastapi import APIRouter, Depends
+
 from ai_team.ui.web.auth import require_token
 from ai_team.ui.web.server import EstimateRequest
-from fastapi import APIRouter, Depends
 
 router = APIRouter()
 _AUTH = [Depends(require_token)]

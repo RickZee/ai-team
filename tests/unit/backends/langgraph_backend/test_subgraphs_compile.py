@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from langchain_core.messages import HumanMessage
+
 from ai_team.backends.langgraph_backend.graphs.deployment import (
     compile_deployment_subgraph,
 )
@@ -14,8 +17,6 @@ from ai_team.backends.langgraph_backend.graphs.guardrail_hooks import (
 )
 from ai_team.backends.langgraph_backend.graphs.planning import compile_planning_subgraph
 from ai_team.backends.langgraph_backend.graphs.testing import compile_testing_subgraph
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from langchain_core.messages import HumanMessage
 
 from .stub_chat_model import FakeChatModelWithBindTools
 

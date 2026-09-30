@@ -16,9 +16,10 @@ import os
 from unittest.mock import patch
 
 import pytest
-from ai_team.config.llm_factory import get_embedder_config
 from crewai import Agent, Crew, Task
 from pydantic import ValidationError as PydanticValidationError
+
+from ai_team.config.llm_factory import get_embedder_config
 
 # -----------------------------------------------------------------------------
 # CrewAI crew memory uses the OpenRouter-backed embedder

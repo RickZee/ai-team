@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from ai_team.harness.fm001 import fm001_violation, salvage_write
 from ai_team.tools.bus import reset_bus
 from ai_team.tools.kinds import ToolRequest
@@ -22,9 +23,10 @@ def test_fenced_code_without_write_is_violation() -> None:
 
 
 def test_write_span_clears_violation() -> None:
+    from pydantic import BaseModel
+
     from ai_team.tools.bus import ToolSpec
     from ai_team.tools.kinds import ToolObservation
-    from pydantic import BaseModel
 
     class Empty(BaseModel):
         pass

@@ -15,6 +15,4 @@ class TierAMissingVerdict(RuntimeError):  # noqa: N818 — name fixed by design 
         self.judge_id = judge_id
         warm = "python -m evals.cli cache warm --tier B"
         judge_bit = f" judge_id={judge_id}" if judge_id else ""
-        super().__init__(
-            f"Tier A cache miss for key={cache_key}{judge_bit}; " f"populate with: {warm}"
-        )
+        super().__init__(f"Tier A cache miss for key={cache_key}{judge_bit}; populate with: {warm}")

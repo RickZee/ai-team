@@ -62,8 +62,7 @@ def get_backend(name: str, *, target: str = "local") -> Backend:
     if key in _STUB_SPECS:
         supported = ", ".join(sorted(_TARGETS[key]))
         raise NotImplementedError(
-            f"{key} is not implemented yet: see {_STUB_SPECS[key]}. "
-            f"Supported targets: {supported}."
+            f"{key} is not implemented yet: see {_STUB_SPECS[key]}. Supported targets: {supported}."
         )
     if key == "crewai":
         from ai_team.backends.crewai_backend.backend import CrewAIBackend

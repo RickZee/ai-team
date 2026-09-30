@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from ai_team.tools.coverage_paths import coverage_subprocess_env
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
+
+from ai_team.tools.coverage_paths import coverage_subprocess_env
 
 logger = structlog.get_logger(__name__)
 
@@ -104,13 +105,11 @@ def looks_like_fabricated_pytest_output(raw_output: str) -> bool:
         expected = f"{sys.version_info.major}.{sys.version_info.minor}"
         if ver_match.group(1) != expected:
             return True
-    if (
+    return bool(
         re.search(r"\d+\s+passed", lower)
         and "test session starts" not in lower
         and "collected" not in lower
-    ):
-        return True
-    return False
+    )
 
 
 def agent_test_result_matches_verified(data: dict[str, Any]) -> tuple[bool, str]:

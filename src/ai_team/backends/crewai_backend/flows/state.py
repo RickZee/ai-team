@@ -10,11 +10,12 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
+from pydantic import BaseModel, Field, model_validator
+
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.tools.test_tools import TestRunResult
-from pydantic import BaseModel, Field, model_validator
 
 # -----------------------------------------------------------------------------
 # Phase and transition models

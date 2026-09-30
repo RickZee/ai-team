@@ -5,6 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
+from langchain_core.language_models import BaseChatModel
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.prebuilt import create_react_agent
+
 from ai_team.backends.langgraph_backend.agents.prompts import build_system_prompt
 from ai_team.backends.langgraph_backend.agents.tools import get_langchain_tools_for_role
 from ai_team.backends.langgraph_backend.graphs.langgraph_chat import (
@@ -14,10 +19,6 @@ from ai_team.backends.langgraph_backend.graphs.langgraph_guardrail_nodes import 
     wrap_agents_with_guardrails,
 )
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphSubgraphState
-from langchain_core.language_models import BaseChatModel
-from langgraph.graph import END, START, StateGraph
-from langgraph.graph.state import CompiledStateGraph
-from langgraph.prebuilt import create_react_agent
 
 logger = structlog.get_logger(__name__)
 

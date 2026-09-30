@@ -20,6 +20,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.models.architecture import (
     ArchitectureDocument,
     Component,

@@ -6,6 +6,7 @@ import json
 import os
 
 import pytest
+
 from ai_team.ui.artifacts.service import (
     build_tree,
     load_architecture_panel,

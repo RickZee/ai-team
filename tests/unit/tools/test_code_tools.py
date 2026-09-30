@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.tools.code_tools import (
     LintResult,
     _is_shell_command_allowed,

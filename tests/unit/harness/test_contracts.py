@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+
 from ai_team.backends.crewai_backend.flows.error_handling import escalate_contract_negotiation
 from ai_team.backends.crewai_backend.flows.state import ProjectState
 from ai_team.harness.contracts import (

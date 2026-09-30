@@ -6,6 +6,7 @@ import threading
 from pathlib import Path
 
 import pytest
+
 from ai_team.harness.acceptance import (
     ACCEPTANCE_FILENAME,
     AcceptanceError,

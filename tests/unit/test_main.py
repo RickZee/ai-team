@@ -6,6 +6,7 @@ import argparse
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 from ai_team.cli_run import RunOptions, execute_run
 from ai_team.core.result import ProjectResult

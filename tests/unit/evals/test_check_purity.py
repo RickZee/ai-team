@@ -53,6 +53,6 @@ class TestCheckPerformance:
         # still-tight ceiling so a real regression (e.g. uncached flow introspect)
         # still fails while avoiding flake on shared ubuntu-latest hosts.
         limit_s = 15.0 if os.environ.get("CI") else 5.0
-        assert (
-            elapsed < limit_s
-        ), f"check suite over 200 traces took {elapsed:.2f}s (limit {limit_s})"
+        assert elapsed < limit_s, (
+            f"check suite over 200 traces took {elapsed:.2f}s (limit {limit_s})"
+        )

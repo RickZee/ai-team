@@ -6,13 +6,13 @@ guardrail attachment, before/after_task hooks, and mocked OpenRouter LLM.
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.backends.crewai_backend.agents.base import (
     ROLE_TO_SETTINGS_KEY,
     BaseAgent,
     _load_agents_config,
     create_agent,
 )
-
 from tests.unit.conftest import identity_llm
 
 

@@ -11,6 +11,7 @@ Guardrail: architecture must address all functional and non-functional requireme
 """
 
 import structlog
+
 from ai_team.backends.crewai_backend.agents.base import BaseAgent, create_agent
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.requirements import RequirementsDocument

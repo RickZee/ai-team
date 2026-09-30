@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Any, cast
 
 import structlog
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
+
 from ai_team.backends.common.acceptance import record_acceptance_from_state
 from ai_team.backends.common.thin_slice import scripted_result_or_none
 from ai_team.backends.langgraph_backend.checkpointer import (
@@ -31,9 +35,6 @@ from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.stream_helpers import stream_via_threaded_run
 from ai_team.core.team_profile import TeamProfile
-from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.graph.state import CompiledStateGraph
-from langgraph.types import Command
 
 logger = structlog.get_logger(__name__)
 

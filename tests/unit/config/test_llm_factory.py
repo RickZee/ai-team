@@ -6,6 +6,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.config.llm_factory import create_llm_for_role, get_embedder_config
 from ai_team.config.models import OpenRouterSettings
 

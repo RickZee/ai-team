@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import structlog
+
 from ai_team.config.settings import get_settings
 from ai_team.memory.memory_config import LongTermStore
 

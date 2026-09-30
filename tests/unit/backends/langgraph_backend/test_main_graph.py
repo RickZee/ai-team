@@ -7,7 +7,6 @@ from uuid import uuid4
 
 from ai_team.backends.langgraph_backend.graphs import main_graph as mg
 from ai_team.backends.langgraph_backend.graphs.main_graph import compile_main_graph
-
 from tests.unit.backends.langgraph_backend.harness import graph_invoke
 
 

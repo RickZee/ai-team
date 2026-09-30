@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.backends.crewai_backend.agents.base import BaseAgent
 from ai_team.backends.crewai_backend.agents.qa_engineer import (
     MIN_COVERAGE_THRESHOLD_DEFAULT,

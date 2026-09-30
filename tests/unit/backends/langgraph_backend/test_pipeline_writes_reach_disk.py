@@ -13,13 +13,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+from langchain_core.messages import AIMessage
+
 from ai_team.backends.langgraph_backend.graphs import deployment, development, planning, testing
 from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
 from ai_team.backends.langgraph_backend.graphs.main_graph import compile_main_graph
 from ai_team.backends.langgraph_backend.run_session import RunSession
 from ai_team.core.team_profile import load_team_profile
-from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langchain_core.messages import AIMessage
 
 pytestmark = pytest.mark.bus_draft
 

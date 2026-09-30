@@ -12,8 +12,9 @@ import re
 from collections.abc import Callable
 from typing import Any, Literal
 
-from ai_team.config.settings import get_settings, get_workspace_dir
 from pydantic import BaseModel, Field
+
+from ai_team.config.settings import get_settings, get_workspace_dir
 
 # =============================================================================
 # GUARDRAIL RESULT
@@ -315,9 +316,9 @@ def _is_system_path(resolved: str) -> bool:
     for prefix in _SYSTEM_PATH_PREFIXES:
         if norm == prefix or norm.startswith(prefix + os.sep):
             return True
-    if norm.startswith("/var" + os.sep) and "/var/folders" not in norm and "/var/tmp" not in norm:
-        return True
-    return False
+    return bool(
+        norm.startswith("/var" + os.sep) and "/var/folders" not in norm and "/var/tmp" not in norm
+    )
 
 
 def path_security_guardrail(

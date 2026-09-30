@@ -12,9 +12,10 @@ import os
 from typing import Any
 
 import structlog
+from crewai import LLM
+
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings
-from crewai import LLM
 
 logger = structlog.get_logger(__name__)
 

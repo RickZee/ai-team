@@ -6,6 +6,7 @@ Metrics, and MonitorCallback CrewAI adapter. No live TUI is started in tests.
 from unittest.mock import MagicMock
 
 import pytest
+
 from ai_team.monitor import (
     AGENT_ICONS,
     PHASE_ICONS,

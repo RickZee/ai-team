@@ -114,9 +114,9 @@ class TestSDKCostLatency:
         result, _ = sdk_result
         if result.cost_usd is None:
             pytest.fail("cost_usd not reported by SDK backend")
-        assert (
-            result.cost_usd <= SCENARIO["budget_usd_max"]
-        ), f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
+        assert result.cost_usd <= SCENARIO["budget_usd_max"], (
+            f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
+        )
 
     def test_completes_within_timeout(self, sdk_result):
         result, _ = sdk_result

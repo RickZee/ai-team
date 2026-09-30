@@ -14,9 +14,10 @@ import sys
 from typing import Literal, cast
 
 import structlog
+from dotenv import load_dotenv
+
 from ai_team.backends.registry import CLI_BACKEND_CHOICES, TARGET_CHOICES
 from ai_team.cli_run import RunOptions, execute_run
-from dotenv import load_dotenv
 
 logger = structlog.get_logger(__name__)
 
@@ -46,12 +47,13 @@ def _preprocess_argv_for_subcommand(argv: list[str]) -> list[str]:
 
 def _cmd_estimate(env: str, complexity: str) -> int:
     """Show cost estimate for the given environment and complexity."""
+    from pydantic import ValidationError
+
     from ai_team.config.cost_estimator import (
         display_estimate,
         estimate_run_cost,
     )
     from ai_team.config.models import OpenRouterSettings
-    from pydantic import ValidationError
 
     os.environ["AI_TEAM_ENV"] = env
     try:
@@ -71,12 +73,13 @@ def _cmd_estimate(env: str, complexity: str) -> int:
 
 def _cmd_compare_costs(complexity: str) -> int:
     """Show side-by-side cost comparison for dev, test, and prod."""
+    from pydantic import ValidationError
+
     from ai_team.config.cost_estimator import (
         display_compare_costs,
         estimate_run_cost,
     )
     from ai_team.config.models import Environment, OpenRouterSettings
-    from pydantic import ValidationError
 
     env_results = []
     try:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.backends.langgraph_backend.graphs import spend_guard as sg
 from ai_team.backends.langgraph_backend.graphs.spend_guard import (
     BudgetExceededError,

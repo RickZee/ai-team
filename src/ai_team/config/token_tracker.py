@@ -16,10 +16,11 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from ai_team.config.cost_estimator import RoleCostRow
-from ai_team.config.models import OpenRouterSettings
 from rich.console import Console
 from rich.table import Table
+
+from ai_team.config.cost_estimator import RoleCostRow
+from ai_team.config.models import OpenRouterSettings
 
 logger = structlog.get_logger(__name__)
 

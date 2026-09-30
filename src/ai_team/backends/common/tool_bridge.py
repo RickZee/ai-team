@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import structlog
+
 from ai_team.backends.common.role_tools import crew_tools_for_role
 from ai_team.tools.bus import get_bus, observation_to_agent_text
 from ai_team.tools.kinds import ToolObservation, ToolRequest

@@ -444,8 +444,7 @@ def run_annotate_session(
     pending = [tid for tid in manifest.selection if tid not in already]
     skipped = len(manifest.selection) - len(pending)
     out(
-        f"sample={sample_id} annotator={annotator} "
-        f"pending={len(pending)} skipped_already={skipped}"
+        f"sample={sample_id} annotator={annotator} pending={len(pending)} skipped_already={skipped}"
     )
 
     session_records = load_annotations(path)

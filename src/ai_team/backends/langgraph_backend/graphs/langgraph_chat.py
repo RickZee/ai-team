@@ -7,10 +7,11 @@ import os
 
 import httpx
 import structlog
-from ai_team.backends.langgraph_backend.graphs.spend_guard import record_usage
-from ai_team.config.models import OpenRouterSettings
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
+
+from ai_team.backends.langgraph_backend.graphs.spend_guard import record_usage
+from ai_team.config.models import OpenRouterSettings
 
 logger = structlog.get_logger(__name__)
 

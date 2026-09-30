@@ -14,8 +14,9 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 import structlog
-from ai_team.harness.acceptance import AcceptanceItem, demote, load, status
 from pydantic import BaseModel, Field
+
+from ai_team.harness.acceptance import AcceptanceItem, demote, load, status
 
 logger = structlog.get_logger(__name__)
 

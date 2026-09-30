@@ -16,6 +16,8 @@ import re
 from typing import Any
 
 import structlog
+from crewai import Crew, Process, Task
+
 from ai_team.backends.crewai_backend.agents.architect import create_architect_agent
 from ai_team.backends.crewai_backend.agents.backend_developer import create_backend_developer
 from ai_team.backends.crewai_backend.agents.devops_engineer import create_devops_engineer
@@ -30,7 +32,6 @@ from ai_team.config.llm_factory import get_embedder_config
 from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
 from ai_team.models.requirements import RequirementsDocument
-from crewai import Crew, Process, Task
 
 logger = structlog.get_logger(__name__)
 

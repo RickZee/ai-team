@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from ai_team.backends.registry import get_backend
 from ai_team.core.result import ProjectResult
 from ai_team.core.team_profile import load_team_profile
-
 from tests.conformance.fake_models import load_thin_slice
 
 BACKENDS = ("crewai", "langgraph", "claude-agent-sdk", "fake-remote")

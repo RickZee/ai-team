@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from ai_team.backends.claude_agent_sdk_backend import recovery
 from ai_team.core.team_profile import TeamProfile
 

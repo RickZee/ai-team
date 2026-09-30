@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from claude_agent_sdk import ResultMessage, StreamEvent
+
 from ai_team.backends.claude_agent_sdk_backend.costs import default_total_budget_usd
 from ai_team.backends.claude_agent_sdk_backend.orchestrator import (
     iter_orchestrator_messages,
@@ -40,7 +42,6 @@ from ai_team.config.settings import get_settings, scoped_workspace_dir
 from ai_team.core.result import ProjectResult
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.team_profile import TeamProfile
-from claude_agent_sdk import ResultMessage, StreamEvent
 
 logger = structlog.get_logger(__name__)
 

@@ -377,7 +377,7 @@ def _eval_cost(report: SuiteReport, baseline: Baseline, acc: _GateAccum) -> None
             Regression(
                 metric="suite:cost",
                 severity="warn",
-                message=(f"cost rose by >25% " f"(${baseline.suite_cost_usd:.4f} → ${cost:.4f})"),
+                message=(f"cost rose by >25% (${baseline.suite_cost_usd:.4f} → ${cost:.4f})"),
                 baseline_value=baseline.suite_cost_usd,
                 current_value=cost,
             )
@@ -493,8 +493,7 @@ def accept_baseline(
     prov = provenance or collect(tier=report.tier)
     if prov.git_dirty:
         raise RuntimeError(
-            "baseline accept refused: working tree is dirty (R14.2). "
-            "Commit or stash changes first."
+            "baseline accept refused: working tree is dirty (R14.2). Commit or stash changes first."
         )
     if not reason.strip():
         raise ValueError("baseline accept requires a non-empty --reason")

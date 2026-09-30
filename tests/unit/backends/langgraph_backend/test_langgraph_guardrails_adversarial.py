@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import cast
 
+from langchain_core.messages import AIMessage, HumanMessage
+
 from ai_team.backends.langgraph_backend.graphs.langgraph_guardrail_nodes import (
     _LOW_SCOPE_RELEVANCE_ROLES,
     make_behavioral_guardrail_node,
@@ -15,7 +17,6 @@ from ai_team.backends.langgraph_backend.graphs.langgraph_guardrail_nodes import 
     security_guardrail_node,
 )
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphSubgraphState
-from langchain_core.messages import AIMessage, HumanMessage
 
 
 def _state_with_ai(text: str, **extra: object) -> LangGraphSubgraphState:

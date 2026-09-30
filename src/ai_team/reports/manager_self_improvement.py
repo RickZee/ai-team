@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import structlog
+
 from ai_team.config.settings import get_settings
 from ai_team.core.results.writer import ResultsBundle
 from ai_team.memory.lessons import FAILURE_PATTERN_TYPE, LESSON_PATTERN_TYPE
@@ -208,11 +209,12 @@ def try_generate_manager_narrative_summary(report: dict[str, Any]) -> str | None
         logger.debug("manager_narrative_llm_skipped", reason="no_openrouter_key")
         return None
     try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+
         from ai_team.backends.langgraph_backend.graphs.langgraph_chat import (
             create_chat_model_for_role,
         )
         from ai_team.config.models import OpenRouterSettings
-        from langchain_core.messages import HumanMessage, SystemMessage
 
         payload = json.dumps(report, default=str)
         if len(payload) > 14_000:

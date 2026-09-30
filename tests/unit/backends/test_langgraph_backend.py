@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 from ai_team.core.team_profile import TeamProfile
 

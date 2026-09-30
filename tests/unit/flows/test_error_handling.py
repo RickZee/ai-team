@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
 from ai_team.backends.crewai_backend.flows.error_handling import (
     CIRCUIT_BREAKER_THRESHOLD,
     RETRY_BACKOFF_DELAYS,

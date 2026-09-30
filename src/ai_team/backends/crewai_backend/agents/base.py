@@ -10,14 +10,15 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar
 
-import ai_team.config as _config_pkg
 import structlog
 import yaml
+from crewai import Agent
+
+import ai_team.config as _config_pkg
 from ai_team.config.llm_factory import create_llm_for_role
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import get_settings
 from ai_team.guardrails import SecurityGuardrails
-from crewai import Agent
 
 logger = structlog.get_logger(__name__)
 

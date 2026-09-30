@@ -52,6 +52,6 @@ def strip_parent_coverage_env(env: Mapping[str, str] | None = None) -> dict[str,
 def coverage_subprocess_env(base_dir: Path | None = None, *, suffix: str = "") -> dict[str, str]:
     """Env vars for subprocess pytest/coverage so data lands under ``.coverage-data/``."""
     ensure_coverage_data_dir(base_dir)
-    env = {key: "" for key in PARENT_COVERAGE_ENV_KEYS}
+    env = dict.fromkeys(PARENT_COVERAGE_ENV_KEYS, "")
     env["COVERAGE_FILE"] = str(coverage_data_file(base_dir, suffix=suffix))
     return env

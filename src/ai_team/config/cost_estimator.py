@@ -13,14 +13,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 import structlog
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from ai_team.config.models import (
     ROLE_TOKEN_BUDGETS,
     Environment,
     OpenRouterSettings,
 )
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 
 logger = structlog.get_logger()
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from crewai.tools import BaseTool
+
 from ai_team.tools.manager_tools import (
     BlockerResolutionTool,
     StatusReportingTool,
@@ -9,7 +11,6 @@ from ai_team.tools.manager_tools import (
     TimelineManagementTool,
     get_manager_tools,
 )
-from crewai.tools import BaseTool
 
 
 class TestTaskDelegationTool:

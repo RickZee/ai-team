@@ -11,9 +11,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import ai_team.config as _config_pkg
 import structlog
 import yaml
+from crewai import Task
+
+import ai_team.config as _config_pkg
 from ai_team.backends.crewai_backend.agents.architect import (
     validate_architecture_against_requirements,
 )
@@ -27,7 +29,6 @@ from ai_team.models.architecture import (
     TechnologyChoice,
 )
 from ai_team.models.requirements import RequirementsDocument
-from crewai import Task
 
 logger = structlog.get_logger(__name__)
 

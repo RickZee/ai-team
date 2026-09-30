@@ -8,11 +8,11 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from ai_team.config.settings import scoped_workspace_dir
 from ai_team.tools.bus import get_bus, reset_bus
 from ai_team.tools.draft import commit_pending_drafts
 from ai_team.tools.kinds import ToolRequest
-
 from tests.conformance.fake_models import load_thin_slice, replay
 
 

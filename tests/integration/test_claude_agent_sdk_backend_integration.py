@@ -6,9 +6,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from claude_agent_sdk import ResultMessage
+
 from ai_team.backends.claude_agent_sdk_backend.backend import ClaudeAgentBackend
 from ai_team.core.team_profile import TeamProfile
-from claude_agent_sdk import ResultMessage
 
 
 def test_claude_backend_run_collects_workspace_artifacts(

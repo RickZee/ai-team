@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+
 from ai_team.backends.crewai_backend.agents.base import BaseAgent, create_agent
 from ai_team.models.qa_models import TestResult
 from ai_team.tools.qa_tools import get_qa_tools

@@ -14,6 +14,7 @@ from typing import Any, TypeVar
 
 import structlog
 import yaml
+
 from ai_team.backends.crewai_backend.agents.base import BaseAgent, _load_agents_config
 from ai_team.guardrails import QualityGuardrails, SecurityGuardrails
 from ai_team.tools.developer_tools import get_developer_common_tools

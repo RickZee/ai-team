@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
+
 from ai_team.models.architecture import (
     ArchitectureDecisionRecord,
     ArchitectureDocument,
@@ -28,7 +30,6 @@ from ai_team.models.requirements import (
     RequirementsDocument,
     UserStory,
 )
-from pydantic import ValidationError
 
 
 class TestArchitectureModels:

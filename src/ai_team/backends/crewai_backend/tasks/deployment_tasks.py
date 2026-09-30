@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ai_team.guardrails import crewai_code_safety_guardrail
 from crewai import Task
+
+from ai_team.guardrails import crewai_code_safety_guardrail
 
 if TYPE_CHECKING:
     from crewai import Agent

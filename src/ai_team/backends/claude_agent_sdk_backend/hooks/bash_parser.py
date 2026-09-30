@@ -44,9 +44,7 @@ def _unclosed_quotes(command: str) -> bool:
 def _has_substitution(command: str) -> bool:
     if "`" in command:
         return True
-    if "$(" in command or "${" in command:
-        return True
-    return False
+    return bool("$(" in command or "${" in command)
 
 
 def _normalize_for_danger(command: str) -> str:

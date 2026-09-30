@@ -32,6 +32,7 @@ _ENTRY_POINTS = [
 
 _SKIP_PARTS = frozenset({"vendor", "node_modules", "frontend", "__pycache__"})
 
+
 def _iter_py() -> list[Path]:
     out: list[Path] = []
     for root in (REPO_ROOT / "src" / "ai_team", REPO_ROOT / "evals"):

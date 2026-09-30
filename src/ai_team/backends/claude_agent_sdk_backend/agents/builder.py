@@ -5,13 +5,14 @@ from __future__ import annotations
 import dataclasses
 from typing import Literal
 
+from claude_agent_sdk import AgentDefinition
+
 from ai_team.backends.claude_agent_sdk_backend.agents import definitions as defs
 from ai_team.backends.claude_agent_sdk_backend.agents import prompts
 from ai_team.backends.claude_agent_sdk_backend.tools.permissions import (
     get_disallowed_tools_for_yaml_role,
 )
 from ai_team.core.team_profile import TeamProfile
-from claude_agent_sdk import AgentDefinition
 
 Effort = Literal["low", "medium", "high", "max"]
 

@@ -1,5 +1,7 @@
 """Unit tests for behavioral guardrails with mock agent outputs."""
 
+from pydantic import BaseModel, Field
+
 from ai_team.guardrails.behavioral import (
     GuardrailResult,
     delegation_guardrail,
@@ -13,7 +15,6 @@ from ai_team.guardrails.behavioral import (
     role_adherence_guardrail,
     scope_control_guardrail,
 )
-from pydantic import BaseModel, Field
 
 # -----------------------------------------------------------------------------
 # role_adherence_guardrail

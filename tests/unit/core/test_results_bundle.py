@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from ai_team.config.settings import reload_settings
 from ai_team.core.results import ResultsBundle
 from ai_team.core.results.models import Scorecard

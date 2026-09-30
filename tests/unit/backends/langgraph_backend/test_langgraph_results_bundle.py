@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 from ai_team.config.settings import reload_settings
 from ai_team.core.team_profile import TeamProfile

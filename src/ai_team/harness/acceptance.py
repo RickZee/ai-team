@@ -17,8 +17,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
-from ai_team.models.requirements import MoSCoW, RequirementsDocument
 from pydantic import BaseModel, Field
+
+from ai_team.models.requirements import MoSCoW, RequirementsDocument
 
 logger = structlog.get_logger(__name__)
 

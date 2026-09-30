@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from ai_team.backends.claude_agent_sdk_backend.hooks.security import build_security_pre_tool_hook
 from claude_agent_sdk.types import HookContext
+
+from ai_team.backends.claude_agent_sdk_backend.hooks.security import build_security_pre_tool_hook
 
 WORKSPACE = Path("/tmp/ws")
 CTX: HookContext = {"signal": None}

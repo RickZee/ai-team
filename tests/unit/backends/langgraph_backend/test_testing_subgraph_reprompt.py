@@ -13,8 +13,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
 from langchain_core.messages import AIMessage
+
+from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
 
 
 def _state(**extra: object) -> dict[str, object]:

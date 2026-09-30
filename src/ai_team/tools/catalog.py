@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 from ai_team.tools.bus import ToolBus, ToolSpec
 from ai_team.tools.kinds import ToolObservation, ToolRequest
-from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Arg schemas

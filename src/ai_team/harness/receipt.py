@@ -90,9 +90,7 @@ def is_accepted_change(
         return False
     if smoke.get("success") is True:
         return True
-    if smoke.get("ran") is False and smoke.get("skip_reason"):
-        return True
-    return False
+    return bool(smoke.get("ran") is False and smoke.get("skip_reason"))
 
 
 def workspace_tree_hash(workspace: Path) -> str:

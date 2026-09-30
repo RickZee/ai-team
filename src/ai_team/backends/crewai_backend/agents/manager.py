@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+
 from ai_team.backends.crewai_backend.agents.base import BaseAgent, create_agent
 from ai_team.tools.manager_tools import get_manager_tools
 

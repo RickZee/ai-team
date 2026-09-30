@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from pydantic import BaseModel, ConfigDict, ValidationError
+
 from ai_team.tools.kinds import (
     LOCKFILE_PATHS,
     SUMMARY_MAX_CHARS,
@@ -25,7 +27,6 @@ from ai_team.tools.kinds import (
     ToolObservation,
     ToolRequest,
 )
-from pydantic import BaseModel, ConfigDict, ValidationError
 
 logger = structlog.get_logger(__name__)
 

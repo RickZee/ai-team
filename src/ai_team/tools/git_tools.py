@@ -10,10 +10,11 @@ import re
 from pathlib import Path
 
 import structlog
-from ai_team.config.llm_factory import complete_with_openrouter
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 from git.repo.fun import is_git_dir
 from pydantic import BaseModel, Field
+
+from ai_team.config.llm_factory import complete_with_openrouter
 
 logger = structlog.get_logger(__name__)
 

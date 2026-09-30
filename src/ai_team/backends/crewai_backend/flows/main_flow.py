@@ -20,6 +20,9 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from crewai import Flow
+from crewai.flow.flow import listen, router, start
+
 from ai_team.backends.crewai_backend.flows.error_handling import (
     handle_deployment_error as handle_deployment_error_fn,
 )
@@ -58,8 +61,6 @@ from ai_team.models.architecture import ArchitectureDocument
 from ai_team.models.requirements import RequirementsDocument
 from ai_team.monitor import MonitorCallback, TeamMonitor
 from ai_team.tools.file_tools import write_file as safe_write_file
-from crewai import Flow
-from crewai.flow.flow import listen, router, start
 
 logger = structlog.get_logger()
 

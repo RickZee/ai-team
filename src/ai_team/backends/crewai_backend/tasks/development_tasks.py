@@ -14,6 +14,8 @@ from collections.abc import Sequence
 from typing import Any
 
 import structlog
+from crewai import Task
+
 from ai_team.guardrails.quality import (
     architecture_compliance_guardrail,
     code_quality_guardrail,
@@ -21,7 +23,6 @@ from ai_team.guardrails.quality import (
 )
 from ai_team.guardrails.security import code_safety_guardrail
 from ai_team.models.development import CodeFile, CodeFileList, DeploymentConfig
-from crewai import Task
 
 logger = structlog.get_logger()
 

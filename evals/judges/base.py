@@ -130,9 +130,7 @@ def load_judge_spec(path: Path) -> JudgeSpec:
     judge_id = str(meta["judge_id"])
     expected_name = f"{judge_id}.v{version}.md"
     if path.name != expected_name:
-        msg = (
-            f"prompt filename {path.name!r} does not match " f"judge_id/version ({expected_name!r})"
-        )
+        msg = f"prompt filename {path.name!r} does not match judge_id/version ({expected_name!r})"
         raise ValueError(msg)
     return JudgeSpec(
         judge_id=judge_id,

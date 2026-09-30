@@ -207,6 +207,6 @@ def test_mutation_flips_pass_to_fail(check_id: str) -> None:
     assert chk.run(passing).outcome == "pass"
     mutated = _mutate(check_id)
     result = chk.run(mutated)
-    assert (
-        result.outcome == "fail"
-    ), f"{check_id} mutation did not fail: {result.outcome} {result.evidence_text}"
+    assert result.outcome == "fail", (
+        f"{check_id} mutation did not fail: {result.outcome} {result.evidence_text}"
+    )
