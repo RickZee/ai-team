@@ -36,7 +36,7 @@ jobs:
           terraform init -backend=false
           terraform validate
 
-      - uses: terraform-linters/setup-tflint@90f368291d7bd9b8a9cba900a5d0a8a0563b4b1c # v4.1.1
+      - uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
         with:
           tflint_version: v0.54.0
 
