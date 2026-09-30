@@ -40,7 +40,8 @@ coverage env from child processes.
 A seventh, 2026-09-30: report and lessons tests opened ``MemorySettings.sqlite_path``,
 whose default is the developer's real long-term store (``./data/memory.db``). On a
 fresh checkout that silently created the database; on a sandboxed mount it raised
-``disk I/O error``. ``_isolate_memory_store`` points the suite at a temp database.
+``disk I/O error``. ``_isolate_memory_store`` points the suite at a temp database, and at a temp
+workspace root so the run-delete route cannot remove a real run's files.
 """
 
 from __future__ import annotations
@@ -176,19 +177,29 @@ def _isolate_api_keys() -> Iterator[None]:
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_memory_store(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
-    """Keep the suite out of the developer's long-term memory database."""
-    previous = os.environ.get("MEMORY_SQLITE_PATH")
-    os.environ["MEMORY_SQLITE_PATH"] = str(tmp_path_factory.mktemp("memory") / "memory.db")
+    """Keep the suite out of the developer's memory database and run workspaces.
+
+    ``PROJECT_WORKSPACE_DIR`` too: ``DELETE /api/runs/{id}`` removes the run's
+    workspace, and the web tests that call it used the repo's real ``workspace/``.
+    A test that needs its own root still monkeypatches it.
+    """
+    pinned = {
+        "MEMORY_SQLITE_PATH": str(tmp_path_factory.mktemp("memory") / "memory.db"),
+        "PROJECT_WORKSPACE_DIR": str(tmp_path_factory.mktemp("workspace")),
+    }
+    previous = {k: os.environ.get(k) for k in pinned}
+    os.environ.update(pinned)
     from ai_team.config.settings import reload_settings
 
     reload_settings()
     try:
         yield
     finally:
-        if previous is None:
-            os.environ.pop("MEMORY_SQLITE_PATH", None)
-        else:
-            os.environ["MEMORY_SQLITE_PATH"] = previous
+        for k, v in previous.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
         reload_settings()
 
 
