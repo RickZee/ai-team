@@ -1,7 +1,7 @@
 """Statistics for backend comparison batches.
 
 Why this exists: a green-rate like "1/5" reads as decisive and is not. The 95%
-Wilson interval on 1/5 runs roughly 1%-72%, which overlaps almost any other
+Wilson interval on 1/5 runs roughly 4%-62%, which overlaps almost any other
 backend's interval at n=5. Publishing point estimates from small batches is how
 a comparison table ends up asserting differences the data cannot support.
 
