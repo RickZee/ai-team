@@ -8,7 +8,8 @@ Usage:
     AI_TEAM_USE_REAL_LLM=1 uv run python -m evals.run_evals --backend crewai --scenario todo-api-beginner
 
 --compare spawns one subprocess per backend in parallel (not one long sequential session).
-Each backend log goes to /tmp/eval_<backend>.log so you can tail them independently.
+Each backend log goes to <tmp>/ai-team-evals-<user>/eval_<backend>.log (printed at the end)
+so you can tail them independently.
 
 Phase 4 adds Trace emission, budget enforcement, and k-run support. Trace writing is a
 side effect only — the pre-existing console summary format is unchanged.
@@ -17,11 +18,13 @@ side effect only — the pre-existing console summary format is unchanged.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -46,6 +49,9 @@ _FILE_MAP = {
     "claude-agent-sdk": "evals/backends/test_claude_sdk_eval.py",
 }
 _RESULTS_DIR = Path(__file__).parent / "results"
+# Per-user, not a fixed /tmp name: a shared predictable path is claimable by any other
+# local user (CWE-377) and collides between users on the same host.
+_LOG_DIR = Path(tempfile.gettempdir()) / f"ai-team-evals-{getpass.getuser()}"
 
 # Watchdog constants — do not change (design §6 / Phase 4 constraint).
 _COMPLETE_DRAIN_TIMEOUT = 90  # kill N seconds after project_complete
@@ -138,8 +144,13 @@ def _base_cmd(verbose: bool) -> list[str]:
     return cmd
 
 
+def _log_dir() -> Path:
+    _LOG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return _LOG_DIR
+
+
 def _log_path_for(backend: str) -> Path:
-    return Path(f"/tmp/eval_{backend.replace('-', '_')}.log")
+    return _log_dir() / f"eval_{backend.replace('-', '_')}.log"
 
 
 def _find_workspace(backend: str, log_path: Path | None) -> Path | None:
@@ -195,7 +206,7 @@ def _emit_trace(
     workspace = _find_workspace(backend, log_path)
     if workspace is None:
         # Still emit a minimal stub so killed / hung runs are not invisible.
-        stub = Path(f"/tmp/eval_trace_stub_{backend.replace('-', '_')}")
+        stub = _log_dir() / f"trace_stub_{backend.replace('-', '_')}"
         stub.mkdir(parents=True, exist_ok=True)
         (stub / "logs").mkdir(exist_ok=True)
         workspace = stub
@@ -377,11 +388,11 @@ def _poll_compare_procs(
     Watchdog behaviour is preserved byte-for-byte:
     - drain timeout 90 s after ``project_complete``
     - log-freeze timeout 120 s
-    - logs at ``/tmp/eval_<backend>.log``
+    - logs at ``<tmp>/ai-team-evals-<user>/eval_<backend>.log``
     """
     done: set[str] = set()
     exit_codes: dict[str, int] = {}
-    killed: dict[str, bool] = {b: False for b in procs}
+    killed: dict[str, bool] = dict.fromkeys(procs, False)
     complete_seen_at: dict[str, float] = {}  # when project_complete first seen
     log_last_size: dict[str, int] = {}  # log file size at last poll
     log_frozen_since: dict[str, float] = {}  # when log stopped growing
@@ -470,7 +481,7 @@ def _poll_compare_procs(
 
 
 def _run_compare_once(scenario: str, ctx: SuiteContext) -> dict[str, int]:
-    """Spawn one subprocess per backend in parallel; stream each to /tmp/eval_<backend>.log."""
+    """Spawn one subprocess per backend in parallel; stream each to its per-user log file."""
     env = _make_env(scenario, ctx.no_judge)
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -580,7 +591,7 @@ def _print_summary(exit_codes: dict[str, int], scenario: str) -> None:
     print("=" * 70, flush=True)
     for backend, rc in exit_codes.items():
         status = "✓ PASSED" if rc == 0 else f"✗ FAILED (rc={rc})"
-        log = f"/tmp/eval_{backend.replace('-', '_')}.log"
+        log = _log_path_for(backend)
         print(f"  {backend:<20} {status}   log: {log}", flush=True)
 
     # Load latest comparison JSON if exists

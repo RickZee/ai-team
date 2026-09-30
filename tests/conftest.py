@@ -36,6 +36,11 @@ A sixth, 2026-09-21: nested pytest (qa tools, harness gates) inherited the paren
 ``coverage combine`` then raised ``DataError`` after 1693 passing tests, so
 ``pre_push_check.sh`` failed closed. ``pytest_configure`` below strips inherited
 coverage env from child processes.
+
+A seventh, 2026-09-30: report and lessons tests opened ``MemorySettings.sqlite_path``,
+whose default is the developer's real long-term store (``./data/memory.db``). On a
+fresh checkout that silently created the database; on a sandboxed mount it raised
+``disk I/O error``. ``_isolate_memory_store`` points the suite at a temp database.
 """
 
 from __future__ import annotations
@@ -167,6 +172,24 @@ def _isolate_api_keys() -> Iterator[None]:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_memory_store(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """Keep the suite out of the developer's long-term memory database."""
+    previous = os.environ.get("MEMORY_SQLITE_PATH")
+    os.environ["MEMORY_SQLITE_PATH"] = str(tmp_path_factory.mktemp("memory") / "memory.db")
+    from ai_team.config.settings import reload_settings
+
+    reload_settings()
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("MEMORY_SQLITE_PATH", None)
+        else:
+            os.environ["MEMORY_SQLITE_PATH"] = previous
+        reload_settings()
 
 
 @pytest.fixture(scope="session", autouse=True)

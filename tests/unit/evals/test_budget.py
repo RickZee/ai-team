@@ -60,6 +60,7 @@ def test_budget_ceiling_aborts_after_first_run_writes_partial_report(
     monkeypatch.setattr("evals.run_evals.subprocess.Popen", fake_popen)
     monkeypatch.setattr("evals.run_evals._emit_trace", fake_emit)
     monkeypatch.setattr("evals.run_evals._RESULTS_DIR", tmp_path / "results")
+    monkeypatch.setattr("evals.run_evals._LOG_DIR", tmp_path / "logs")
 
     first = _run_single("crewai", "smoke-test", ctx)
     assert first.status == "complete"
