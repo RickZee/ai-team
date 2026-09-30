@@ -26,6 +26,7 @@ jobs:
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: "1.9.8"
+          terraform_wrapper: false
 
       - name: terraform fmt
         run: terraform fmt -check -recursive infra/terraform
@@ -42,6 +43,9 @@ jobs:
 
       - name: tflint
         working-directory: infra/terraform/${{ matrix.stack }}/envs/dev
+        env:
+          # Authenticated releases API avoids shared-runner 403 rate limits on --init.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tflint --init --config ../../../.tflint.hcl
           tflint --config ../../../.tflint.hcl
