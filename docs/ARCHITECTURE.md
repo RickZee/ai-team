@@ -106,6 +106,8 @@ Both implement the shared `Backend` protocol and return `ProjectResult`. Team co
 | **HITL** | Flow flags / human_feedback | `interrupt()` | `AskUserQuestion` + optional `can_use_tool` default answer |
 | **Tool guardrails** | CrewAI tasks + Python guardrails | Nodes + shared guardrail helpers | SDK **hooks** (Pre/Post tool) + MCP tools |
 
+How each one fails, with the two CrewAI incidents kept apart: [FRAMEWORKS.md](FRAMEWORKS.md).
+
 #### 2.1.2 Claude Agent SDK backend (diagram)
 
 Implementation lives under `src/ai_team/backends/claude_agent_sdk_backend/` (`backend.py`, `orchestrator.py`, `agents/`, `hooks/`, `tools/mcp_server.py`). The orchestrator builds `ClaudeAgentOptions` (system prompt + repo `CLAUDE.md` + `docs/CLAUDE_PROFILE.md`), registers the in-process **ai_team_tools** MCP server (guardrails, pytest, smoke), and streams or runs until a `ResultMessage`.
