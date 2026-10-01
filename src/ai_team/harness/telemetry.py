@@ -99,6 +99,35 @@ class TelemetryWriter:
             },
         )
 
+    def phases_from_history(
+        self,
+        history: list[Any],
+        *,
+        run_id: str,
+        backend: str,
+    ) -> None:
+        """Write a start and an end row for each phase the graph recorded.
+
+        Args:
+            history: ``phase_history`` entries (``phase`` and ``status``).
+            run_id: Run id stamped on every row.
+            backend: Backend name stamped on every row.
+        """
+        for entry in history:
+            if not isinstance(entry, dict):
+                continue
+            phase = entry.get("phase")
+            if not isinstance(phase, str) or not phase:
+                continue
+            end_status = entry.get("status")
+            self.phase_start(phase, run_id=run_id, backend=backend)
+            self.phase_end(
+                phase,
+                end_status=end_status if isinstance(end_status, str) else "complete",
+                run_id=run_id,
+                backend=backend,
+            )
+
     def _append(self, filename: str, row: dict[str, Any]) -> None:
         """Append one JSON line. ``writer`` is always ``harness``."""
         payload = dict(row)
