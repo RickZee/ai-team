@@ -155,6 +155,42 @@ class LangGraphBackend:
                 description, profile, env, mode, thread_id, kwargs
             )
 
+    def _save_stopped_run(
+        self,
+        graph: CompiledStateGraph,
+        config: dict[str, Any],
+        bundle: ResultsBundle,
+        thread_id: str,
+        stop: BaseException,
+    ) -> None:
+        """Write the last checkpoint of a run that was stopped mid-graph.
+
+        ``state.json`` gets the checkpoint values plus ``stopped_by`` (the
+        exception type) and ``stopped_in`` (the nodes that were running, with a
+        subgraph's messages when the checkpointer kept them), and
+        ``phases.jsonl`` gets the phases the graph had recorded. Best effort:
+        it runs inside the watchdog's grace period and must never replace the
+        original stop with an error of its own.
+        """
+        with contextlib.suppress(Exception):
+            snapshot = graph.get_state(config, subgraphs=True)
+            values = dict(snapshot.values or {})
+            values["stopped_by"] = type(stop).__name__
+            running: list[dict[str, Any]] = []
+            for task in snapshot.tasks or ():
+                entry: dict[str, Any] = {"node": task.name}
+                sub_values = getattr(getattr(task, "state", None), "values", None)
+                if isinstance(sub_values, dict) and sub_values.get("messages"):
+                    entry["messages"] = sub_values["messages"]
+                running.append(entry)
+            values["stopped_in"] = running
+            bundle.write_state(values)
+            TelemetryWriter(bundle.output_dir).phases_from_history(
+                list(values.get("phase_history") or []),
+                run_id=thread_id,
+                backend=self.name,
+            )
+
     def _run_with_workspace_scoped(
         self,
         description: str,
@@ -199,7 +235,15 @@ class LangGraphBackend:
                 final = run_with_postgres_checkpointer(pg_uri, _run)
             else:
                 g = self._compile_for_run(mode, None)
-                final = g.invoke(initial_state, config)
+                try:
+                    final = g.invoke(initial_state, config)
+                except BaseException as stop:
+                    # The watchdog (DemoTimeoutError) and the spend guard unwind
+                    # out of invoke, and nothing below would run: the September
+                    # timeouts left a cost row and no state. Save what the
+                    # checkpointer holds, then let the stop propagate.
+                    self._save_stopped_run(g, config, b, thread_id, stop)
+                    raise
             state_dict: dict[str, Any] = final if isinstance(final, dict) else {"state": final}
             # Self-improvement capture should not depend on result bundle persistence.
             with contextlib.suppress(Exception):

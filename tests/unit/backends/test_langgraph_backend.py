@@ -88,3 +88,39 @@ def test_ensure_empty_audit_log_keeps_existing_rows(tmp_path: Path) -> None:
         path = ensure_empty_audit_log()
     assert path is not None
     assert path.read_text(encoding="utf-8") == '{"tool": "write_file"}\n'
+
+
+class _Stopped(BaseException):
+    """Stands in for the run_demo watchdog's DemoTimeoutError."""
+
+
+def test_a_stopped_run_keeps_its_state_and_phase_log(
+    profile: TeamProfile, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_team.backends.langgraph_backend.graphs import main_graph
+    from ai_team.config.settings import get_settings
+
+    def _stop(_state: object) -> dict[str, object]:
+        raise _Stopped("watchdog")
+
+    monkeypatch.setattr(main_graph, "_node_testing", _stop)
+    with pytest.raises(_Stopped):
+        LangGraphBackend().run(
+            "Write a tiny Python module and one test",
+            profile,
+            graph_mode="placeholder",
+            workspace_dir=str(tmp_path / "ws"),
+            thread_id="stopped-run-test",
+        )
+    run_dir = Path(get_settings().project.output_dir) / "runs" / "stopped-run-test"
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["stopped_by"] == "_Stopped"
+    assert state["current_phase"] == "development"
+    assert [entry["node"] for entry in state["stopped_in"]] == ["testing"]
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "logs" / "phases.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    ended = [row["phase"] for row in rows if row["status"] == "phase_end"]
+    assert ended[-1] == "development"
+    assert "testing" not in ended
