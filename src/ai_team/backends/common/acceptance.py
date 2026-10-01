@@ -199,7 +199,7 @@ def _apply(
     if bad:
         _write_disagreement_spans(workspace, bad)
         logger.info("qa_disagreement", count=len(bad))
-    verified_by = "test" if tests_passed else "smoke"
+    verified_by: Literal["smoke", "test"] = "test" if tests_passed else "smoke"
     _sign_off_passing(workspace, results, verified_by=verified_by)
     return results
 
