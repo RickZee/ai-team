@@ -136,7 +136,6 @@ module = [
   "ai_team.backends.crewai_backend.flows.main_flow",
   "ai_team.memory.memory_config",  # exit: annotate Chroma/SQLite helpers
   "ai_team.tools.git_tools",  # exit: GitPython types
-  "ai_team.backends.crewai_backend.callbacks",  # exit: when utils/ is dissolved (R11.4)
 ]
 ignore_errors = true
 

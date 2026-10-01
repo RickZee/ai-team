@@ -25,7 +25,8 @@ team: architect → developer → QA.
 ## Step 2 — Run it with the model switched off (15 min, $0)
 
 **Predict.** The pipeline will "run" with every model call stubbed. When it finishes, which
-of these will exist? An end time in the run record · a final status · a phase log · a cost log.
+of these will exist? An end time in the run record · a final status · a phase log · a cost log
+· an audit log of tool calls. And what should a cost log say about a run that spent nothing?
 
 **Run.** The empty key variables guarantee this can't spend, even if `.env` has keys — an
 explicitly empty variable beats `.env` on purpose. Keep them on this one line: if you `export`
@@ -40,10 +41,12 @@ OPENROUTER_API_KEY= ANTHROPIC_API_KEY= \
 **Observe.** Now look at what was written:
 
 ```bash
-RUN=output/runs/$(cat output/latest)
-ls $RUN $RUN/logs
+RUN=output/runs/$(cat output/latest); ID=$(cat output/latest)
+ls $RUN $RUN/logs workspace/$ID/logs
 python3 -m json.tool $RUN/run.json
 grep -m1 '"current_phase"' $RUN/state.json
+cat $RUN/logs/costs.jsonl
+wc -l workspace/$ID/logs/audit.jsonl
 ```
 
 Fill in this card from what you see:
@@ -54,24 +57,39 @@ Fill in this card from what you see:
 | current_phase (`state.json`) | |
 | completed_at (`run.json`) | |
 | final status (`run.json` → `extra`) | |
-| files in `logs/` | |
+| files in `$RUN/logs/` | |
+| `spent_usd` in `costs.jsonl` | |
+| rows in `workspace/<id>/logs/audit.jsonl` | |
 
-On this repo it looked like this:
+On this repo it looks like this now:
+
+![The same dry run after the fix: every log written by the harness](./images/run-card-after.png)
+
+On 2026-09-30 the same command produced this card:
 
 ![The run finished; nothing recorded what happened](./images/run-card.png)
 
-**Explain.** The run finished, and the record knows it ended — but `logs/` is empty. No phase
-log, no cost log, no audit log. Nothing errored.
+**Explain.** Same run, same zero model calls. On September 30 the record knew the run had
+ended and nothing else: `logs/` was empty. No phase log, no cost log, no audit log. Nothing
+errored.
 
 Every dashboard, eval and report reads those logs. A run with no phase log gives every
 path-based check nothing to look at; a run with no cost log drops out of every spend chart.
 **Missing data doesn't fail loudly. It makes every number above it a bit fictional.**
 
-**Change.** Until 2026-09-16 command-line runs didn't even record an end time — only the web
-server and the Claude SDK backend called `finalize()`. Find who calls it now, then count how
-many *old* records are still open:
+Three things changed, all in the harness, none in a prompt. The cost log always gets a
+`run_total` row, so a free run says `spent_usd: 0` instead of vanishing. The phase log is
+written from the phases the graph actually recorded; before, it was a numbered line in an
+agent's prompt (week 3 is about that). And a run that cannot call a tool leaves an empty
+audit log, because zero rows is a measurement and a missing file is a gap. Every row says
+`"writer": "harness"`.
+
+**Change.** Find the writers, then check the oldest gap of all. Until 2026-09-16 command-line
+runs didn't even record an end time — only the web server and the Claude SDK backend called
+`finalize()`. Find who calls it now, then count how many *old* records are still open:
 
 ```bash
+grep -n '"writer"' src/ai_team/harness/telemetry.py
 grep -rn --include='*.py' "finalize(" src/ai_team scripts
 python3 -c "import json,glob; r=[json.load(open(f)) for f in glob.glob('output/runs/*/run.json')]; print(sum(not x.get('completed_at') for x in r), 'of', len(r), 'records have no end time')"
 ```
@@ -108,8 +126,10 @@ ls workspace/$ID
 ```
 
 **Stop rule.** If it's still running at **minute 15**, press **Ctrl-C** and check nothing is
-left behind: `ps aux | grep run_demo` (kill any leftovers — they keep spending). A hung run
-may have no `state.json` at all; that's a finding, write it on your card. Then use the
+left behind: `ps aux | grep run_demo` (kill any leftovers — they keep spending). On
+LangGraph, a run you stop (or the watchdog stops) keeps its last checkpoint in `state.json`,
+with `stopped_by` and `stopped_in` naming what was running; on the other frameworks it may
+have no `state.json` at all. Either way, write it on your card. Then use the
 recorded case in [week 2, step 2](./week-2-fail.md#step-2--study-a-recorded-failure-45-min-0),
 which is the same brief with every log kept.
 
@@ -130,7 +150,7 @@ Remember this table. In week 3 it's the whole story.
 ## ✅ Checkpoint
 
 - [ ] Two filled-in cards: dry run and real run
-- [ ] One sentence on why the dry-run card is suspicious
+- [ ] One sentence on why the September 30 dry-run card was suspicious, and what yours shows instead
 - [ ] How many of your run records have no end time, and why fixing the code didn't change that
 
 **For testers:** a dry run with the model mocked is a smoke test of your *test

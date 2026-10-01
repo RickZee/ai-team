@@ -7,7 +7,9 @@
 # and smoke/test_tools overrides. Measured 12,726 LOC / 70 files.
 # 2026-09-30: evals.run_evals override retired (it type-checks clean) ->
 # measured 12,241 LOC / 69 files.
-mypy_ignore_errors_loc = 12241
+# 2026-10-01: crewai_backend.callbacks override retired (one cast) -> measured
+# 11,867 LOC / 68 files.
+mypy_ignore_errors_loc = 11867
 
 # Complexity (src/ + evals/, excluding frontend, vendor, node_modules).
 # Branch count is the primary axis (R12.2). 2026-09-13 measured 58 / 7 / 15

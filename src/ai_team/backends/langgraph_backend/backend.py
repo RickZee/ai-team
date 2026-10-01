@@ -35,7 +35,9 @@ from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.stream_helpers import stream_via_threaded_run
 from ai_team.core.team_profile import TeamProfile
+from ai_team.harness.stopped_run import save_stopped_run
 from ai_team.harness.telemetry import TelemetryWriter
+from ai_team.tools.bus import ensure_empty_audit_log
 
 logger = structlog.get_logger(__name__)
 
@@ -155,42 +157,6 @@ class LangGraphBackend:
                 description, profile, env, mode, thread_id, kwargs
             )
 
-    def _save_stopped_run(
-        self,
-        graph: CompiledStateGraph,
-        config: dict[str, Any],
-        bundle: ResultsBundle,
-        thread_id: str,
-        stop: BaseException,
-    ) -> None:
-        """Write the last checkpoint of a run that was stopped mid-graph.
-
-        ``state.json`` gets the checkpoint values plus ``stopped_by`` (the
-        exception type) and ``stopped_in`` (the nodes that were running, with a
-        subgraph's messages when the checkpointer kept them), and
-        ``phases.jsonl`` gets the phases the graph had recorded. Best effort:
-        it runs inside the watchdog's grace period and must never replace the
-        original stop with an error of its own.
-        """
-        with contextlib.suppress(Exception):
-            snapshot = graph.get_state(config, subgraphs=True)
-            values = dict(snapshot.values or {})
-            values["stopped_by"] = type(stop).__name__
-            running: list[dict[str, Any]] = []
-            for task in snapshot.tasks or ():
-                entry: dict[str, Any] = {"node": task.name}
-                sub_values = getattr(getattr(task, "state", None), "values", None)
-                if isinstance(sub_values, dict) and sub_values.get("messages"):
-                    entry["messages"] = sub_values["messages"]
-                running.append(entry)
-            values["stopped_in"] = running
-            bundle.write_state(values)
-            TelemetryWriter(bundle.output_dir).phases_from_history(
-                list(values.get("phase_history") or []),
-                run_id=thread_id,
-                backend=self.name,
-            )
-
     def _run_with_workspace_scoped(
         self,
         description: str,
@@ -238,11 +204,9 @@ class LangGraphBackend:
                 try:
                     final = g.invoke(initial_state, config)
                 except BaseException as stop:
-                    # The watchdog (DemoTimeoutError) and the spend guard unwind
-                    # out of invoke, and nothing below would run: the September
-                    # timeouts left a cost row and no state. Save what the
-                    # checkpointer holds, then let the stop propagate.
-                    self._save_stopped_run(g, config, b, thread_id, stop)
+                    # A watchdog or spend stop skips everything below; keep the
+                    # last checkpoint so the stopped run can be read.
+                    save_stopped_run(g, config, b, run_id=thread_id, backend=self.name, stop=stop)
                     raise
             state_dict: dict[str, Any] = final if isinstance(final, dict) else {"state": final}
             # Self-improvement capture should not depend on result bundle persistence.
@@ -264,11 +228,7 @@ class LangGraphBackend:
                         run_id=thread_id,
                         backend=self.name,
                     )
-                if mode == "placeholder":
-                    # No node in the placeholder graph can call a tool, so zero
-                    # audit rows is known. Write the empty log instead of none.
-                    from ai_team.tools.bus import ensure_empty_audit_log
-
+                if mode == "placeholder":  # no node can call a tool: zero rows is known
                     ensure_empty_audit_log()
                 # Planning artifacts (best-effort).
                 planning_req = state_dict.get("requirements") or {}
