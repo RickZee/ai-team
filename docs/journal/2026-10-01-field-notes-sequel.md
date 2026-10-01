@@ -106,6 +106,7 @@ Rick read §7 and asked for the campaign to follow the fixes. Three decisions, h
 
 - `test_no_unreferenced_images_outside_publication`: `e8973e6` removed week 3's only reference to `docs/images/eval-telemetry-writers.png`. The image is back as the "before" picture, with the term *self-reported telemetry* it introduced.
 - `test_ignore_errors_loc_within_budget`: 12,305 LOC under `ignore_errors` against a floor of 12,241, from code added to `langgraph_backend` (an untyped package).
+- `test_annotate_three_resume_skips`: it checked for the `__fixture.json` files `160796c` deleted.
 
 And one content gap: course week 1, which posts 4 and the Substack issue link to, still taught that the model-off run leaves `logs/` empty. After `cc684de` and `e8973e6` it does not.
 
@@ -116,7 +117,10 @@ And one content gap: course week 1, which posts 4 and the Substack issue link to
 | `a53b385` | A stopped LangGraph run keeps its last checkpoint. `DemoTimeoutError` unwinds out of `graph.invoke`; the backend now writes the checkpointer's state with `stopped_by` and `stopped_in`, writes `phases.jsonl` from it, and re-raises. Checked with a real SIGALRM: stopped in `testing`, three phases recorded. The batch runner never counts a stopped run as green |
 | `7a49cc1` | That writer moved to `ai_team.harness.stopped_run` (typed), and the `crewai_backend.callbacks` override is retired with one cast. 11,867 LOC under `ignore_errors`; the ratchet moves down |
 | `6bf2e8c` | Week 1 shows the after card first and the September card as the before; the student's card asks for `spent_usd` and audit rows; the stop rule says a stopped LangGraph run keeps its checkpoint. Week 3 gets its image back |
+| `e2d3d55` | `test_annotate` looks fixtures up by the one file left per trace id |
 
 **The re-plan.** The October series grows to ten posts and ends Thu Nov 5, with Substack 4 on Fri Nov 6 (Tue Nov 3 is Election Day). A new Thu Oct 15 post tells the logging fix two days after the post that found it (field notes 1 and 2). Notes 3 to 6 are folded into the posts they repeat: 3 into the 28-engineers post, 4 into the baseline post, 5 into the cost post (now proven by `role_cost.py --batch`), 6 into the frameworks post, whose text and image now keep the two CrewAI failures apart. `docs/field-notes/` is removed from the branch; the drafts are kept with the campaign.
+
+Checked after the last commit: the full unit suite (1,784 passed with the venv's `pytest` and `ruff` on `PATH`; without it, ten gate and smoke tests fail on `/usr/bin/python`), `tests/conformance` and `tests/integration`, `ruff check`, `ruff format --check`, `mypy src/` and `mypy evals/`.
 
 **Still open from this pass.** Unit tests that run a backend without `workspace_dir`, and a `run_demo` without `PROJECT_WORKSPACE_DIR`, still write into `./workspace/` (the audit's hard-coded-workspace item). The stopped-run writer covers LangGraph only; CrewAI and the Claude SDK still leave no state when the watchdog stops them.
