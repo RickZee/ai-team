@@ -11,10 +11,11 @@ import re
 from typing import Any
 
 import structlog
+from crewai import Task
+
 from ai_team.guardrails.quality import coverage_guardrail
 from ai_team.models.qa_models import CodeReviewReport
 from ai_team.tools.test_tools import agent_test_result_matches_verified, validate_test_quality
-from crewai import Task
 
 logger = structlog.get_logger(__name__)
 

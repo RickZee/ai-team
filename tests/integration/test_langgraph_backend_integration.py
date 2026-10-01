@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 
 import pytest
-from ai_team.backends.langgraph_backend.graphs.main_graph import compile_main_graph
 
+from ai_team.backends.langgraph_backend.graphs.main_graph import compile_main_graph
 from tests.unit.backends.langgraph_backend.harness import graph_invoke
 
 

@@ -6,25 +6,25 @@ guardrail attachment, before/after_task hooks, and mocked OpenRouter LLM.
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.backends.crewai_backend.agents.base import (
     ROLE_TO_SETTINGS_KEY,
     BaseAgent,
     _load_agents_config,
     create_agent,
 )
-
 from tests.unit.conftest import identity_llm
 
 
 class TestBaseAgentInitializationWithRoles:
     """Test BaseAgent initialization with each role via create_agent."""
 
-    def test_create_agent_manager(self, agents_config_minimal: dict, mock_ollama_llm) -> None:
+    def test_create_agent_manager(self, agents_config_minimal: dict, mock_llm) -> None:
         with (
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(
                 "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
-                return_value=mock_ollama_llm,
+                return_value=mock_llm,
             ),
             patch("crewai.agent.core.create_llm", side_effect=identity_llm),
         ):
@@ -38,12 +38,12 @@ class TestBaseAgentInitializationWithRoles:
         assert agent.role_name == "manager"
         assert agent.role == "Engineering Manager"
 
-    def test_create_agent_product_owner(self, agents_config_minimal: dict, mock_ollama_llm) -> None:
+    def test_create_agent_product_owner(self, agents_config_minimal: dict, mock_llm) -> None:
         with (
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(
                 "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
-                return_value=mock_ollama_llm,
+                return_value=mock_llm,
             ),
             patch("crewai.agent.core.create_llm", side_effect=identity_llm),
         ):
@@ -56,14 +56,12 @@ class TestBaseAgentInitializationWithRoles:
         assert agent.role_name == "product_owner"
         assert agent.role == "Product Owner"
 
-    def test_create_agent_architect_backend_qa(
-        self, agents_config_minimal: dict, mock_ollama_llm
-    ) -> None:
+    def test_create_agent_architect_backend_qa(self, agents_config_minimal: dict, mock_llm) -> None:
         with (
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(
                 "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
-                return_value=mock_ollama_llm,
+                return_value=mock_llm,
             ),
             patch("crewai.agent.core.create_llm", side_effect=identity_llm),
         ):
@@ -98,13 +96,13 @@ class TestModelAssignmentFromSettings:
         assert ROLE_TO_SETTINGS_KEY["cloud_engineer"] == "cloud"
 
     def test_create_agent_calls_get_model_for_role(
-        self, agents_config_minimal: dict, mock_ollama_llm
+        self, agents_config_minimal: dict, mock_llm
     ) -> None:
         with (
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(
                 "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
-                return_value=mock_ollama_llm,
+                return_value=mock_llm,
             ) as mock_create_llm,
             patch("crewai.agent.core.create_llm", side_effect=identity_llm),
         ):
@@ -116,20 +114,20 @@ class TestModelAssignmentFromSettings:
             from ai_team.config.models import OpenRouterSettings
 
             assert isinstance(call_args[1], OpenRouterSettings)
-            assert agent.llm is mock_ollama_llm
+            assert agent.llm is mock_llm
 
 
 class TestGuardrailAttachment:
     """Test guardrail attachment to tools."""
 
     def test_guardrail_disabled_tools_not_wrapped(
-        self, agents_config_minimal: dict, mock_ollama_llm
+        self, agents_config_minimal: dict, mock_llm
     ) -> None:
         with (
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(
                 "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
-                return_value=mock_ollama_llm,
+                return_value=mock_llm,
             ),
             patch("crewai.agent.core.create_llm", side_effect=identity_llm),
         ):
@@ -143,7 +141,7 @@ class TestGuardrailAttachment:
             assert len(agent.tools) == 0
 
     def test_guardrail_enabled_wraps_tools_when_security_on(
-        self, agents_config_minimal: dict, mock_ollama_llm
+        self, agents_config_minimal: dict, mock_llm
     ) -> None:
         from ai_team.tools.file_tools import get_file_tools
 
@@ -156,7 +154,7 @@ class TestGuardrailAttachment:
             patch("ai_team.backends.crewai_backend.agents.base.get_settings") as mock_settings,
             patch(
                 "ai_team.backends.crewai_backend.agents.base.create_llm_for_role",
-                return_value=mock_ollama_llm,
+                return_value=mock_llm,
             ),
             patch("crewai.agent.core.create_llm", side_effect=identity_llm),
         ):
@@ -173,7 +171,7 @@ class TestGuardrailAttachment:
 class TestBeforeTaskAfterTaskHooks:
     """Test before_task / after_task hook invocation."""
 
-    def test_before_task_callback_invokes_hook(self, mock_ollama_llm) -> None:
+    def test_before_task_callback_invokes_hook(self, mock_llm) -> None:
         hook = MagicMock()
         with patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             agent = BaseAgent(
@@ -181,14 +179,14 @@ class TestBeforeTaskAfterTaskHooks:
                 role="Manager",
                 goal="Coordinate",
                 backstory="Experienced",
-                llm=mock_ollama_llm,
+                llm=mock_llm,
                 tools=[],
                 before_task=hook,
             )
         agent.before_task_callback("task_1", {"key": "value"})
         hook.assert_called_once_with("task_1", {"key": "value"})
 
-    def test_after_task_callback_invokes_hook(self, mock_ollama_llm) -> None:
+    def test_after_task_callback_invokes_hook(self, mock_llm) -> None:
         hook = MagicMock()
         with patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             agent = BaseAgent(
@@ -196,21 +194,21 @@ class TestBeforeTaskAfterTaskHooks:
                 role="Manager",
                 goal="Coordinate",
                 backstory="Experienced",
-                llm=mock_ollama_llm,
+                llm=mock_llm,
                 tools=[],
                 after_task=hook,
             )
         agent.after_task_callback("task_1", "output text")
         hook.assert_called_once_with("task_1", "output text")
 
-    def test_no_hook_does_not_raise(self, mock_ollama_llm) -> None:
+    def test_no_hook_does_not_raise(self, mock_llm) -> None:
         with patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             agent = BaseAgent(
                 role_name="manager",
                 role="Manager",
                 goal="Coordinate",
                 backstory="Experienced",
-                llm=mock_ollama_llm,
+                llm=mock_llm,
                 tools=[],
             )
         agent.before_task_callback("t", {})
@@ -220,27 +218,27 @@ class TestBeforeTaskAfterTaskHooks:
 class TestMockLLM:
     """Tests that work with mocked LLM (no network)."""
 
-    def test_token_usage_starts_zero(self, mock_ollama_llm) -> None:
+    def test_token_usage_starts_zero(self, mock_llm) -> None:
         with patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             agent = BaseAgent(
                 role_name="manager",
                 role="Manager",
                 goal="Coordinate",
                 backstory="Experienced",
-                llm=mock_ollama_llm,
+                llm=mock_llm,
                 tools=[],
             )
         assert agent.token_usage["input_tokens"] == 0
         assert agent.token_usage["output_tokens"] == 0
 
-    def test_record_tokens_updates_usage(self, mock_ollama_llm) -> None:
+    def test_record_tokens_updates_usage(self, mock_llm) -> None:
         with patch("crewai.agent.core.create_llm", side_effect=identity_llm):
             agent = BaseAgent(
                 role_name="manager",
                 role="Manager",
                 goal="Coordinate",
                 backstory="Experienced",
-                llm=mock_ollama_llm,
+                llm=mock_llm,
                 tools=[],
             )
         agent.record_tokens(input_tokens=10, output_tokens=20)

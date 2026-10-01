@@ -6,6 +6,7 @@ import inspect
 from pathlib import Path
 
 import pytest
+
 from ai_team.tools.bus import (
     ToolSpec,
     get_bus,

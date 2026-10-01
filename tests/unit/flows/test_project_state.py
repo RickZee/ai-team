@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 
 

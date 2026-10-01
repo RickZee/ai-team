@@ -57,8 +57,7 @@ def migrate_trace_dict(doc: dict[str, Any]) -> dict[str, Any]:
         migrator = MIGRATIONS.get(nxt)
         if migrator is None:
             raise TraceSchemaError(
-                f"no migration registered for schema_version {nxt}; "
-                f"cannot upgrade from {version}"
+                f"no migration registered for schema_version {nxt}; cannot upgrade from {version}"
             )
         current = migrator(current)
         current["schema_version"] = nxt

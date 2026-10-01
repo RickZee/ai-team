@@ -130,14 +130,12 @@ def _parse_failure_mode(entry: dict[str, Any]) -> FailureMode:
     severity = _require_str(entry, "severity", fm_id)
     if severity not in VALID_SEVERITIES:
         raise TaxonomyValidationError(
-            f"bad severity: {severity!r} for {fm_id} "
-            f"(expected one of {sorted(VALID_SEVERITIES)})"
+            f"bad severity: {severity!r} for {fm_id} (expected one of {sorted(VALID_SEVERITIES)})"
         )
     detection = _require_str(entry, "detection", fm_id)
     if detection not in VALID_DETECTIONS:
         raise TaxonomyValidationError(
-            f"bad detection: {detection!r} for {fm_id} "
-            f"(expected one of {sorted(VALID_DETECTIONS)})"
+            f"bad detection: {detection!r} for {fm_id} (expected one of {sorted(VALID_DETECTIONS)})"
         )
     status = entry.get("status", "active")
     if not isinstance(status, str) or status not in VALID_STATUSES:

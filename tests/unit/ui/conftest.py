@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
+
 from ai_team.core.run_store import RunStore
 from ai_team.ui.web import server as web_server
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)

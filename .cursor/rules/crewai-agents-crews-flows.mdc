@@ -6,25 +6,16 @@ alwaysApply: false
 
 # Agent Definition
 
-Agents: YAML config (agents.yaml) + Python class extending BaseAgent. Use `role_name` (maps to YAML key), `create()` → `load_yaml_config()`, `get_ollama_llm()`, return `Agent(...)`.
+Personas live in `src/ai_team/config/agents.yaml`; the role → model map lives in
+`src/ai_team/config/models.py`. CrewAI agents are built by the factory, not by subclassing:
 
 ```python
-from ai_team.backends.crewai_backend.agents.base import BaseAgent
+from ai_team.backends.crewai_backend.agents.base import create_agent
 
-class ArchitectAgent(BaseAgent):
-    """Solutions Architect agent for system design."""
-    role_name: str = "architect"
-
-    def create(self) -> Agent:
-        config = self.load_yaml_config()
-        llm = self.get_ollama_llm()
-        return Agent(
-            role=config["role"], goal=config["goal"], backstory=config["backstory"],
-            tools=self.get_tools(), llm=llm, verbose=config.get("verbose", True),
-            memory=config.get("memory", True), allow_delegation=config.get("allow_delegation", False),
-            max_iter=config.get("max_iter", 10),
-        )
+architect = create_agent("architect", tools=[...])  # key in agents.yaml
 ```
+
+The LLM comes from `config/llm_factory.create_llm_for_role(role, settings)` (OpenRouter).
 
 # Crew Composition
 

@@ -5,6 +5,8 @@ known-bad inputs; pass/fail return signatures; chaining and ordering.
 
 from unittest.mock import patch
 
+from pydantic import BaseModel, Field
+
 from ai_team.guardrails.behavioral import (
     GuardrailResult as BehavioralGuardrailResult,
 )
@@ -34,7 +36,6 @@ from ai_team.guardrails.security import (
     pii_redaction_guardrail,
     secret_detection_guardrail,
 )
-from pydantic import BaseModel, Field
 
 # -----------------------------------------------------------------------------
 # Behavioral guardrails in isolation

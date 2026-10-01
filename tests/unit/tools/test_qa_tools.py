@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.tools.qa_tools import (
     QA_MIN_COVERAGE_DEFAULT,
     bug_reporter,

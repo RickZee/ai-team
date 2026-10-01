@@ -7,6 +7,10 @@ non-public route in ``ui/web/routers/``.
 from __future__ import annotations
 
 import pytest
+from fastapi.routing import APIRoute, APIWebSocketRoute
+from fastapi.testclient import TestClient
+from starlette.routing import BaseRoute
+
 from ai_team.config.settings import reload_settings
 from ai_team.ui.web.auth import (
     PUBLIC_PATHS,
@@ -16,9 +20,6 @@ from ai_team.ui.web.auth import (
     websocket_origin_allowed,
 )
 from ai_team.ui.web.server import app, build_web_parser
-from fastapi.routing import APIRoute, APIWebSocketRoute
-from fastapi.testclient import TestClient
-from starlette.routing import BaseRoute
 
 
 def _iter_http_and_ws_routes(app_routes: list[BaseRoute]) -> list[BaseRoute]:

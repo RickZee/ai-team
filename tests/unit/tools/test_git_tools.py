@@ -8,6 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from git import InvalidGitRepositoryError
+
 from ai_team.tools.git_tools import (
     CommitInfo,
     GitStatus,
@@ -21,7 +23,6 @@ from ai_team.tools.git_tools import (
     git_log,
     git_status,
 )
-from git import InvalidGitRepositoryError
 
 
 class TestGitInit:

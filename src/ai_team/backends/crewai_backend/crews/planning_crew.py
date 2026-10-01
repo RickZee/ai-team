@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from crewai import Crew, Process
+from crewai.crew import CrewOutput
+
 from ai_team.backends.crewai_backend.agents.architect import create_architect_agent
 from ai_team.backends.crewai_backend.agents.manager import create_manager_agent
 from ai_team.backends.crewai_backend.agents.product_owner import create_product_owner_agent
@@ -19,8 +22,6 @@ from ai_team.backends.crewai_backend.llm_wrapper import NoFunctionCallingLLMWrap
 from ai_team.backends.crewai_backend.tasks.planning_tasks import create_planning_tasks
 from ai_team.config.llm_factory import get_embedder_config
 from ai_team.config.settings import get_settings
-from crewai import Crew, Process
-from crewai.crew import CrewOutput
 
 logger = structlog.get_logger(__name__)
 

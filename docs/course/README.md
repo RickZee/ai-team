@@ -122,7 +122,8 @@ rather than accuracy, one domain expert rather than a committee, and open coding
 that shows the human no model output. This course is a plain-language route into
 their material plus one project's receipts, not a replacement for it.
 
-- [Husain & Shankar — *A Field Guide to Rapidly Improving AI Products*](https://eugeneyan.com/writing/eval-analysis/)
+- [Husain — *A Field Guide to Rapidly Improving AI Products*](https://hamel.dev/blog/posts/field-guide/)
+- [Husain & Shankar — *Why is error analysis so important in AI evals?*](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html)
 - [Lenny's Podcast — *Why AI evals are the hottest new skill*](https://www.lennysnewsletter.com/p/why-ai-evals-are-the-hottest-new-skill)
 - The audit that started this course: [`../posts/the-starved-harness.md`](../posts/the-starved-harness.md)
 

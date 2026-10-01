@@ -12,6 +12,9 @@ import re
 from typing import Any
 
 import structlog
+from crewai import Crew, Process
+from pydantic import BaseModel, Field
+
 from ai_team.backends.crewai_backend.agents.qa_engineer import create_qa_engineer
 from ai_team.backends.crewai_backend.crews.memory_flag import crew_memory_enabled
 from ai_team.backends.crewai_backend.tasks.testing_tasks import (
@@ -30,8 +33,6 @@ from ai_team.tools.test_tools import (
     get_verified_pytest_run,
     run_pytest_discover_workspace,
 )
-from crewai import Crew, Process
-from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 
@@ -204,9 +205,7 @@ def _quality_gate_passed(
         )
         if branch_ratio < min_branch_coverage:
             return False
-    if code_review_report is not None and not code_review_report.passed:
-        return False
-    return True
+    return not (code_review_report is not None and not code_review_report.passed)
 
 
 def _run_orchestrated_pytest() -> TestRunResult | None:

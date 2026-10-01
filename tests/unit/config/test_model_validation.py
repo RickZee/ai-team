@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+
 from ai_team.config.model_validation import (
     ModelValidationError,
     validate_models_before_run,

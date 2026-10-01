@@ -11,6 +11,9 @@ import re
 from typing import Any, Literal
 
 import structlog
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+
 from ai_team.backends.langgraph_backend.graphs.guardrail_hooks import (
     concat_recent_ai_content,
     current_turn,
@@ -37,8 +40,6 @@ from ai_team.guardrails.security import (
     code_safety_guardrail,
     secret_detection_guardrail,
 )
-from langgraph.graph import END, START, StateGraph
-from langgraph.graph.state import CompiledStateGraph
 
 logger = structlog.get_logger(__name__)
 
@@ -196,9 +197,7 @@ def _looks_like_python_code(text: str) -> bool:
         return False
     if "```" in s or "def " in s or "class " in s or "import " in s:
         return True
-    if len(s) > 400 and ("return " in s or "self." in s):
-        return True
-    return False
+    return bool(len(s) > 400 and ("return " in s or "self." in s))
 
 
 _FENCED_CODE_RE = re.compile(

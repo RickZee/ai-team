@@ -6,12 +6,12 @@ alwaysApply: false
 
 # Python Style
 
-- **Formatter**: black, line length 100
+- **Formatter**: `ruff format`, line length 100
 - **Linter**: ruff (E, F, I, N, W, UP, B, C4, SIM)
 - **Type checker**: mypy strict for `src/`
 - **Line length**: 100 characters max
 - **Naming**: snake_case (functions/variables), PascalCase (classes), UPPER_SNAKE (constants)
-- **Imports**: isort profile=black; groups: stdlib → third-party → local
+- **Imports**: sorted by Ruff rule `I` (`ruff check --fix`); stdlib → third-party → `ai_team`
 - **Docstrings**: Google style on all public classes, methods, and functions
 - **Type hints**: required on all function signatures; use `from __future__ import annotations` in every file
 

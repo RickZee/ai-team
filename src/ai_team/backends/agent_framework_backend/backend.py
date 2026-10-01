@@ -1,4 +1,4 @@
-"""Microsoft Agent Framework on Azure AI Foundry. The pipeline is not built yet.
+"""Microsoft Agent Framework on Microsoft Foundry. The pipeline is not built yet.
 
 See ``.kiro/specs/azure-agent-framework``.
 """

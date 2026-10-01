@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pytest
+from langchain_core.tools import BaseTool as LangChainBaseTool
+
 from ai_team.backends.langgraph_backend.agents.prompts import (
     AgentPromptBundle,
     load_agent_prompt,
@@ -12,7 +14,6 @@ from ai_team.tools.architect_tools import architecture_designer, get_architect_t
 from ai_team.tools.developer_tools import CodeGenerationTool
 from ai_team.tools.file_tools import get_file_tools
 from ai_team.tools.langchain_adapter import crewai_tool_to_langchain, to_langchain_tools
-from langchain_core.tools import BaseTool as LangChainBaseTool
 
 
 def test_crewai_tool_to_langchain_function_tool() -> None:

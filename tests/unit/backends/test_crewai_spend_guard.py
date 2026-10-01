@@ -13,6 +13,7 @@ BudgetExceededError subclasses BaseException to bypass that catch and propagate.
 from __future__ import annotations
 
 import pytest
+
 from ai_team.core.spend_guard import (
     BudgetExceededError,
     current_spend,
@@ -79,8 +80,9 @@ class TestCrewaiSpendCallback:
             logger.log_success_event({"response_cost": 0.10}, _FakeResponse(0), None, None)
 
     def test_register_is_idempotent(self) -> None:
-        import ai_team.config.llm_observability as obs
         import litellm
+
+        import ai_team.config.llm_observability as obs
 
         obs._SPEND_GUARD_REGISTERED = False
         litellm.callbacks = []

@@ -14,6 +14,9 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from crewai.utilities.converter import ConverterError
+from pydantic import ValidationError
+
 from ai_team.backends.crewai_backend.crews.planning_crew import kickoff as planning_crew_kickoff
 from ai_team.backends.crewai_backend.crews.testing_crew import kickoff as run_testing_crew
 from ai_team.backends.crewai_backend.flows.error_handling import reset_circuit
@@ -28,8 +31,6 @@ from ai_team.backends.crewai_backend.flows.routing import (
 )
 from ai_team.backends.crewai_backend.flows.state import ProjectPhase
 from ai_team.config.settings import get_settings
-from crewai.utilities.converter import ConverterError
-from pydantic import ValidationError
 
 # -----------------------------------------------------------------------------
 # Full-flow runner (no CrewAI kickoff — avoids async/event-bus hang)

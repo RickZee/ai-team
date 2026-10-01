@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+
 from ai_team.core.team_profile import TeamProfile
 from ai_team.core.workspace_layout import ensure_workspace_layout as ensure_workspace_layout
 

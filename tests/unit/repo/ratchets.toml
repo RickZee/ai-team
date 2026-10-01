@@ -5,7 +5,9 @@
 # mypy ignore_errors LOC (sum of files matched by overrides). Counted by
 # test_type_budget.py. History: 2026-09-13 Track A after dropping evals.backends
 # and smoke/test_tools overrides. Measured 12,726 LOC / 70 files.
-mypy_ignore_errors_loc = 13000
+# 2026-09-30: evals.run_evals override retired (it type-checks clean) ->
+# measured 12,241 LOC / 69 files.
+mypy_ignore_errors_loc = 12241
 
 # Complexity (src/ + evals/, excluding frontend, vendor, node_modules).
 # Branch count is the primary axis (R12.2). 2026-09-13 measured 58 / 7 / 15

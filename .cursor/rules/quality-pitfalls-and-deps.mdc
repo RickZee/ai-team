@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Quality Gates
 
-Before marking any phase complete: type hints on signatures; Google-style docstrings; ruff zero warnings; mypy zero errors; black applied; unit tests written and passing; integration tests updated if cross-module; security guardrails for new file/code/network ops; structlog for significant ops; settings via env where appropriate; Pydantic for all structured data.
+Before marking any phase complete: type hints on signatures; Google-style docstrings; ruff zero warnings; mypy zero errors; `ruff format` applied; unit tests written and passing; integration tests updated if cross-module; security guardrails for new file/code/network ops; structlog for significant ops; settings via env where appropriate; Pydantic for all structured data.
 
 # Common Pitfalls
 

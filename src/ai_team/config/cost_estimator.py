@@ -13,14 +13,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 import structlog
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from ai_team.config.models import (
     ROLE_TOKEN_BUDGETS,
     Environment,
     OpenRouterSettings,
 )
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 
 logger = structlog.get_logger()
 
@@ -35,7 +36,7 @@ RETRY_BUFFER = 0.20
 
 ComplexityType = Literal["simple", "medium", "complex"]
 
-# Keywords that suggest complex projects (from PROMPTS.md)
+# Keywords that suggest complex projects
 COMPLEX_KEYWORDS = re.compile(
     r"\b(microservices?|ML|machine\s+learning|distributed|Kubernetes|k8s|multi-tenant)\b",
     re.IGNORECASE,

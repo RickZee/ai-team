@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.tools.bus import get_bus, reset_bus
 from ai_team.tools.draft import commit_pending_drafts, list_drafts, stage_draft
 from ai_team.tools.kinds import ToolRequest
@@ -97,8 +98,9 @@ class TestFileWriterTellsTheTruth:
 class TestLangGraphTestingPhaseSeesAgentFiles:
     def test_tests_written_by_qa_are_on_disk_before_the_gate(self, ws: Path) -> None:
         """The exact live failure: QA drafts a test, the gate collects nothing."""
-        from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
         from langchain_core.messages import AIMessage
+
+        from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
 
         def _qa_turn(*_a: object, **_k: object) -> dict[str, object]:
             _agent_write("tests/test_calc.py", "def test_ok():\n    assert 1 + 1 == 2\n")

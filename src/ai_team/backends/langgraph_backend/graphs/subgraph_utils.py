@@ -5,11 +5,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from ai_team.backends.langgraph_backend.graphs.state import LangGraphSubgraphState
 from langchain_core.language_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import create_react_agent
+
+from ai_team.backends.langgraph_backend.graphs.state import LangGraphSubgraphState
 
 
 def passthrough_subgraph() -> CompiledStateGraph:

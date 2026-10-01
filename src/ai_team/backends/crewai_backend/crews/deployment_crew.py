@@ -14,6 +14,9 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from crewai import Crew, Process, Task
+from pydantic import BaseModel
+
 from ai_team.backends.crewai_backend.agents.cloud_engineer import create_cloud_engineer
 from ai_team.backends.crewai_backend.agents.devops_engineer import create_devops_engineer
 from ai_team.backends.crewai_backend.tasks.deployment_tasks import (
@@ -22,8 +25,6 @@ from ai_team.backends.crewai_backend.tasks.deployment_tasks import (
 )
 from ai_team.config.settings import get_settings, get_workspace_dir
 from ai_team.guardrails import crewai_code_safety_guardrail, crewai_iac_security_guardrail
-from crewai import Crew, Process, Task
-from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
 

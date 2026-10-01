@@ -1,21 +1,13 @@
-# CI workflow: lint, test, integration-test, security
-#
-# Status badge (use in README):
-#   [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
-# Replace OWNER/REPO with your GitHub org/repo.
-#
-# Branch protection recommendation:
-#   - Require status checks: lint, test, security (and optionally integration-test for main)
-#   - Require branches to be up to date before merging
-#   - Require pull request reviews before merging (optional)
+# CI: lint, unit (3.11/3.12), web E2E, integration, security, Tier A eval, conformance, image.
+# Local mirror: scripts/pre_push_check.sh (see CONTRIBUTING.md).
 
 name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

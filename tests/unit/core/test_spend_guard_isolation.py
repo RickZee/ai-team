@@ -11,6 +11,7 @@ from __future__ import annotations
 import threading
 
 import pytest
+
 from ai_team.core.spend_guard import (
     BudgetExceededError,
     current_spend,

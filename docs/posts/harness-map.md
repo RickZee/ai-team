@@ -52,4 +52,4 @@ seven-layer bar in [HARNESS.md](../HARNESS.md) (status as of R19.3 / 2026-09).
 
 - [failure-taxonomy.md](failure-taxonomy.md) — ten failure classes with receipts
 - [resources.md](../resources.md) — why ECC / teamai / Stencil are not our product
-- [EVALS.md](../EVALS.md) — Tier A $0 replay
+- [evals/README.md](../../evals/README.md) — Tier A $0 replay

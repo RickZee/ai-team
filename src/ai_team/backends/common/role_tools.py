@@ -27,10 +27,12 @@ CREW_TOOLS: dict[str, CrewToolFactory] = {
     "manager": get_manager_tools,
     "product_owner": get_product_owner_tools,
     "architect": get_architect_tools,
-    "backend_developer": lambda: list(get_developer_common_tools())
-    + list(get_backend_developer_tools()),
-    "frontend_developer": lambda: list(get_developer_common_tools())
-    + list(get_frontend_developer_tools()),
+    "backend_developer": lambda: (
+        list(get_developer_common_tools()) + list(get_backend_developer_tools())
+    ),
+    "frontend_developer": lambda: (
+        list(get_developer_common_tools()) + list(get_frontend_developer_tools())
+    ),
     "fullstack_developer": get_fullstack_developer_tools,
     "devops_engineer": lambda: list(DEVOPS_TOOLS),
     "cloud_engineer": lambda: list(CLOUD_TOOLS),

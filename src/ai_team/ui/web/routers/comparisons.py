@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from ai_team.ui.web.auth import require_token
 from ai_team.ui.web.server import state
-from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
 _AUTH = [Depends(require_token)]

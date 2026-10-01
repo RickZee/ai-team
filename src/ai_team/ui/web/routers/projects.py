@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Literal
 
-from ai_team.ui.web.auth import require_token
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+
+from ai_team.ui.web.auth import require_token
 
 router = APIRouter()
 _AUTH = [Depends(require_token)]

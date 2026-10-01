@@ -228,7 +228,7 @@ class TraceStore:
             """
         )
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS ix_traces_strata " "ON traces(backend, scenario_id, status)"
+            "CREATE INDEX IF NOT EXISTS ix_traces_strata ON traces(backend, scenario_id, status)"
         )
         conn.commit()
 

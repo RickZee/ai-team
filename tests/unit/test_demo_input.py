@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from ai_team.config.demo_input import (
     DemoInput,
     load_demo_input,

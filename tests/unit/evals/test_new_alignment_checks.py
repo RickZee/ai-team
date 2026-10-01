@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from ai_team.harness.context_pressure import context_pressure, pressure_from_usage
 from ai_team.harness.qa_verdicts import (
     QaIssue,
@@ -14,7 +15,6 @@ from ai_team.harness.qa_verdicts import (
     load_verdicts,
     prompt_hash,
 )
-
 from evals.checks.registry import get_check
 from evals.trace.builder import TraceBuilder
 from tests.unit.evals.trace_fixtures import _span, base_trace

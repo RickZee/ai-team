@@ -437,7 +437,7 @@ ai-team/
 ```
 
 Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
-[EVALS.md](EVALS.md), [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md).
+[evals/README.md](../evals/README.md), [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md).
 ---
 
 ## 7. Integration Points and Extension Guide

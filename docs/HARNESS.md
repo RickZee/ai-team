@@ -17,7 +17,7 @@ Named tests: Tools `tests/unit/tools/`; Verification `tests/unit/tools/test_smok
 | Tools | Structured observations; draft-then-commit; irreversible gated | `src/ai_team/tools/bus.py`, `kinds.py`, `draft.py`, `catalog.py` | FM-001, FM-012 | CHK-tool-call-emitted, CHK-draft-commit | **enforced** |
 | Verification | Cheap (pytest/ruff/smoke) vs strong (judge); smoke on every backend | `src/ai_team/harness/verifiers.py`, `tools/smoke_tools.py`, CrewAI `on_run_smoke` | FM-006, FM-010 | CHK-runtime-smoke-present, CHK-gate-env-fidelity | **enforced** |
 | Context | Pinned `docs/CONSTRAINTS.md`; `STATE.md` last-N facts; no summarizer rewrite | `src/ai_team/harness/context.py` | FM-011 | CHK-constraint-survival | **enforced** |
-| Guardrails | `risk_class` subsets; spend ceiling stays global | `src/ai_team/harness/guardrail_risk.py`, `guardrails/` | FM-005, FM-007 | CHK-guardrail-fp-budget, CHK-spend-ceiling | **enforced** |
+| Guardrails | `risk_class` subsets; spend ceiling stays global | `src/ai_team/harness/guardrail_risk.py`, `guardrails/` | FM-005, FM-007 | CHK-guardrail-fp-budget, CHK-spend-ceiling | **enforced** for the guardrail catalogue and spend ceiling. `risk_class` subsets are **not wired**: `TeamProfile.risk_class` is parsed and read by nothing, and `guardrail_risk.should_run` is called only from `create_full_guardrail_chain`, which no run path calls (audit 2026-09-30). |
 | Observability | Disk change receipt is source of truth; dashboard reads the file | `src/ai_team/harness/receipt.py`, `GET /api/runs/{id}/receipt` | FM-003, FM-004, FM-008 | CHK-interrupt-latency, CHK-workspace-isolation, CHK-metric-source-agreement | **enforced** (dashboard cost/smoke/files prefer `receipt.json`; live WS is projection-only) |
 | Routing | `task_routes.yaml`; `mechanical_check` → `deterministic` | `src/ai_team/harness/router.py`, `config/task_routes.yaml` | — | cheap path unit tests | **instrumented** |
 | Feedback | Structured lessons → pin `CST-lesson-*`; effectiveness window | `src/ai_team/harness/lessons_loop.py` | FM-013 | CHK-lesson-effectiveness | **closed-loop** |
@@ -35,8 +35,7 @@ wired for verifiers; role models still come from `config/models.py` until every
 call site uses `resolve_route`. Session continuation (`session_loop.py`) is
 dormant behind `AI_TEAM_SESSION_LOOP`. The published live performance benchmark
 is still a human-triggered spend (docs/PERFORMANCE.md). CrewAI-private
-`agents/`/`crews/`/`tasks/`/`flows/` live under `backends/crewai_backend/`;
-top-level shims warn until 2026-12-31.
+`agents/`/`crews/`/`tasks/`/`flows/` live under `backends/crewai_backend/`.
 
 ## ToolBus
 
@@ -81,7 +80,7 @@ alongside `audit.jsonl` / `phases.jsonl`.
 
 **Not a session DOM:** rewind, fork, and interactive resume from the journal are
 out of scope. Durable replay for CI is eval fixture traces + the change receipt
-(see [EVALS.md](EVALS.md)), not journal replay.
+(see [evals/README.md](../evals/README.md)), not journal replay.
 
 ## Env flags
 

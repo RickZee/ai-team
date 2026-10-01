@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import structlog
+
 from ai_team.backends.registry import get_backend
 from ai_team.core.result import ProjectResult
 from ai_team.core.team_profile import TeamProfile, load_team_profile

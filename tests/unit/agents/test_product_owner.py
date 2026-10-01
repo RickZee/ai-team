@@ -1,6 +1,7 @@
 """Unit tests for Product Owner agent, tools, and validation."""
 
 import pytest
+
 from ai_team.backends.crewai_backend.agents.base import BaseAgent
 from ai_team.backends.crewai_backend.agents.product_owner import (
     create_product_owner_agent,

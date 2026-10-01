@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+
 from ai_team.backends.crewai_backend.backend import CrewAIBackend
 from ai_team.core.result import ProjectResult
 from ai_team.core.team_profile import TeamProfile

@@ -6,10 +6,11 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from claude_agent_sdk.types import HookContext
+
 from ai_team.backends.claude_agent_sdk_backend.hooks.audit import build_subagent_audit_hook
 from ai_team.backends.claude_agent_sdk_backend.hooks.quality import build_quality_post_tool_hook
 from ai_team.backends.claude_agent_sdk_backend.hooks.security import build_security_pre_tool_hook
-from claude_agent_sdk.types import HookContext
 
 
 def test_security_hook_blocks_traversal() -> None:

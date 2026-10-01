@@ -10,7 +10,6 @@ from ai_team.backends.common.acceptance import (
     apply_quality_gate_acceptance,
     evaluate,
 )
-
 from evals.trace.builder import TraceBuilder
 
 

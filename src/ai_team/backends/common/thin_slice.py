@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+
 from ai_team.backends.common.acceptance import apply_quality_gate_acceptance
 from ai_team.config.settings import reload_settings, scoped_workspace_dir
 from ai_team.core.result import ProjectResult

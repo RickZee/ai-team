@@ -18,6 +18,9 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from langchain_core.messages import AIMessage, HumanMessage
+
 from ai_team.backends.langgraph_backend.graphs import development, planning
 from ai_team.backends.langgraph_backend.graphs import subgraph_runners as sr
 from ai_team.backends.langgraph_backend.graphs.guardrail_hooks import (
@@ -30,8 +33,6 @@ from ai_team.backends.langgraph_backend.graphs.langgraph_guardrail_nodes import 
     make_behavioral_guardrail_node,
 )
 from ai_team.backends.langgraph_backend.graphs.routing import route_after_testing
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from langchain_core.messages import AIMessage, HumanMessage
 
 DESC = (
     "Write a single Python module calc.py with add, subtract, multiply and divide "

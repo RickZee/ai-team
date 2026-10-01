@@ -16,7 +16,7 @@
 ai-team runs one nine-agent team on three frameworks (LangGraph, CrewAI, Claude Agent SDK)
 behind one `Backend` protocol (`src/ai_team/core/backend.py`). The next step is two
 **cloud-native** backends: **Strands Agents on Amazon Bedrock AgentCore** and
-**Microsoft Agent Framework on Azure AI Foundry**. They use each cloud's own orchestration,
+**Microsoft Agent Framework on Microsoft Foundry**. They use each cloud's own orchestration,
 hosting, identity, guardrail and observability services, not just its hosted models.
 
 Adding backends four and five exposes a problem the first three hid. What a backend must

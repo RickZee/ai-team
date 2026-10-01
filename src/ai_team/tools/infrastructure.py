@@ -6,8 +6,9 @@ Terraform, CloudFormation, IAM policies, cost estimation, and network design.
 All generated IaC is validated against security best practices via guardrails.
 """
 
-from ai_team.guardrails import SecurityGuardrails
 from crewai.tools import tool
+
+from ai_team.guardrails import SecurityGuardrails
 
 
 def _validate_iac(content: str, iac_type: str = "auto") -> str:

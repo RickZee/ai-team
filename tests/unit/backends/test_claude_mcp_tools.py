@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from ai_team.backends.claude_agent_sdk_backend.tools.mcp_server import (
     build_ai_team_mcp_server,
     build_ai_team_mcp_tools,

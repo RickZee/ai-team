@@ -10,9 +10,10 @@ import shutil
 from pathlib import Path
 
 import structlog
+from pydantic import BaseModel, Field
+
 from ai_team.config.settings import get_settings
 from ai_team.core.results.writer import RUNS_SUBDIR, rebuild_registry
-from pydantic import BaseModel, Field
 
 logger = structlog.get_logger(__name__)
 

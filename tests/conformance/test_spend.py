@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from ai_team.core.spend_guard import current_spend
 
+from ai_team.core.spend_guard import current_spend
 from tests.conformance.conftest import BACKENDS
 
 pytestmark = pytest.mark.parametrize("thin_run", BACKENDS, indirect=True)

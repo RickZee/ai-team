@@ -8,6 +8,21 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    HookMatcher,
+    Message,
+    ResultMessage,
+    query,
+)
+from claude_agent_sdk.types import (
+    PermissionResultAllow,
+    ThinkingBlock,
+    ThinkingConfigAdaptive,
+    ToolPermissionContext,
+)
+
 from ai_team.backends.claude_agent_sdk_backend.agents.builder import (
     build_agent_definitions,
     orchestrator_system_prompt,
@@ -32,20 +47,6 @@ from ai_team.backends.claude_agent_sdk_backend.workspace import (
 )
 from ai_team.config.settings import get_settings
 from ai_team.core.team_profile import TeamProfile
-from claude_agent_sdk import (
-    AssistantMessage,
-    ClaudeAgentOptions,
-    HookMatcher,
-    Message,
-    ResultMessage,
-    query,
-)
-from claude_agent_sdk.types import (
-    PermissionResultAllow,
-    ThinkingBlock,
-    ThinkingConfigAdaptive,
-    ToolPermissionContext,
-)
 
 logger = structlog.get_logger(__name__)
 

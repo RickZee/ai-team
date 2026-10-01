@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.backends.claude_agent_sdk_backend.hooks.bash_parser import extract_commands
 
 pytestmark = pytest.mark.eval_unit

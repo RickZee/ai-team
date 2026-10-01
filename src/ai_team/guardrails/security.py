@@ -12,8 +12,9 @@ import re
 from collections.abc import Callable
 from typing import Any, Literal
 
-from ai_team.config.settings import get_settings, get_workspace_dir
 from pydantic import BaseModel, Field
+
+from ai_team.config.settings import get_settings, get_workspace_dir
 
 # =============================================================================
 # GUARDRAIL RESULT
@@ -204,8 +205,19 @@ _SECRET_PATTERNS: list[tuple[str, str]] = [
     (r"(?i)aws_secret_access_key\s*[:=]\s*[\'\"]?\S+[\'\"]?", "AWS_SECRET_KEY"),
     (r"Bearer\s+[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+", "JWT_TOKEN"),
     (r"-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----", "PRIVATE_KEY"),
+    # Vendor prefixes: fire without an ``api_key =`` hint (positional args, URLs, prose).
+    # GitHub: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-authentication-to-github#githubs-token-formats
     (r"ghp_[A-Za-z0-9]{36}", "GITHUB_TOKEN"),
     (r"gho_[A-Za-z0-9]{36}", "GITHUB_OAuth"),
+    (r"gh[usr]_[A-Za-z0-9]{36}", "GITHUB_APP_TOKEN"),
+    (r"github_pat_[A-Za-z0-9_]{22,}", "GITHUB_FINE_GRAINED_PAT"),
+    # AWS: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html#identifiers-unique-ids
+    (r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b", "AWS_ACCESS_KEY_ID"),
+    # LLM providers. The body must be long and hyphen-free at the start so the
+    # placeholders in .env.example (``sk-or-v1-your-key-here``) do not match.
+    (r"sk-ant-[a-z0-9]+-[A-Za-z0-9_-]{20,}", "ANTHROPIC_KEY"),
+    (r"sk-or-v1-[A-Za-z0-9]{32,}", "OPENROUTER_KEY"),
+    (r"sk-proj-[A-Za-z0-9_-]{20,}", "OPENAI_PROJECT_KEY"),
     (r"sk-[A-Za-z0-9]{48}", "OPENAI_KEY"),
     (r"sk-[A-Za-z0-9]{24,}", "OPENAI_LIKE_KEY"),
     (r"(?i)(mongodb|postgres|mysql|redis)://[^\s\'\"<>]+", "CONNECTION_STRING"),
@@ -315,9 +327,9 @@ def _is_system_path(resolved: str) -> bool:
     for prefix in _SYSTEM_PATH_PREFIXES:
         if norm == prefix or norm.startswith(prefix + os.sep):
             return True
-    if norm.startswith("/var" + os.sep) and "/var/folders" not in norm and "/var/tmp" not in norm:
-        return True
-    return False
+    return bool(
+        norm.startswith("/var" + os.sep) and "/var/folders" not in norm and "/var/tmp" not in norm
+    )
 
 
 def path_security_guardrail(

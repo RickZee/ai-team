@@ -6,6 +6,7 @@ to see this fail: add ``docs/images/unreferenced.png`` (not under publication/).
 from __future__ import annotations
 
 import json
+import subprocess
 
 from tests.unit.repo._paths import REPO_ROOT
 
@@ -69,15 +70,18 @@ def test_no_unreferenced_images_outside_publication() -> None:
     ]
     if not images:
         raise AssertionError("docs/images contained zero images — walker broken")
+    # Tracked files only. Walking the working tree read the untracked workspace/ and
+    # output/ run folders: slow (tens of seconds), different on every machine, and racy
+    # under xdist while other tests create and delete run directories.
+    raw = subprocess.check_output(["git", "ls-files", "-z"], cwd=REPO_ROOT)
+    tracked = [REPO_ROOT / rel for rel in raw.decode().split("\0") if rel]
+    if not tracked:
+        raise AssertionError("git ls-files returned empty — not a clone?")
     blob_parts: list[str] = []
-    for path in REPO_ROOT.rglob("*"):
-        if not path.is_file():
-            continue
-        if any(part in {".git", "node_modules", ".venv"} for part in path.parts):
-            continue
+    for path in tracked:
         if path.suffix.lower() not in {".md", ".html", ".py", ".ts", ".tsx", ".json", ".yml"}:
             continue
-        if path.is_relative_to(images_root):
+        if "node_modules" in path.parts or path.is_relative_to(images_root):
             continue
         try:
             blob_parts.append(path.read_text(encoding="utf-8", errors="replace"))

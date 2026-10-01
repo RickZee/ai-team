@@ -1,20 +1,8 @@
 """Pytest configuration and fixtures for unit tests."""
 
-import types
 from unittest.mock import MagicMock
 
 import pytest
-
-# CrewAI 0.80 has no crewai.agent.core; tests patch crewai.agent.core.create_llm.
-# Inject a minimal shim so patch() can attach (Agent 0.80 does not call create_llm).
-try:
-    import crewai.agent as _crewai_agent
-
-    if not hasattr(_crewai_agent, "core"):
-        _crewai_agent.core = types.ModuleType("core")
-        _crewai_agent.core.create_llm = lambda llm: llm
-except Exception:
-    pass
 
 
 def _identity_llm(llm: object) -> object:
@@ -23,7 +11,7 @@ def _identity_llm(llm: object) -> object:
 
 
 @pytest.fixture
-def mock_ollama_llm():
+def mock_llm():
     """Mock LLM for agent tests (OpenRouter-style; no network)."""
     llm = MagicMock()
     llm.model = "openrouter/deepseek/deepseek-v4-flash"

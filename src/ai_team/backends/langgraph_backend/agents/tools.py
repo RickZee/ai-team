@@ -6,9 +6,10 @@ Mirrors the tool wiring used by CrewAI agent factories (``create_*_agent``).
 
 from __future__ import annotations
 
+from langchain_core.tools import BaseTool as LangChainBaseTool
+
 from ai_team.backends.common.role_tools import CREW_TOOLS
 from ai_team.tools.langchain_adapter import to_langchain_tools
-from langchain_core.tools import BaseTool as LangChainBaseTool
 
 # Role key -> factory that returns CrewAI tools (functions or BaseTool instances).
 # The map lives in backends.common so new backends cannot grow a private copy.

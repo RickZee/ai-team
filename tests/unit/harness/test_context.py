@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from ai_team.harness.context import (
     ConstraintItem,
     ConstraintLoader,

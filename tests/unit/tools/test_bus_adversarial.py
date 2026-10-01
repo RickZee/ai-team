@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from ai_team.tools.bus import get_bus, reset_bus
 from ai_team.tools.kinds import ToolRequest
 

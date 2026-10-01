@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
 from ai_team.tools.git_tools import git_add, git_branch, git_commit
 
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
+
 from ai_team.config.settings import get_settings
 from ai_team.core.results.writer import RUNS_SUBDIR
 from ai_team.models.architecture import ArchitectureDocument

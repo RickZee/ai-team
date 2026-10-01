@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
-from ai_team.guardrails.security import GuardrailResult, code_safety_guardrail
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+
+from ai_team.guardrails.security import GuardrailResult, code_safety_guardrail
 
 logger = structlog.get_logger(__name__)
 

@@ -226,7 +226,7 @@ def _guard(name, *args, **kwargs):
     return _orig_import(name, *args, **kwargs)
 builtins.__import__ = _guard
 # End guard
-""" % repr(set(blocked))
+""" % repr(set(blocked))  # noqa: UP031 -- the payload itself is Python source with %s
 
     script_content = guard.strip() + "\n\n" + code
     tmpdir: Path | None = None

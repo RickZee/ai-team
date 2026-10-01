@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from pydantic import BaseModel
+
 from ai_team.backends.crewai_backend.flows.main_flow import run_ai_team
 from ai_team.core.result import ProjectResult
 from ai_team.core.team_profile import TeamProfile
 from ai_team.monitor import TeamMonitor
-from pydantic import BaseModel
 
 logger = structlog.get_logger(__name__)
 
@@ -97,6 +98,7 @@ def _run_crewai_subprocess(
     process works regardless of what CrewAI's threads are doing.
     """
     import structlog as _structlog
+
     from ai_team.backends.crewai_backend.flows.main_flow import run_ai_team
     from ai_team.core.team_profile import load_team_profile
     from ai_team.monitor import TeamMonitor

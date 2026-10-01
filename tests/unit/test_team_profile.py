@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.core.team_profile import load_team_profile, load_team_profiles
 
 

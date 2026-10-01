@@ -11,9 +11,10 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from langchain_core.runnables import RunnableConfig
+
 from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
 from ai_team.config.settings import scoped_workspace_dir
-from langchain_core.runnables import RunnableConfig
 
 logger = structlog.get_logger(__name__)
 

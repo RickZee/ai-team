@@ -382,8 +382,7 @@ def render_report(bundle: dict) -> None:
     kind = "SAME-MODEL (framework comparison valid)" if same_model else "MIXED-MODEL (confounded)"
     tier = "CANARY demo (not a verdict)" if is_canary else f"demo={bundle.get('demo')}"
     print(
-        f"\n**{kind}** — {tier}, team={bundle.get('team')}, "
-        f"n={bundle.get('n_per_backend')}, {date}"
+        f"\n**{kind}** — {tier}, team={bundle.get('team')}, n={bundle.get('n_per_backend')}, {date}"
     )
     print(
         "\n| Backend | Green | Green 95% CI | Wall min/median/max | Median 95% CI | Spend range |"

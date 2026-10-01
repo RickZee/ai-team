@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 import pytest
+
 from ai_team.ui.artifacts.service import (
     _abs_path_for_rel,
     build_tree,

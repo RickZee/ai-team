@@ -25,6 +25,7 @@ from typing import Any
 
 import pytest
 import requests
+
 from ai_team.backends.crewai_backend.flows.human_feedback import MockHumanFeedbackHandler
 from ai_team.backends.crewai_backend.flows.main_flow import AITeamFlow
 from ai_team.config.settings import get_settings, reload_settings
@@ -367,8 +368,7 @@ def test_e2e_hello_world_flask_api() -> None:
             [
                 sys.executable,
                 "-c",
-                "from app import app; app.run(host='127.0.0.1', port=%d, use_reloader=False)"
-                % FLASK_PORT,
+                f"from app import app; app.run(host='127.0.0.1', port={FLASK_PORT}, use_reloader=False)",
             ],
             cwd=output_dir,
             stdout=subprocess.DEVNULL,

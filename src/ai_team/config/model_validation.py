@@ -12,6 +12,7 @@ import os
 
 import httpx
 import structlog
+
 from ai_team.config.models import OpenRouterSettings
 from ai_team.config.settings import MemorySettings
 

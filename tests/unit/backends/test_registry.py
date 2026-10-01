@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.backends.crewai_backend.backend import CrewAIBackend
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 from ai_team.backends.registry import get_backend

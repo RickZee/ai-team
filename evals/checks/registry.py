@@ -127,8 +127,7 @@ def validate_registry_against_taxonomy(
         extra = registered - declared
         if extra:
             errors.append(
-                f"{fm.id}: registered checks missing from taxonomy implemented_by: "
-                f"{sorted(extra)}"
+                f"{fm.id}: registered checks missing from taxonomy implemented_by: {sorted(extra)}"
             )
 
     known_ids = {fm.id for fm in tax.failure_modes}

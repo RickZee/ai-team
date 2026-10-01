@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
 from ai_team.config.cost_estimator import RoleCostRow
 from ai_team.config.token_tracker import (
     TokenTracker,

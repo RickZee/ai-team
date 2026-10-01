@@ -18,12 +18,13 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from ai_team.backends.langgraph_backend.graphs.langgraph_chat import _fix_tool_call_args
-from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
-from ai_team.tools.coverage_paths import strip_parent_coverage_env
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
+
+from ai_team.backends.langgraph_backend.graphs.langgraph_chat import _fix_tool_call_args
+from ai_team.backends.langgraph_backend.graphs.state import LangGraphProjectState
+from ai_team.tools.coverage_paths import strip_parent_coverage_env
 
 logger = structlog.get_logger(__name__)
 

@@ -141,17 +141,17 @@ class TestCrewAICostLatency:
         result, _ = crewai_result
         if result.cost_usd is None:
             pytest.fail("cost_usd not reported by crewai backend")
-        assert (
-            result.cost_usd <= SCENARIO["budget_usd_max"]
-        ), f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
+        assert result.cost_usd <= SCENARIO["budget_usd_max"], (
+            f"Cost ${result.cost_usd:.4f} > budget ${SCENARIO['budget_usd_max']}"
+        )
 
     def test_completes_within_timeout(self, crewai_result):
         result, _ = crewai_result
         if result.wall_time_s is None:
             pytest.fail("wall_time_s not recorded for a live crewai eval")
-        assert (
-            result.wall_time_s <= SCENARIO["timeout_seconds"]
-        ), f"Timed out: {result.wall_time_s:.1f}s > {SCENARIO['timeout_seconds']}s"
+        assert result.wall_time_s <= SCENARIO["timeout_seconds"], (
+            f"Timed out: {result.wall_time_s:.1f}s > {SCENARIO['timeout_seconds']}s"
+        )
 
 
 # ---------------------------------------------------------------------------

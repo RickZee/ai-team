@@ -41,8 +41,9 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 from pydantic import BaseModel, Field
+
+from ai_team.backends.crewai_backend.flows.state import ProjectPhase, ProjectState
 
 logger = structlog.get_logger()
 
@@ -459,7 +460,7 @@ def escalate_contract_negotiation(
     """Escalate after the contract round ceiling (R11.3). Never opens a fourth round."""
     error = {
         "message": (
-            f"contract negotiation exhausted {item_id}: " f"{'; '.join(reasons) or 'rejected'}"
+            f"contract negotiation exhausted {item_id}: {'; '.join(reasons) or 'rejected'}"
         ),
         "item_id": item_id,
         "reasons": reasons,

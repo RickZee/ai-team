@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import structlog
+
 from ai_team.config.settings import get_settings, get_workspace_dir
 
 logger = structlog.get_logger(__name__)

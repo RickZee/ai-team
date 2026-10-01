@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from ai_team.backends.claude_agent_sdk_backend.tools.permissions import (
     MCP_RUN_UI_SMOKE,
     assert_role_tools_are_registered,

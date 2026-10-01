@@ -210,8 +210,7 @@ def _attach_bias_correction(
             update={
                 "bias_corrected_suppressed": True,
                 "suppression_reason": (
-                    f"judge too weak to correct (TPR+TNR−1 = {denom:.2f}); "
-                    "reporting raw rate only"
+                    f"judge too weak to correct (TPR+TNR−1 = {denom:.2f}); reporting raw rate only"
                 ),
             }
         )

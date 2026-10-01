@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 import structlog
+
 from ai_team.backends.registry import get_backend
 from ai_team.config.demo_input import load_project_description, resolve_team_profile
 from ai_team.core.result import ProjectResult

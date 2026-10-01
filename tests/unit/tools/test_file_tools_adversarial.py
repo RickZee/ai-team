@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.tools.file_tools import read_file, write_file
 
 

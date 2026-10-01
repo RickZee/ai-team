@@ -7,6 +7,8 @@ import contextlib
 import os
 
 import structlog
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from ai_team.ui.web.auth import require_token
 from ai_team.ui.web.server import (
     _TERMINAL_STATUSES,
@@ -17,7 +19,6 @@ from ai_team.ui.web.server import (
     _serialize_monitor,
     state,
 )
-from fastapi import APIRouter, Depends, HTTPException, Query
 
 logger = structlog.get_logger(__name__)
 

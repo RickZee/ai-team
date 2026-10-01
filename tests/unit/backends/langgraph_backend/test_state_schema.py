@@ -5,12 +5,13 @@ from __future__ import annotations
 from operator import add
 from typing import Any
 
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.graph.message import add_messages
+
 from ai_team.backends.langgraph_backend.graphs.state import (
     LangGraphProjectState,
     reset_or_extend_errors,
 )
-from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.graph.message import add_messages
 
 
 class TestOperatorAddReducers:

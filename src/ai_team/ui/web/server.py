@@ -23,16 +23,17 @@ from typing import Any, Literal
 
 import structlog
 import uvicorn
-from ai_team.ui.web.auth import (
-    assert_bind_allowed,
-    cors_allow_origins,
-    warn_if_unauthenticated,
-)
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+from ai_team.ui.web.auth import (
+    assert_bind_allowed,
+    cors_allow_origins,
+    warn_if_unauthenticated,
+)
 
 logger = structlog.get_logger(__name__)
 

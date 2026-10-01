@@ -68,7 +68,6 @@ def test_stubbed_planning_writes_acceptance(tmp_path: Path) -> None:
         RequirementsDocument,
         UserStory,
     )
-
     from evals.trace.builder import TraceBuilder
 
     req = RequirementsDocument(

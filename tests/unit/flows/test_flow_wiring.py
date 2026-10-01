@@ -81,9 +81,9 @@ class TestDevRetryCap:
         under_cap = results[: AITeamFlow.MAX_DEV_RETRIES]
         over_cap = results[AITeamFlow.MAX_DEV_RETRIES :]
         assert all(r == "run_development" for r in under_cap)
-        assert all(
-            r == "escalate_to_human" for r in over_cap
-        ), f"retry cap did not escalate: {results}"
+        assert all(r == "escalate_to_human" for r in over_cap), (
+            f"retry cap did not escalate: {results}"
+        )
 
     def test_retry_planning_routes_to_run_planning(self) -> None:
         flow = self._make_flow_with_state()

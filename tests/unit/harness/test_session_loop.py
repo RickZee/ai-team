@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
 from ai_team.harness.acceptance import write_initial
 from ai_team.harness.session_loop import (
     SessionRecord,
@@ -20,7 +21,6 @@ from ai_team.models.requirements import (
     RequirementsDocument,
     UserStory,
 )
-
 from evals.checks.registry import get_check
 from evals.trace.builder import TraceBuilder
 from evals.trace.parsers import parse_sessions_jsonl

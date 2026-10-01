@@ -6,6 +6,8 @@ import asyncio
 import contextlib
 
 import structlog
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from ai_team.ui.web.auth import accept_websocket
 from ai_team.ui.web.server import (
     _TERMINAL_STATUSES,
@@ -14,7 +16,6 @@ from ai_team.ui.web.server import (
     _spawn_detached_run,
     state,
 )
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 logger = structlog.get_logger(__name__)
 

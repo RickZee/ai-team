@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from ai_team.backends.crewai_backend.agents.base import (
     ROLE_TO_SETTINGS_KEY,
     BaseAgent,

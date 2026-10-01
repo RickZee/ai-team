@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 
 import pytest
+
 from ai_team.config.settings import reload_settings
 from ai_team.core.result import ProjectResult
 from ai_team.memory.memory_config import LongTermStore
