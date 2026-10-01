@@ -235,6 +235,21 @@ class TestTheCommittedCorpus:
         assert not bad, "\n".join(v.message for v in bad)
 
 
+def test_fixture_files_have_unique_trace_ids() -> None:
+    """Two filenames with one trace id were counted twice in every rate."""
+    import json
+    from collections import Counter
+    from pathlib import Path
+
+    traces_dir = Path(__file__).resolve().parents[3] / "evals" / "fixtures" / "traces"
+    counts = Counter(
+        json.loads(path.read_text(encoding="utf-8"))["trace_id"]
+        for path in traces_dir.glob("*.json")
+    )
+    dupes = {trace_id: n for trace_id, n in counts.items() if n > 1}
+    assert not dupes
+
+
 class TestScopeOfCompleteness:
     def test_a_live_corpus_report_owes_no_fixtures(self) -> None:
         """A real run is not replaying the corpus, so it has nothing to be complete about."""
