@@ -220,6 +220,12 @@ class LangGraphBackend:
                         run_id=thread_id,
                         backend=self.name,
                     )
+                if mode == "placeholder":
+                    # No node in the placeholder graph can call a tool, so zero
+                    # audit rows is known. Write the empty log instead of none.
+                    from ai_team.tools.bus import ensure_empty_audit_log
+
+                    ensure_empty_audit_log()
                 # Planning artifacts (best-effort).
                 planning_req = state_dict.get("requirements") or {}
                 planning_arch = state_dict.get("architecture") or {}

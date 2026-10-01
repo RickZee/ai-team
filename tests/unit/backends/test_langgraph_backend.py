@@ -61,3 +61,30 @@ class TestPlaceholderTelemetry:
         assert "planning" in phases
         assert "complete" in phases
         assert all(row["writer"] == "harness" for row in rows)
+
+    def test_placeholder_run_leaves_an_empty_audit_log(
+        self, profile: TeamProfile, tmp_path: Path
+    ) -> None:
+        backend = LangGraphBackend()
+        result = backend.run(
+            "Write a tiny Python module and one test",
+            profile,
+            graph_mode="placeholder",
+            workspace_dir=str(tmp_path / "ws"),
+        )
+        assert result.success is True
+        logs = list((tmp_path / "ws").rglob("logs/audit.jsonl"))
+        assert len(logs) == 1
+        assert logs[0].read_text(encoding="utf-8") == ""
+
+
+def test_ensure_empty_audit_log_keeps_existing_rows(tmp_path: Path) -> None:
+    from ai_team.config.settings import scoped_workspace_dir
+    from ai_team.tools.bus import ensure_empty_audit_log
+
+    with scoped_workspace_dir(str(tmp_path)):
+        (tmp_path / "logs").mkdir()
+        (tmp_path / "logs" / "audit.jsonl").write_text('{"tool": "write_file"}\n', encoding="utf-8")
+        path = ensure_empty_audit_log()
+    assert path is not None
+    assert path.read_text(encoding="utf-8") == '{"tool": "write_file"}\n'
