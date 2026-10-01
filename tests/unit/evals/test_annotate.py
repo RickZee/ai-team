@@ -61,7 +61,8 @@ def test_annotate_three_resume_skips(tmp_path: Path) -> None:
         "CHK-spend-ceiling__fail__fixture",
     ]
     for tid in tids:
-        assert (fixtures / f"{tid}.json").is_file()
+        # One file per trace id since 160796c: the file drops the id's __fixture suffix.
+        assert (fixtures / f"{tid.removesuffix('__fixture')}.json").is_file()
 
     samples_root = tmp_path / "samples"
     ann_root = tmp_path / "annotations"
