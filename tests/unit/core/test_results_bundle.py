@@ -176,9 +176,14 @@ def test_finalize_without_run_json_creates_minimal_one(
     assert data["project_id"] == "p5"
     assert data["completed_at"] is not None
     assert data["extra"]["final_status"] == "complete_approved"
-    # no spend given -> no costs file row required
+    # No spend given is a zero, not a missing file. Charts that skip absent
+    # cost logs were dropping every mocked run.
     costs = out_root / "runs" / "p5" / "logs" / "costs.jsonl"
-    assert not costs.exists() or costs.read_text(encoding="utf-8") == ""
+    row = json.loads(costs.read_text(encoding="utf-8").splitlines()[-1])
+    assert row["kind"] == "run_total"
+    assert row["spent_usd"] == 0.0
+    assert row["calls"] == 0
+    assert row["writer"] == "harness"
 
 
 def test_finalize_is_idempotent_last_call_wins(isolated_dirs: tuple[Path, Path]) -> None:
