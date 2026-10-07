@@ -94,7 +94,7 @@ may be published (see [EVAL_GATE_STATUS.md](EVAL_GATE_STATUS.md)).
 | Taxonomy examples | Synthetic check fixtures (fail/pass), not production open-coding |
 | Golden labels | **0** |
 | Judge alignment | 1 prompt for 17 FMs; report is `n: 0`, `eligible_to_gate: false` |
-| Check validation | Against 94 synthetic fixture fail/pass/na triples |
+| Check validation | Against a pass/fail/na fixture triple for each of 20 checks (72 synthetic fixtures since 2026-10-01; 94 before 22 duplicates were removed) |
 | Tier A corpus kind | **`FIXTURE-ONLY`** |
 
 ### Root cause (two parts)
