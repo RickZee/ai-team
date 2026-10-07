@@ -203,11 +203,12 @@ class ResultsBundle:
             extra["final_status"] = final_status
             data["extra"] = extra
         path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
-        if spend:
-            costs_path = self._base_output / "logs" / "costs.jsonl"
-            row = {"timestamp": _utcnow().isoformat(), "kind": "run_total", **spend}
-            with costs_path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(row, default=str) + "\n")
+        # A run with no model calls still gets a row. Missing spend used to skip
+        # the file, and every spend chart then treated the run as if it had not
+        # happened.
+        from ai_team.harness.telemetry import TelemetryWriter
+
+        TelemetryWriter(self._base_output).run_total(spend)
         self._update_registry()
         try:
             from ai_team.harness.receipt import ReceiptWriter

@@ -16,7 +16,7 @@ showcase page unless the corresponding row below says you can.**
 | Is Tier A running in CI? | **Yes**, every PR | `ci.yml:236` job `eval-tier-a` |
 | Does Tier A cost anything? | **No — $0.00**, no secrets required | `ci.yml:264`, offline replay |
 | Does Tier A block a merge? | **No.** `--warn-only` | `ci.yml:264`; flip deferred by task 9.4 |
-| What does Tier A score? | **94 synthetic fixtures** (`__pass` / `__fail` / `__na`) across 21 checks under `evals/fixtures/traces/` | `ls evals/fixtures/traces/` |
+| What does Tier A score? | **72 synthetic fixtures** under `evals/fixtures/traces/`: a `__pass` / `__fail` / `__na` triple for each of 20 checks, plus 12 coverage traces (94 until 2026-10-01, when 22 byte-identical duplicates were removed) | `ls evals/fixtures/traces/` |
 | Does a green Tier A mean `ai-team` works? | **No.** It means the check code behaves as written. | see *Corpus kind* below |
 | Is the nightly Tier B cron running? | **No.** Cron commented out; `workflow_dispatch` only | `eval-nightly.yml:10–20` |
 | Are any judges gating? | **No.** All advisory. | `evals/golden/alignment/*.json` → `eligible_to_gate: false` |

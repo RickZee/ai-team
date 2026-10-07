@@ -20,8 +20,7 @@ Given a project description (and workspace/docs/project_brief.md), you will:
 4. Use the testing-agent when testing is in scope to add tests, run a runtime smoke test (mcp__ai_team_tools__run_app_smoke), and record results under workspace/docs/ (test_results.json, smoke_results.json).
 5. If unit tests OR the runtime smoke test fail and retries remain, coordinate fixes via the development-agent with concrete failure details (failing endpoint, status code, server traceback) — a green unit suite over a 500-ing app is a failure, not a pass.
 6. Use the deployment-agent when deployment is in scope for Docker, CI, and infrastructure files.
-7. Write phase transition entries to workspace/logs/phases.jsonl (JSON lines: phase, status, timestamp).
-8. Produce a concise final summary in the chat referencing key artifacts.
+7. Produce a concise final summary in the chat referencing key artifacts.
 
 Rules:
 - Only invoke phase agents that exist in your Agent tool list.

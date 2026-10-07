@@ -199,7 +199,48 @@ def _apply(
     if bad:
         _write_disagreement_spans(workspace, bad)
         logger.info("qa_disagreement", count=len(bad))
+    verified_by: Literal["smoke", "test"] = "test" if tests_passed else "smoke"
+    _sign_off_passing(workspace, results, verified_by=verified_by)
     return results
+
+
+def _sign_off_passing(
+    workspace: Path,
+    results: list[AcceptanceResult],
+    *,
+    verified_by: Literal["smoke", "ui_smoke", "test", "qa_agent"],
+) -> None:
+    """Flip ``passes`` from gate evidence. The QA agent is not the writer."""
+    from ai_team.harness.acceptance import (
+        AcceptanceError,
+        VerifierIdentity,
+        load,
+        mark_passing,
+    )
+
+    try:
+        known = {item.id for item in load(workspace).items}
+    except AcceptanceError:
+        return
+    evidence = ["logs/harness_acceptance.json"]
+    identity = VerifierIdentity(agent_role="_harness", session_id=workspace.name)
+    for row in results:
+        if row.status != "passing" or row.criterion_id not in known:
+            continue
+        try:
+            mark_passing(
+                workspace,
+                row.criterion_id,
+                evidence=evidence,
+                verified_by=verified_by,
+                identity=identity,
+            )
+        except AcceptanceError as exc:
+            logger.info(
+                "harness_signoff_skipped",
+                criterion_id=row.criterion_id,
+                error=str(exc),
+            )
 
 
 def _bool_at(mapping: Any, key: str) -> bool | None:

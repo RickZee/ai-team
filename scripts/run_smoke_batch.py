@@ -92,6 +92,12 @@ def _tests_from_state(state: dict | None) -> tuple[int | None, int | None, bool 
     """
     if not state:
         return None, None, None
+    if state.get("stopped_by"):
+        # The watchdog stopped this run. Tests that passed before the stop do
+        # not make it green; the counts are kept for reading.
+        rest = {k: v for k, v in state.items() if k != "stopped_by"}
+        passed, failed, _ = _tests_from_state(rest)
+        return passed, failed, False
     tr = (state.get("state") or state).get("test_results")
     if not isinstance(tr, dict):
         return None, None, None

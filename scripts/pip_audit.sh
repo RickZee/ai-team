@@ -5,7 +5,8 @@
 # CVE-2026-45830/31/33: chromadb Python server IDOR; no PyPI fix (affected through latest).
 # litellm pinned at 1.74.9 for CrewAI/Pydantic (see pyproject.toml); proxy-admin / SSTI /
 #   auth fixes need 1.83.0–1.84.0 which conflict with that pin (PYSEC-2026-347{6-9},
-#   PYSEC-2026-3861, CVE-2026-1277{1,2,3,5}, CVE-2026-1279{6-9}, CVE-2026-59823).
+#   PYSEC-2026-3861, PYSEC-2026-4066, CVE-2026-1277{1,2,3,5}, CVE-2026-1279{6-9},
+#   CVE-2026-59823).
 # PYSEC-2026-3819: crewai/crewai-tools SSRF in validate_url; fix is 1.15.1+ — stack stays on
 #   1.6.1 until a deliberate CrewAI major bump.
 set -euo pipefail
@@ -44,6 +45,7 @@ exec uv run pip-audit \
   --ignore-vuln PYSEC-2026-3479 \
   --ignore-vuln PYSEC-2026-3819 \
   --ignore-vuln PYSEC-2026-3861 \
+  --ignore-vuln PYSEC-2026-4066 \
   --ignore-vuln CVE-2026-12771 \
   --ignore-vuln CVE-2026-12772 \
   --ignore-vuln CVE-2026-12773 \

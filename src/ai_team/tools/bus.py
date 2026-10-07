@@ -414,6 +414,28 @@ def _append_audit_jsonl(row: dict[str, Any]) -> None:
         logger.debug("toolbus_audit_jsonl_skipped")
 
 
+def ensure_empty_audit_log() -> Path | None:
+    """Create the workspace ``logs/audit.jsonl`` with no rows, if it is absent.
+
+    For runs where zero tool calls is known rather than assumed, such as a
+    placeholder graph with no tool-calling nodes. An empty file then reads as
+    "the bus saw no calls"; a missing file keeps meaning "nothing recorded".
+    Never truncates rows the bus already wrote. Same path as
+    :func:`_append_audit_jsonl`.
+    """
+    try:
+        from ai_team.config.settings import get_workspace_dir
+
+        logs = Path(get_workspace_dir()) / "logs"
+        logs.mkdir(parents=True, exist_ok=True)
+        path = logs / "audit.jsonl"
+        path.touch(exist_ok=True)
+        return path
+    except (OSError, RuntimeError):
+        logger.debug("toolbus_audit_jsonl_ensure_skipped")
+        return None
+
+
 def _append_journal_event(row: dict[str, Any], observation: ToolObservation | None) -> None:
     """Mirror tool spans into reconstructable ``logs/journal.jsonl`` (FM-008)."""
     try:

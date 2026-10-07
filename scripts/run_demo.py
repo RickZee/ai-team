@@ -115,12 +115,11 @@ def _finalize_run(status: str) -> None:
             spend = current_spend(run_id=run_id)
             if not spend.get("calls") and spend.get("observed_usd") is None:
                 spend = current_spend()
-            # A backend that reports its own total (CrewAI's token tracker) is worth
-            # writing even when this process's callbacks saw no calls at all.
-            has_spend = bool(spend.get("calls")) or spend.get("observed_usd") is not None
+            # Zero calls is a measurement. Omitting the row made $0 runs vanish
+            # from every chart that reads logs/costs.jsonl.
             ResultsBundle(run_id).finalize(
                 final_status=status,
-                spend=dict(spend) if has_spend else None,
+                spend=dict(spend),
                 backend=_RUN_CONTEXT.get("backend"),
             )
     except Exception as e:  # noqa: BLE001 - finalizing must never mask the run's outcome

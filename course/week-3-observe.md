@@ -181,14 +181,17 @@ calm while deciding almost nothing. More on that in week 5.
 grep -rn --include='*.py' "phases.jsonl" src/ai_team
 ```
 
-**Observe.** One line is in `agents/prompts.py`:
-`7. Write phase transition entries to workspace/logs/phases.jsonl`.
+**Observe.** The prompt line is gone. `phases.jsonl` is written by
+`src/ai_team/harness/telemetry.py`, and every row is stamped `writer: harness`.
+That used to be item 7 of the orchestrator prompt: the model was asked to write
+the log, and when it didn't, the file was simply absent.
 
-![One signal was asked for in a prompt instead of written by code](../docs/images/eval-telemetry-writers.png)
+![Until 2026-09-30, one signal was asked for in a prompt instead of written by code](../docs/images/eval-telemetry-writers.png)
 
-**Explain.** That's **self-reported telemetry**: a signal you asked a model to produce instead of
-writing it yourself. It doesn't fail loudly — it just isn't there, and every check that needs
-it abstains.
+**Explain.** That was **self-reported telemetry**: a signal you ask a model to produce
+instead of writing it yourself. It doesn't fail loudly; it just isn't there, and every
+check that needs it abstains. The phase log is now a harness write, from the phases the
+graph recorded, including a run with the model switched off.
 
 **Change.** Fill in, using `grep` for each:
 

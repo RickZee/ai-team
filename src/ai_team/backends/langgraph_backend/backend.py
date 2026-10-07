@@ -35,6 +35,9 @@ from ai_team.core.results import ResultsBundle, scorecard_from_langgraph_state
 from ai_team.core.run_naming import resolve_run_id
 from ai_team.core.stream_helpers import stream_via_threaded_run
 from ai_team.core.team_profile import TeamProfile
+from ai_team.harness.stopped_run import save_stopped_run
+from ai_team.harness.telemetry import TelemetryWriter
+from ai_team.tools.bus import ensure_empty_audit_log
 
 logger = structlog.get_logger(__name__)
 
@@ -198,7 +201,13 @@ class LangGraphBackend:
                 final = run_with_postgres_checkpointer(pg_uri, _run)
             else:
                 g = self._compile_for_run(mode, None)
-                final = g.invoke(initial_state, config)
+                try:
+                    final = g.invoke(initial_state, config)
+                except BaseException as stop:
+                    # A watchdog or spend stop skips everything below; keep the
+                    # last checkpoint so the stopped run can be read.
+                    save_stopped_run(g, config, b, run_id=thread_id, backend=self.name, stop=stop)
+                    raise
             state_dict: dict[str, Any] = final if isinstance(final, dict) else {"state": final}
             # Self-improvement capture should not depend on result bundle persistence.
             with contextlib.suppress(Exception):
@@ -213,6 +222,14 @@ class LangGraphBackend:
             try:
                 # Persist final state + derived artifacts.
                 b.write_state(final if isinstance(final, dict) else {"state": final})
+                if isinstance(final, dict):
+                    TelemetryWriter(b.output_dir).phases_from_history(
+                        list(final.get("phase_history") or []),
+                        run_id=thread_id,
+                        backend=self.name,
+                    )
+                if mode == "placeholder":  # no node can call a tool: zero rows is known
+                    ensure_empty_audit_log()
                 # Planning artifacts (best-effort).
                 planning_req = state_dict.get("requirements") or {}
                 planning_arch = state_dict.get("architecture") or {}

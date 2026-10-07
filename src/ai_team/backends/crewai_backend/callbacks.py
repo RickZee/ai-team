@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from pydantic import BaseModel, Field
@@ -161,7 +161,8 @@ class AITeamCallback:
             extra["agent_role"] = agent_role
         if task_name is not None:
             extra["task_name"] = task_name
-        return self._log.bind(**extra) if extra else self._log
+        bound = self._log.bind(**extra) if extra else self._log
+        return cast(structlog.BoundLogger, bound)
 
     def on_task_start(self, task: Any, agent: Any) -> None:
         """Log task beginning and start timer."""

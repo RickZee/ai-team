@@ -17,7 +17,7 @@ import pytest
 _SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"
 sys.path.insert(0, str(_SCRIPTS))
 
-from run_smoke_batch import _run_replay, render_report  # noqa: E402
+from run_smoke_batch import _run_replay, _tests_from_state, render_report  # noqa: E402
 
 _FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "smoke_batch"
 _EXAMPLE = _FIXTURE_DIR / "example_mixed_model_n5.json"
@@ -88,3 +88,10 @@ def test_render_report_is_pure_over_run_mechanism(capsys: pytest.CaptureFixture[
     assert "SAME-MODEL" in out
     # 3/3 vs 0/3 still overlaps at n=3 — the rule must not over-claim.
     assert "no significant difference" in out
+
+
+def test_a_stopped_run_is_never_green() -> None:
+    state = {"test_results": {"passed": 3, "failed": 0}, "stopped_by": "DemoTimeoutError"}
+    assert _tests_from_state(state) == (3, 0, False)
+    del state["stopped_by"]
+    assert _tests_from_state(state) == (3, 0, True)

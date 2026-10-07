@@ -29,36 +29,44 @@ logger = structlog.get_logger(__name__)
 GraphMode = Literal["placeholder", "full"]
 
 
+def _phase(phase: str) -> dict[str, Any]:
+    """Record that the graph entered ``phase``. The harness writes the log later."""
+    return {
+        "current_phase": phase,
+        "phase_history": [{"phase": phase, "status": "complete"}],
+    }
+
+
 def _node_intake(
     state: LangGraphProjectState,
     config: RunnableConfig,
 ) -> dict[str, Any]:
     """Bind ``project_id`` to the checkpoint ``thread_id`` (run identity contract)."""
     run_id = require_run_id(config, state)
-    return {"project_id": run_id, "current_phase": "intake"}
+    return {"project_id": run_id, **_phase("intake")}
 
 
 def _node_planning(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "planning"}
+    return _phase("planning")
 
 
 def _node_development(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "development"}
+    return _phase("development")
 
 
 def _node_testing(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "testing"}
+    return _phase("testing")
 
 
 def _node_deployment(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "deployment"}
+    return _phase("deployment")
 
 
 def _node_smoke_placeholder(state: LangGraphProjectState) -> dict[str, Any]:
     """No-LLM stub: record a skipped smoke so routing proceeds to deployment."""
     meta = dict(state.get("metadata") or {})
     meta["smoke_results"] = {"ran": False, "success": False, "message": "placeholder"}
-    return {"current_phase": "smoke", "metadata": meta}
+    return {**_phase("smoke"), "metadata": meta}
 
 
 def _node_smoke_full(state: LangGraphProjectState) -> dict[str, Any]:
@@ -88,7 +96,7 @@ def _node_smoke_full(state: LangGraphProjectState) -> dict[str, Any]:
 
 def _node_human_review_placeholder(state: LangGraphProjectState) -> dict[str, Any]:
     meta = normalize_hitl_metadata(state)
-    return {"current_phase": "awaiting_human", "metadata": meta}
+    return {**_phase("awaiting_human"), "metadata": meta}
 
 
 def _node_human_review_full(
@@ -115,15 +123,15 @@ def _node_retry_development(state: LangGraphProjectState) -> dict[str, Any]:
     rc = int(state.get("retry_count") or 0)
     # Clear errors so the retry attempt starts clean; the reset_or_extend_errors
     # reducer treats an empty list as a reset.
-    return {"retry_count": rc + 1, "current_phase": "development", "errors": []}
+    return {**_phase("development"), "retry_count": rc + 1, "errors": []}
 
 
 def _node_complete(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "complete"}
+    return _phase("complete")
 
 
 def _node_error(state: LangGraphProjectState) -> dict[str, Any]:
-    return {"current_phase": "error"}
+    return _phase("error")
 
 
 def build_main_graph(mode: GraphMode = "placeholder") -> StateGraph:
