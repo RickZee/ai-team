@@ -219,6 +219,9 @@ What the gate does and does not prove today, and what may be claimed from it:
 Shorter and code-free: [*Evals Without the Jargon*](docs/course/README.md), six sessions plus a
 one-file harness you can point at your own logs.
 
+Keep the [glossary](docs/GLOSSARY.md) open while you read: every term the repo uses, in plain
+words, with the file where it lives.
+
 ## Develop
 
 ```bash
@@ -288,8 +291,9 @@ ai-team/
 
 ## Documentation
 
-Start with the [documentation map](docs/README.md). The five most useful pages:
+Start with the [documentation map](docs/README.md). The most useful pages:
 
+- [Glossary](docs/GLOSSARY.md): every term in plain words, with the file where it lives
 - [Engineering journal](docs/journal/README.md): what broke, when, and the commit that fixed it, corrections included
 - [Failure taxonomy](docs/posts/failure-taxonomy.md): the classes of failure, each with a trace
 - [HARNESS.md](docs/HARNESS.md): the seven harness layers and whether each is instrumented, enforced or closed-loop

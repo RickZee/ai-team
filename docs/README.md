@@ -15,6 +15,7 @@ much to trust its dates.
 | Document | Read it when |
 | --- | --- |
 | [GETTING_STARTED.md](GETTING_STARTED.md) | Setting up keys, running a backend, fixing a first-run error |
+| [GLOSSARY.md](GLOSSARY.md) | A term in the code or the docs is new to you |
 | [`course/`](../course/README.md) | You want the six-week, hands-on route through the whole system |
 | [`docs/course/`](course/README.md) | You want the short, no-code version: *Evals Without the Jargon* (+ `minieval.py`) |
 | [DEMOS.md](DEMOS.md) | Choosing or writing a demo brief |
