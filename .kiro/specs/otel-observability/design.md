@@ -4,6 +4,49 @@
 
 ---
 
+## 0. Components and why each was chosen
+
+Every piece this spec uses, what it is, and why it beat the alternatives. Versions are pinned
+in task 0.2; licences are as of 2026-10-18 and are re-checked there.
+
+### 0.1 Standards and formats
+
+| Piece | What it is | Why we use it | Alternatives, and why not |
+| --- | --- | --- | --- |
+| **OpenTelemetry (OTel)** | The open, vendor-neutral standard for recording what software did: traces, metrics and logs. A CNCF project (the foundation behind Kubernetes). | Record once, view anywhere: AWS, Azure, Phoenix, Aspire and Datadog all read it. The two cloud backends already speak it. | Vendor formats (LangSmith, Datadog-native): lock-in, and they'd see only one framework. |
+| **Trace / span** | A trace is one run; a span is one timed step in it (a model call, a tool call), with a parent, attributes and a status. ai-team's own `Trace` / `Span` models predate this spec. | The shared vocabulary between our records and every viewer. | — |
+| **OTLP** | OTel's wire format for sending spans: protobuf or JSON, over gRPC (port 4317) or HTTP (4318). | The one protocol every collector and viewer accepts. | Zipkin or Jaeger formats: older, and not what the cloud services take. |
+| **OTLP as JSON, not protobuf** | The same data as readable JSON. | Easy to read, diff and commit as fixtures; no protobuf dependency; the existing `import-otel` already reads it. | Protobuf: smaller and faster, which doesn't matter at hundreds of spans per run. |
+| **GenAI semantic conventions** | OTel's agreed names for model, tool and agent steps (`gen_ai.operation.name`, `gen_ai.usage.input_tokens`, …). Still marked "development", so names can change. | Aspire, CloudWatch and Azure Monitor read them. | Our own names: no viewer would understand them. |
+| **OpenInference** | An open (Apache 2.0) set of names for LLM traces, led by Arize and layered on OTel (`openinference.span.kind`, `llm.token_count.prompt`, …). | Phoenix's model, tool and agent views run on it; it's the shape decided on 2026-09-13. | GenAI names only: Phoenix shows plain generic spans. So both are written (R1.1). |
+| **`schemaUrl`** | A field in OTLP naming the convention version the attribute names follow. | A reader a year from now knows which names were meant. | Nothing: silent drift when names change. |
+
+### 0.2 Running pieces
+
+| Piece | What it is | Why we use it | Alternatives, and why not |
+| --- | --- | --- | --- |
+| **`TraceBuilder`** (existing) | ai-team code that reads a run folder (ToolBus audit, phases, costs, QA verdicts) and builds one `Trace`. | The same record for every backend, which is the whole point of this spec. | Instrumenting each framework: five shapes, comparing instrumentation libraries, not backends. |
+| **`export-otel`** (new) | Turns a `Trace` into OTLP JSON, with both naming schemes, and can send it to a collector. | A projection of the record we already trust. No OTel SDK in `src/`. | The OTel Python SDK inside the harness: a second telemetry system that has to agree with the first. Rejected 2026-09-13. |
+| **`import-otel`** (existing, extended) | Turns OTLP JSON back into ai-team spans. | Lets framework spans be compared with ours; extended so our own exports read back exactly (R3). | — |
+| **OTel Collector** (contrib build, Apache 2.0; already in compose) | A small relay that receives spans, processes them and fans them out to any number of destinations. | Viewers can be added or swapped by editing one YAML file, with no code change. It also keeps a raw file copy, and it's the same piece AWS and Azure run (ADOT, Azure Monitor). | Sending straight from `export-otel` to each viewer: every new viewer becomes a code change, and there's no raw copy. |
+| **`memory_limiter`, `batch` processors** | Collector stages: the first stops it running out of memory on a burst; the second groups spans into fewer, larger sends. | The collector's own recommended baseline. | None: a 3,000-span backfill can stall it. |
+| **`health_check` extension** | A collector endpoint that answers "ready". | Integration tests wait on it rather than guessing with sleeps. | Polling ports: flaky. |
+| **.NET Aspire dashboard** (MIT, Microsoft; already in compose) | A single-container OTLP viewer: timeline, span details, and recent versions show GenAI fields. Keeps data in memory only. | Instant live view while a run executes, zero setup. | Keeping it as the only viewer: loses everything on restart and can't filter across runs. |
+| **Arize Phoenix** (source-available, Elastic License 2.0; free to self-host) | An LLM-focused trace viewer in one container. Reads OpenInference, shows model calls with tokens, tool calls, and agent trees, and keeps history in a local database. | History across runs, filtering by backend and run, and LLM-aware views: what comparing five backends needs. Fits the OpenInference decision. | **Jaeger:** solid and generic, can diff two traces, but knows nothing about LLMs. **Grafana + Tempo:** strong dashboards across many runs, but 2–3 containers and more setup. **Langfuse (self-hosted):** a full LLM platform, but about five containers (Postgres, ClickHouse, Redis, storage). **SigNoz:** OTel-native, but heavy (ClickHouse). Any of them can be added later as one more collector exporter. |
+| **Docker Compose `observability` profile** (existing) | A named group of services in the repo's compose file, started only when asked for. | Already holds the collector and Aspire; one command brings the stack up, and nothing runs otherwise. | A separate compose file: two files to keep in step. |
+| **Localhost-only ports** (`127.0.0.1:`) | Each port is published on the loopback interface only. | Aspire and Phoenix have no login here, and traces can hold prompts and file contents. | Default `0.0.0.0`: anyone on the same network can read them. |
+
+### 0.3 Choices inside the design
+
+| Choice | Picked | Over | Because |
+| --- | --- | --- | --- |
+| What to export | The harness `Trace` | Native spans from each framework | The same shape for every backend; harness record is primary |
+| Naming | OpenInference **and** GenAI on every span | Either one alone | Each viewer reads a different one; the cost is a few attributes |
+| Content | Off by default; names, sizes and hashes only | On by default | Prompts and written files are sensitive; hashes still show "same file" |
+| Ids | Hash of stable content | The builder's order-based `span_NNNN` | Re-sends don't duplicate; `--if-changed` works |
+| Start/end pairs | Merged into one span with a duration, listed in `ai_team.span.merged` | Two zero-length spans | Viewers show durations; the list keeps re-import lossless |
+| Delivery | Manual command and backfill now; auto-export optional later | Auto-export first | Auto-export needs every run path to finalize (methodology 1.7); backfill covers the need |
+
 ## 1. Shape of the change
 
 ```mermaid

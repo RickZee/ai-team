@@ -8,6 +8,21 @@ A **trace** is the step-by-step record of one run: every agent, every model call
 call, with timings and token counts. This guide shows how to look at traces for any ai-team
 backend, on your machine first, then in AWS and Azure.
 
+## The pieces, in one line each
+
+| Piece | What it is |
+| --- | --- |
+| **OpenTelemetry (OTel)** | The open standard for recording what software did, readable by almost every monitoring tool |
+| **OTLP** | OTel's format for sending that data; here it's JSON over HTTP to port 4318 |
+| **GenAI names / OpenInference names** | Two agreed sets of attribute names for model, tool and agent steps. ai-team writes both: Aspire and the clouds read the first, Phoenix the second |
+| **OTel Collector** | A small relay that receives spans and forwards them to every viewer, plus a raw file |
+| **Aspire dashboard** | A live viewer from Microsoft; fast, but forgets everything on restart |
+| **Phoenix** | An LLM-focused viewer from Arize; keeps history and shows model calls, tokens and tool calls |
+| **`export-otel`** | The ai-team command that turns a run's own record into OTel |
+| **`import-otel`** | The reverse: reads OTel back into ai-team's format, for comparing sources |
+
+Why these, and what was considered instead: [design §0 of the spec](../../.kiro/specs/otel-observability/design.md#0-components-and-why-each-was-chosen).
+
 ## Two accounts of every run
 
 | Source | Written by | Available for | Used for |

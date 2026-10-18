@@ -38,7 +38,8 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
 - [ ] **0.2 Pin versions and check Phoenix**
   - Pin the GenAI convention version (`schemaUrl`), the OpenInference version and the Phoenix
     image. Confirm Phoenix's OTLP/HTTP path, its storage setting, its query API for tests,
-    whether it reads `gen_ai.*`, and what it does with a re-sent span id.
+    whether it reads `gen_ai.*`, and what it does with a re-sent span id. Re-check the licence
+    of each image (design §0.2) and note it.
   - **Definition of done:** recorded in `docker/VERSIONS.md` with links and the date checked;
     design §7 and §10 updated if anything differs.
   - _Requirements: R1.4, R5.1_

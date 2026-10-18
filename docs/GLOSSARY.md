@@ -59,6 +59,9 @@ bottom for a tour of the system, or search for the word you just met.
 | **Trace / span** | A trace is the immutable record of one run. A span is one typed step in it, with start and end times. | [`evals/trace/`](../evals/trace/) |
 | **Trace boundary** | The line between running and scoring. Left of it, execution: billed and flaky. Right of it, scoring: free and deterministic. Checks only read traces. | [`evals/README.md`](../evals/README.md) |
 | **OpenInference / OTel shape** | Trace telemetry targets OpenInference and OpenTelemetry conventions, so external viewers can read it. | [`evals/trace/otel_import.py`](../evals/trace/otel_import.py) |
+| **OTel Collector** | A small relay that receives OpenTelemetry spans and forwards them to every viewer and a raw file. Runs in the compose `observability` profile. | [`docker/otel-collector.yaml`](../docker/otel-collector.yaml) |
+| **Aspire / Phoenix** | The two local trace viewers. Aspire is live and forgets on restart; Phoenix keeps history and understands model and tool calls. | [observability/README.md](observability/README.md) |
+| **`export-otel` / `import-otel`** | Turn a run's own trace into OpenTelemetry, and read OpenTelemetry back. Together they let any viewer show any backend, and let framework spans be compared with ours. | [`evals/trace/`](../evals/trace/), [observability/README.md](observability/README.md) |
 
 ## Evaluation
 
