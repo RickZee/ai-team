@@ -122,22 +122,22 @@ flowchart TB
   subgraph orch [Orchestration]
     RO["run_orchestrator / iter_orchestrator_messages"]
     Q["claude_agent_sdk.query()"]
-    OPT["ClaudeAgentOptions\n(agents, hooks, mcp_servers, cwd)"]
+    OPT["ClaudeAgentOptions<br/>(agents, hooks, mcp_servers, cwd)"]
   end
 
   subgraph nested [Nested subagents]
-    OA["Orchestrator prompt\n(Manager)"]
+    OA["Orchestrator prompt<br/>(Manager)"]
     PA["planning-agent, development-agent, …"]
-    SP["Specialists\n(product-owner, architect, …)"]
+    SP["Specialists<br/>(product-owner, architect, …)"]
   end
 
   subgraph sidecar [Enforcement and observability]
-    H["Hooks:\nPreToolUse security\nPostToolUse quality + audit\nSubagentStart/Stop audit"]
-    MCP["MCP ai_team_tools\nrun_guardrails, tests, smoke, …"]
+    H["Hooks:<br/>PreToolUse security<br/>PostToolUse quality + audit<br/>SubagentStart/Stop audit"]
+    MCP["MCP ai_team_tools<br/>run_guardrails, tests, smoke, …"]
   end
 
   subgraph fs [Workspace as state]
-    W["docs/ · src/ · tests/\nlogs/*.jsonl"]
+    W["docs/ · src/ · tests/<br/>logs/*.jsonl"]
   end
 
   REG --> BE --> RO --> Q
