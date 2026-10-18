@@ -1,6 +1,10 @@
-"""Map OpenTelemetry GenAI spans onto ai-team span kinds.
+"""Map OpenTelemetry spans onto ai-team span kinds.
 
-The mapping is one table. Unknown names become ``other`` and are counted.
+Framework spans (Strands, Agent Framework, cloud consoles) go through one table; unknown
+names become ``other`` and are counted. Spans written by :mod:`evals.trace.otel_export` carry
+``ai_team.span.type`` (and ``ai_team.span.merged`` for start/end pairs) and are read back
+exactly, so ``import_otlp(export(trace))`` gives back the trace's span types, counts, roles,
+phases and start times (otel-observability R3).
 """
 
 from __future__ import annotations
@@ -92,7 +96,12 @@ def _rows(path: Path) -> list[dict[str, Any]]:
             continue
         parsed = json.loads(line)
         if isinstance(parsed, dict):
-            rows.append(parsed)
+            resource = parsed.get("resourceSpans")
+            if isinstance(resource, list):
+                # One OTLP request per line: the collector's file exporter and export-otel.
+                rows.extend(_flatten_resource_spans(resource))
+            else:
+                rows.append(parsed)
     return rows
 
 
@@ -110,9 +119,71 @@ def _flatten_resource_spans(resource_spans: list[Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _attr_value(value: Any) -> Any:
+    """Unwrap an OTLP ``AnyValue`` (``{"stringValue": ...}``) into a plain value."""
+    if not isinstance(value, dict):
+        return value
+    for key in ("stringValue", "boolValue", "doubleValue"):
+        if key in value:
+            return value[key]
+    if "intValue" in value:
+        try:
+            return int(value["intValue"])
+        except (TypeError, ValueError):
+            return value["intValue"]
+    if "arrayValue" in value:
+        values = (value.get("arrayValue") or {}).get("values") or []
+        return [_attr_value(v) for v in values]
+    return value
+
+
+def _attributes(row: dict[str, Any]) -> dict[str, Any]:
+    """Attributes as a flat dict, from either a flat dict or OTLP's list of key/values."""
+    raw = row.get("attributes")
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, list):
+        out: dict[str, Any] = {}
+        for item in raw:
+            if isinstance(item, dict) and "key" in item:
+                out[str(item["key"])] = _attr_value(item.get("value"))
+        return out
+    return {}
+
+
+def _map_own_export(row: dict[str, Any], attributes: dict[str, Any], index: int) -> list[Span]:
+    """Read back a span written by ``otel_export``: exact types, roles, phases, times."""
+    span_type = str(attributes.get("ai_team.span.type"))
+    if span_type == "run":
+        return []  # the synthetic root; the trace itself has no such span
+    merged = attributes.get("ai_team.span.merged")
+    types = [str(t) for t in merged] if isinstance(merged, list) and merged else [span_type]
+    started = _ts(row.get("startTimeUnixNano"), required=True) or datetime.now(UTC)
+    ended = _ts(row.get("endTimeUnixNano"), required=False) or started
+    role = attributes.get("ai_team.role")
+    phase = attributes.get("ai_team.phase")
+    out: list[Span] = []
+    for n, kind in enumerate(types):
+        at = started if n == 0 else ended
+        single_end = ended if len(types) == 1 else at
+        out.append(
+            Span(
+                span_id=f"otel_{index:04d}_{n}",
+                type=kind,  # type: ignore[arg-type]
+                t_start=at,
+                t_end=single_end,
+                agent_role=str(role) if role is not None else None,
+                phase=str(phase) if phase is not None else None,
+                payload={"name": row.get("name"), "source": "otel_export"},
+            )
+        )
+    return out
+
+
 def _map_row(row: dict[str, Any], index: int) -> list[Span]:
-    raw_attributes = row.get("attributes")
-    attributes = raw_attributes if isinstance(raw_attributes, dict) else {}
+    attributes = _attributes(row)
+    if "ai_team.span.type" in attributes:
+        return _map_own_export(row, attributes, index)
     operation = attributes.get("gen_ai.operation.name") or row.get("name") or ""
     key = str(operation).strip()
     kind = SPAN_KIND_MAP.get(key, "other")

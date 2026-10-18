@@ -12,6 +12,7 @@ Spec: `.kiro/specs/eval-harness/`. Methodology: [`docs/EVAL_METHODOLOGY.md`](../
 uv run python -m evals.cli trace backfill --workspace-root ./workspace
 uv run python -m evals.cli index rebuild
 uv run python -m evals.cli index stats
+uv run python -m evals.cli trace export-otel output/runs/<run_id> --endpoint   # OTel, see docs/observability/
 
 # 2) Tier A offline suite ($0.00, deterministic)
 uv run python -m evals.cli run --tier A --warn-only --out evals/results/tier-a-local

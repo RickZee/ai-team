@@ -19,6 +19,7 @@ DORMANT_MODULES: dict[str, str] = {
     "src/ai_team/backends/strands_backend/tools.py": ".kiro/specs/aws-strands-agentcore task 1.2",
     "src/ai_team/backends/agent_framework_backend/tools.py": ".kiro/specs/azure-agent-framework task 1.2",
     "src/ai_team/backends/common/roles.py": "consumed by the cloud backends' agents (task 1.1)",
+    "src/ai_team/harness/otel_tags.py": ".kiro/specs/aws-strands-agentcore task 1.5 / azure-agent-framework task 1.6 (otel-observability R4.2)",
 }
 
 _ENTRY_POINTS = [

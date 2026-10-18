@@ -82,7 +82,9 @@ flowchart LR
 
 ```
 evals/trace/otel_export.py    # Trace → OTLP JSON; one mapping table; no OTel SDK
-evals/trace/otel_import.py    # + honours ai_team.span.type / ai_team.span.merged (R3)
+evals/trace/otel_import.py    # + honours ai_team.span.type / ai_team.span.merged; OTLP list-form
+                              #   attributes; one OTLP request per JSONL line (R3)
+evals/trace/otel_run.py       # export a run folder: file, POST, otel.export.json, --all (R2)
 evals/cli.py                  # + `trace export-otel`
 src/ai_team/harness/otel_tags.py   # run-id root-span helper; takes the framework's tracer as an argument
 docker/docker-compose.yml     # + phoenix; ports bound to 127.0.0.1
@@ -147,7 +149,9 @@ All spans carry `ai_team.span.type`, plus `ai_team.span.merged` when merged.
 
 ## 5. Ids and determinism
 
-- OTel trace id = first 16 bytes of SHA-256(`ai_team trace_id`).
+- OTel trace id = first 16 bytes of SHA-256(`run|<run id>`). Not the ai-team `trace_id`:
+  `make_trace_id` adds a random suffix on every build, so it would change on every re-export
+  (found while implementing 1.1).
 - Span id = first 8 bytes of SHA-256(trace id, type, role, phase, `t_start` in ns, tool or model
   name, occurrence number among exact repeats).
 - JSON is written with sorted keys and fixed number formatting, so the same trace gives the same
@@ -155,11 +159,36 @@ All spans carry `ai_team.span.type`, plus `ai_team.span.merged` when merged.
 - `schemaUrl` = the GenAI convention URL pinned in 0.2; the OpenInference version is recorded in
   `docker/VERSIONS.md`.
 
-## 6. Payload census (task 0.1)
+## 6. Payload census (task 0.1, done 2026-10-18)
 
-For one recent run per backend, list each span type and its payload keys, the pairing keys from
-§3.2, and whether per-call token rows exist. The census decides how often
-`ai_team.tokens_missing` appears; it does not add producers (methodology R1.6 owns that).
+Built with `TraceBuilder(backend=None)` from the newest run per backend in `output/runs/`, and
+from the conformance thin slice of every registered backend.
+
+| Source | Spans | Types | `llm_call` with tokens | Spans with a role | Phases |
+| --- | --- | --- | --- | --- | --- |
+| langgraph, `2026-09-18_224914_write-a-single-python-module_01` | 27 | tool_use 9, tool_result 9, qa_verdict 8, spend_event 1 | 0 of 0 | 2 of 18 tool spans; all 8 QA | none |
+| claude-agent-sdk, `ws` | 28 | spend_event 28 | 0 of 0 | — | none |
+| crewai, `2026-07-07_120536_create-a-simple-flask-rest-api_01` | 0 | — | — | — | none |
+| conformance thin slice (crewai, langgraph, claude-agent-sdk, fake-remote) | 10 | llm_call 1, tool_use 4, tool_result 4, spend_event 1 | 1 of 1 (`usage`) | all tool spans | as `Span.phase` only |
+
+**Payload keys seen:** `tool_use`: `tool`, `tool_name`, `agent_role`, `phase`, `run_id`,
+`backend`, `kind`, `risk_class`, `timestamp`, `type`. `tool_result` adds `ok`, `code`,
+`result`, `summary`, `artifact_refs`. `llm_call`: `usage`, `cost_usd`, `source`.
+`spend_event`: `spent_usd`, `budget_usd`, `calls`, `total_tokens`, `kind`.
+
+**Pairing keys (§3.2):** audit rows carry **no call id**. A `tool_use` pairs with the next
+`tool_result` that has the same `tool`, `agent_role`, `phase` and `run_id`. No real run has
+`phases.jsonl`, `sessions.jsonl` or subagent rows, so the phase and agent merge rules are
+exercised only by unit fixtures for now.
+
+**Missing for R1, and who owns it:**
+
+| Gap | Effect on the export | Owner |
+| --- | --- | --- |
+| No `llm_call` spans in any real run (no per-call cost rows) | Real runs show tools and spend, no model calls | methodology R1.6 |
+| `llm_call` payload has `usage` but no model id | `llm.model_name` filled from `session.json` `model_ids` when present, else omitted | methodology R1.8 |
+| Most real tool spans have no `agent_role` | Tools hang under the run or phase span, not under an agent | ToolBus callers (not this spec) |
+| Tool arguments are not logged (name, summary and artifact refs only) | Content gating applies to `summary`; nothing else to hide | — |
 
 ## 7. Local stack
 
@@ -210,8 +239,8 @@ Built only after `eval-methodology-alignment` 1.7 makes every run path call
 
 ### 8.1 Constraints from the code
 
-1. `src/` must not import `evals/` (`test_import_direction.py` enforces it), and the wheel ships
-   only `src/ai_team`.
+1. `src/` must not import `evals/` (`test_import_direction.py::test_src_does_not_import_evals`),
+   and the wheel ships only `src/ai_team`.
 2. `finalize()` may run more than once ("last call wins"), and it writes lessons and QA-verdict
    spans at its end, so the export must come after everything else.
 3. The CLI exits right after a run; a background thread would die with it.
@@ -270,15 +299,17 @@ retries: backfill is the retry.
 | Integration | `tests/integration/test_otel_local_stack.py` | stack up via the health check; an exported fixture run reaches the file and Phoenix (via its HTTP API, pinned in 0.2); still there after a Phoenix restart; backfill over a temp `output/runs/` with one broken run; tears down; uses a temp `output/` |
 | Phase 4 unit | `tests/unit/harness/test_otel_auto_export.py` | exact argument list, `shell` unused, `start_new_session`, each skip reason, lock window, swallowed spawn error; `finalize()` with the flag on returns and records the same as with it off |
 
-Fixtures: one small trace per backend under `evals/fixtures/traces/otel/`, built from the
-conformance thin slice, and one broken run folder.
+Fixtures: no committed trace files. `tests/unit/evals/otel_helpers.py` builds small traces in
+code, and the conformance suite supplies a real trace per backend. Files under
+`evals/fixtures/traces/` would fall under the fixture contract (every file must be a check
+fixture), so nothing is added there.
 
 ## 10. Risks
 
 | Risk | Mitigation |
 | --- | --- |
 | Convention names change (GenAI is "development" status; OpenInference evolves) | Both pinned; one mapping table; the round-trip test |
-| Phoenix ignores most `gen_ai.*` names | OpenInference names on every span (R1.1) |
+| Phoenix ignores most `gen_ai.*` names | Since 15.10.0 it converts the main ones at ingest; OpenInference names are still written on every span (R1.1), and take precedence |
 | Phoenix stores a re-sent span twice | Stable ids and `--if-changed`; 0.2 checks how Phoenix handles a repeated id |
 | Pairing keys missing in some logs | Unpaired spans are exported alone and flagged, never dropped |
 | Tool data leaks into viewers | Off by default, hashes only; 2 KB cut when on; sensitive keys never exported; ports bound to localhost |

@@ -28,7 +28,7 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
 
 ## Phase 0: Look before building
 
-- [ ] **0.1 Payload census**
+- [x] **0.1 Payload census**
   - For one recent run per backend: span types and payload keys, the pairing keys in design
     §3.2, and whether per-call token rows exist. Record the table in design §6.
   - **Definition of done:** the table is in the design, with a "missing for R1" column and a
@@ -43,30 +43,33 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
   - **Definition of done:** recorded in `docker/VERSIONS.md` with links and the date checked;
     design §7 and §10 updated if anything differs.
   - _Requirements: R1.4, R5.1_
+  - **Progress 2026-10-18:** versions, licence, OTLP path, storage setting, query API and
+    `gen_ai.*` handling recorded in `docker/VERSIONS.md`. Open: `docker pull
+    arizephoenix/phoenix:20.5.0` on Rick's Mac, and how Phoenix treats a re-sent span id.
 
 ## Phase 1: Shape, export, re-import
 
-- [ ] **1.1 `evals/trace/otel_export.py`**
+- [x] **1.1 `evals/trace/otel_export.py`**
   - The mapping, merge rules, parents, both naming schemes, content gating, ids and
     `schemaUrl` (design §3–§5).
   - **Definition of done:** `tests/unit/evals/test_otel_export.py` covers each row in design §9.
-    Per-backend fixtures are added under `evals/fixtures/traces/otel/`.
+    Traces are built in code (`tests/unit/evals/otel_helpers.py`); see design §9 on fixtures.
   - _Requirements: R1, R2.3, R7.1_
 
-- [ ] **1.2 Lossless re-import in `otel_import.py`**
+- [x] **1.2 Lossless re-import in `otel_import.py`**
   - **Definition of done:** `tests/unit/evals/test_otel_import_roundtrip.py` passes, including
     the property test; the existing `test_otel_import.py` still passes unchanged (framework
     spans keep their mapping).
   - _Requirements: R3, R7.1_
 
-- [ ] **1.3 `python -m evals.cli trace export-otel <run-dir>`**
+- [x] **1.3 `python -m evals.cli trace export-otel <run-dir>`**
   - The file, resource attributes, batching, `--endpoint`, `--if-changed`, `--all` and
     `logs/otel.export.json`.
   - **Definition of done:** `tests/unit/evals/test_otel_export_cli.py` covers each row in
     design §9.
   - _Requirements: R2, R7.1_
 
-- [ ] **1.4 Conformance round trip for every backend**
+- [x] **1.4 Conformance round trip for every backend**
   - `tests/conformance/test_otel_roundtrip.py`, parametrized over the registry like the rest of
     the suite.
   - **Definition of done:** passes for every registered backend at $0; a backend added later is
@@ -82,8 +85,10 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
     shows Aspire on 18888 and Phoenix on 6006, reachable on `127.0.0.1` only; a test span sent to
     4318 appears in both and in `output/otel/traces.jsonl`; Phoenix still has it after a restart.
   - _Requirements: R5.1, R5.2, R5.3, R7.2_
+  - **Progress 2026-10-18:** compose, collector config, make targets and the repo test are
+    done and green. Open: `make otel-up` and the test span on a machine with Docker.
 
-- [ ] **2.2 Tag native spans**
+- [x] **2.2 Tag native spans**
   - `OTEL_RESOURCE_ATTRIBUTES` on the `strands` and `agent-framework` services; the
     `otel_tags.py` helper; a line added to each of those backend specs' tasks to call it and to
     name their framework copy `logs/otel.framework.json`.
@@ -97,6 +102,8 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
     otherwise, including in the existing CI `pytest tests/integration` step; leaves no containers
     running; never writes to the real `output/`.
   - _Requirements: R7.4, R7.5_
+  - **Progress 2026-10-18:** the test file is written and skips with a reason without Docker
+    (checked). Open: a green run with `AI_TEAM_DOCKER_TESTS=1 make test-otel-integration`.
 
 - [ ] **2.4 Smoke: every available backend in one view**
   - Run the cheapest real run per available backend, then `make otel-backfill`.

@@ -34,18 +34,24 @@ services:
     networks:
       - aiteam
 
+  # Local trace viewing (.kiro/specs/otel-observability). Every port binds to 127.0.0.1:
+  # the viewers have no login and traces can hold prompts and file contents.
+  #   make otel-up    (or: docker compose -f docker/docker-compose.yml --profile observability up -d)
+  # Paths and ports can be overridden; the integration tests use that to stay off real output/.
   otel-collector:
     profiles: ["observability"]
     image: otel/opentelemetry-collector-contrib:0.160.0
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
-      - ../output/otel:/otel
+      - ${AI_TEAM_OTEL_DIR:-../output/otel}:/otel
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "127.0.0.1:${AI_TEAM_OTEL_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${AI_TEAM_OTEL_HTTP_PORT:-4318}:4318"
+      - "127.0.0.1:${AI_TEAM_OTEL_HEALTH_PORT:-13133}:13133"
     depends_on:
       - aspire-dashboard
+      - phoenix
     networks:
       - aiteam
 
@@ -53,9 +59,21 @@ services:
     profiles: ["observability"]
     image: mcr.microsoft.com/dotnet/aspire-dashboard:13.4.2
     ports:
-      - "18888:18888"
+      - "127.0.0.1:${AI_TEAM_ASPIRE_PORT:-18888}:18888"
     environment:
       DASHBOARD__OTLP__AUTHMODE: Unsecured
+    networks:
+      - aiteam
+
+  phoenix:
+    profiles: ["observability"]
+    image: arizephoenix/phoenix:20.5.0
+    ports:
+      - "127.0.0.1:${AI_TEAM_PHOENIX_PORT:-6006}:6006"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    volumes:
+      - ${AI_TEAM_PHOENIX_DIR:-../output/phoenix}:/mnt/data
     networks:
       - aiteam
 
@@ -70,6 +88,7 @@ services:
     environment:
       OLLAMA_HOST: http://host.docker.internal:11434
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: ai_team.backend=strands,ai_team.source=framework,openinference.project.name=ai-team
     networks:
       - aiteam
 
@@ -83,6 +102,7 @@ services:
     environment:
       OPENAI_BASE_URL: http://host.docker.internal:11434/v1
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: ai_team.backend=agent-framework,ai_team.source=framework,openinference.project.name=ai-team
     networks:
       - aiteam
 

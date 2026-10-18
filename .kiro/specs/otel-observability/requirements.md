@@ -1,7 +1,7 @@
 # Requirements: One OTel Shape for Every Backend, Viewable Locally
 
 **Spec ID:** `otel-observability`
-**Status:** Draft
+**Status:** In progress — Phase 1 and tagging done; Docker checks, smoke and guide open
 **Owner:** Rick Zakharov
 **Created:** 2026-10-18
 **Revised:** 2026-10-18, after a review against the source: lossless round trip, both naming
@@ -32,7 +32,8 @@ that keeps history.
 Decisions carried over, not reopened:
 
 1. **No OTel SDK in `src/`** (2026-09-13). The export writes OTLP JSON itself.
-   `tests/unit/repo/test_import_direction.py` already keeps `src/` from importing `evals/`.
+   `tests/unit/repo/test_import_direction.py::test_src_does_not_import_evals` keeps `src/` from
+   importing `evals/` (added with this spec).
 2. **OpenInference-shaped telemetry** (2026-09-13). This spec writes OpenInference names and
    the OTel GenAI names on every span: Phoenix reads the first, Aspire and the cloud consoles
    the second.

@@ -29,6 +29,44 @@ def _cmd_import_otel(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_export_otel(args: argparse.Namespace) -> int:
+    """Export run folders as OTLP JSON; optionally POST them to a collector."""
+    from evals.trace.otel_run import export_all, export_run
+
+    kwargs = {
+        "endpoint": args.endpoint,
+        "with_content": bool(args.with_content),
+        "if_changed": bool(args.if_changed),
+        "timeout": float(args.timeout),
+    }
+    if args.all:
+        root = Path(args.runs_root)
+        if not root.is_dir():
+            print(f"runs root not found: {root}", file=sys.stderr)
+            return 1
+        summary = export_all(root, **kwargs)
+        print(json.dumps(summary, sort_keys=True))
+        for broken in summary["failed"]:
+            print(f"skipped (could not build): {broken['run']}: {broken['error']}", file=sys.stderr)
+        return 0
+    if not args.run_dir:
+        print("give a run folder, or --all", file=sys.stderr)
+        return 2
+    run_dir = Path(args.run_dir)
+    if not run_dir.is_dir():
+        print(f"run folder not found: {run_dir}", file=sys.stderr)
+        return 1
+    status = export_run(run_dir, **kwargs)
+    if status.get("error"):
+        print(f"warning: {status['error']}", file=sys.stderr)
+    print(
+        json.dumps(
+            {k: status.get(k) for k in ("status", "spans", "batches", "endpoint")}, sort_keys=True
+        )
+    )
+    return 1 if status.get("status") == "failed" else 0
+
+
 def _cmd_trace_backfill(args: argparse.Namespace) -> int:
     root = Path(args.workspace_root)
     store = TraceStore(root=Path(args.traces_root) if args.traces_root else None)
@@ -611,6 +649,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     import_otel.add_argument("path", help="OTLP JSON or JSONL file")
     import_otel.set_defaults(func=_cmd_import_otel)
+    export_otel = trace_sub.add_parser(
+        "export-otel",
+        help="export a run folder (or all of them) as OTLP JSON, optionally to a collector",
+    )
+    export_otel.add_argument("run_dir", nargs="?", help="output/runs/<run_id>")
+    export_otel.add_argument("--all", action="store_true", help="every run not yet posted")
+    export_otel.add_argument("--runs-root", default="output/runs")
+    export_otel.add_argument(
+        "--endpoint",
+        nargs="?",
+        const="http://localhost:4318",
+        default=None,
+        help="OTLP/HTTP collector (default when given without a value: http://localhost:4318)",
+    )
+    export_otel.add_argument("--with-content", action="store_true", help="include text")
+    export_otel.add_argument("--if-changed", action="store_true", help="skip unchanged posts")
+    export_otel.add_argument("--timeout", type=float, default=5.0, help="seconds per request")
+    export_otel.set_defaults(func=_cmd_export_otel)
 
     index = sub.add_parser("index", help="SQLite index commands")
     index_sub = index.add_subparsers(dest="index_command", required=True)

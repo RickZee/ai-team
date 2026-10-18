@@ -85,6 +85,9 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
   - _Requirements: R1.4_
 
 - [ ] **1.5 Ollama provider + local smoke**
+  - Wrap the run in `ai_team.harness.otel_tags.tag_root_span(<strands tracer>, run_id=…,
+    backend="strands")` so framework spans carry `ai_team.run_id` (otel-observability R4.2).
+    Any copy of framework spans saved with the run is named `logs/otel.framework.json` (R4.3).
   - **Definition of done:** `make local-smoke BACKEND=strands` passes the thin slice against
     host Ollama, recorded as `model_tier: local`. Spans show up in Aspire (compose
     `observability` profile running) and import with `evals trace import-otel`.

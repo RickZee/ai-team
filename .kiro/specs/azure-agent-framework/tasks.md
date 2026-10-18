@@ -79,6 +79,10 @@ After any cloud session, run `infra/scripts/teardown_check.sh azure`.
   - _Requirements: R1.4_
 
 - [ ] **1.6 Ollama via the OpenAI-compatible client + local smoke**
+  - Wrap the run in `ai_team.harness.otel_tags.tag_root_span(<agent framework tracer>,
+    run_id=…, backend="agent-framework")` so framework spans carry `ai_team.run_id`
+    (otel-observability R4.2). Any copy of framework spans saved with the run is named
+    `logs/otel.framework.json` (R4.3).
   - **Definition of done:** `make local-smoke BACKEND=agent-framework` is green
     (`model_tier: local`), spans show in Aspire, and `import-otel` works on them.
   - _Requirements: R2.1_

@@ -1,4 +1,10 @@
 # Contrib collector. Config path is /etc/otelcol-contrib, not the core image path.
+# Fans every span out to Aspire (live), Phoenix (history) and a raw file.
+# Spec: .kiro/specs/otel-observability/ design §7.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
 receivers:
   otlp:
     protocols:
@@ -7,15 +13,25 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+  batch: {}
+
 exporters:
   otlphttp/aspire:
     endpoint: http://aspire-dashboard:18890
+  otlphttp/phoenix:
+    endpoint: http://phoenix:6006
   file:
     path: /otel/traces.jsonl
     append: true
 
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [otlphttp/aspire, file]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/aspire, otlphttp/phoenix, file]

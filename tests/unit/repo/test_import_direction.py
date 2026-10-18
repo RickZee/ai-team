@@ -108,3 +108,19 @@ def test_core_harness_evals_do_not_import_backends() -> None:
     if scanned == 0:
         raise AssertionError("import-direction scan matched zero files")
     assert not violations, "\n".join(violations)
+
+
+def test_src_does_not_import_evals() -> None:
+    """``src/ai_team`` ships in the wheel; ``evals/`` does not.
+
+    A run must never depend on the eval code (otel-observability design §8.1). To see this
+    fail: add ``import evals.trace.otel_export`` to any module under ``src/ai_team``.
+    """
+    violations = []
+    files = _iter_py(_SRC)
+    for path in files:
+        for name in _imports(path):
+            if _hits(name, "evals"):
+                violations.append(f"{path.relative_to(REPO_ROOT).as_posix()} imports {name}")
+    assert files, "import-direction scan matched zero files"
+    assert not violations, "src/ai_team may not import evals/:\n" + "\n".join(violations)

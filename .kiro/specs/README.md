@@ -31,7 +31,7 @@ To change a status, edit the spec's `**Status:**` line, then run
 | 11 | [aws-strands-agentcore](./aws-strands-agentcore/) | 2026-09-28 | Draft | [cloud-backend-foundation](./cloud-backend-foundation/) |
 | 12 | [azure-agent-framework](./azure-agent-framework/) | 2026-09-28 | Draft | [cloud-backend-foundation](./cloud-backend-foundation/) |
 | 13 | [aws-agentcore-harness](./aws-agentcore-harness/) | 2026-10-18 | Draft | [cloud-backend-foundation](./cloud-backend-foundation/), [aws-strands-agentcore](./aws-strands-agentcore/) |
-| 14 | [otel-observability](./otel-observability/) | 2026-10-18 | Draft | [eval-harness](./eval-harness/), [cloud-backend-foundation](./cloud-backend-foundation/), [eval-methodology-alignment](./eval-methodology-alignment/) |
+| 14 | [otel-observability](./otel-observability/) | 2026-10-18 | In progress — Phase 1 and tagging done; Docker checks, smoke and guide open | [eval-harness](./eval-harness/), [cloud-backend-foundation](./cloud-backend-foundation/), [eval-methodology-alignment](./eval-methodology-alignment/) |
 
 <!-- spec-index:end -->
 
