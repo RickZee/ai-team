@@ -1,0 +1,242 @@
+# Design: One OTel Shape for Every Backend
+
+**Spec ID:** `otel-observability` · **Read first:** [`requirements.md`](./requirements.md)
+
+---
+
+## 1. Shape of the change
+
+```mermaid
+flowchart LR
+  subgraph backends["Any backend"]
+    lg[LangGraph]
+    cr[CrewAI]
+    cs[Claude Agent SDK]
+    st[Strands]
+    af[Agent Framework]
+  end
+  h["Harness records<br/>audit, phases, costs, QA"]
+  tb["TraceBuilder → Trace"]
+  ex["python -m evals.cli trace export-otel"]
+  col["OTel Collector<br/>127.0.0.1:4318"]
+  asp["Aspire :18888<br/>live"]
+  phx["Phoenix :6006<br/>history"]
+  file["output/otel/traces.jsonl"]
+  lg --> h
+  cr --> h
+  cs --> h
+  st --> h
+  af --> h
+  h --> tb --> ex -- "source=harness" --> col
+  st -. "native spans, source=framework" .-> col
+  af -. "native spans, source=framework" .-> col
+  col --> asp
+  col --> phx
+  col --> file
+```
+
+## 2. Files
+
+```
+evals/trace/otel_export.py    # Trace → OTLP JSON; one mapping table; no OTel SDK
+evals/trace/otel_import.py    # + honours ai_team.span.type / ai_team.span.merged (R3)
+evals/cli.py                  # + `trace export-otel`
+src/ai_team/harness/otel_tags.py   # run-id root-span helper; takes the framework's tracer as an argument
+docker/docker-compose.yml     # + phoenix; ports bound to 127.0.0.1
+docker/otel-collector.yaml    # + processors, health_check, phoenix exporter
+Makefile                      # otel-up, otel-down, otel-backfill, test-otel-integration
+docs/observability/README.md
+# Phase 4 only:
+src/ai_team/harness/otel_hook.py   # request_otel_export()
+src/ai_team/config/settings.py     # + OtelExportSettings (AI_TEAM_OTEL_*)
+```
+
+## 3. Mapping
+
+### 3.1 What the builder produces today (checked 2026-10-18)
+
+- `llm_call` spans come from `costs.jsonl` rows that carry usage (`parsers.py`). They have zero
+  duration (`t_start == t_end`). Per-call rows exist only where a backend reports them, which is
+  what methodology R1.6 is about.
+- `tool_use` / `tool_result` come from the ToolBus `audit.jsonl`.
+- `phase_start` / `phase_end`, `qa_verdict`, `qa_disagreement`, `spend_event`, `guardrail_check`
+  and others come from their own logs.
+- After building, `_assign_span_ids` sorts spans and renames them `span_0000`, `span_0001`, …,
+  so a builder id changes whenever an earlier span is added. Export ids must not use it (§5).
+
+Task 0.1 confirms this per backend and finds the pairing keys below.
+
+### 3.2 Merge rules
+
+Viewers show durations, so some start/end pairs become one span. Each merged span lists what it
+stands for in `ai_team.span.merged`, and the importer splits it back (R3).
+
+| ai-team spans | Exported as | Pairing key (confirmed in 0.1) | Unpaired |
+| --- | --- | --- | --- |
+| `tool_use` + `tool_result` | one `execute_tool` span, start = use, end = result | the audit row's call id, or else (role, tool name, next result) | exported alone, `ai_team.unpaired = true` |
+| `phase_start` + `phase_end` | one `phase <name>` span | phase name, in order | exported alone |
+| `subagent_start` + `subagent_stop` / `session_start` + `session_end` | one `invoke_agent <role>` span | role / session id | exported alone |
+| everything else | one span each, zero duration where the source has none | — | — |
+
+**Parents:** a phase span is the parent of the spans inside its time window and phase; agent
+spans sit under their phase; model and tool spans sit under their agent when the role matches,
+else under the phase. The root is one `run` span per trace.
+
+### 3.3 Attributes
+
+| ai-team | OpenInference | GenAI | ai-team extras |
+| --- | --- | --- | --- |
+| `llm_call` | kind `LLM`, `llm.model_name`, `llm.token_count.prompt` / `.completion` | `chat`, `gen_ai.request.model`, `gen_ai.usage.input_tokens` / `output_tokens` | `ai_team.cost_usd`, `ai_team.tokens_missing` |
+| `tool_use` / `tool_result` | kind `TOOL`, `tool.name`, `input.value` / `output.value` (content only) | `execute_tool`, `gen_ai.tool.name` | `ai_team.tool.args_sha256`, `ai_team.tool.result_bytes`, error status |
+| agent / session | kind `AGENT`, `agent.name` | `invoke_agent`, `gen_ai.agent.name` | `ai_team.role` |
+| phase, run | kind `CHAIN` | — | `ai_team.phase` |
+| QA, guardrail, spend, smoke, retry, error | kind `CHAIN` | — | payload flattened under `ai_team.*` (content-gated) |
+
+All spans carry `ai_team.span.type`, plus `ai_team.span.merged` when merged.
+
+## 4. Content and size
+
+- **Off (default):** no message text, no tool argument or result text. Keep names, byte sizes
+  and a SHA-256, so two runs can still be compared ("same file written").
+- **On (`--with-content`):** each text value is cut to 2 KB (`ai_team.truncated = true`).
+- Payload keys that match the guardrail sensitive-file patterns (`.env`, credentials) are never
+  exported, even with content on.
+
+## 5. Ids and determinism
+
+- OTel trace id = first 16 bytes of SHA-256(`ai_team trace_id`).
+- Span id = first 8 bytes of SHA-256(trace id, type, role, phase, `t_start` in ns, tool or model
+  name, occurrence number among exact repeats).
+- JSON is written with sorted keys and fixed number formatting, so the same trace gives the same
+  bytes. That makes `--if-changed` meaningful and stops re-sends from duplicating spans.
+- `schemaUrl` = the GenAI convention URL pinned in 0.2; the OpenInference version is recorded in
+  `docker/VERSIONS.md`.
+
+## 6. Payload census (task 0.1)
+
+For one recent run per backend, list each span type and its payload keys, the pairing keys from
+§3.2, and whether per-call token rows exist. The census decides how often
+`ai_team.tokens_missing` appears; it does not add producers (methodology R1.6 owns that).
+
+## 7. Local stack
+
+```yaml
+# docker-compose.yml, observability profile
+otel-collector:
+  ports: ["127.0.0.1:4317:4317", "127.0.0.1:4318:4318", "127.0.0.1:13133:13133"]
+aspire-dashboard:
+  ports: ["127.0.0.1:18888:18888"]
+phoenix:
+  profiles: ["observability"]
+  image: arizephoenix/phoenix:<pinned in 0.2>
+  ports: ["127.0.0.1:6006:6006"]
+  volumes: ["../output/phoenix:/mnt/data"]
+  environment: { PHOENIX_WORKING_DIR: /mnt/data }   # confirm the variable in 0.2
+  networks: [aiteam]
+```
+
+```yaml
+# otel-collector.yaml
+extensions:
+  health_check: { endpoint: 0.0.0.0:13133 }
+processors:
+  memory_limiter: { check_interval: 1s, limit_mib: 512 }
+  batch: {}
+exporters:
+  otlphttp/aspire:  { endpoint: http://aspire-dashboard:18890 }
+  otlphttp/phoenix: { endpoint: http://phoenix:6006 }
+  file:             { path: /otel/traces.jsonl, append: true }
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/aspire, otlphttp/phoenix, file]
+```
+
+- Ports bind to `127.0.0.1` because the viewers have no login and the traces can hold prompts.
+- Aspire keeps traces in memory (live view). Phoenix keeps history and reads OpenInference.
+  The file is a raw copy whatever viewer you use.
+
+## 8. Optional, Phase 4: auto-export at run end
+
+Built only after `eval-methodology-alignment` 1.7 makes every run path call
+`ResultsBundle.finalize()`. Today the CLI paths for LangGraph and CrewAI don't
+(`cli_run._finish_run`), so a hook there would silently miss them.
+
+### 8.1 Constraints from the code
+
+1. `src/` must not import `evals/` (`test_import_direction.py` enforces it), and the wheel ships
+   only `src/ai_team`.
+2. `finalize()` may run more than once ("last call wins"), and it writes lessons and QA-verdict
+   spans at its end, so the export must come after everything else.
+3. The CLI exits right after a run; a background thread would die with it.
+4. The Compare view ends three runs at once.
+
+### 8.2 Decision: a detached child process running the same command
+
+| Option | Why not, or why |
+| --- | --- |
+| In-process call | Breaks the import direction; adds the timeout to every run end |
+| Background thread | Dies when the CLI exits; still breaks the import direction |
+| Callback registry filled by `evals` | Only works if `evals` was imported in that process, which isn't true for CLI runs |
+| **Detached child process** | Keeps the import direction; isolated; survives the parent exiting; reuses the manual command, so its tests cover it. Costs about a second of CPU per run |
+
+### 8.3 The hook
+
+```python
+def request_otel_export(run_dir: Path, *, settings=None, spawn=subprocess.Popen) -> ExportRequest:
+    """Start the exporter for one finished run. Never raises, never waits."""
+```
+
+1. Flag off → skip (the default).
+2. `<repo root>/evals/__main__.py` missing (installed from the wheel) → skip, one warning. Don't
+   use `find_spec("evals")`: under the `ai-team` console script the current directory isn't on
+   `sys.path`, so it gives the wrong answer inside a checkout.
+3. `logs/otel.export.lock` younger than 60 s → skip. Otherwise write it.
+4. Spawn `[sys.executable, "-m", "evals.cli", "trace", "export-otel", run_dir, "--endpoint",
+   url, "--if-changed"]` with `shell=False`, `cwd=<repo root>`, `stdin=DEVNULL`, output
+   appended to `logs/otel.export.log` and `start_new_session=True`.
+5. Any exception → warning, skip.
+
+One call site: the last statement of `ResultsBundle.finalize()`. Settings (`AI_TEAM_OTEL_`
+prefix): `EXPORT=0`, `ENDPOINT=http://localhost:4318`, `EXPORT_CONTENT=0`, `TIMEOUT_S=5`. No
+retries: backfill is the retry.
+
+### 8.4 Failure cases
+
+| What goes wrong | Result | Recovery |
+| --- | --- | --- |
+| Collector down or slow | `written_only` after at most 5 s, in the child | `make otel-up`, `make otel-backfill` |
+| Trace can't be built | `failed`, error in `otel.export.log` | Fix the builder; backfill |
+| Wheel install | Skipped with a warning | Run from a checkout |
+| `finalize()` twice | Lock plus `--if-changed`: one POST | — |
+| Process killed before the child finishes | Lock expires in 60 s | Backfill |
+
+## 9. Test plan
+
+| Level | File | What it proves |
+| --- | --- | --- |
+| Unit | `tests/unit/evals/test_otel_export.py` | each mapping and merge row; both naming schemes; unpaired spans; parents; content off (sizes and hashes only) and on (2 KB cut); sensitive keys never exported; stable ids when a span is inserted earlier; identical bytes on repeat; `schemaUrl` |
+| Unit | `tests/unit/evals/test_otel_import_roundtrip.py` | `ai_team.span.type` and `.merged` read back losslessly; framework spans unchanged; property test over random traces: same types, counts, roles, phases, start times |
+| Unit | `tests/unit/evals/test_otel_export_cli.py` | file written; resource attributes; 1,100 spans arrive as 3 batches at a stub HTTP server on localhost; closed port gives a warning and exit 0; `--if-changed`; `--all` with one broken run; every `otel.export.json` status |
+| Unit | `tests/unit/harness/test_otel_tags.py` | the helper sets `ai_team.run_id` on a fake tracer's root span |
+| Repo | `tests/unit/repo/test_otel_stack_config.py` | Phoenix pinned (no `latest`); processors, health check and three exporters; every published port starts with `127.0.0.1:` (parsed with `yaml.safe_load`) |
+| Conformance | `tests/conformance/test_otel_roundtrip.py` | for every registered backend's thin slice: export, then re-import, gives back the same trace |
+| Integration | `tests/integration/test_otel_local_stack.py` | stack up via the health check; an exported fixture run reaches the file and Phoenix (via its HTTP API, pinned in 0.2); still there after a Phoenix restart; backfill over a temp `output/runs/` with one broken run; tears down; uses a temp `output/` |
+| Phase 4 unit | `tests/unit/harness/test_otel_auto_export.py` | exact argument list, `shell` unused, `start_new_session`, each skip reason, lock window, swallowed spawn error; `finalize()` with the flag on returns and records the same as with it off |
+
+Fixtures: one small trace per backend under `evals/fixtures/traces/otel/`, built from the
+conformance thin slice, and one broken run folder.
+
+## 10. Risks
+
+| Risk | Mitigation |
+| --- | --- |
+| Convention names change (GenAI is "development" status; OpenInference evolves) | Both pinned; one mapping table; the round-trip test |
+| Phoenix ignores most `gen_ai.*` names | OpenInference names on every span (R1.1) |
+| Phoenix stores a re-sent span twice | Stable ids and `--if-changed`; 0.2 checks how Phoenix handles a repeated id |
+| Pairing keys missing in some logs | Unpaired spans are exported alone and flagged, never dropped |
+| Tool data leaks into viewers | Off by default, hashes only; 2 KB cut when on; sensitive keys never exported; ports bound to localhost |
+| Very large runs | 512-span batches; the collector's `memory_limiter` |

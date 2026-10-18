@@ -110,6 +110,10 @@ report itself.
 8. The harness SHALL write `<run_record>/logs/session.json` at run start with `run_id`,
    `scenario_id`, `backend`, `arm`, `model_ids`, `git_sha`, and `started_at`, so that a trace
    built later never has to infer `scenario_id` from a directory name.
+9. Every run entry path (web server, CLI, programmatic) SHALL end with
+   `ResultsBundle.finalize()`. Found 2026-10-18: CLI runs of LangGraph and CrewAI end in
+   `cli_run._finish_run()` without it, so they get no `completed_at`, no final cost row and no
+   receipt, and `apply_lessons_at_finish()` never runs for them.
 
 ## R2 — Telemetry provenance is checkable (FM-018)
 

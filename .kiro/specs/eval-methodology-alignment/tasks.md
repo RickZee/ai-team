@@ -96,6 +96,16 @@ Do not start any other task. Stop when its Definition of done is satisfied and
   - **Definition of done:** guard fails when a write is reintroduced.
   - _Requirements: R1.3, R16.1_
 
+- [ ] **1.7 Every run path finalizes the results bundle**
+  - Today only the web server, the Claude Agent SDK backend and the conformance thin slice call
+    `ResultsBundle.finalize()`. Make the CLI path (`cli_run._finish_run`) call it for every
+    backend, with the run's final status and spend, exactly once. Pair with 1.2 if the
+    `Backend` wrapper lands first.
+  - **Definition of done:** a unit test per backend shows a CLI run writes `completed_at`, a
+    `run_total` cost row and a receipt, and calls `apply_lessons_at_finish` (spied); a web run
+    still finalizes once, not twice.
+  - _Requirements: R1.9, R1.7_
+
 ## Phase 2 — Corpus
 
 - [ ] **2.1 `unindexable` and `partial` states**

@@ -37,6 +37,9 @@ much to trust its dates.
 | Security and threat model | [`SECURITY.md`](../SECURITY.md) |
 | Cloud backends status | [CLOUD_NATIVE.md](CLOUD_NATIVE.md), [ADR-001](adr/ADR-001-cloud-native-backends.md) |
 | Claude Agent SDK runbook | [claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md) |
+| AWS backend: architectures, deployment options, costs | [AWS_BACKEND_ARCHITECTURE.md](AWS_BACKEND_ARCHITECTURE.md) |
+| AgentCore Harness backend user guide | [agentcore-harness/USER_GUIDE.md](agentcore-harness/USER_GUIDE.md) |
+| Viewing traces (local, AWS, Azure) | [observability/README.md](observability/README.md) |
 | Self-improvement loop | [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md) |
 | UI review rubric (advisory) | [UI_QUALITY_RUBRIC.md](UI_QUALITY_RUBRIC.md) |
 | External sources that shaped the repo | [resources.md](resources.md) |
