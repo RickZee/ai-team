@@ -4,6 +4,17 @@
 
 ---
 
+## 0. Order of work
+
+Change one thing at a time, so every result has something to compare against.
+
+| Step | What changes | Tasks |
+| --- | --- | --- |
+| 0 | Model provider only: existing backends on Bedrock | 2.0 |
+| 1 | Framework: Strands, on the laptop | Phases 1–2 |
+| 2 | Where it runs: AgentCore Runtime | Phases 3–4 |
+| 3 | One AWS service at a time | Phase 5 |
+
 ## 1. Components
 
 ```
@@ -48,13 +59,21 @@ graph variant is a later ablation, not the baseline.
 provider: ollama | bedrock | fake
 ollama:  {host: http://localhost:11434, model: <pinned in foundation 4.1>}
 bedrock: {region: us-east-1, profile: ai-team,
-          models: {manager: <claude inference profile id>, specialist: <cheaper model id>},
+          models: {manager: <us. claude inference profile id>, specialist: <us. cheaper profile id>},
+          prompt_caching: true,
           guardrail: {id: <from terraform output>, version: <n>}}
 ```
 
 The Bedrock guardrail is attached per model call through the model configuration, so it
 applies in Phase 2 (laptop) and Phase 4 (cloud) alike. Phase 3's Terraform creates it, and
 Phase 2 runs without it until then.
+
+The guardrail evaluates the latest message or tool result only, not the full context on
+every turn. Guardrails are billed per 1,000 characters evaluated, so full-context checks on
+every turn can approach the token bill. Indirect prompt injection arrives in tool results,
+so those must be evaluated (task 5.2 confirms which message roles are).
+
+The Step 0 baseline (requirements R0) uses the same model ids.
 
 ## 4. The container and the Runtime contract
 
@@ -70,11 +89,18 @@ docker/strands.Dockerfile
 paths and the payload shape from the AgentCore docs in task 0.1 rather than assuming them.
 An invocation:
 
-1. creates the run id and workspace under `/tmp/ai-team/<id>`;
-2. runs `StrandsBackend(target=local).run(...)` in a background worker;
-3. uploads `workspace/` and `output/runs/<id>/` to `s3://<bucket>/runs/<id>/` when done;
-4. reports status through the health or status mechanism the Runtime supports for
-   long-running work.
+1. creates the run id and workspace under `/tmp/ai-team/<id>`, and fetches
+   `s3://<bucket>/state/lessons.db` (with its ETag) into the local lessons path;
+2. runs `StrandsBackend(target=local).run(...)` in a worker thread, registered as an async
+   task (`app.add_async_task` / `complete_async_task`) so `/ping` reports `HealthyBusy`.
+   Nothing blocking runs on the request thread: a starved `/ping` gets the session reaped
+   after 15 minutes;
+3. syncs `workspace/` and `output/runs/<id>/` to `s3://<bucket>/runs/<id>/` after every
+   `commit_pending_drafts`, and syncs `logs/` in a `finally`;
+4. writes the lessons store back with `If-Match: <ETag>`. On a conflict (another run wrote
+   lessons first) it re-fetches, merges (lessons are append-only rows) and retries once;
+5. answers a `status` invocation on the same `runtimeSessionId`. The client ends the
+   session with `StopRuntimeSession` after downloading.
 
 The local `container` target talks to the same endpoints on `localhost:8080`, so the
 remote client is tested before any AWS resource exists.
@@ -102,7 +128,16 @@ module "budget"     { source = "../../modules/budget"          monthly_budget_us
 - **Tests:** `terraform validate` plus `tflint` and `checkov` in CI. Optionally, a
   `terraform test` file (`*.tftest.hcl`) asserting that the IAM policy has no `*` actions.
 - Provider resources for AgentCore are recent. Pin the `hashicorp/aws` version that
-  introduced them in `versions.tf`, and record the version in the ADR.
+  introduced them in `versions.tf`, and record the version in the ADR. The current pin
+  (5.100.0) predates them; move every module together to the 6.x release task 0.1 finds.
+- **Inference profiles in IAM.** A call through a `us.` profile is authorised against both
+  the profile ARN and the foundation-model ARN in each region the profile routes to. Write
+  one statement per model listing both, conditioned on `bedrock:InferenceProfileArn`. The
+  `terraform test` asserts the pairing.
+- **Transaction Search** is a one-time account setting that AgentCore traces need. The
+  `observability` module turns it on, together with the token-metric spend alarm.
+- **State:** the S3 backend with `use_lockfile = true` (Terraform 1.10 or later). No
+  DynamoDB lock table.
 
 ## 6. Observability, two readers
 
@@ -117,10 +152,20 @@ ai-team harness spans (ToolBus audit, qa verdicts) ─────────�
 The foundation's two-reader rule applies: harness spans are primary, and the OTel import
 is compared against them. A disagreement is a finding, not a bug to hide.
 
+The Runtime runs one container, so there is no collector sidecar. The second reader is an
+in-process OTLP JSON exporter writing into the run's S3 prefix next to the artifacts.
+Pulling from the CloudWatch `aws/spans` log group is the fallback.
+
 ## 7. Cost controls
 
 - Phase 2 and 4 runs use `AI_TEAM_RUN_BUDGET_USD=1.50` and the cheaper model for specialists.
 - The budget module alerts at $12.50 and $25.
+- Budgets lag by hours. The real-time guard is the in-process spend guard, backed by a
+  CloudWatch alarm on `AWS/Bedrock` token metrics (task 3.1).
+- Compute is not the cost. A 30-minute run uses about $0.01 of Runtime, because CPU is
+  billed only while busy, not while waiting on the model. Tokens are about $1–2 a run.
+- Public network mode only. VPC mode needs about seven interface endpoints, roughly
+  $70–100 a month, more than the whole dev budget, so it stays a written design.
 - `destroy` runs at the end of every cloud session until Phase 5 is done. Nothing is
   left running overnight.
 
@@ -131,4 +176,7 @@ is compared against them. A disagreement is a finding, not a bug to hide.
 | The Runtime's long-running contract differs from the design | Spike 0.1 pins it; the design adapts before any code |
 | Terraform provider gaps for a new AgentCore feature | Use `awscc` or a documented one-off CLI step, recorded in the ADR |
 | Local model too weak for tool use | Local runs prove plumbing only (`model_tier: local`); quality comes from Bedrock runs |
-| Bedrock model access approval delay | Request it on day 1; Phases 0–1 don't need it |
+| Anthropic model use-case form not yet submitted | Submit it on day 1 (task 0.2); Phases 0–1 don't need it |
+| Cloud runs lose lessons (session disk is discarded) | Lessons store round-trips through S3 with a conditional write (R5.4, task 4.0) |
+| IAM refuses calls made through inference profiles | Pair profile and foundation-model ARNs (task 3.2) |
+| Agent-written code can use the execution role's credentials | Tight role and budget in dev; optional Code Interpreter sandbox (task 5.4) |

@@ -1,7 +1,7 @@
 # Requirements — Harness Alignment
 
 **Spec ID:** `harness-alignment`
-**Status:** Draft for implementation
+**Status:** Done — all agent tasks complete; human-triggered live runs 4.3, 4.5, 5.4, 11.4 open
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (extends `evals/` and `src/ai_team/harness/`)
 **Created:** 2026-09-12

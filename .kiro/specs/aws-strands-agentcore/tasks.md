@@ -2,7 +2,10 @@
 
 **Spec ID:** `aws-strands-agentcore`
 **Read first:** [`requirements.md`](./requirements.md), then [`design.md`](./design.md).
-**Blocked on:** `cloud-backend-foundation` Phases 0–3.
+**Blocked on:** `cloud-backend-foundation` Phases 0–3 (0.5, conformance in CI, is still open).
+Also needed: foundation 4.2 before tasks 1.5–1.6, and foundation 6.2–6.3 before any 💲 task.
+**Revised:** 2026-10-18. New tasks 2.0 (Step 0 baseline) and 4.0 (lessons in the cloud);
+tightened 0.1, 0.2, 2.1, 2.2, 3.1, 3.2, 3.6, 4.1; optional 5.4 and 5.5.
 
 Living checklist. Check a box only when its Definition of done is literally true.
 Tasks marked **💲** spend money and need Rick's go-ahead in the session.
@@ -35,19 +38,27 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
       tool from a runtime JSON schema;
     - the AgentCore Runtime service contract: port, endpoint paths, payload, architecture,
       and the supported pattern for work longer than one request;
-    - the first `hashicorp/aws` version with `aws_bedrockagentcore_agent_runtime` and
-      `aws_bedrockagentcore_memory`;
-    - the Bedrock model ids or inference profiles available in us-east-1 for the chosen models.
+    - the first `hashicorp/aws` 6.x release with `aws_bedrockagentcore_agent_runtime`,
+      `_memory` and `_code_interpreter`, proven with `terraform providers schema -json`.
+      The current 5.100.0 pin predates them;
+    - the `us.` inference-profile ids for the chosen models, and the foundation-model ARNs
+      each profile routes to (needed for IAM in 3.2);
+    - the Strands `BedrockModel` options for prompt caching and for evaluating the guardrail
+      on the latest message only;
+    - the Runtime's async-task API (`add_async_task`, `HealthyBusy`), `StopRuntimeSession`,
+      and whether the Runtime supports S3 Files or EFS mounts.
   - **Definition of done:** every item is recorded with a doc link and the date checked,
-    and `pyproject.toml` gains a `strands` extra with pinned versions.
+    `pyproject.toml` gains a `strands` extra with pinned versions, and every AWS module's
+    `versions.tf` uses the new provider pin with `terraform validate` green.
   - _Requirements: R1, R2.2, R4.1, R5.1_
 
 - [ ] **0.2 🔑 Rick: account prep** *(human task, about 30 min)*
-  - Request Bedrock model access for the two chosen models in us-east-1.
+  - Submit the Anthropic first-time-use form in the Bedrock console. Serverless models are
+    otherwise enabled by default (confirm in 0.1).
   - Create the `ai-team` AWS profile (SSO or IAM user) with admin rights in a dev account,
     used only for Terraform.
-  - **Definition of done:** `aws sts get-caller-identity --profile ai-team` works, and
-    model access shows "Access granted".
+  - **Definition of done:** `aws sts get-caller-identity --profile ai-team` works, and a
+    `bedrock-runtime converse` call succeeds for both chosen `us.` profile ids.
 
 ## Phase 1: Local, in-process and container ($0)
 
@@ -88,15 +99,28 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
 
 ## Phase 2: Bedrock models from the laptop (💲 ≤ $5)
 
+- [ ] **2.0 💲🔑 Step 0: existing backends on Bedrock** *(any time after 0.2; independent of Phase 1)*
+  - `claude-agent-sdk`: skip the `ANTHROPIC_API_KEY` precondition in `orchestrator.py` when
+    `CLAUDE_CODE_USE_BEDROCK=1`, and pass the AWS profile through.
+  - `langgraph`: add the LiteLLM `bedrock/<us. profile id>` path in `llm_factory.py`, and let
+    `model_validation.py` accept Bedrock ids.
+  - Use the same model ids that 2.1 configures for Strands.
+  - **Definition of done:** the thin slice is green on both backends via Bedrock, with cost
+    recorded and a row each in `docs/CLOUD_NATIVE.md`. Unit tests cover both config paths
+    with stubbed clients.
+  - _Requirements: R0_
+
 - [ ] **2.1 Bedrock provider + pricing**
   - **Definition of done:** config-only switch per design §3, with price entries added. A
-    unit test with a stubbed Bedrock client shows usage is priced.
+    unit test with a stubbed Bedrock client shows usage is priced, including cache-read and
+    cache-write tokens.
   - _Requirements: R3.1, R3.3_
 
 - [ ] **2.2 💲🔑 Live smoke on Bedrock (in-process)**
   - **Definition of done:** thin slice green on Bedrock. Record the cost next to the
-    Bedrock console figure (within ±20%), and add a row to `docs/CLOUD_NATIVE.md`
-    (strands / local / bedrock).
+    CloudWatch `AWS/Bedrock` token metrics for the run window, priced by our table (within
+    ±20%), and add a row to `docs/CLOUD_NATIVE.md` (strands / local / bedrock). The billing
+    console figure is added the next day as a note; it does not gate the task.
   - _Requirements: R3_
 
 - [ ] **2.3 💲🔑 Live smoke on Bedrock (container)**
@@ -107,14 +131,20 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
 ## Phase 3: Terraform (plan free; apply 💲)
 
 - [ ] **3.1 Modules: `ecr_repo`, `artifacts_bucket`, `observability`**
+  - `observability` also turns on CloudWatch Transaction Search (AgentCore traces need it)
+    and adds an alarm on `AWS/Bedrock` token metrics as the real-time spend backstop.
+  - `artifacts_bucket` holds `runs/` (expires after 14 days) and `state/` (versioned, kept).
   - **Definition of done:** they validate, checkov is clean or has reasoned skips, and
     `terraform-docs` READMEs are generated.
   - _Requirements: R4.1_
 
 - [ ] **3.2 Module: `iam_runtime_role`**
   - Least-privilege policy documents per design §5.
-  - **Definition of done:** a `terraform test` asserts there are no `*` actions and that
-    only the listed model ARNs are allowed.
+  - Each model gets one statement listing its `us.` inference-profile ARN and the
+    foundation-model ARNs that profile routes to, conditioned on `bedrock:InferenceProfileArn`.
+  - **Definition of done:** a `terraform test` asserts there are no `*` actions, that only
+    the listed profile and model ARNs are allowed, and that every profile is paired with its
+    model ARNs.
   - _Requirements: R4.1, R4.2_
 
 - [ ] **3.3 Module: `bedrock_guardrail`**
@@ -134,6 +164,7 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
   - _Requirements: R4.3_
 
 - [ ] **3.6 🔑 `envs/dev` wiring + plan**
+  - `backend.hcl.example` uses the S3 backend with `use_lockfile = true` (no DynamoDB table).
   - **Definition of done:** `terraform plan` succeeds on Rick's Mac. The plan summary
     (resource counts and IAM statements) is pasted into the task notes and reviewed by Rick.
   - _Requirements: R4_
@@ -146,9 +177,21 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
 
 ## Phase 4: Cloud run end to end (💲 ≤ $10)
 
+- [ ] **4.0 Lessons persist across cloud runs**
+  - In `runtime_app.py`: fetch `state/lessons.db` with its ETag at start, write it back with
+    `If-Match` at the end, and on a conflict re-fetch, merge and retry once (design §4).
+  - **Definition of done:** a conformance test runs the thin slice twice on
+    `target=container`, each time in a fresh container against a local S3 stand-in (moto or
+    MinIO), and shows a lesson written in run 1 is injected in run 2. A unit test covers the
+    conflict path.
+  - _Requirements: R5.4_
+
 - [ ] **4.1 `remote.py`: RemoteRunClient for AgentCore**
+  - Poll with the same `runtimeSessionId`, and end the session with `StopRuntimeSession` after
+    download. The container syncs artifacts after every commit and `logs/` in a `finally`.
   - **Definition of done:** it passes the foundation's remote-client tests against the
-    local container (target=container), before any cloud call.
+    local container (target=container), before any cloud call. A test that kills the
+    container mid-run still finds `logs/` and the last committed phase in the bucket.
   - _Requirements: R5.1_
 
 - [ ] **4.2 💲🔑 Cloud smoke: thin slice**
@@ -185,6 +228,17 @@ After any cloud session, run `infra/scripts/teardown_check.sh aws`.
     with one reason each.
   - **Definition of done:** the section is merged and linked from the README.
   - _Requirements: R6.2_
+
+- [ ] **5.4 💲 (Optional) Code Interpreter as the sandbox for agent-written code**
+  - Run the quality gate's pytest and ruff in AgentCore Code Interpreter under its own role,
+    with no Bedrock or S3 write access.
+  - **Definition of done:** a cloud thin slice passes with the gate running in Code
+    Interpreter, and the write-up compares its time and cost with in-session runs.
+  - _Requirements: R6.3_
+
+- [ ] **5.5 Moved:** the AgentCore Managed Harness now has its own spec,
+  [`../aws-agentcore-harness/`](../aws-agentcore-harness/), as the `agentcore-harness` backend.
+  Nothing to do here.
 
 ## Phase 6: Stretch, the full team
 

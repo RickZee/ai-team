@@ -1,7 +1,7 @@
 # Requirements — Production Hardening
 
 **Spec ID:** `production-hardening`
-**Status:** Draft for implementation
+**Status:** Done — all agent tasks complete; human-triggered benchmark 9.1 open
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (whole repo: `src/`, `evals/`, `tests/`, `docs/`, `docker/`, CI)
 **Created:** 2026-09-13

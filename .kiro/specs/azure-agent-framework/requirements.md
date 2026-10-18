@@ -1,7 +1,7 @@
 # Requirements: Azure-native Backend (Microsoft Agent Framework on Microsoft Foundry)
 
 **Spec ID:** `azure-agent-framework`
-**Status:** Draft for implementation
+**Status:** Draft
 **Owner:** Rick Zakharov
 **Created:** 2026-09-28
 **Budget:** Phases 0–1 **$0.00** (local). Phase 2 **≤ $5** (Foundry models from the laptop).

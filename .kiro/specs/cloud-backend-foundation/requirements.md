@@ -1,7 +1,7 @@
 # Requirements: Cloud Backend Foundation
 
 **Spec ID:** `cloud-backend-foundation`
-**Status:** Draft for implementation
+**Status:** In progress — 0.5, 4.2, 6.2, 6.3 open
 **Owner:** Rick Zakharov
 **Created:** 2026-09-28
 **Budget:** **$0.00.** Every task runs offline with fake models or a local Ollama model.

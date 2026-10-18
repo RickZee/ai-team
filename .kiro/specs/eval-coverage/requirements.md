@@ -1,7 +1,7 @@
 # Requirements — Eval Coverage and Check Liveness
 
 **Spec ID:** `eval-coverage`
-**Status:** Draft for implementation
+**Status:** In progress
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (extends `evals/checks/`, `evals/trace/parsers.py`, `evals/aggregate.py`,
 `src/ai_team/harness/telemetry.py`)

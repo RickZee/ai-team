@@ -1,7 +1,7 @@
 # Requirements — Eval Testbed
 
 **Spec ID:** `eval-testbed`
-**Status:** Draft for implementation
+**Status:** Draft
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (extends `src/ai_team/ui/web/`, `evals/`, `docs/course/`, `docs/`)
 **Created:** 2026-09-14

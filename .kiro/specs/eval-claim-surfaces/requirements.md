@@ -1,7 +1,7 @@
 # Requirements — Eval Claim Surfaces
 
 **Spec ID:** `eval-claim-surfaces`
-**Status:** Draft for implementation
+**Status:** Draft
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (extends `evals/aggregate.py`, `evals/report.py`, `evals/coverage.py`,
 `evals/cli.py`, `evals/store.py`, `docs/`)

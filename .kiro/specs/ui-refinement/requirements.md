@@ -1,7 +1,7 @@
 # Requirements — UI Refinement
 
 **Spec ID:** `ui-refinement`
-**Status:** Draft for implementation
+**Status:** In progress — 0.1 (before-state capture) and phase gates 2.4, 3.7 open
 **Owner:** Rick Zakharov
 **Target:** `src/ai_team/ui/web/frontend` (React 19 + Vite + TypeScript)
 **Created:** 2026-09-13

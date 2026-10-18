@@ -1,7 +1,7 @@
 # Requirements — Seven-Layer Harness
 
 **Spec ID:** `seven-layer-harness`
-**Status:** Draft for implementation
+**Status:** Done
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (in-place; shared path above backends)
 **Created:** 2026-08-28

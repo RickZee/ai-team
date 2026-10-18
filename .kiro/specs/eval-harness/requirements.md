@@ -1,7 +1,7 @@
 # Requirements — Eval Harness
 
 **Spec ID:** `eval-harness`
-**Status:** Draft for implementation
+**Status:** Done
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (in-place extension of `evals/`)
 **Created:** 2026-08-16

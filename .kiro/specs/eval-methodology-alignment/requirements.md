@@ -1,7 +1,7 @@
 # Requirements — Eval Methodology Alignment
 
 **Spec ID:** `eval-methodology-alignment`
-**Status:** Draft for implementation
+**Status:** Draft
 **Owner:** Rick Zakharov
 **Target repo:** `ai-team` (extends `src/ai_team/harness/`, `evals/trace/`, `evals/annotate.py`)
 **Created:** 2026-09-13
