@@ -105,9 +105,13 @@ run as a unit (workspace, bundle and registry entry):
 - **Web API:** `DELETE /api/runs/{id}` deletes a finished run (`complete`, `complete_approved`,
   `error` or `cancelled`) from disk and from the dashboard. A running run returns 400: cancel it
   first with `POST /api/runs/{id}/cancel`. Cancelling alone does not delete files.
-- **CLI:** `ai-team prune --older-than-days N` is defined, but the argument pre-processor in
-  `main.py` does not list `prune` as a subcommand, so today it is parsed as `ai-team run prune`
-  and starts a run. Use the Python call until that is fixed.
+- **CLI:** prune every run whose `output/runs/<run_id>/` bundle is older than the window
+  (default 14 days), together with its `workspace/<run_id>/`. It prints `pruned N run(s)` and is
+  idempotent. It honours `PROJECT_OUTPUT_DIR` and `PROJECT_WORKSPACE_DIR`.
+
+  ```bash
+  uv run ai-team prune --older-than-days 14
+  ```
 
 ## Troubleshooting common issues
 
