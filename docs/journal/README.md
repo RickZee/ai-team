@@ -31,6 +31,7 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-09-30 (repo audit)](2026-09-30-repo-audit.md) | Declared vs. exercised: 17 unimported deps, 36 adversarial tests CI never ran, a secret detector blind to the repo's own key formats, a harness layer marked *enforced* that nothing calls. 18 fixed, 14 open with sources. |
 | [2026-10-01 (harness-owned logs)](2026-10-01-harness-owned-logs.md) | A model-off run left `logs/` empty. Now a $0 run writes a zero cost row, the phase log is a harness write, a passing gate marks acceptance, 22 duplicate fixtures are gone, `role_cost.py` splits a batch by role, and a stopped LangGraph run keeps its last checkpoint. |
 | [2026-10-07 (pip-audit floors)](2026-10-07-pip-audit-floors.md) | Pre-push Security failed on advisories published after the Oct 1 green `main` run. Transitive floors moved; LiteLLM stays pinned and `PYSEC-2026-4066` is ignored. |
+| [2026-10-18 (AWS backend and OTel)](2026-10-18-aws-backend-and-otel.md) | The AWS plan changed provider, framework and host at once; it now climbs one variable at a time (Step 0 first). A second spec for AgentCore's managed loop, and one OTel shape for every backend, exported and read back without loss. CLI runs were never finalized. The Docker half is written, not run. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
 
 The July rigor arc (Jul 21–24) has no standalone entry — it lives in
