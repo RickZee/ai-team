@@ -1,6 +1,7 @@
 """
-ai_team: Multi-agent software development orchestration with CrewAI and Ollama.
+ai_team: one nine-agent software team on interchangeable orchestration backends.
 
-This package provides agents, crews, flows, tools, guardrails, and memory
-for automated planning, development, testing, and deployment.
+Backends (CrewAI, LangGraph, Claude Agent SDK; Strands and Agent Framework as stubs)
+run behind one ``Backend`` protocol and share the harness: ToolBus, guardrails,
+spend guard, pinned context and results bundle. Map: ``docs/MODULE_MAP.md``.
 """

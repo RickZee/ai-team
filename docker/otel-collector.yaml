@@ -22,6 +22,8 @@ processors:
 exporters:
   otlphttp/aspire:
     endpoint: http://aspire-dashboard:18890
+    # Aspire's OTLP/HTTP endpoint doesn't decompress: gzip (the default) arrives as bad protobuf, HTTP 500.
+    compression: none
   otlphttp/phoenix:
     endpoint: http://phoenix:6006
   file:

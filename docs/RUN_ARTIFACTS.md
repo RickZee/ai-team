@@ -13,31 +13,62 @@ This is designed to mirror a real engineering organization: requirements, archit
 
 ## Directory layout
 
+Both folders use the same run id, for example
+`2026-10-19_102648_write-a-single-python-module_01` (`core/run_naming.py`).
+
 ```text
 workspace/
-└── <project_id>/
-    ├── src/                      # generated source (or app root, per project)
+└── <project_id>/                 # created by core/workspace_layout.py
+    ├── docs/                     # brief, requirements, architecture, contracts/
+    │   ├── CONSTRAINTS.md        # pinned constraints (harness-owned, never summarized)
+    │   ├── STATE.md              # last N phase facts (harness-owned)
+    │   ├── LESSONS.md            # rendered from the lesson store
+    │   ├── lessons.jsonl         # structured lesson records
+    │   └── qa_verdicts.jsonl     # one record per item per QA pass
+    ├── src/                      # generated source
     ├── tests/                    # generated tests
-    ├── infra/                    # optional IaC
-    └── ...                       # additional project files
+    ├── infrastructure/           # optional IaC
+    ├── .github/workflows/        # optional CI
+    ├── .harness/drafts/          # ToolBus writes waiting for commit_write
+    └── logs/
+        ├── audit.jsonl           # every ToolBus call
+        ├── journal.jsonl         # ToolBus allow/deny decisions
+        ├── phases.jsonl          # phase transitions
+        ├── costs.jsonl           # spend rows
+        ├── harness_acceptance.json
+        └── session.json, reasoning.jsonl   # Claude Agent SDK only
 
 output/
+├── index.json                    # registry of runs (rebuilt on finalize)
+├── latest                        # link to the newest run
 └── runs/
     └── <project_id>/
-    ├── run.json                  # run metadata (backend, team, env, models, CLI args)
-    ├── state.json                # final state (CrewAI ProjectState or LangGraphProjectState)
-    ├── events.jsonl              # streaming events / monitor updates (append-only)
-    ├── artifacts/
-    │   ├── intake/               # validated prompt, flags, risk notes
-    │   ├── planning/             # requirements + architecture + ADRs
-    │   ├── development/          # file manifest + patch/diff + hashes
-    │   ├── testing/              # test and coverage reports
-    │   └── deployment/           # Docker/CI/IaC and ops docs
-    ├── reports/
-    │   ├── scorecard.json        # guardrails + quality gates summary
-    │   └── summary.md            # human-readable execution summary
-    └── logs/                     # optional (copied or linked subset)
+        ├── run.json              # run metadata (backend, team, env, models, CLI args)
+        ├── state.json            # final state (CrewAI ProjectState or LangGraphProjectState)
+        ├── receipt.json          # source of truth for cost, files, tests and smoke
+        ├── receipt.md            # the same, for people
+        ├── events.jsonl          # streamed events, when the backend streams (append-only)
+        ├── artifacts/
+        │   ├── intake/
+        │   ├── planning/         # requirements.json, architecture.json
+        │   ├── development/      # code_manifest.json
+        │   ├── testing/          # test_results.json, pytest.txt, ruff.txt
+        │   └── deployment/
+        ├── reports/
+        │   ├── scorecard.json    # guardrails + quality gates summary
+        │   ├── summary.md        # human-readable summary (CrewAI)
+        │   └── manager_self_improvement_report.{json,md}
+        └── logs/
+            ├── costs.jsonl       # run total row written by finalize()
+            ├── phases.jsonl
+            ├── otel.harness.jsonl   # after `evals.cli trace export-otel`
+            └── otel.export.json     # export status
 ```
+
+Not every run writes every file: a LangGraph `placeholder` run has empty artifact folders, and
+the OTel files appear only after an export ([observability](observability/README.md)).
+`ResultsBundle.finalize()` (`core/results/writer.py`) writes the receipt through
+`harness/receipt.py`.
 
 ## `run.json`
 
@@ -67,7 +98,7 @@ Append-only JSON Lines stream of state updates and notable events (phase changes
 
 ## Development manifest
 
-`output/<project_id>/artifacts/development/code_manifest.json` records each generated file:
+`output/runs/<project_id>/artifacts/development/code_manifest.json` records each generated file:
 
 - `path` (relative to `workspace/<project_id>/`)
 - `sha256`

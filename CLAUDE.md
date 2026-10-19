@@ -40,6 +40,11 @@ Agents coordinate through these paths (file-based handoff), not a shared in-memo
 
 Choose the backend explicitly (`--backend`); do not assume OpenRouter keys work for the Claude Agent SDK backend.
 
+## Where to look
+
+System on one page: `docs/ARCHITECTURE.md`. Packages and import rules: `docs/MODULE_MAP.md`.
+Adding a backend, tool, guardrail, check or spec: `docs/EXTENDING.md`. Env vars: `docs/CONFIGURATION.md`.
+
 ## Kiro specs
 
 Feature work specified under `.kiro/specs/<id>/` is executed from `tasks.md`.

@@ -1,1 +1,1 @@
-"""Orchestration backends: CrewAI (current) and LangGraph (alternative)."""
+"""Orchestration backends behind the ``Backend`` protocol. Resolve one with ``get_backend``."""

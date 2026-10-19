@@ -234,7 +234,8 @@ AI_TEAM_USE_REAL_LLM=1 uv run pytest tests/integration -m real_llm   # live Open
 
 Ruff formats and lints, mypy type-checks, and `tests/unit/repo/` guards repository invariants
 (reachability, dead links, type-debt and complexity ratchets). Conventions and PR process:
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md). Adding a backend, tool, guardrail or spec:
+[docs/EXTENDING.md](docs/EXTENDING.md).
 
 <details>
 <summary><b>Configuration reference</b></summary>
@@ -257,8 +258,8 @@ Ruff formats and lints, mypy type-checks, and `tests/unit/repo/` guards reposito
 | `AI_TEAM_USE_REAL_LLM` | `1` enables live-LLM integration tests and evals | unset |
 | `AI_TEAM_EVAL_BUDGET_USD` | Ceiling for live eval tiers B/C | `5.00` |
 
-More knobs (`MEMORY_*`, `GUARDRAIL_*`, `ANTHROPIC_*`) are documented in
-[GUARDRAILS.md](docs/GUARDRAILS.md) and [MODELS.md](docs/MODELS.md).
+Every other variable (`MEMORY_*`, `GUARDRAIL_*`, `ANTHROPIC_*`, harness flags) is in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 </details>
 
 ## Repository layout
@@ -297,7 +298,10 @@ Start with the [documentation map](docs/README.md). The most useful pages:
 - [Engineering journal](docs/journal/README.md): what broke, when, and the commit that fixed it, corrections included
 - [Failure taxonomy](docs/posts/failure-taxonomy.md): the classes of failure, each with a trace
 - [HARNESS.md](docs/HARNESS.md): the seven harness layers and whether each is instrumented, enforced or closed-loop
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md): system design and inter-agent communication per backend
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md): the system on one page: backends, harness, a run end to end, evals
+- [MODULE_MAP.md](docs/MODULE_MAP.md): where every package lives and which way imports point
+- [EXTENDING.md](docs/EXTENDING.md): add a backend, tool, guardrail, role, eval check or spec
+- [CONFIGURATION.md](docs/CONFIGURATION.md): every env var and CLI flag, with defaults
 - [Spec index](.kiro/specs/README.md): what is planned and in what order
 
 ## License and acknowledgments

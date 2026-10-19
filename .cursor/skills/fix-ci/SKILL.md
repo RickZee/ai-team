@@ -53,7 +53,7 @@ Matrix note: `fail-fast: false` — both Python versions finish; fix the leg tha
 | **Test (3.11)** | `./scripts/ci_unit_test.sh --python 3.11` |
 | **Test (3.12)** | `./scripts/ci_unit_test.sh --python 3.12 --cov` |
 | **Both Test legs** | `./scripts/ci_check.sh --matrix` |
-| **Web UI E2E** | See [Web UI E2E](#web-ui-e2e) below |
+| **Web UI E2E** | See [Web UI E2E](#3-web-ui-e2e) below |
 | **Integration test** (main push only) | `uv run pytest tests/integration -v --tb=short` |
 | **Security** | `./scripts/pip_audit.sh` (after `pip install --upgrade "pip>=26.2"`) |
 

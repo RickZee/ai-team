@@ -35,7 +35,7 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
     confirmed (or "not available") pairing key for each merge rule.
   - _Requirements: R1, R3_
 
-- [ ] **0.2 Pin versions and check Phoenix**
+- [x] **0.2 Pin versions and check Phoenix**
   - Pin the GenAI convention version (`schemaUrl`), the OpenInference version and the Phoenix
     image. Confirm Phoenix's OTLP/HTTP path, its storage setting, its query API for tests,
     whether it reads `gen_ai.*`, and what it does with a re-sent span id. Re-check the licence
@@ -44,8 +44,9 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
     design §7 and §10 updated if anything differs.
   - _Requirements: R1.4, R5.1_
   - **Progress 2026-10-18:** versions, licence, OTLP path, storage setting, query API and
-    `gen_ai.*` handling recorded in `docker/VERSIONS.md`. Open: `docker pull
-    arizephoenix/phoenix:20.5.0` on Rick's Mac, and how Phoenix treats a re-sent span id.
+    `gen_ai.*` handling recorded in `docker/VERSIONS.md`. Pulled on Rick's Mac the same day
+    (digest in `VERSIONS.md`); a re-sent run kept 19 spans, so Phoenix doesn't duplicate.
+    Design §7 and §10 updated.
 
 ## Phase 1: Shape, export, re-import
 
@@ -78,7 +79,7 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
 
 ## Phase 2: Local viewing
 
-- [ ] **2.1 Phoenix, collector, localhost ports, make targets**
+- [x] **2.1 Phoenix, collector, localhost ports, make targets**
   - Compose and collector per design §7; `make otel-up`, `otel-down`, `otel-backfill`,
     `test-otel-integration`.
   - **Definition of done:** `tests/unit/repo/test_otel_stack_config.py` passes; `make otel-up`
@@ -86,7 +87,12 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
     4318 appears in both and in `output/otel/traces.jsonl`; Phoenix still has it after a restart.
   - _Requirements: R5.1, R5.2, R5.3, R7.2_
   - **Progress 2026-10-18:** compose, collector config, make targets and the repo test are
-    done and green. Open: `make otel-up` and the test span on a machine with Docker.
+    done and green. Then on Rick's Mac: 4317, 4318, 6006, 13133, 18888 listen on 127.0.0.1
+    only; a real 19-span run reached `output/otel/traces.jsonl`, Phoenix and Aspire, and
+    Phoenix kept it across a restart. Three fixes on the way: Aspire got 500 on gzip OTLP/HTTP
+    and every span was dropped (`compression: none`); Aspire's UI asked for a token (frontend
+    auth off, like Phoenix); `otel-up` also started the unprofiled `app`, which crash-looped
+    (targets now name the three services).
 
 - [x] **2.2 Tag native spans**
   - `OTEL_RESOURCE_ATTRIBUTES` on the `strands` and `agent-framework` services; the
@@ -96,14 +102,16 @@ AI_TEAM_DOCKER_TESTS=1 make test-otel-integration
     passes; both backend specs carry the added line.
   - _Requirements: R4_
 
-- [ ] **2.3 Integration tests**
+- [x] **2.3 Integration tests**
   - `tests/integration/test_otel_local_stack.py` per design §9.
   - **Definition of done:** passes with Docker and `AI_TEAM_DOCKER_TESTS=1`; skips with a reason
     otherwise, including in the existing CI `pytest tests/integration` step; leaves no containers
     running; never writes to the real `output/`.
   - _Requirements: R7.4, R7.5_
   - **Progress 2026-10-18:** the test file is written and skips with a reason without Docker
-    (checked). Open: a green run with `AI_TEAM_DOCKER_TESTS=1 make test-otel-integration`.
+    (checked). Green on Rick's Mac with `make test-otel-integration` (2 passed, 33 s), no
+    containers left. It now starts only the three services (was 216 s building `app`) and
+    fails if the collector logs a dropped export; checked by putting gzip back (it failed).
 
 - [ ] **2.4 Smoke: every available backend in one view**
   - Run the cheapest real run per available backend, then `make otel-backfill`.

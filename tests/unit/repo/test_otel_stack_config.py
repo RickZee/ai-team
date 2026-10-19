@@ -37,6 +37,18 @@ def test_every_published_port_is_localhost_only() -> None:
             assert str(port).startswith("127.0.0.1:"), f"{name} publishes {port} beyond localhost"
 
 
+def test_aspire_has_no_login_like_phoenix() -> None:
+    env = _observability()["aspire-dashboard"]["environment"]
+    assert env["DASHBOARD__FRONTEND__AUTHMODE"] == "Unsecured"
+
+
+def test_otel_up_starts_only_the_observability_services() -> None:
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    services = next(ln for ln in makefile.splitlines() if ln.startswith("OTEL_SERVICES ="))
+    assert set(services.split("=", 1)[1].split()) == set(_observability())
+    assert "up -d $(OTEL_SERVICES)" in makefile
+
+
 def test_phoenix_keeps_its_data() -> None:
     phoenix = _observability()["phoenix"]
     assert phoenix["environment"]["PHOENIX_WORKING_DIR"] == "/mnt/data"
@@ -50,6 +62,8 @@ def test_collector_pipeline_fans_out_with_processors_and_health() -> None:
     assert set(traces["exporters"]) == {"otlphttp/aspire", "otlphttp/phoenix", "file"}
     assert "health_check" in cfg["service"]["extensions"]
     assert cfg["exporters"]["otlphttp/phoenix"]["endpoint"] == "http://phoenix:6006"
+    # Aspire 500s on gzip OTLP/HTTP and the collector drops the batch; found on the first real run.
+    assert cfg["exporters"]["otlphttp/aspire"]["compression"] == "none"
 
 
 def test_native_backends_are_tagged() -> None:

@@ -8,12 +8,15 @@ local-smoke:
 	uv run python scripts/local_smoke.py --backend $(BACKEND)
 
 # Local trace viewing: Aspire http://localhost:18888 (live), Phoenix http://localhost:6006 (history).
+# Named so `up` leaves the unprofiled `app` service alone (it refuses to start without a token).
+OTEL_SERVICES = otel-collector aspire-dashboard phoenix
+
 otel-up:
 	mkdir -p output/otel output/phoenix
-	$(COMPOSE) --profile observability up -d
+	$(COMPOSE) --profile observability up -d $(OTEL_SERVICES)
 
 otel-down:
-	$(COMPOSE) --profile observability down
+	$(COMPOSE) --profile observability rm -sf $(OTEL_SERVICES)
 
 # Send every run in output/runs/ whose last export wasn't posted.
 otel-backfill:

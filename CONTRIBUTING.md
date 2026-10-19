@@ -13,7 +13,7 @@ AI-Team runs the **same nine-agent software team across three orchestration back
 
 ### Prerequisites
 
-- Python 3.11 or 3.12
+- Python 3.11, 3.12 or 3.13 (`requires-python >=3.11,<3.14`; CI tests 3.11 and 3.12)
 - [uv](https://docs.astral.sh/uv/) — install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **API keys, per backend** (see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)):
   - `OPENROUTER_API_KEY` — CrewAI and LangGraph backends.
@@ -68,8 +68,8 @@ formatting churn, so neither is installed.
 
 ### mypy (type checking)
 
-- Target: Python 3.11.
-- Run: `uv run mypy src/ai_team`
+- Target: `python_version = "3.12"` in `[tool.mypy]`.
+- Run: `uv run mypy src/` and `uv run mypy evals/` (both run in CI)
 - Config: `warn_return_any`, `warn_unused_configs`, `ignore_missing_imports` in `pyproject.toml`.
 
 Before opening a PR, ensure:
@@ -131,40 +131,22 @@ uv run pytest --cov=src/ai_team --cov-report=term-missing
 
 New behavior should be covered by unit and/or integration tests as appropriate.
 
-## Adding new agents, tools, or guardrails
+## Adding backends, tools, guardrails, roles, checks or specs
 
-### Adding a new agent
+Step-by-step recipes, with the files to touch and the tests that catch a missed step, are in
+[docs/EXTENDING.md](docs/EXTENDING.md):
 
-1. **Define the role** in `config/agents.yaml` (role, goal, backstory) — this file is shared across all three backends.
-2. **Map it to a model** by adding the role to `ENV_MODELS` in [`src/ai_team/config/models.py`](src/ai_team/config/models.py) (keyed by environment tier → role → `RoleModelConfig`). There is no per-agent `.env` model variable; model assignment lives in `models.py`, with optional per-run overrides in `config/team_profiles.yaml`. See [docs/MODELS.md](docs/MODELS.md).
-3. **Add it to a team profile** in `config/team_profiles.yaml` so a profile actually rosters the new role.
-4. **Wire it into the backends that need it:** the CrewAI path uses `src/ai_team/backends/crewai_backend/agents/` + `src/ai_team/backends/crewai_backend/crews/`; LangGraph and the Claude SDK consume the same `TeamProfile` roster and prompts. Keep the role's behavior consistent across backends, or document the difference.
-5. **Document** the role in [docs/AGENTS.md](docs/AGENTS.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and add tests.
+- [Add a backend](docs/EXTENDING.md#add-a-backend): implement `Backend`, honour the conformance
+  script, get tools from the ToolBus bridge, register it, add it to the conformance suite.
+- [Add a tool](docs/EXTENDING.md#add-a-tool): register a `ToolSpec` on the ToolBus; never call
+  file or shell code around it.
+- [Add a guardrail](docs/EXTENDING.md#add-a-guardrail): write it once, wire it into each backend.
+- [Add an agent role or a team profile](docs/EXTENDING.md#add-an-agent-role-or-a-team-profile)
+- [Add a failure mode and its check](docs/EXTENDING.md#add-a-failure-mode-and-its-check)
+- [Add or update a spec](docs/EXTENDING.md#add-or-update-a-spec)
 
-### Adding a new tool
-
-1. **Implement** the tool in `src/ai_team/tools/` (CrewAI tool interface; use existing file/code/git tools as reference).
-2. **Apply guardrails** where relevant (e.g. path validation, code safety) via the guardrail layer.
-3. **Attach** to the appropriate agent(s) in the crew or base agent setup.
-4. **Document** the tool alongside the others in [`src/ai_team/tools/`](src/ai_team/tools/) and add unit tests (and integration tests if it calls external services).
-
-### Adding or changing guardrails
-
-1. **Implement** in `src/ai_team/guardrails/` (behavioral, security, or quality module).
-2. **Integrate** into the full guardrail chain (see existing `create_full_guardrail_chain` or equivalent).
-3. **Configure** via settings/GuardrailConfig and `.env` if needed.
-4. **Document** in [docs/GUARDRAILS.md](docs/GUARDRAILS.md) and add tests in the guardrail test suite.
-
-### Adding a new backend
-
-A backend is any orchestration engine that can turn a brief into a delivered project. To add one (e.g. AutoGen, Bedrock Agents):
-
-1. **Implement the `Backend` protocol** (`src/ai_team/core/backend.py`): `run(description, team, env) → ProjectResult` and `stream(...) → AsyncIterator[StreamEvent]`. Return a normalized `ProjectResult` so the CLI, dashboard, and comparison scripts don't need to know which engine ran.
-2. **Register it** by adding a branch in `get_backend()` in [`src/ai_team/backends/registry.py`](src/ai_team/backends/registry.py) — it dispatches by name (`crewai | langgraph | claude-agent-sdk`).
-3. **Consume the shared `TeamProfile`**, don't hard-code a roster — the whole point is that `--team` selects the same agents for every backend.
-4. **Honor the deliverable contract.** Generated files land in the per-run workspace (`workspace_dir/<id>/`), and profiles that include the `deployment` phase must produce a non-empty root `README.md`. Enforcement is shared: `deployment_artifacts_guardrail()` runs from the common post-run path for *every* backend, so a new backend is checked automatically (it's warn-only).
-5. **Bound the loops.** Any path that can retry or loop over LLM calls needs a spend/timeout guard (see the operational guardrails below).
-6. **Add it to the comparison surface** — the smoke batch and the docs tables — and run n≥5 so its row is real data, not a single run.
+Where things live: [docs/MODULE_MAP.md](docs/MODULE_MAP.md). Every env var:
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ### Operational guardrails (timeouts, spend, loops)
 
@@ -180,7 +162,7 @@ running real (paid) backends or writing CI:
 | `CREWAI_HARD_TIMEOUT_SECONDS` | `900` | Wall-clock kill deadline for the CrewAI subprocess (it can ignore its own internal timeout; this is the hard outer kill). |
 | `AI_TEAM_LANGGRAPH_RECURSION_LIMIT` | `50` | LangGraph graph superstep cap. |
 
-Keep this table in sync with the *Configuration reference* in [README.md](README.md#configuration-reference) when you add or change a knob.
+When you add or change a knob, update [docs/CONFIGURATION.md](docs/CONFIGURATION.md) (the full list) and, for the common ones, the *Configuration reference* in [README.md](README.md).
 
 If you add a new retry path, a new backend invoke, or anything that can loop over LLM
 calls, make sure it stays bounded by these (or add an equivalent guard) and document it

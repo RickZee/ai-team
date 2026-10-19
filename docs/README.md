@@ -15,6 +15,10 @@ much to trust its dates.
 | Document | Read it when |
 | --- | --- |
 | [GETTING_STARTED.md](GETTING_STARTED.md) | Setting up keys, running a backend, fixing a first-run error |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | You want the whole system on one page: backends, harness, a run end to end, evals |
+| [MODULE_MAP.md](MODULE_MAP.md) | You need to find where something lives, or which imports are allowed |
+| [EXTENDING.md](EXTENDING.md) | You are adding a backend, tool, guardrail, role, eval check or spec |
+| [CONFIGURATION.md](CONFIGURATION.md) | You need an env var or CLI flag and its default |
 | [GLOSSARY.md](GLOSSARY.md) | A term in the code or the docs is new to you |
 | [`course/`](../course/README.md) | You want the six-week, hands-on route through the whole system |
 | [`docs/course/`](course/README.md) | You want the short, no-code version: *Evals Without the Jargon* (+ `minieval.py`) |
@@ -24,7 +28,8 @@ much to trust its dates.
 
 | Area | Document |
 | --- | --- |
-| System design | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| System design | [ARCHITECTURE.md](ARCHITECTURE.md), [MODULE_MAP.md](MODULE_MAP.md) |
+| How each framework fails, per incident | [FRAMEWORKS.md](FRAMEWORKS.md) |
 | Harness layers and their status | [HARNESS.md](HARNESS.md) |
 | Guardrails catalogue | [GUARDRAILS.md](GUARDRAILS.md) |
 | Agents and team profiles | [AGENTS.md](AGENTS.md), [TEAM_PROFILES.md](TEAM_PROFILES.md) |

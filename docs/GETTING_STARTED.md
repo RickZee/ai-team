@@ -4,9 +4,9 @@ This guide walks you through prerequisites, installation, your first run, and co
 
 ## Prerequisites checklist
 
-- [ ] **Python 3.11 or 3.12** — Check with `python3 --version`.
+- [ ] **Python 3.11, 3.12 or 3.13** — Check with `python3 --version`. CI tests 3.11 and 3.12.
 - [ ] **uv** — [Install uv](https://docs.astral.sh/uv/getting-started/installation/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
-- [ ] **OpenRouter API key** — Get one at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys); add to `.env` as `OPENROUTER_API_KEY`.
+- [ ] **A model key, for paid runs only** — `OPENROUTER_API_KEY` ([openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)) for CrewAI and LangGraph, `ANTHROPIC_API_KEY` for the Claude Agent SDK. The $0 run below needs neither.
 
 ## Step-by-step installation
 
@@ -49,19 +49,23 @@ uv run pytest tests/unit -v
 
 ## First run walkthrough
 
-1. **Ensure `OPENROUTER_API_KEY` is set** in `.env` (see Troubleshooting below if you see auth errors).
-
-2. **Run the CLI** with a short prompt:
-
-   ```bash
-   uv run ai-team run "Create a minimal Hello World Flask API"
-   ```
-
-   Or use the module entry point:
+1. **Run the team with the model off ($0).** LangGraph's default `placeholder` graph mode runs
+   every phase with stub nodes, so the whole pipeline (workspace, ToolBus, results bundle,
+   receipt) runs without a key:
 
    ```bash
-   uv run python -m ai_team.main run "Create a minimal Hello World Flask API"
+   uv run ai-team run "Create a minimal Hello World Flask API" --backend langgraph --skip-estimate
    ```
+
+   The JSON summary names the run id. Its files are in `workspace/<run_id>/` and
+   `output/runs/<run_id>/` ([ARCHITECTURE.md §5](ARCHITECTURE.md#5-what-a-run-leaves-behind)).
+   A `deployment_artifacts_check` warning is expected here: stub nodes write no README.
+
+2. **Run with a model.** Set `OPENROUTER_API_KEY` in `.env` (see Troubleshooting below if you
+   see auth errors), then add `--langgraph-mode full`, or pick another backend with
+   `--backend crewai` or `--backend claude-agent-sdk` (needs `ANTHROPIC_API_KEY`). These spend
+   money; `AI_TEAM_RUN_BUDGET_USD` (default $5) stops a run that goes over. Always pass
+   `--backend`: the CLI default is still `crewai`.
 
 3. **Optional: run the web dashboard**
 
@@ -84,22 +88,26 @@ uv run pytest tests/unit -v
 
 ## Deleting old runs
 
-Runs accumulate under `workspace/<run_id>/` and `output/runs/<run_id>/`. To remove a run as a unit (workspace, artifact bundle, and registry entry):
+Runs accumulate under `workspace/<run_id>/` and `output/runs/<run_id>/`. Three ways to remove a
+run as a unit (workspace, bundle and registry entry):
 
-```python
-from ai_team.core.results import delete_run
+- **Python:** `delete_run()` is idempotent, so it is safe on a run that is already gone.
 
-result = delete_run("my-run-id")
-print(result.existed, result.workspace_deleted, result.bundle_deleted)
-```
+  ```python
+  from ai_team.core.results import delete_run
 
-- **Idempotent** — safe to call on a run that is already gone.
-- **Cancel is not delete** — stopping a run via the Dashboard (`POST /api/runs/{id}/cancel`) does not remove its files.
+  result = delete_run("my-run-id")
+  print(result.existed, result.workspace_deleted, result.bundle_deleted)
+  ```
 
-If you use the web dashboard and want to drop a finished run from the in-memory sidebar (without restarting the server), call `RunState.remove_run(run_id)` on a terminal run (`complete`, `error`, or `cancelled`) after `delete_run()`.
-
-REST `DELETE /api/runs/{id}` and a CLI `clean` subcommand are not implemented yet.
-Full detail: [README — Managing runs](../README.md#managing-runs).
+  `prune_runs(older_than_days=14)` in `ai_team.core.results.cleanup` removes every run older
+  than the window.
+- **Web API:** `DELETE /api/runs/{id}` deletes a finished run (`complete`, `complete_approved`,
+  `error` or `cancelled`) from disk and from the dashboard. A running run returns 400: cancel it
+  first with `POST /api/runs/{id}/cancel`. Cancelling alone does not delete files.
+- **CLI:** `ai-team prune --older-than-days N` is defined, but the argument pre-processor in
+  `main.py` does not list `prune` as a subcommand, so today it is parsed as `ai-team run prune`
+  and starts a run. Use the Python call until that is fixed.
 
 ## Troubleshooting common issues
 

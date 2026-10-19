@@ -5,9 +5,12 @@ alwaysApply: true
 
 # Kiro-style specs
 
-Specs live at `.kiro/specs/<id>/` as four files. Read **in order**: `README.md` →
+Specs live at `.kiro/specs/<id>/` as `requirements.md`, `design.md` and `tasks.md`,
+plus an optional `README.md`. Read **in order**: `README.md` (if present) →
 `requirements.md` → `design.md` → `tasks.md`. Do not implement from memory of an
-older spec.
+older spec. The register in `.kiro/specs/README.md` is generated: edit a spec's
+header, then run `uv run python scripts/spec_index.py --write`. New-spec recipe:
+`docs/EXTENDING.md` → *Add or update a spec*.
 
 ## `tasks.md` is a living checklist
 

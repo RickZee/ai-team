@@ -1,1 +1,1 @@
-"""UI modules for ai-team: Textual TUI and FastAPI+React web dashboard."""
+"""UI modules for ai-team: FastAPI control plane, React/Vite dashboard, artifact browser."""

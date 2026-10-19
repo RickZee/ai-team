@@ -63,7 +63,7 @@ class Stack:
     def endpoint(self) -> str:
         return f"http://127.0.0.1:{self.http}"
 
-    def compose(self, *args: str, timeout: int = 300) -> None:
+    def _run(self, *args: str, timeout: int) -> subprocess.CompletedProcess[str]:
         cmd = [
             "docker",
             "compose",
@@ -75,7 +75,16 @@ class Stack:
             "observability",
             *args,
         ]
-        subprocess.run(cmd, check=True, env=self.env, timeout=timeout, capture_output=True)
+        return subprocess.run(
+            cmd, check=True, env=self.env, timeout=timeout, capture_output=True, text=True
+        )
+
+    def compose(self, *args: str, timeout: int = 300) -> None:
+        self._run(*args, timeout=timeout)
+
+    def collector_logs(self) -> str:
+        out = self._run("logs", "otel-collector", timeout=60)
+        return out.stdout + out.stderr
 
 
 def _wait(url: str, seconds: float = 120) -> None:
@@ -108,7 +117,7 @@ def stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Stack]:
         "AI_TEAM_PHOENIX_PORT": str(ports["phoenix"]),
     }
     st = Stack(env, otel_dir, ports["http"], ports["phoenix"], ports["health"])
-    st.compose("up", "-d")
+    st.compose("up", "-d", "otel-collector", "aspire-dashboard", "phoenix")
     try:
         _wait(f"http://127.0.0.1:{st.health}/")
         _wait(f"http://127.0.0.1:{st.phoenix}/")
@@ -176,6 +185,8 @@ def test_export_reaches_file_and_phoenix_and_survives_restart(stack: Stack, tmp_
     raw = stack.otel_dir / "traces.jsonl"
     assert _until(lambda: raw.is_file() and "otel-it-1" in raw.read_text()), "not in collector file"
     assert _until(lambda: _phoenix_tool_spans(stack, "write_file")), "not in Phoenix"
+    # Aspire has no query API; a rejected batch shows up as a dropped export in the collector.
+    assert "Exporting failed" not in stack.collector_logs(), "an exporter (Aspire?) dropped spans"
 
     stack.compose("restart", "phoenix", timeout=120)
     _wait(f"http://127.0.0.1:{stack.phoenix}/")

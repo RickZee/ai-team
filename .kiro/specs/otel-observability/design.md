@@ -198,12 +198,13 @@ otel-collector:
   ports: ["127.0.0.1:4317:4317", "127.0.0.1:4318:4318", "127.0.0.1:13133:13133"]
 aspire-dashboard:
   ports: ["127.0.0.1:18888:18888"]
+  environment: { DASHBOARD__OTLP__AUTHMODE: Unsecured, DASHBOARD__FRONTEND__AUTHMODE: Unsecured }
 phoenix:
   profiles: ["observability"]
-  image: arizephoenix/phoenix:<pinned in 0.2>
+  image: arizephoenix/phoenix:20.5.0
   ports: ["127.0.0.1:6006:6006"]
   volumes: ["../output/phoenix:/mnt/data"]
-  environment: { PHOENIX_WORKING_DIR: /mnt/data }   # confirm the variable in 0.2
+  environment: { PHOENIX_WORKING_DIR: /mnt/data }
   networks: [aiteam]
 ```
 
@@ -215,7 +216,7 @@ processors:
   memory_limiter: { check_interval: 1s, limit_mib: 512 }
   batch: {}
 exporters:
-  otlphttp/aspire:  { endpoint: http://aspire-dashboard:18890 }
+  otlphttp/aspire:  { endpoint: http://aspire-dashboard:18890, compression: none }  # gzip → HTTP 500
   otlphttp/phoenix: { endpoint: http://phoenix:6006 }
   file:             { path: /otel/traces.jsonl, append: true }
 service:
@@ -228,6 +229,8 @@ service:
 ```
 
 - Ports bind to `127.0.0.1` because the viewers have no login and the traces can hold prompts.
+- `make otel-up` names the three services: a bare `up` with the profile also starts the
+  unprofiled `app`, which refuses to start without `AI_TEAM_WEB_TOKEN` and restarts in a loop.
 - Aspire keeps traces in memory (live view). Phoenix keeps history and reads OpenInference.
   The file is a raw copy whatever viewer you use.
 
@@ -310,7 +313,8 @@ fixture), so nothing is added there.
 | --- | --- |
 | Convention names change (GenAI is "development" status; OpenInference evolves) | Both pinned; one mapping table; the round-trip test |
 | Phoenix ignores most `gen_ai.*` names | Since 15.10.0 it converts the main ones at ingest; OpenInference names are still written on every span (R1.1), and take precedence |
-| Phoenix stores a re-sent span twice | Stable ids and `--if-changed`; 0.2 checks how Phoenix handles a repeated id |
+| Phoenix stores a re-sent span twice | Checked in 0.2 (Phoenix 20.5.0): a re-sent run keeps the same span count, so it doesn't. Stable ids and `--if-changed` stay, for the file and other viewers |
+| A viewer rejects a batch and the collector drops it silently | Found in 2.1: Aspire 500s on gzip OTLP/HTTP. `compression: none` for Aspire; the integration test fails on any "Exporting failed" in the collector log |
 | Pairing keys missing in some logs | Unpaired spans are exported alone and flagged, never dropped |
 | Tool data leaks into viewers | Off by default, hashes only; 2 KB cut when on; sensitive keys never exported; ports bound to localhost |
 | Very large runs | 512-span batches; the collector's `memory_limiter` |

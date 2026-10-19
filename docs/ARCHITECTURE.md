@@ -1,162 +1,165 @@
 # Architecture
 
-This document describes the AI Team system architecture: flows, crews, agents, tools, guardrails, memory, and UI layers. It aligns with the multi-backend design and the `Backend` protocol.
+How ai-team is put together today: the backends, the shared harness they all run through, what
+a run writes, and how runs become traces and eval results. Start here, then use:
+
+| Next | For |
+| --- | --- |
+| [MODULE_MAP.md](MODULE_MAP.md) | Where every package and folder lives, and which way imports point |
+| [EXTENDING.md](EXTENDING.md) | Adding a backend, tool, guardrail, role, eval check or spec |
+| [CONFIGURATION.md](CONFIGURATION.md) | Every env var and CLI flag |
+| [HARNESS.md](HARNESS.md) | Each harness layer's status, with the test that proves it |
+| [GLOSSARY.md](GLOSSARY.md) | Terms |
 
 Cloud-native backends (Strands on AgentCore, Agent Framework on Foundry), the
 local/container/cloud target model, and the Terraform decision are in
-[ADR-001](adr/ADR-001-cloud-native-backends.md). Live status of each target is
+[ADR-001](adr/ADR-001-cloud-native-backends.md); live status per target is in
 [CLOUD_NATIVE.md](CLOUD_NATIVE.md).
 
-**CrewAI packages** live under `src/ai_team/backends/crewai_backend/` (`agents/`,
-`crews/`, `tasks/`, `flows/`). Evals import `ai_team.core.flow_wiring` rather than
-the CrewAI flow package.
-
-Companion diagrams: [inter-agent overview](images/inter-agent-overview.svg),
-[CrewAI](images/inter-agent-crewai.svg), [LangGraph](images/inter-agent-langgraph.svg),
-[Claude SDK](images/inter-agent-claude-sdk.svg). Self-improvement loop:
-[self-trigger-loop.svg](images/self-trigger-loop.svg).
-
 ---
 
-## 0. UI & Monitoring Layer
+## 1. The system at a glance
 
-Two primary interfaces plus an optional CLI monitor — all integrate through `TeamMonitor`, the `Backend` protocol, and cost tracking APIs.
+One nine-role team (manager, product owner, architect, three developers, DevOps, cloud
+engineer, QA) runs on interchangeable orchestration backends. Everything around the agents
+(tools, guardrails, spend limits, records) is shared, so a difference between runs can be pinned
+to the framework, the model, the harness or the provider.
 
 ```mermaid
-graph TB
-    subgraph UI["High Level Diagram"]
-        WD["<b>Web Dashboard</b><br/>(FastAPI + React)<br/>• REST + WebSocket<br/>• Real-time stream<br/>• Compare backends<br/>• Cost estimation<br/>• Agent monitoring"]
-        CLI["<b>Rich CLI Monitor</b><br/>(--monitor)<br/>• Inline CLI live display<br/>• Phase, log, agents, guardrails"]
-
-        TM["<b>TeamMonitor</b> (monitor.py)<br/>• Phase tracking &nbsp;&nbsp;&nbsp;• Agent status table<br/>• Metrics: tasks, guardrails, tests, files<br/>• Activity log &nbsp;&nbsp;&nbsp;• Guardrail events"]
-
-        BR["<b>Backend Registry</b> → get_backend(crewai | langgraph | claude-agent-sdk)<br/><b>Cost Estimator</b> → estimate_run_cost(settings, cx)<br/><b>Token Tracker</b> → record(), summary(), save_report()"]
+flowchart LR
+    subgraph entry["Entry points"]
+        cli["ai-team CLI<br/>main.py · cli_run.py"]
+        web["ai-team-web<br/>FastAPI :8421 + React"]
+        scripts["scripts/run_demo.py<br/>run_smoke_batch.py"]
     end
-
-    WD --> TM
-    CLI --> TM
-    TM --> BR
+    entry --> reg["backends/registry.py<br/>get_backend(name, target)"]
+    reg --> cr["crewai"]
+    reg --> lg["langgraph"]
+    reg --> sdk["claude-agent-sdk"]
+    reg -.-> stub["strands · agent-framework<br/>(stubs, specs only)"]
+    subgraph harness["Shared harness"]
+        bus["ToolBus<br/>draft → check → commit"]
+        guard["Guardrails"]
+        spend["Spend guard"]
+        ctx["Pinned context<br/>acceptance · lessons"]
+    end
+    cr & lg & sdk --> bus
+    cr & lg & sdk --> spend
+    cr & lg & sdk --> ctx
+    bus --> guard
+    bus --> ws[("workspace/&lt;run_id&gt;/<br/>docs · src · tests · logs")]
+    cr & lg & sdk --> bundle[("output/runs/&lt;run_id&gt;/<br/>run.json · receipt.json")]
+    ws --> post["Post-run gates<br/>runtime smoke · README"]
+    ws & bundle --> trace["evals: Trace"]
+    trace --> checks["Deterministic checks<br/>FM-001…017"]
+    trace --> otlp["OTLP export<br/>Aspire · Phoenix · cloud"]
 ```
 
-### Key files
+| Layer | Owner | One line |
+| --- | --- | --- |
+| Entry points | `main.py`, `cli_run.py`, `ui/web/`, `scripts/` | Parse a brief, a team profile and a backend name; start a run |
+| Registry | `backends/registry.py` | Name + target → a `Backend` instance; refuses unsupported targets before any spend |
+| Backends | `backends/<name>_backend/` | Run the agents with one framework; return a `ProjectResult` |
+| Harness | `harness/`, `tools/`, `guardrails/`, `core/spend_guard.py` | Same tools, checks, limits and records on every backend |
+| Records | `core/results/`, `harness/receipt.py` | Workspace files the agents hand off through; a bundle and receipt per run |
+| Memory | `memory/`, `harness/lessons_loop.py` | Lessons from failed runs pinned into the next run's context |
+| Evals | `evals/` (not shipped) | Runs → traces → checks, judges, Tier A gate, OTLP export |
 
-| File | Purpose |
-|------|---------|
-| `src/ai_team/ui/web/server.py` | FastAPI server — REST + WebSocket endpoints |
-| `src/ai_team/ui/web/frontend/` | React + TypeScript + Vite dashboard |
-| `src/ai_team/monitor.py` | TeamMonitor — shared event collector for web + CLI |
+## 2. A run, end to end
 
----
-
-## 1. System Overview Diagram
+The CLI path. The web server and the demo scripts call the same `get_backend()` and
+`backend.run()`.
 
 ```mermaid
-graph TB
-    ATF["<b>AITeamFlow</b><br/><i>event-driven orchestration over ProjectState</i>"]
-
-    ATF --> PC & DC & TC & DEPC
-
-    PC["<b>PlanningCrew</b><br/><i>requirements + architecture</i>"]
-    DC["<b>DevelopmentCrew</b><br/><i>code generation</i>"]
-    TC["<b>TestingCrew</b><br/><i>tests + coverage</i>"]
-    DEPC["<b>DeploymentCrew</b><br/><i>Docker, IaC, CI/CD</i>"]
-
-    PC & DC & TC & DEPC --> AG
-
-    AG["<b>Agents</b> (9 roles)<br/><i>Manager, PO, Architect, Backend/Frontend/Fullstack Dev, Cloud, DevOps, QA</i>"]
-
-    AG --> TOOLS
-
-    TOOLS["<b>Tools</b><br/><i>File · Code · Git · Test, with security wrappers</i>"]
-
-    TOOLS --> GL & ML
-
-    GL["<b>Guardrails</b><br/><i>Behavioral · Security · Quality</i>"]
-    ML["<b>Memory</b><br/><i>SQLite long-term · lessons · self-improvement</i>"]
+sequenceDiagram
+    autonumber
+    participant U as ai-team run
+    participant C as cli_run.execute_run
+    participant R as registry
+    participant B as Backend.run
+    participant H as harness + ToolBus
+    participant W as workspace/run_id/
+    participant O as output/runs/run_id/
+    U->>C: brief, --backend, --team, --target
+    C->>C: load_team_profile(team)
+    C->>R: get_backend(name, target)
+    C->>C: maybe_extract_lessons_at_startup()
+    C->>B: run(description, profile, env, **kw)
+    B->>W: ensure_workspace_layout, pin CONSTRAINTS.md / LESSONS.md
+    B->>H: reset_spend_guard(budget, run_id)
+    loop each phase: planning → development → testing → deployment
+        B->>H: tool calls via ToolBus.invoke
+        H->>W: drafts, commits, audit.jsonl, journal.jsonl
+        B->>H: record_usage(cost, tokens)
+    end
+    B->>O: ResultsBundle: run.json, state.json, finalize() → receipt.json
+    B-->>C: ProjectResult
+    C->>C: persist_run_metrics, deployment README check, runtime smoke (warn-only)
+    C-->>U: JSON summary, exit code
 ```
 
----
+Notes on the steps:
 
-## 2. Component Descriptions
+- **Run identity.** Each run gets a readable id such as
+  `2026-10-19_102648_write-a-single-python-module_01` (`core/run_naming.py`). The same id names
+  the workspace and the bundle folder.
+- **Phases** come from the team profile (`config/team_profiles.yaml`). `prototype`, `smoke` and
+  `data-pipeline` skip deployment; `infra-only` runs planning and deployment only.
+- **Spend.** `AI_TEAM_MAX_COST_PER_RUN` stops a run before it starts if the estimate is too
+  high. `AI_TEAM_RUN_BUDGET_USD` stops it while running with a non-retryable
+  `BudgetExceededError`. The guard is scoped per run with `contextvars`, so parallel runs in
+  the web server do not share a counter.
+- **Post-run gates** in `cli_run._run_post_run_quality_gates` run for every backend: the
+  deployment README check when the profile has a deployment phase, and the runtime smoke gate
+  (boot the generated app, drive a create/read/update/delete round trip over HTTP) when it has
+  a testing phase. Both are warn-only. `AI_TEAM_SKIP_POST_RUN=1` skips them.
+- **The receipt** (`output/runs/<run_id>/receipt.json`) is the source of truth for cost, files
+  and smoke results. Live stream events are a progress view only.
 
-### 2.1 Flow Layer
+## 3. Backends
 
-| Component | Description |
-|-----------|-------------|
-| **AITeamFlow** | Main CrewAI `Flow[ProjectState]` orchestrator. Drives the lifecycle: intake → planning → development → testing → deployment → finalize. Uses `@start()`, `@listen()`, and `@router()` for event-driven routing. |
-| **ProjectState** | Pydantic model holding all flow state: `project_id`, `user_request`, `current_phase`, `requirements`, `architecture`, `generated_files`, `test_results`, `deployment_config`, `errors`, `human_feedback`, `awaiting_human_input`, etc. |
-| **Routing logic** | After each crew step, routers decide the next step (e.g. `run_development`, `request_clarification`, `handle_fatal_error`, `retry_development`, `escalate_test_failures`). Supports human-in-the-loop and error recovery. |
+### 3.1 Registry, protocol and targets
 
-#### 2.1.1 Orchestration backends (CrewAI, LangGraph, Claude Agent SDK)
+Every backend implements the `Backend` protocol in
+[`core/backend.py`](../src/ai_team/core/backend.py): `run(description, profile, env, **kwargs)`
+returns a `ProjectResult` ([`core/result.py`](../src/ai_team/core/result.py): `backend_name`,
+`success`, `error`, `team_profile`, backend-specific `raw`), and `stream(...)` yields progress
+events. `ThreadedBackend` provides `stream()` on top of a threaded `run()`.
 
-| Backend | Entry | Role |
-|---------|--------|------|
-| **CrewAI** | `CrewAIBackend` → `run_ai_team` / `AITeamFlow` | Comparison datapoint: hierarchical crews, subprocess-isolated, hard-killed on timeout. |
-| **LangGraph** | `LangGraphBackend` → compiled `StateGraph` (`compile_main_graph`) | Recommended default: same phases (intake → planning → … → deployment), checkpointing, HITL via `interrupt()`. |
-| **Claude Agent SDK** | `ClaudeAgentBackend` → `orchestrator.run_orchestrator` / `iter_orchestrator_messages` | Recommended for reliability: nested subagents, Anthropic API + Claude Code CLI (not OpenRouter). |
+| Name (`--backend`) | Class | Targets | State | Model access |
+| --- | --- | --- | --- | --- |
+| `crewai` (CLI default) | `CrewAIBackend` | local | Runs. Kept as a comparison datapoint; the flow runs in a spawned subprocess that is hard-killed at `CREWAI_HARD_TIMEOUT_SECONDS` | OpenRouter via LiteLLM |
+| `langgraph` | `LangGraphBackend` | local | Runs. `placeholder` graph mode (no model calls) is the default; `full` runs the LLM subgraphs | OpenRouter |
+| `claude-agent-sdk` (alias `claude-sdk`) | `ClaudeAgentBackend` | local | Runs | Anthropic API + Claude Code runtime |
+| `strands` | `StrandsBackend` | local, container, cloud | Stub: raises `NotImplementedError` naming [aws-strands-agentcore](../.kiro/specs/aws-strands-agentcore/) | Amazon Bedrock (planned) |
+| `agent-framework` | `AgentFrameworkBackend` | local, container, cloud | Stub: [azure-agent-framework](../.kiro/specs/azure-agent-framework/) | Microsoft Foundry (planned) |
+| `fake-remote` | `FakeRemoteBackend` | all | Conformance test double, not public | none |
 
-Both implement the shared `Backend` protocol and return `ProjectResult`. Team composition and phase lists come from the same `TeamProfile` (`config/team_profiles.yaml`). The CLI selects the backend with `--backend crewai|langgraph|claude-agent-sdk`. See ADR-004, ADR-005, ADR-006, and ADR-007 below.
+`--target` is `local`, `container` or `cloud` (`backends/common/targets.py`). The registry
+rejects a target a backend does not support with `UnsupportedTargetError`, before any spend.
 
-**Comparison (orchestration shape).**
+The executable definition of "a backend" is [`tests/conformance/`](../tests/conformance/):
+every backend replays one scripted thin slice (`backends/common/thin_slice.py`) and must route
+every tool call through the ToolBus, draft before committing, record spend, and write a
+results bundle. How each framework fails, kept separate per incident: [FRAMEWORKS.md](FRAMEWORKS.md).
+
+### 3.2 Orchestration shape per backend
 
 | | **CrewAI** | **LangGraph** | **Claude Agent SDK** |
 |--|------------|---------------|----------------------|
 | **Primary state** | `ProjectState` in Flow | Checkpointed graph state | Session transcript + files under workspace |
 | **Resume** | Flow rerun / new run | Thread id + `Command(resume=...)` | `session_id` + optional fork |
 | **HITL** | Flow flags / human_feedback | `interrupt()` | `AskUserQuestion` + optional `can_use_tool` default answer |
-| **Tool guardrails** | CrewAI tasks + Python guardrails | Nodes + shared guardrail helpers | SDK **hooks** (Pre/Post tool) + MCP tools |
+| **Tool guardrails** | CrewAI task guardrails + Python validators | Guardrail nodes + shared helpers | SDK **hooks** (Pre/PostToolUse) + MCP tools |
+| **Isolation** | Spawned subprocess, hard kill | In-process | In-process; Claude Code CLI child process |
 
-How each one fails, with the two CrewAI incidents kept apart: [FRAMEWORKS.md](FRAMEWORKS.md).
+### 3.3 Inter-agent communication
 
-#### 2.1.2 Claude Agent SDK backend (diagram)
+Every backend runs the same phases (intake → planning → development → testing → deployment), but
+each moves work between agents differently. There are always **two** levels:
 
-Implementation lives under `src/ai_team/backends/claude_agent_sdk_backend/` (`backend.py`, `orchestrator.py`, `agents/`, `hooks/`, `tools/mcp_server.py`). The orchestrator builds `ClaudeAgentOptions` (system prompt + repo `CLAUDE.md` + `docs/CLAUDE_PROFILE.md`), registers the in-process **ai_team_tools** MCP server (guardrails, pytest, smoke), and streams or runs until a `ResultMessage`.
-
-```mermaid
-flowchart TB
-  subgraph entry [Caller]
-    REG["get_backend('claude-agent-sdk')"]
-    BE["ClaudeAgentBackend"]
-  end
-
-  subgraph orch [Orchestration]
-    RO["run_orchestrator / iter_orchestrator_messages"]
-    Q["claude_agent_sdk.query()"]
-    OPT["ClaudeAgentOptions<br/>(agents, hooks, mcp_servers, cwd)"]
-  end
-
-  subgraph nested [Nested subagents]
-    OA["Orchestrator prompt<br/>(Manager)"]
-    PA["planning-agent, development-agent, …"]
-    SP["Specialists<br/>(product-owner, architect, …)"]
-  end
-
-  subgraph sidecar [Enforcement and observability]
-    H["Hooks:<br/>PreToolUse security<br/>PostToolUse quality + audit<br/>SubagentStart/Stop audit"]
-    MCP["MCP ai_team_tools<br/>run_guardrails, tests, smoke, …"]
-  end
-
-  subgraph fs [Workspace as state]
-    W["docs/ · src/ · tests/<br/>logs/*.jsonl"]
-  end
-
-  REG --> BE --> RO --> Q
-  Q --> OPT
-  OPT --> OA --> PA --> SP
-  SP --> W
-  OPT --> H
-  OPT --> MCP
-  MCP --> W
-```
-
-For operator steps (env vars, budget, recovery), see [docs/claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md).
-
-#### 2.1.3 Inter-agent communication
-
-Every backend runs the same phases (intake → planning → development → testing → deployment), but each moves work between agents differently. There are always **two** levels:
-
-1. **Within-phase** — how a manager/coordinator hands work to specialists.
-2. **Cross-phase** — how one phase's output reaches the next phase.
+1. **Within-phase**: how a manager or coordinator hands work to specialists.
+2. **Cross-phase**: how one phase's output reaches the next phase.
 
 ```mermaid
 graph LR
@@ -181,11 +184,33 @@ graph LR
 | **Specialist → next phase** | Typed docs written into `ProjectState` | Node returns dict; reducers merge channels | Files under `docs/` / `src/` / `tests/` |
 | **Human-in-the-loop** | Flow flags / `human_feedback` | `interrupt()` + resume | `AskUserQuestion` / `can_use_tool` |
 
-##### CrewAI — shared typed state
+Companion figures: [overview](images/inter-agent-overview.svg),
+[CrewAI](images/inter-agent-crewai.svg), [LangGraph](images/inter-agent-langgraph.svg),
+[Claude SDK](images/inter-agent-claude-sdk.svg).
 
-**Cross-phase:** `AITeamFlow` holds one `ProjectState` Pydantic object. Each crew's `kickoff()` takes the previous phase's typed output as input and returns typed output; the flow writes it back into `ProjectState`. Example: `development_crew.kickoff()` receives `RequirementsDocument` + `ArchitectureDocument` and returns `list[CodeFile]` + `DeploymentConfig`.
+### 3.4 CrewAI backend
 
-**Within-phase:** a hierarchical crew. The `manager_agent` (Manager for planning, Architect for development) decides who does what. Specialists do not talk to each other directly — they chain through **task context** (`task.context = [prior_task]`) and hand off **typed Pydantic docs** (`output_pydantic`).
+Code: `src/ai_team/backends/crewai_backend/` (`agents/`, `crews/`, `tasks/`, `flows/`).
+`CrewAIBackend` starts `AITeamFlow` (a CrewAI `Flow[ProjectState]`) in a spawned subprocess.
+The flow drives intake → planning → development → testing → deployment → finalize with
+`@start()`, `@listen()` and `@router()`. Evals that need the flow's listener wiring import
+`ai_team.core.flow_wiring`, not the flow package.
+
+**Cross-phase:** `AITeamFlow` holds one `ProjectState`. Each crew's `kickoff()` takes the previous
+phase's typed output and returns typed output, which the flow writes back. Example:
+`development_crew.kickoff()` receives `RequirementsDocument` + `ArchitectureDocument` and returns
+`list[CodeFile]` + `DeploymentConfig`.
+
+**Within-phase:** hierarchical crews. The `manager_agent` (Manager for planning, Architect for
+development) decides who does what. Specialists chain through task context
+(`task.context = [prior_task]`) and hand off typed Pydantic docs (`output_pydantic`).
+
+| Crew | Purpose | Key agents |
+|------|---------|------------|
+| **PlanningCrew** | Requirements and architecture | Manager (coordinator), Product Owner, Architect. Hierarchical |
+| **DevelopmentCrew** | Generate and write code | Architect (coordinator), backend/frontend/fullstack developers, DevOps. Hierarchical |
+| **TestingCrew** | Generate tests, run them, review code | QA Engineer. Sequential |
+| **DeploymentCrew** | Docker, IaC, CI/CD, docs | Cloud Engineer → DevOps Engineer. Sequential |
 
 ```mermaid
 flowchart TB
@@ -206,13 +231,69 @@ flowchart TB
     DC -->|CodeFiles| FLOW
 ```
 
-Key idea: agents communicate through **structured, typed objects**. The manager is a real delegating agent.
+Routing after each crew step (`flows/routing.py`):
 
-##### LangGraph — shared graph state channels
+```mermaid
+flowchart TD
+    UR([User Request]) --> INTAKE
+    INTAKE["<b>INTAKE</b><br/>(validate)"]
+    INTAKE -- "invalid / rejected" --> RC1["request_clarification<br/>or handle_fatal_error"]
+    INTAKE -- success --> PLAN
+    PLAN["<b>PLANNING</b><br/>(req + arch)"]
+    PLAN -- "needs_clarification" --> RC2["request_clarification"]
+    PLAN -- success --> DEV
+    DEV["<b>DEVELOPMENT</b><br/>(code gen)"]
+    DEV -- "tests_failed & retries" --> RETRY["retry_development<br/>(feedback loop)"]
+    RETRY --> DEV
+    DEV -- success --> TEST
+    TEST["<b>TESTING</b><br/>(QA + runs)"]
+    TEST -- "tests_failed (max)" --> ESCAL["escalate_test_failures<br/>→ human"]
+    TEST -- success --> DEPLOY
+    DEPLOY["<b>DEPLOYMENT</b><br/>(Docker, CI)"]
+    DEPLOY -- success --> FIN["finalize_project → COMPLETE"]
+    DEPLOY -- error --> ERR["handle_deployment_error"]
+```
 
-**Cross-phase:** a single `LangGraphProjectState` TypedDict flows through the graph. Each node returns a **dict of updates**; **reducers** decide how they merge into channels (e.g. `generated_files` uses `operator.add`; `messages` uses `add_messages`). Conditional edges (`route_after_planning`, etc.) pick the next node. State is checkpointed to SQLite, which enables `--resume`.
+`ProjectState.current_phase` follows this state machine; `phase_history` records each
+transition with a timestamp and reason.
 
-**Within-phase:** each phase node runs a **subgraph** built with `langgraph-supervisor`. The supervisor (Manager LLM) delegates to worker **ReAct agents** via **handoff messages** on a shared `messages` channel (`add_handoff_messages=True`). Only the **new message delta** from the subgraph is merged back into the parent state.
+```mermaid
+stateDiagram-v2
+    [*] --> INTAKE
+    INTAKE --> PLANNING : valid
+    INTAKE --> AWAITING_HUMAN : clarification needed
+    INTAKE --> FAILED : rejected
+    PLANNING --> DEVELOPMENT : success
+    PLANNING --> AWAITING_HUMAN : clarification needed
+    PLANNING --> FAILED : error
+    DEVELOPMENT --> TESTING : success
+    DEVELOPMENT --> FAILED : error
+    TESTING --> DEPLOYMENT : all passed
+    TESTING --> DEVELOPMENT : retry
+    TESTING --> AWAITING_HUMAN : escalate (max retries)
+    TESTING --> FAILED : error
+    DEPLOYMENT --> COMPLETE : success
+    DEPLOYMENT --> FAILED : error
+    COMPLETE --> [*]
+```
+
+### 3.5 LangGraph backend
+
+Code: `src/ai_team/backends/langgraph_backend/`. `LangGraphBackend` compiles the main graph in
+`graphs/main_graph.py` with a checkpointer (`checkpointer.py`: in-memory or
+`AI_TEAM_LANGGRAPH_SQLITE_PATH`, or Postgres via `AI_TEAM_LANGGRAPH_POSTGRES_URI`) and a
+recursion limit (`AI_TEAM_LANGGRAPH_RECURSION_LIMIT`, default 50).
+
+**Cross-phase:** a single `LangGraphProjectState` TypedDict flows through the graph
+(`graphs/state.py`). Each node returns a dict of updates; reducers merge them into channels
+(`generated_files` uses `operator.add`; `messages` uses `add_messages`). Conditional edges in
+`graphs/routing.py` pick the next node. Checkpoints make `--resume` possible.
+
+**Within-phase:** in `full` mode each phase node runs a subgraph built with
+`langgraph-supervisor`. The supervisor (manager model) delegates to worker ReAct agents via
+handoff messages on a shared `messages` channel. Only the new message delta from the subgraph is
+merged back. Subgraphs also snapshot the disk, because models sometimes write files instead of
+returning structured data. In `placeholder` mode the nodes are stubs and nothing is spent.
 
 ```mermaid
 flowchart TB
@@ -229,260 +310,209 @@ flowchart TB
     PLAN -.needs clarification.-> HR[human_review: interrupt]
 ```
 
-Key idea: agents communicate through **shared state channels** (plus workspace files — subgraphs also snapshot the disk because models sometimes write files instead of returning structured data).
+### 3.6 Claude Agent SDK backend
 
-##### Claude Agent SDK — session + filesystem
+Code: `src/ai_team/backends/claude_agent_sdk_backend/` (`backend.py`, `orchestrator.py`,
+`agents/`, `hooks/`, `tools/mcp_server.py`). The orchestrator builds `ClaudeAgentOptions`
+(system prompt + repo `CLAUDE.md` + the per-run `<workspace>/docs/CLAUDE_PROFILE.md`),
+registers the in-process `ai_team_tools` MCP server (guardrails, pytest, smoke), and streams or
+runs until a `ResultMessage`. After a clean run it boots the generated app and, if the probe
+fails, retries with the defect (`ANTHROPIC_SMOKE_LOOP_ENABLED`).
 
-**Cross-phase:** there is **no typed state object**. A single long-lived `query()` session runs. The orchestrator's system prompt *is* the Manager. It delegates to **subagents** (`AgentDefinition` map) via the SDK's built-in **`Agent` tool**. The durable handoff between phases is the **workspace filesystem** (`docs/`, `src/`, `tests/`, `logs/`) — each phase reads what the last one wrote.
+**Cross-phase:** there is no typed state object. One long-lived `query()` session runs; the
+orchestrator's system prompt is the Manager. It delegates to subagents (`AgentDefinition` map
+from `agents/builder.py`) through the SDK's built-in `Agent` tool. The durable handoff between
+phases is the workspace (`docs/`, `src/`, `tests/`, `logs/`).
 
-**Within-phase:** subagents are **nested**. Phase agents (`planning-agent`, `development-agent`, `deployment-agent`) act as the Manager and themselves delegate to specialists in the profile (e.g. `planning-agent` gets `available_label="product-owner, architect"`).
+**Within-phase:** subagents are nested. Phase agents (`planning-agent`, `development-agent`,
+`deployment-agent`) act as the Manager for their phase and delegate to the specialists in the
+profile.
 
 ```mermaid
 flowchart TB
-    Q[query session] --> ORCH[Orchestrator = Manager]
-    ORCH -->|Agent tool| PA[planning-agent]
-    ORCH -->|Agent tool| DA[development-agent]
-    ORCH -->|Agent tool| TA[testing-agent]
-    subgraph PA_NEST[planning-agent nested]
-        PO2[product-owner]
-        AR2[architect]
-    end
-    subgraph DA_NEST[development-agent nested]
-        BE2[backend-developer]
-        FE2[frontend-developer]
-    end
-    PA --> PA_NEST
-    DA --> DA_NEST
-    PA_NEST -->|writes docs/| WS[(Workspace files)]
-    DA_NEST -->|writes src/| WS
-    TA -->|writes tests/| WS
-    WS -->|next agent reads| ORCH
-    HOOKS[Pre/PostToolUse + Subagent audit hooks] -.->|enforce| WS
+  subgraph entry [Caller]
+    REG["get_backend('claude-agent-sdk')"]
+    BE["ClaudeAgentBackend"]
+  end
+  subgraph orch [Orchestration]
+    RO["run_orchestrator / iter_orchestrator_messages"]
+    Q["claude_agent_sdk.query()"]
+    OPT["ClaudeAgentOptions<br/>(agents, hooks, mcp_servers, cwd)"]
+  end
+  subgraph nested [Nested subagents]
+    OA["Orchestrator prompt<br/>(Manager)"]
+    PA["planning-agent, development-agent, …"]
+    SP["Specialists<br/>(product-owner, architect, …)"]
+  end
+  subgraph sidecar [Enforcement and observability]
+    H["Hooks:<br/>PreToolUse security<br/>PostToolUse quality + audit<br/>SubagentStart/Stop audit"]
+    MCP["MCP ai_team_tools<br/>run_guardrails, tests, smoke, …"]
+  end
+  subgraph fs [Workspace as state]
+    W["docs/ · src/ · tests/<br/>logs/*.jsonl"]
+  end
+  REG --> BE --> RO --> Q
+  Q --> OPT
+  OPT --> OA --> PA --> SP
+  SP --> W
+  OPT --> H
+  OPT --> MCP
+  MCP --> W
 ```
 
-Key idea: agents communicate through the **session transcript** (subagent results return in-context to the orchestrator) plus **files on disk** for durable phase-to-phase handoff. Guardrails are enforced via **hooks** wrapping tool calls, not by task validators.
+Native `Write` and `Bash` are allowed unless `AI_TEAM_DENY_NATIVE_TOOLS` is set; in that mode
+writes go through the MCP tools and the ToolBus. Operator steps (env vars, budget, recovery):
+[claude-agent-sdk/RUNBOOK.md](claude-agent-sdk/RUNBOOK.md).
 
-##### One-line summary
+### 3.7 Planned cloud backends
 
-- **CrewAI** — agents pass typed Pydantic documents through a shared `ProjectState`; a manager agent delegates hierarchically.
-- **LangGraph** — agents pass updates through shared graph state channels with reducers; a supervisor delegates via handoff messages; checkpointed for resume.
-- **Claude Agent SDK** — an orchestrator spawns nested subagents via the `Agent` tool; handoff is the session transcript + workspace files; hooks enforce rules.
+`strands` (Strands Agents on Amazon Bedrock AgentCore) and `agent-framework` (Microsoft Agent
+Framework on Microsoft Foundry) exist as stubs that satisfy the conformance suite through the
+scripted thin slice and raise `NotImplementedError` otherwise. They will reuse the shared
+role prompts (`backends/common/roles.py`) and ToolBus-backed tools (`backends/common/tool_bridge.py`),
+emit their own OpenTelemetry spans tagged by `harness/otel_tags.py`, and deploy with
+`infra/terraform/`. Plans: [cloud-backend-foundation](../.kiro/specs/cloud-backend-foundation/),
+[aws-strands-agentcore](../.kiro/specs/aws-strands-agentcore/),
+[azure-agent-framework](../.kiro/specs/azure-agent-framework/),
+[aws-agentcore-harness](../.kiro/specs/aws-agentcore-harness/). AWS options and costs:
+[AWS_BACKEND_ARCHITECTURE.md](AWS_BACKEND_ARCHITECTURE.md).
 
-### 2.2 Crew Layer
+## 4. The shared harness
 
-| Crew | Purpose | Key agents |
-|------|---------|------------|
-| **PlanningCrew** | Turn user request into requirements and architecture. | Manager (coordinator), Product Owner, Architect. Hierarchical process. |
-| **DevelopmentCrew** | Generate and write code per architecture. | Manager (coordinator), Backend/Frontend/Fullstack developers. Hierarchical process. |
-| **TestingCrew** | Run tests, collect coverage, validate acceptance. | QA Engineer; uses test-runner and code tools. |
-| **DeploymentCrew** | Produce deployment and CI/CD artifacts. | DevOps Engineer, Cloud Engineer; Docker, K8s, Terraform, CI configs. |
+The harness is the part that is identical on every backend. Its seven layers, the module that
+owns each, and whether each is instrumented, enforced or closed-loop are tracked in
+[HARNESS.md](HARNESS.md). The pieces a newcomer meets first:
 
-### 2.3 Agent Layer (9 specialized agents)
+| Piece | Module | What it does |
+| --- | --- | --- |
+| **ToolBus** | `tools/bus.py`, `tools/catalog.py`, `tools/kinds.py` | The only execution path for tools. Validates args against a schema, checks the caller's role, then branches on `kind`: reads run, writes are staged as drafts (`tools/draft.py`) until committed, irreversible actions need a token. Every call lands in `logs/audit.jsonl` and `logs/journal.jsonl` |
+| **Tool bridge** | `backends/common/tool_bridge.py`, `role_tools.py` | One role → tools map for every backend; frameworks get schemas and callables that go through the bus |
+| **Guardrails** | `guardrails/` | Behavioral (role adherence, scope), security (code safety, secrets, PII, prompt injection, paths), quality (code quality, coverage, docs, deployment README, runtime smoke). Wired per backend; see the table below |
+| **Spend guard** | `core/spend_guard.py` | Per-run budget, scoped with `contextvars`; `BudgetExceededError` subclasses `BaseException` so retry loops cannot swallow it |
+| **Pinned context** | `harness/context.py` | `docs/CONSTRAINTS.md` is injected unchanged on every prompt; `STATE.md` holds the last phase facts; `LESSONS.md` is rendered from the lesson store |
+| **Acceptance** | `harness/acceptance.py`, `backends/common/acceptance.py` | Harness-owned acceptance list (`logs/harness_acceptance.json`); a run's acceptance does not depend on a QA tool's opinion |
+| **Receipt and journal** | `harness/receipt.py`, `harness/journal.py`, `harness/telemetry.py` | `receipt.json`/`receipt.md` at finalize; append-only journal of ToolBus decisions |
+| **Routing** | `harness/router.py`, `config/task_routes.yaml` | Task-typed model routing (cheap deterministic path vs model) |
+| **Runtime smoke** | `tools/smoke_tools.py`, `harness/verifiers.py` | Boot the generated app and probe it over HTTP; catches "tests green, app broken" |
 
-| Agent | Responsibility |
-|-------|----------------|
-| **Manager** | Coordinate crew, break down work, resolve blockers, escalate to human when needed. Uses task delegation and status reporting. |
-| **Product Owner** | Requirements and user stories; acceptance criteria; MoSCoW prioritization. Output: `RequirementsDocument`. |
-| **Architect** | System design, technology choices, interfaces, ADRs. Output: `ArchitectureDocument`. Can delegate to Cloud/DevOps. |
-| **Backend Developer** | APIs, services, DB schemas, backend code (Python/Node/Go). |
-| **Frontend Developer** | UI components, state, styling (React/Vue, etc.). |
-| **Fullstack Developer** | End-to-end features spanning backend and frontend; used by leaner profiles (e.g. `prototype`). |
-| **Cloud Engineer** | IaC (Terraform/CloudFormation), cost/security/reliability. |
-| **DevOps Engineer** | CI/CD, Docker, K8s, monitoring, observability. |
-| **QA Engineer** | Test strategy, automation, coverage, quality checks. |
+Where each backend enforces guardrails:
 
-Agents are defined in [`config/agents.yaml`](../src/ai_team/config/agents.yaml) (role, goal, backstory) — see [AGENTS.md](AGENTS.md). Models per role and environment tier are in [`config/models.py`](../src/ai_team/config/models.py) — see [MODELS.md](MODELS.md).
+| Backend | Enforcement point |
+| --- | --- |
+| CrewAI | Task `guardrail=` callables in `crewai_backend/tasks/` and class guardrails in `guardrails/legacy.py` |
+| LangGraph | Guardrail nodes with retry routing (`graphs/langgraph_guardrail_nodes.py`) and message checks (`graphs/guardrail_hooks.py`) |
+| Claude Agent SDK | PreToolUse/PostToolUse hooks (`hooks/security.py`, `hooks/quality.py`) and the `run_guardrails` MCP tool |
+| All | ToolBus path checks on every write; post-run deployment README and runtime smoke checks in `cli_run.py` |
 
-### 2.4 Tool Layer
+Configuration toggles: [CONFIGURATION.md](CONFIGURATION.md#guardrails). Catalogue and tuning:
+[GUARDRAILS.md](GUARDRAILS.md).
 
-| Category | Examples | Security |
-|----------|----------|----------|
-| **File** | read_file, write_file, list_dir | Path validation (allowed dirs), no path traversal. |
-| **Code** | code_generation, code_review, sandbox execution | Sandboxed execution; guardrails on generated code. |
-| **Git** | status, commit, branch, diff | Scoped to workspace; no force-push to protected branches by policy. |
-| **Test** | run_tests, coverage_report | Timeout and resource limits. |
-
-Tools are wrapped with guardrail checks where applicable (e.g. SecurityGuardrails.validate_file_path, validate_code_safety). Shared execution is the **ToolBus** (`src/ai_team/tools/bus.py`) — see [HARNESS.md](HARNESS.md).
-
-### 2.5 Guardrail Layer
-
-| Type | Purpose |
-|------|---------|
-| **Behavioral** | Role adherence (e.g. QA only writes tests), scope control (no unbounded expansion), require reasoning in long outputs. |
-| **Security** | Code safety (no unsafe exec/subprocess/eval), no secrets in output, PII redaction, prompt-injection detection, file-path validation. |
-| **Quality** | Word count bounds, JSON validity, Python syntax, no TODO/FIXME/NotImplementedError placeholders; optional LLM guardrails (hallucination, code review). |
-
-Configured via `GuardrailConfig` in settings; full chain built by `create_full_guardrail_chain()`. Dispatch by `risk_class` is in `src/ai_team/harness/guardrail_risk.py` — see [HARNESS.md](HARNESS.md).
-
-### 2.6 Memory Layer
-
-| Type | Storage | Use |
-|------|---------|-----|
-| **Long-term** | SQLite (`LongTermStore`) | Cross-session recall; lessons and self-improvement metadata |
-| **Lessons** | SQLite + optional injection at run start | Failure patterns distilled from prior runs (`memory/lessons.py`) |
-| **Self-improvement** | Runtime smoke loop + manager reports | Post-run verification and structured improvement suggestions (`self_improvement_runtime.py`) |
-
-ChromaDB short-term memory, entity memory, and the RAG subsystem were removed. CrewAI may still use its own internal Chroma storage when that backend runs.
-
-See [SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md), [HARNESS.md](HARNESS.md) (pinned constraints + closed lessons loop), and [GUARDRAILS.md](GUARDRAILS.md) (runtime smoke gate).
-
----
-
-## 3. Data Flow Diagram
+### 4.1 Memory and the lessons loop
 
 ```mermaid
-flowchart TD
-    UR([User Request]) --> INTAKE
-
-    INTAKE["<b>INTAKE</b><br/>(validate)"]
-    INTAKE -- "invalid / rejected" --> RC1["request_clarification<br/>or handle_fatal_error"]
-    INTAKE -- success --> PLAN
-
-    PLAN["<b>PLANNING</b><br/>(req + arch)"]
-    PLAN -- "needs_clarification" --> RC2["request_clarification"]
-    PLAN -- success --> DEV
-
-    DEV["<b>DEVELOPMENT</b><br/>(code gen)"]
-    DEV -- "tests_failed & retries" --> RETRY["retry_development<br/>(feedback loop)"]
-    RETRY --> DEV
-    DEV -- success --> TEST
-
-    TEST["<b>TESTING</b><br/>(QA + runs)"]
-    TEST -- "tests_failed (max)" --> ESCAL["escalate_test_failures<br/>→ human"]
-    TEST -- success --> DEPLOY
-
-    DEPLOY["<b>DEPLOYMENT</b><br/>(Docker, CI)"]
-    DEPLOY -- success --> FIN["finalize_project → COMPLETE"]
-    DEPLOY -- error --> ERR["handle_deployment_error"]
+flowchart LR
+    run1["Run n fails<br/>(phase, guardrail, test)"] --> rec["memory/lessons.py<br/>record_run_failures"]
+    rec --> db[("data/memory.db<br/>LongTermStore")]
+    db --> ext["next run start:<br/>maybe_extract_lessons_at_startup"]
+    ext --> loop["harness/lessons_loop.py<br/>dedup · effectiveness"]
+    loop --> pin["workspace docs/LESSONS.md<br/>+ CST-lesson-* constraints"]
+    pin --> run2["Run n+1 prompts"]
 ```
 
-State is carried in **ProjectState** through the flow; each crew reads/writes the relevant fields (e.g. PlanningCrew → `requirements`, `architecture`; DevelopmentCrew → `generated_files`; TestingCrew → `test_results`).
+The store is SQLite (`MEMORY_SQLITE_PATH`, default `./data/memory.db`). Extraction is
+deterministic, with no model calls. The same file holds web run history (`core/run_store.py`)
+and per-run KPIs (`persist_run_metrics`). Earlier ChromaDB short-term memory, entity memory and
+RAG were removed; CrewAI may still use its own internal storage when that backend runs. More:
+[SELF_IMPROVEMENT.md](SELF_IMPROVEMENT.md).
 
----
+## 5. What a run leaves behind
 
-## 4. State Machine (ProjectState Transitions)
+| Folder | Role | Key files |
+| --- | --- | --- |
+| `workspace/<run_id>/` | The agents' working copy and the handoff surface between agents | `docs/` (brief, requirements, architecture, `CONSTRAINTS.md`, `STATE.md`, `LESSONS.md`), `src/`, `tests/`, `infrastructure/`, `logs/` (`audit.jsonl`, `journal.jsonl`, `phases.jsonl`, `costs.jsonl`) |
+| `output/runs/<run_id>/` | The record: written by `ResultsBundle` and the harness | `run.json`, `state.json`, `receipt.json`, `receipt.md`, `artifacts/<phase>/`, `reports/`, `logs/` |
+
+Full layouts: [MODULE_MAP.md](MODULE_MAP.md#per-run-directories) and
+[RUN_ARTIFACTS.md](RUN_ARTIFACTS.md). Delete old runs with `delete_run()` / `prune_runs()` in
+`core/results/cleanup.py` or `DELETE /api/runs/{id}` ([GETTING_STARTED.md](GETTING_STARTED.md#deleting-old-runs)).
+
+## 6. Web dashboard and monitor
 
 ```mermaid
-stateDiagram-v2
-    [*] --> INTAKE
-
-    INTAKE --> PLANNING : valid
-    INTAKE --> AWAITING_HUMAN : clarification needed
-    INTAKE --> FAILED : rejected
-
-    PLANNING --> DEVELOPMENT : success
-    PLANNING --> AWAITING_HUMAN : clarification needed
-    PLANNING --> FAILED : error
-
-    DEVELOPMENT --> TESTING : success
-    DEVELOPMENT --> FAILED : error
-
-    TESTING --> DEPLOYMENT : all passed
-    TESTING --> DEVELOPMENT : retry
-    TESTING --> AWAITING_HUMAN : escalate (max retries)
-    TESTING --> FAILED : error
-
-    DEPLOYMENT --> COMPLETE : success
-    DEPLOYMENT --> FAILED : error
-
-    COMPLETE --> [*]
+flowchart LR
+    browser["React + Vite<br/>ui/web/frontend :5173"] -->|"REST + WS, X-AI-Team-Token"| api["FastAPI<br/>ui/web/server.py :8421"]
+    api --> routers["routers/: catalog · runs · comparisons · projects · websockets"]
+    routers --> reg["get_backend()"]
+    reg --> exec["backend.run in a worker thread<br/>(CrewAI: own subprocess)"]
+    exec --> mon["TeamMonitor<br/>monitor.py"]
+    mon -->|"/ws/run, /ws/monitor/:id"| browser
+    routers --> store[("RunStore<br/>data/memory.db")]
+    routers --> art["artifacts/service.py<br/>file tree, receipt, zip"]
 ```
 
-- **INTAKE** → PLANNING (valid), AWAITING_HUMAN (clarification), FAILED (rejected).
-- **PLANNING** → DEVELOPMENT (success), AWAITING_HUMAN (clarification), FAILED (error).
-- **DEVELOPMENT** → TESTING (success), FAILED (error).
-- **TESTING** → DEPLOYMENT (all passed), DEVELOPMENT (retry), AWAITING_HUMAN (escalate after max retries), FAILED (error).
-- **DEPLOYMENT** → COMPLETE (success), FAILED (error).
+- `ai-team-web` binds `127.0.0.1:8421`. Binding any other host requires `AI_TEAM_WEB_TOKEN`
+  (`ui/web/auth.py`); threat model in [SECURITY.md](../SECURITY.md).
+- A run continues if its `/ws/run` socket closes; the Compare tab launches one socket per
+  backend with a shared `comparison_id`.
+- Cost, files and smoke results on a finished run come from `receipt.json`
+  (`GET /api/runs/{id}/receipt`), not from the live event stream.
+- `TeamMonitor` is the same collector behind the CLI `--monitor` view.
 
-`phase_history` on ProjectState records each transition with timestamp and reason.
+## 7. Evals, traces and OpenTelemetry
 
----
+`evals/` turns runs into immutable `Trace` objects and scores them. It imports `ai_team`
+contracts but `src/ai_team` never imports it, so a run never depends on eval code.
 
-## 5. Technology Stack
+```mermaid
+flowchart LR
+    runs[("workspace/ + output/runs/")] --> tb["evals/trace/builder.py<br/>TraceBuilder"]
+    tb --> tr["Trace<br/>spans · artifacts · cost"]
+    tr --> store[("TraceStore + SQLite index")]
+    tr --> chk["evals/checks/<br/>20 checks ↔ FM-001…017"]
+    chk --> tierA["Tier A: committed fixtures<br/>$0, in CI (warn-only)"]
+    tr --> judges["evals/judges/<br/>binary, versioned (Tier B/C, paid)"]
+    tr --> otel["evals/trace/otel_export.py<br/>OTLP JSON"]
+    otel --> file[("logs/otel.harness.jsonl")]
+    otel --> coll["OTel collector :4318"]
+    coll --> aspire["Aspire (live)"]
+    coll --> phoenix["Phoenix (history)"]
+    native["strands / agent-framework<br/>native spans + otel_tags"] -.-> coll
+```
+
+- Method (error analysis first, checks before judges): [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md).
+- What Tier A proves today: [EVAL_GATE_STATUS.md](EVAL_GATE_STATUS.md).
+- Commands and layout: [evals/README.md](../evals/README.md).
+- Viewing traces locally (`make otel-up`, `make otel-backfill`) and in AWS/Azure:
+  [observability/README.md](observability/README.md). Spec:
+  [otel-observability](../.kiro/specs/otel-observability/).
+
+## 8. Technology stack
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| Orchestration | **CrewAI Flows**, **LangGraph**, **Claude Agent SDK** | Three backends behind one `Backend` protocol. |
-| LLM | **OpenRouter** (CrewAI/LangGraph), **Anthropic API** (SDK) | Models per agent via `AI_TEAM_ENV` and `team_profiles.yaml` overrides. |
-| State & schemas | **Pydantic** | ProjectState, LangGraphProjectState, results bundles, guardrail models. |
-| Memory | **SQLite** | Long-term store, lessons, self-improvement metadata. |
-| UI | **FastAPI + React** (port 8421) | Web dashboard: run, compare, artifacts. Optional Rich `--monitor` on CLI. |
-| Config | **pydantic-settings** | Settings, OpenRouter, guardrails, memory from env. |
-| Logging | **structlog** | Structured logs for flow and agents. |
+| Orchestration | CrewAI Flows, LangGraph, Claude Agent SDK (Strands, Agent Framework planned) | Backends behind one `Backend` protocol |
+| Models | OpenRouter (CrewAI, LangGraph), Anthropic API (Claude SDK), Bedrock / Foundry (planned) | Per-role models via `AI_TEAM_ENV` and profile overrides ([MODELS.md](MODELS.md)) |
+| State and schemas | Pydantic | `ProjectState`, `ProjectResult`, results bundle, ToolBus requests and observations, guardrail results |
+| Persistence | SQLite | Long-term memory, lessons, run history, LangGraph checkpoints (Postgres optional) |
+| UI | FastAPI + React/Vite | Run, compare, browse artifacts; Rich `--monitor` on the CLI |
+| Config | pydantic-settings | Settings from `.env` and the environment ([CONFIGURATION.md](CONFIGURATION.md)) |
+| Logging | structlog | Structured logs |
+| Telemetry | OTLP JSON (no SDK dependency in `src/`), OTel collector, Aspire, Phoenix | Trace viewing |
+| Infra | Docker, Terraform | Images and cloud deployment for the cloud backends |
 
 ---
 
-## 6. Directory Structure Mapping
+## 9. Architecture Decision Records
 
-```
-ai-team/
-├── src/ai_team/
-│   ├── core/             # Backend protocol, results bundles, spend guard, team profiles
-│   ├── config/           # settings.py, agents.yaml, team_profiles.yaml, models.py
-│   ├── backends/
-│   │   ├── crewai_backend/
-│   │   ├── langgraph_backend/
-│   │   └── claude_agent_sdk_backend/
-│   ├── agents/           # Agent implementations (CrewAI path)
-│   ├── crews/            # PlanningCrew, DevelopmentCrew, TestingCrew, DeploymentCrew
-│   ├── flows/            # AITeamFlow, ProjectState, run_ai_team()
-│   ├── tools/            # File, code, git, test, smoke tools
-│   ├── guardrails/       # Behavioral, security, quality
-│   ├── memory/           # LongTermStore, lessons, self-improvement runtime
-│   ├── monitor.py        # TeamMonitor event collector
-│   └── ui/web/           # FastAPI server + React dashboard
-├── tests/                # unit/, integration/ (incl. evals/), e2e/
-├── evals/                # Trace harness, taxonomy FM-001…010, checks, Tier A–C CLI
-├── docs/                 # ARCHITECTURE, GUARDRAILS, EVALS*, journal/, troubleshooting/
-├── demos/                # 00_smoke_test, 02_todo_app
-└── scripts/              # quickstart, run_demo, compare_backends, pre_push_check
-```
-
-Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
-[evals/README.md](../evals/README.md), [EVAL_METHODOLOGY.md](EVAL_METHODOLOGY.md).
----
-
-## 7. Integration Points and Extension Guide
-
-- **Adding an agent**  
-  - Add entry in `config/agents.yaml` and (if needed) a model in `config/models.py` (OpenRouterSettings, ENV_MODELS).  
-  - Implement the agent in `agents/` (extend BaseAgent), attach tools, then add to the appropriate crew in `crews/`.
-
-- **Adding a crew**  
-  - Create a new crew class in `crews/`, assign manager and member agents, define tasks.  
-  - In `flows/main_flow.py`, add a `@listen("run_<crew>")` method and wire routing in the appropriate `@router(...)`.
-
-- **Adding a tool**  
-  - Implement in `tools/` (CrewAI `@tool` or BaseTool).  
-  - Apply path/safety checks (reuse SecurityGuardrails where relevant).  
-  - Attach the tool to the right agents in `agents/`.
-
-- **Adding a guardrail**  
-  - Add validation in `guardrails/` (Behavioral, Security, or Quality).  
-  - Optionally add to `create_full_guardrail_chain()` or call from task/agent callbacks.
-
-- **Adding a backend**  
-  - Implement the `Backend` protocol (`core/backend.py`): `run()` and `stream()`, returning a normalized `ProjectResult`. Register it by name in `backends/registry.py`.  
-  - **Deliverable contract (backend-agnostic):** generated files land in the per-run workspace (`settings.project.workspace_dir/<id>/`). When the active profile includes the `deployment` phase, the run **must** produce a non-empty root `README.md` (overview, setup, run instructions, API reference). The DevOps agent owns it — the shared `devops_engineer` goal in `config/agents.yaml` (CrewAI + LangGraph) and `devops_prompt()` in the Claude SDK backend both require it.  
-  - **Enforcement is shared, not per-backend:** `deployment_artifacts_guardrail(workspace_dir, phases)` in `guardrails/quality.py` runs from the common post-run path in `main.py` for *every* backend, so a new backend is automatically checked. It is **warn-only** (logs `deployment_artifacts_check`; never fails the run) and a no-op for profiles without a `deployment` phase (e.g. `prototype`, `smoke`).  
-  - Plan→dev→test deliverables (code, tests) are validated by the testing phase; only the README/deployment docs are gated by this extra check.
-
-- **Changing state shape**  
-  - Extend `ProjectState` or nested models in `flows/main_flow.py`.  
-  - Update crew tasks and routers that read/write those fields.
-
-- **Human-in-the-loop**  
-  - Use `awaiting_human_input` and `human_feedback` on ProjectState; route to `request_clarification` or `escalate_*` and resume from `AWAITING_HUMAN` when feedback is provided (e.g. via web dashboard, TUI, or API).
-
----
-
-## 8. Architecture Decision Records (ADRs)
+The records below were written inline before `docs/adr/` existed. Their numbers are a separate
+series: [docs/adr/ADR-001](adr/ADR-001-cloud-native-backends.md) (cloud-native backends) is not
+the inline ADR-001 below.
 
 ### ADR-001: Why CrewAI Flows over LangGraph
 
 **Status:** Superseded by ADR-004, ADR-005, and ADR-006
 
-> **Note (current state):** This ADR records the *original* decision to build on CrewAI Flows first, and the reasoning below still explains why CrewAI was a reasonable starting point. It is kept for the historical record. The project has since moved to a **multi-backend architecture** behind one `Backend` protocol (ADR-005), where CrewAI, LangGraph, and the Claude Agent SDK are peers selected with `--backend`. LangGraph is the current recommended default for reliability and speed, and the Claude Agent SDK for Anthropic-native safety — see the backend table in §2.1.1. Do not read this ADR as "CrewAI is the primary engine"; that has not been true since ADR-004.
+> **Note (current state):** This ADR records the *original* decision to build on CrewAI Flows first. It is kept for the historical record. The project has since moved to a **multi-backend architecture** behind one `Backend` protocol (ADR-005), where CrewAI, LangGraph, and the Claude Agent SDK are peers selected with `--backend`. CrewAI is now a comparison datapoint; see §3.1. Do not read this ADR as "CrewAI is the primary engine".
 
 **Context:** We need an orchestrator that coordinates multiple crews (planning, development, testing, deployment) with shared state, conditional routing, and human-in-the-loop.
 
@@ -501,27 +531,27 @@ Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
 
 ### ADR-002: Why OpenRouter for LLM and Embeddings
 
-**Status:** Accepted  
+**Status:** Accepted
 
 **Context:** Agents need an LLM and embedding backend; we want a single API key, multiple models per role, and no local GPU requirement.
 
 **Decision:** Use **OpenRouter** as the provider for the CrewAI and LangGraph backends.
 
-> **Note (current state):** "Sole provider" was true when CrewAI/LangGraph were the only backends. The Claude Agent SDK backend (ADR-006) runs on the **Anthropic API** with `ANTHROPIC_API_KEY`, not OpenRouter. So provider choice is now per-backend: OpenRouter for CrewAI/LangGraph, Anthropic for the SDK.
+> **Note (current state):** The Claude Agent SDK backend (ADR-006) runs on the **Anthropic API** with `ANTHROPIC_API_KEY`, not OpenRouter. Provider choice is per backend: OpenRouter for CrewAI/LangGraph, Anthropic for the SDK, Bedrock and Foundry for the planned cloud backends.
 
 **Rationale:**
 
 - **Single key:** One `OPENROUTER_API_KEY` for chat and embeddings across the OpenRouter-based backends.
 - **Model choice:** Different models per role via `OpenRouterSettings` and `AI_TEAM_ENV` (dev/test/prod).
-- **No local GPU:** No Ollama or local model setup; works in CI and on any host with network.
+- **No local GPU:** No local model setup; works in CI and on any host with network.
 
-**Consequences:** The OpenRouter backends require network and an OpenRouter account; the SDK backend requires an Anthropic key instead. See `scripts/setup_openrouter.sh` and `.env.example`.
+**Consequences:** The OpenRouter backends require network and an OpenRouter account; the SDK backend requires an Anthropic key instead. See `.env.example` and [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ---
 
 ### ADR-003: Why Hierarchical Process for Planning and Development Crews
 
-**Status:** Accepted  
+**Status:** Accepted
 
 **Context:** Planning and development involve multiple agents (e.g. Manager, Product Owner, Architect; Manager, Backend, Frontend). We need coordination and delegation without ad hoc handoffs.
 
@@ -540,7 +570,7 @@ Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
 
 ### ADR-004: LangGraph as an alternative orchestration backend
 
-**Status:** Accepted  
+**Status:** Accepted
 
 **Context:** CrewAI Flows cover the primary multi-crew pipeline. Some workflows benefit from explicit graph semantics, first-class checkpointing, and streamable node updates for CLI/TUI/web dashboard.
 
@@ -554,7 +584,7 @@ Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
 
 ### ADR-005: Multi-backend architecture and team profiles
 
-**Status:** Accepted  
+**Status:** Accepted
 
 **Context:** Users need to swap orchestration engines and team composition without forking the repository.
 
@@ -568,7 +598,7 @@ Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
 
 ### ADR-006: Claude Agent SDK backend — session transcript vs typed graph state
 
-**Status:** Accepted  
+**Status:** Accepted
 
 **Context:** CrewAI Flows and LangGraph keep **structured application state** (`ProjectState`, checkpoint tuples) that UIs and tests can inspect. The Claude Agent SDK instead runs a **long-lived agent session** with tool calls and optional nested subagents; Anthropic does not expose the same graph-shaped state model.
 
@@ -582,7 +612,7 @@ Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
 
 ### ADR-007: Hooks as guardrails — PreToolUse / PostToolUse / subagent audit
 
-**Status:** Accepted  
+**Status:** Accepted
 
 **Context:** Prompt-only instructions can be ignored under pressure; CrewAI/LangGraph use task guardrails and Python validators. The Claude Agent SDK exposes **hooks** that run around tool use and subagent lifecycle.
 
@@ -591,7 +621,3 @@ Eval methodology and the $0 Tier A gate: [evals/README.md](../evals/README.md),
 **Rationale:** Hooks provide **deterministic enforcement** on every matching tool call without waiting for an LLM to self-correct. Subagent audit aids debugging multi-agent sessions. Splitting “always-on” hooks vs “on-demand” MCP avoids redundant work and keeps hook latency low.
 
 **Consequences:** Hook matchers must be maintained when Claude Code adds or renames tools. Behavior is not identical to CrewAI `GuardrailResult` tasks—document differences in tests and the Claude SDK plan. False positives in PostToolUse may require tuning or allow-lists over time.
-
----
-
-*End of ARCHITECTURE.md*

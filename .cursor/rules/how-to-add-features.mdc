@@ -17,21 +17,23 @@ An agent exists once per backend; a role added to only one backend breaks the co
 
 # When creating a new tool
 
-1. Create in `src/ai_team/tools/` with `@tool` decorator
-2. Include security wrapper (path validation, content scanning)
-3. Add audit logging for all operations
-4. Define Pydantic models for structured input/output
-5. Add unit test with normal and adversarial inputs
-6. Register in the appropriate agent's tool list
+Every tool runs through the ToolBus (`src/ai_team/tools/bus.py`). Full recipe: `docs/EXTENDING.md` → *Add a tool*.
+
+1. Private implementation in `src/ai_team/tools/` (path checks via `file_tools.py` helpers; no `shell=True`, `eval`, `exec`)
+2. Register a `ToolSpec` (name, `kind`, `risk_class`, Pydantic `args_schema`, handler, optional `allow_roles`) in `register_builtin_tools()` in `tools/catalog.py`
+3. Public wrapper builds a `ToolRequest` and calls `get_bus().invoke(...)`; the bus does audit logging, drafts and gating, so do not add your own
+4. Add it to the role in `backends/common/role_tools.py`; Claude SDK: MCP tool in `claude_agent_sdk_backend/tools/mcp_server.py` + name in `tools/permissions.py`
+5. Unit test with normal and adversarial inputs in `tests/unit/tools/`; run `tests/conformance/test_tool_routing.py`
 
 # When creating a new guardrail
 
-1. Add to `behavioral.py`, `security.py`, or `quality.py`
-2. Return `GuardrailResult` Pydantic model
-3. Integrate with CrewAI task `guardrail` parameter
-4. Add toggles in `GuardrailConfig` settings
-5. Add unit test (passing, failing, edge-case)
-6. Add adversarial cases under `tests/unit/guardrails/adversarial/`
+Full recipe: `docs/EXTENDING.md` → *Add a guardrail*.
+
+1. Add to `behavioral.py`, `security.py`, or `quality.py`; return that module's `GuardrailResult`; export from `guardrails/__init__.py`
+2. Wire it per backend: CrewAI task `guardrail=` (via `crewai_*` wrappers), LangGraph `graphs/langgraph_guardrail_nodes.py`, Claude SDK `hooks/` or the `run_guardrails` MCP tool; post-run checks go in `cli_run._run_post_run_quality_gates`
+3. Add toggles/thresholds to `GuardrailSettings` (`GUARDRAIL_*`) and `docs/CONFIGURATION.md`
+4. Add unit test (passing, failing, edge-case)
+5. Add adversarial cases under `tests/unit/guardrails/adversarial/`; measure false positives with `uv run python -m evals.cli guardrail eval`
 
 # When creating a new crew
 
