@@ -10,7 +10,13 @@ import pytest
 from ai_team.backends.langgraph_backend.backend import LangGraphBackend
 from ai_team.cli_run import RunOptions, execute_run
 from ai_team.core.result import ProjectResult
-from ai_team.main import _OUTPUT_CHOICES, _cmd_run, _preprocess_argv_for_subcommand
+from ai_team.main import (
+    _OUTPUT_CHOICES,
+    _build_parser,
+    _cmd_run,
+    _preprocess_argv_for_subcommand,
+    main,
+)
 
 
 def _opts(**kwargs: object) -> RunOptions:
@@ -221,6 +227,11 @@ class TestPreprocessArgvForSubcommand:
         assert _preprocess_argv_for_subcommand(["run", "x"]) == ["run", "x"]
         assert _preprocess_argv_for_subcommand(["estimate"]) == ["estimate"]
         assert _preprocess_argv_for_subcommand(["compare-costs"]) == ["compare-costs"]
+        assert _preprocess_argv_for_subcommand(["prune", "--older-than-days", "3"]) == [
+            "prune",
+            "--older-than-days",
+            "3",
+        ]
 
     def test_flag_first_unchanged(self) -> None:
         assert _preprocess_argv_for_subcommand(["--backend", "langgraph", "run", "d"]) == [
@@ -235,6 +246,44 @@ class TestPreprocessArgvForSubcommand:
             "run",
             "Build a todo app",
         ]
+
+
+class TestSubcommandSet:
+    """The implicit-``run`` check uses the parser's own subcommand names."""
+
+    def test_subcommands_match_parser(self) -> None:
+        """``_Cli.subcommands`` equals the names registered on the subparsers action."""
+        cli = _build_parser()
+        sub_actions = [a for a in cli.parser._actions if isinstance(a, argparse._SubParsersAction)]
+        assert len(sub_actions) == 1
+        assert cli.subcommands == frozenset(sub_actions[0].choices)
+        assert {"run", "estimate", "compare-costs", "prune"} <= cli.subcommands
+
+    def test_every_subcommand_passes_through_unchanged(self) -> None:
+        """No registered subcommand is rewritten to ``run <name>``."""
+        for name in _build_parser().subcommands:
+            assert _preprocess_argv_for_subcommand([name]) == [name]
+
+
+class TestMainPrune:
+    """``ai-team prune`` reaches ``prune_runs`` and never starts a run."""
+
+    def test_prune_calls_prune_runs_and_builds_no_backend(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr("sys.argv", ["ai-team", "prune", "--older-than-days", "7"])
+        with (
+            patch("ai_team.main.load_dotenv"),
+            patch("ai_team.core.results.cleanup.prune_runs", return_value=["a", "b"]) as mock_prune,
+            patch("ai_team.cli_run.get_backend") as mock_get_backend,
+            patch("ai_team.main.execute_run") as mock_execute_run,
+        ):
+            code = main()
+        assert code == 0
+        mock_prune.assert_called_once_with(older_than_days=7)
+        mock_get_backend.assert_not_called()
+        mock_execute_run.assert_not_called()
+        assert "pruned 2 run(s)" in capsys.readouterr().out
 
 
 class TestMainArgparseOutput:

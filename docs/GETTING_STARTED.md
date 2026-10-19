@@ -84,22 +84,30 @@ uv run pytest tests/unit -v
 
 ## Deleting old runs
 
-Runs accumulate under `workspace/<run_id>/` and `output/runs/<run_id>/`. To remove a run as a unit (workspace, artifact bundle, and registry entry):
+Runs accumulate under `workspace/<run_id>/` and `output/runs/<run_id>/`. Three ways to remove a
+run as a unit (workspace, bundle and registry entry):
 
-```python
-from ai_team.core.results import delete_run
+- **Python:** `delete_run()` is idempotent, so it is safe on a run that is already gone.
 
-result = delete_run("my-run-id")
-print(result.existed, result.workspace_deleted, result.bundle_deleted)
-```
+  ```python
+  from ai_team.core.results import delete_run
 
-- **Idempotent** — safe to call on a run that is already gone.
-- **Cancel is not delete** — stopping a run via the Dashboard (`POST /api/runs/{id}/cancel`) does not remove its files.
+  result = delete_run("my-run-id")
+  print(result.existed, result.workspace_deleted, result.bundle_deleted)
+  ```
 
-If you use the web dashboard and want to drop a finished run from the in-memory sidebar (without restarting the server), call `RunState.remove_run(run_id)` on a terminal run (`complete`, `error`, or `cancelled`) after `delete_run()`.
+  `prune_runs(older_than_days=14)` in `ai_team.core.results.cleanup` removes every run older
+  than the window.
+- **Web API:** `DELETE /api/runs/{id}` deletes a finished run (`complete`, `complete_approved`,
+  `error` or `cancelled`) from disk and from the dashboard. A running run returns 400: cancel it
+  first with `POST /api/runs/{id}/cancel`. Cancelling alone does not delete files.
+- **CLI:** prune every run whose `output/runs/<run_id>/` bundle is older than the window
+  (default 14 days), together with its `workspace/<run_id>/`. It prints `pruned N run(s)` and is
+  idempotent. It honours `PROJECT_OUTPUT_DIR` and `PROJECT_WORKSPACE_DIR`.
 
-REST `DELETE /api/runs/{id}` and a CLI `clean` subcommand are not implemented yet.
-Full detail: [README — Managing runs](../README.md#managing-runs).
+  ```bash
+  uv run ai-team prune --older-than-days 14
+  ```
 
 ## Troubleshooting common issues
 

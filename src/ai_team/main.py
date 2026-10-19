@@ -1,9 +1,9 @@
 """
 CLI entry point for ai-team.
 
-Subcommands: run (default), estimate, compare-costs.
+Subcommands: run (default), estimate, compare-costs, prune.
 Run the full flow with optional --env and --complexity; estimate and compare-costs
-show cost tables without executing the pipeline.
+show cost tables without executing the pipeline; prune deletes old run directories.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dataclasses import dataclass
 from typing import Literal, cast
 
 import structlog
@@ -23,11 +24,12 @@ logger = structlog.get_logger(__name__)
 
 _ENV_CHOICES = ("dev", "test", "prod")
 _COMPLEXITY_CHOICES = ("simple", "medium", "complex")
-_SUBCOMMANDS = frozenset({"run", "estimate", "compare-costs"})
 _Complexity = Literal["simple", "medium", "complex"]
 
 
-def _preprocess_argv_for_subcommand(argv: list[str]) -> list[str]:
+def _preprocess_argv_for_subcommand(
+    argv: list[str], subcommands: frozenset[str] | None = None
+) -> list[str]:
     """Ensure a subcommand is present so parsing is unambiguous.
 
     The top-level parser used to define an optional *description* positional before
@@ -36,11 +38,16 @@ def _preprocess_argv_for_subcommand(argv: list[str]) -> list[str]:
     positional; instead, if the user omits the subcommand (e.g.
     ``ai-team "Build a todo app"``), we insert ``run`` before the first argument
     when that token is not a flag and not already a known subcommand.
+
+    *subcommands* defaults to the names registered on the real parser, so a new
+    subparser is recognised without a second list to keep in sync.
     """
     if not argv:
         return argv
+    if subcommands is None:
+        subcommands = _build_parser().subcommands
     first = argv[0]
-    if first.startswith("-") or first in _SUBCOMMANDS:
+    if first.startswith("-") or first in subcommands:
         return argv
     return ["run", *argv]
 
@@ -108,12 +115,22 @@ def _cmd_run(opts: RunOptions) -> int:
     return execute_run(opts)
 
 
-def main() -> int:
-    """Parse CLI args and dispatch to subcommands. Returns 0 on success, 1 on failure."""
-    # LangGraph reads AI_TEAM_LANGGRAPH_GRAPH_MODE via os.environ; load_dotenv makes .env effective.
-    load_dotenv()
+@dataclass(frozen=True)
+class _Cli:
+    """Top-level parser plus the pieces ``main`` needs after parsing."""
+
+    parser: argparse.ArgumentParser
+    run_parser: argparse.ArgumentParser
+    subcommands: frozenset[str]
+
+
+def _build_parser() -> _Cli:
+    """Build the argparse tree; subcommand names come from the registered subparsers."""
     parser = argparse.ArgumentParser(
-        description="AI team: transform a project description into code (run, estimate, or compare-costs).",
+        description=(
+            "AI team: transform a project description into code "
+            "(run, estimate, compare-costs, or prune)."
+        ),
     )
     parser.add_argument(
         "--backend",
@@ -293,7 +310,20 @@ def main() -> int:
         help="Retention window in days (default: 14).",
     )
 
-    argv = _preprocess_argv_for_subcommand(sys.argv[1:])
+    return _Cli(
+        parser=parser,
+        run_parser=run_p,
+        subcommands=frozenset(subparsers.choices),
+    )
+
+
+def main() -> int:
+    """Parse CLI args and dispatch to subcommands. Returns 0 on success, 1 on failure."""
+    # LangGraph reads AI_TEAM_LANGGRAPH_GRAPH_MODE via os.environ; load_dotenv makes .env effective.
+    load_dotenv()
+    cli = _build_parser()
+    parser = cli.parser
+    argv = _preprocess_argv_for_subcommand(sys.argv[1:], cli.subcommands)
     args = parser.parse_args(argv)
     command = args.command
 
@@ -314,7 +344,7 @@ def main() -> int:
     if command == "run":
         opts = RunOptions.from_namespace(args)
         if not opts.description and not opts.resume_thread:
-            run_p.error(
+            cli.run_parser.error(
                 "Project description is required unless resuming (--resume SESSION_OR_THREAD_ID)."
             )
         return _cmd_run(opts)
