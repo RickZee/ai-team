@@ -32,6 +32,7 @@ corrected in later entries, and fixes verified against live runs.
 | [2026-10-01 (harness-owned logs)](2026-10-01-harness-owned-logs.md) | A model-off run left `logs/` empty. Now a $0 run writes a zero cost row, the phase log is a harness write, a passing gate marks acceptance, 22 duplicate fixtures are gone, `role_cost.py` splits a batch by role, and a stopped LangGraph run keeps its last checkpoint. |
 | [2026-10-07 (pip-audit floors)](2026-10-07-pip-audit-floors.md) | Pre-push Security failed on advisories published after the Oct 1 green `main` run. Transitive floors moved; LiteLLM stays pinned and `PYSEC-2026-4066` is ignored. |
 | [2026-10-18 (AWS backend and OTel)](2026-10-18-aws-backend-and-otel.md) | The AWS plan changed provider, framework and host at once; it now climbs one variable at a time (Step 0 first). A second spec for AgentCore's managed loop, and one OTel shape for every backend, exported and read back without loss. CLI runs were never finalized. The Docker half is written, not run. |
+| [2026-10-19 (mcp / SDK floors)](2026-10-19-mcp-sdk-audit-floors.md) | pip-audit red on `mcp` CVE-2026-59951, and then on `claude-agent-sdk` CVE-2026-96620 once mcp was fixed. Raised the `mcp` constraint floor and the SDK direct floor; 0 unignored advisories. |
 | [journey.md](journey.md) | Running meta-narrative across sessions. |
 
 The July rigor arc (Jul 21–24) has no standalone entry — it lives in
